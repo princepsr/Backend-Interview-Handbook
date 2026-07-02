@@ -1,0 +1,1264 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Chapter 26 — Databases Revision - Java Backend Interview Handbook</title>
+
+
+        <!-- Custom HTML head -->
+        <script>
+        (function() {
+            var RULES = [
+                { re: /^interview trap/i,     cls: "callout-trap" },
+                { re: /^common mistake/i,     cls: "callout-mistake" },
+                { re: /^quick tip|^pro tip/i, cls: "callout-tip" },
+                { re: /^quick revision/i,     cls: "callout-revision" },
+                { re: /^real.world example/i, cls: "callout-example" },
+                { re: /^follow.up question/i, cls: "callout-tip" },
+            ];
+        
+            function run() {
+                document.querySelectorAll(".content p").forEach(function(p) {
+                    var first = p.querySelector("strong");
+                    if (!first) return;
+                    var txt = first.textContent.trim();
+                    for (var i = 0; i < RULES.length; i++) {
+                        if (RULES[i].re.test(txt)) {
+                            p.classList.add(RULES[i].cls);
+                            var next = p.nextElementSibling;
+                            if (next && (next.tagName === "UL" || next.tagName === "OL")) {
+                                next.classList.add(RULES[i].cls);
+                                next.style.marginTop = "0";
+                                p.style.marginBottom = "0";
+                            }
+                            break;
+                        }
+                    }
+                });
+            }
+        
+            window.applyEnhancements = run;
+        
+            function tryRun() { setTimeout(run, 200); }
+        
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", tryRun);
+            } else {
+                tryRun();
+            }
+        
+            window.addEventListener("hashchange", tryRun);
+            window.addEventListener("popstate", tryRun);
+        
+            // Watch for mdBook replacing the content div
+            var observer = new MutationObserver(function(muts) {
+                for (var i = 0; i < muts.length; i++) {
+                    if (muts[i].addedNodes.length > 0) {
+                        tryRun();
+                        return;
+                    }
+                }
+            });
+        
+            function attachObserver() {
+                var el = document.querySelector(".content");
+                if (el) { observer.observe(el, { childList: true }); }
+            }
+        
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", attachObserver);
+            } else {
+                attachObserver();
+            }
+        })();
+        </script>
+
+        <meta name="description" content="Complete SDE2 interview preparation guide for Java Backend — FAANG+, FinTech &amp; SaaS. Java 17 / Spring Boot 3.x. 27 chapters, 400+ questions.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-0392ca55.css">
+        <link rel="stylesheet" href="../css/chrome-fc474251.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../custom-aab4aca2.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-ff4d3bcd.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-cca10391.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Java Backend Interview Handbook</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="volume-6-interview-revision-pack"><a class="header" href="#volume-6-interview-revision-pack">Volume 6: Interview Revision Pack</a></h1>
+<h1 id="chapter-26-databases--quick-revision"><a class="header" href="#chapter-26-databases--quick-revision">Chapter 26: Databases — Quick Revision</a></h1>
+<blockquote>
+<p>Last-day review. Dense bullets. SDE2 level. Scan, don’t read.</p>
+</blockquote>
+<hr>
+<h2 id="section-1-sql--top-15-questions"><a class="header" href="#section-1-sql--top-15-questions">Section 1: SQL — Top 15 Questions</a></h2>
+<h3 id="q1-join-types"><a class="header" href="#q1-join-types">Q1: JOIN Types</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Type</th><th>Returns</th></tr>
+</thead>
+<tbody>
+<tr><td>INNER JOIN</td><td>Only matching rows from both sides</td></tr>
+<tr><td>LEFT JOIN</td><td>All left rows + matched right (NULLs for no match)</td></tr>
+<tr><td>RIGHT JOIN</td><td>All right rows + matched left (NULLs for no match)</td></tr>
+<tr><td>FULL OUTER JOIN</td><td>All rows from both sides (NULLs where no match)</td></tr>
+<tr><td>CROSS JOIN</td><td>Cartesian product (M × N rows), no ON clause</td></tr>
+<tr><td>SELF JOIN</td><td>Table joined to itself (e.g., employee → manager)</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="q2-sql-execution-order-logical"><a class="header" href="#q2-sql-execution-order-logical">Q2: SQL Execution Order (Logical)</a></h3>
+<pre><code>FROM → JOIN → WHERE → GROUP BY → HAVING → SELECT → DISTINCT → ORDER BY → LIMIT/OFFSET
+</code></pre>
+<ul>
+<li><strong>Key:</strong> WHERE runs before SELECT, so you cannot reference SELECT aliases in WHERE (use subquery or CTE)</li>
+<li><strong>Key:</strong> HAVING filters after GROUP BY; use for aggregate conditions</li>
+<li><strong>Key:</strong> Window functions execute after WHERE/GROUP BY but before ORDER BY/LIMIT</li>
+</ul>
+<h3 id="q3-window-functions--row_number-vs-rank-vs-dense_rank"><a class="header" href="#q3-window-functions--row_number-vs-rank-vs-dense_rank">Q3: Window Functions — ROW_NUMBER vs RANK vs DENSE_RANK</a></h3>
+<pre><code class="language-sql">SELECT name, salary,
+  ROW_NUMBER() OVER (PARTITION BY dept ORDER BY salary DESC) AS rn,
+  RANK()       OVER (PARTITION BY dept ORDER BY salary DESC) AS rnk,
+  DENSE_RANK() OVER (PARTITION BY dept ORDER BY salary DESC) AS drnk
+FROM employees;
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Function</th><th>Ties handled</th><th>Gaps in sequence</th></tr>
+</thead>
+<tbody>
+<tr><td>ROW_NUMBER</td><td>Arbitrary order assigned</td><td>No gaps (1,2,3,4)</td></tr>
+<tr><td>RANK</td><td>Same rank for ties</td><td>Gaps (1,1,3,4)</td></tr>
+<tr><td>DENSE_RANK</td><td>Same rank for ties</td><td>No gaps (1,1,2,3)</td></tr>
+</tbody>
+</table>
+</div>
+<p>Other window functions: <code>LAG/LEAD</code>, <code>FIRST_VALUE/LAST_VALUE</code>, <code>SUM/AVG OVER (...)</code>, <code>NTILE(n)</code></p>
+<h3 id="q4-cte-vs-subquery"><a class="header" href="#q4-cte-vs-subquery">Q4: CTE vs Subquery</a></h3>
+<ul>
+<li><strong>CTE (WITH clause):</strong> Named, readable, reusable within same query; in most DBs evaluated inline (not materialized) unless <code>MATERIALIZED</code> keyword used</li>
+<li><strong>Subquery:</strong> Inline, can be correlated (references outer query), evaluated per outer row if correlated</li>
+<li><strong>When to prefer CTE:</strong> Recursive queries, reusing same result set multiple times, readability</li>
+<li><strong>PostgreSQL:</strong> <code>WITH x AS (MATERIALIZED (...))</code> forces materialization (one execution, result cached)</li>
+</ul>
+<h3 id="q5-union-vs-union-all"><a class="header" href="#q5-union-vs-union-all">Q5: UNION vs UNION ALL</a></h3>
+<ul>
+<li><code>UNION</code>: Removes duplicates (implicit DISTINCT + sort) — slower</li>
+<li><code>UNION ALL</code>: Keeps all rows — faster, use when duplicates are acceptable or impossible</li>
+<li>Both require same number of columns with compatible types</li>
+</ul>
+<h3 id="q6-null-three-valued-logic"><a class="header" href="#q6-null-three-valued-logic">Q6: NULL Three-Valued Logic</a></h3>
+<ul>
+<li>NULL comparisons return UNKNOWN, not TRUE or FALSE</li>
+<li><code>NULL = NULL</code> → UNKNOWN (not TRUE)</li>
+<li><code>NULL != NULL</code> → UNKNOWN</li>
+<li>Use <code>IS NULL</code> / <code>IS NOT NULL</code></li>
+<li>In WHERE, only TRUE rows are kept; UNKNOWN is excluded</li>
+</ul>
+<h3 id="q7-not-in-with-nulls-trap"><a class="header" href="#q7-not-in-with-nulls-trap">Q7: NOT IN with NULLs Trap</a></h3>
+<pre><code class="language-sql">-- If subquery returns any NULL, entire NOT IN returns no rows!
+SELECT * FROM orders WHERE customer_id NOT IN (SELECT customer_id FROM blocked); -- TRAP if any NULL in blocked
+-- Safe alternative:
+SELECT * FROM orders WHERE NOT EXISTS (SELECT 1 FROM blocked WHERE blocked.customer_id = orders.customer_id);
+-- Or:
+SELECT * FROM orders WHERE customer_id NOT IN (SELECT customer_id FROM blocked WHERE customer_id IS NOT NULL);
+</code></pre>
+<ul>
+<li><strong>Root cause:</strong> <code>x NOT IN (1, NULL)</code> → <code>x != 1 AND x != NULL</code> → <code>x != 1 AND UNKNOWN</code> → UNKNOWN → row excluded</li>
+</ul>
+<h3 id="q8-group-by-vs-having"><a class="header" href="#q8-group-by-vs-having">Q8: GROUP BY vs HAVING</a></h3>
+<ul>
+<li><code>WHERE</code> filters rows before grouping</li>
+<li><code>HAVING</code> filters groups after aggregation</li>
+<li>Cannot use aggregate functions in WHERE; must use HAVING</li>
+<li>Non-aggregated columns in SELECT must appear in GROUP BY (ANSI SQL) — MySQL has <code>sql_mode=only_full_group_by</code></li>
+</ul>
+<h3 id="q9-count-vs-countcol"><a class="header" href="#q9-count-vs-countcol">Q9: COUNT(*) vs COUNT(col)</a></h3>
+<ul>
+<li><code>COUNT(*)</code> — counts all rows including NULLs</li>
+<li><code>COUNT(col)</code> — counts non-NULL values in col</li>
+<li><code>COUNT(DISTINCT col)</code> — counts distinct non-NULL values</li>
+<li><code>SUM(col)</code> — ignores NULLs; <code>AVG(col)</code> — ignores NULLs (denominator is non-NULL count)</li>
+</ul>
+<h3 id="q10-correlated-subquery"><a class="header" href="#q10-correlated-subquery">Q10: Correlated Subquery</a></h3>
+<pre><code class="language-sql">-- Returns employees earning more than their dept average
+SELECT e.name, e.salary
+FROM employees e
+WHERE e.salary &gt; (
+  SELECT AVG(e2.salary) FROM employees e2 WHERE e2.dept = e.dept  -- references outer e.dept
+);
+</code></pre>
+<ul>
+<li>Executes once per outer row — O(N) subquery executions — often replaceable with window function for performance</li>
+</ul>
+<h3 id="q11-explain-output--key-nodes"><a class="header" href="#q11-explain-output--key-nodes">Q11: EXPLAIN Output — Key Nodes</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Node Type</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td>Seq Scan</td><td>Full table scan — no index used</td></tr>
+<tr><td>Index Scan</td><td>Uses index, fetches heap rows (random I/O)</td></tr>
+<tr><td>Index Only Scan</td><td>Covering index — no heap fetch needed</td></tr>
+<tr><td>Bitmap Heap Scan</td><td>Batches index lookups, then heap fetch — efficient for many rows</td></tr>
+<tr><td>Hash Join</td><td>Build hash table on smaller side, probe with larger</td></tr>
+<tr><td>Nested Loop</td><td>For each outer row, scan inner — good for small inner sets</td></tr>
+<tr><td>Merge Join</td><td>Both sides sorted, merge — good for large sorted sets</td></tr>
+</tbody>
+</table>
+</div>
+<ul>
+<li>Look for: high <code>rows</code> estimates vs actual, high <code>cost</code>, Seq Scan on large tables, Sort nodes</li>
+</ul>
+<h3 id="q12-materialized-view-vs-view"><a class="header" href="#q12-materialized-view-vs-view">Q12: Materialized View vs View</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th></th><th>View</th><th>Materialized View</th></tr>
+</thead>
+<tbody>
+<tr><td>Storage</td><td>No (virtual)</td><td>Yes (physical copy)</td></tr>
+<tr><td>Always fresh</td><td>Yes</td><td>No (stale until refreshed)</td></tr>
+<tr><td>Query speed</td><td>Depends on base tables</td><td>Fast (precomputed)</td></tr>
+<tr><td>Refresh</td><td>N/A</td><td><code>REFRESH MATERIALIZED VIEW</code> (PostgreSQL)</td></tr>
+<tr><td>Use case</td><td>Abstraction, security</td><td>Expensive aggregations, dashboards</td></tr>
+</tbody>
+</table>
+</div>
+<p>PostgreSQL supports <code>REFRESH MATERIALIZED VIEW CONCURRENTLY</code> (requires unique index, no lock on reads).</p>
+<h3 id="q13-grouping-sets"><a class="header" href="#q13-grouping-sets">Q13: GROUPING SETS</a></h3>
+<pre><code class="language-sql">-- Equivalent to multiple GROUP BYs UNION'd together
+SELECT region, product, SUM(sales)
+FROM sales_data
+GROUP BY GROUPING SETS ((region, product), (region), (product), ());
+-- () = grand total row
+-- ROLLUP(region, product) = hierarchical: (region,product), (region), ()
+-- CUBE(region, product) = all combinations: above + (product), ()
+</code></pre>
+<h3 id="q14-lateral-join"><a class="header" href="#q14-lateral-join">Q14: LATERAL Join</a></h3>
+<pre><code class="language-sql">-- LATERAL allows subquery to reference preceding FROM items
+SELECT u.id, latest.created_at
+FROM users u
+CROSS JOIN LATERAL (
+  SELECT created_at FROM orders o WHERE o.user_id = u.id ORDER BY created_at DESC LIMIT 1
+) latest;
+</code></pre>
+<ul>
+<li>Equivalent to correlated subquery but more flexible (can return multiple columns/rows)</li>
+<li>PostgreSQL supports; MySQL 8.0+ supports as LATERAL; SQL Server uses <code>CROSS APPLY</code></li>
+</ul>
+<h3 id="q15-recursive-cte"><a class="header" href="#q15-recursive-cte">Q15: Recursive CTE</a></h3>
+<pre><code class="language-sql">WITH RECURSIVE org_tree AS (
+  -- Anchor: start node
+  SELECT id, name, manager_id, 1 AS level FROM employees WHERE manager_id IS NULL
+  UNION ALL
+  -- Recursive: join to previous result
+  SELECT e.id, e.name, e.manager_id, ot.level + 1
+  FROM employees e
+  JOIN org_tree ot ON e.manager_id = ot.id
+)
+SELECT * FROM org_tree;
+</code></pre>
+<ul>
+<li>Termination: when recursive part returns no rows</li>
+<li>Add <code>WHERE level &lt; 10</code> as safety guard for cycles</li>
+</ul>
+<hr>
+<h2 id="section-2-indexing--top-15-questions"><a class="header" href="#section-2-indexing--top-15-questions">Section 2: Indexing — Top 15 Questions</a></h2>
+<h3 id="q1-b-tree-structure"><a class="header" href="#q1-b-tree-structure">Q1: B-tree Structure</a></h3>
+<ul>
+<li>Balanced tree; O(log N) lookup, range scans</li>
+<li>Root → internal nodes → leaf nodes (contain key + pointer to heap row or row itself)</li>
+<li>Height typically 3-4 for millions of rows</li>
+<li>PostgreSQL default index type; MySQL InnoDB uses B+ tree (all data in leaves, leaves linked)</li>
+</ul>
+<h3 id="q2-composite-index--leftmost-prefix-rule"><a class="header" href="#q2-composite-index--leftmost-prefix-rule">Q2: Composite Index — Leftmost Prefix Rule</a></h3>
+<pre><code class="language-sql">CREATE INDEX idx ON t(a, b, c);
+-- USES index: WHERE a=1; WHERE a=1 AND b=2; WHERE a=1 AND b=2 AND c=3
+-- USES index: WHERE a=1 AND b &gt; 5 (range on b; c not usable after range)
+-- DOES NOT use: WHERE b=2; WHERE c=3; WHERE b=2 AND c=3 (no leftmost a)
+</code></pre>
+<ul>
+<li>Order matters: put equality columns first, range columns last</li>
+<li>Column order in index ≠ column order in query (optimizer reorders equality predicates)</li>
+</ul>
+<h3 id="q3-covering-index"><a class="header" href="#q3-covering-index">Q3: Covering Index</a></h3>
+<ul>
+<li>Index contains all columns needed by query — no heap fetch (Index Only Scan)</li>
+</ul>
+<pre><code class="language-sql">CREATE INDEX idx_cover ON orders(customer_id, status) INCLUDE (amount, created_at);
+-- Query: SELECT amount, created_at FROM orders WHERE customer_id=5 AND status='PAID'
+-- All data from index — no table access
+</code></pre>
+<ul>
+<li><code>INCLUDE</code> columns (PostgreSQL 11+): stored in leaf pages but not part of tree key</li>
+</ul>
+<h3 id="q4-index-selectivity"><a class="header" href="#q4-index-selectivity">Q4: Index Selectivity</a></h3>
+<ul>
+<li><code>Selectivity = distinct_values / total_rows</code> (range 0–1; higher = more selective = better index candidate)</li>
+<li>High cardinality (user_id, email) → good index candidate</li>
+<li>Low cardinality (boolean, status with 3 values) → poor index; optimizer may prefer seq scan</li>
+<li>Rule of thumb: index pays off when query returns &lt; 5-15% of table rows</li>
+</ul>
+<h3 id="q5-clustered-vs-non-clustered-innodb"><a class="header" href="#q5-clustered-vs-non-clustered-innodb">Q5: Clustered vs Non-Clustered (InnoDB)</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th></th><th>Clustered (Primary Key)</th><th>Non-Clustered (Secondary)</th></tr>
+</thead>
+<tbody>
+<tr><td>Storage</td><td>Data rows stored in index order</td><td>Separate structure; leaf contains PK value</td></tr>
+<tr><td>Count per table</td><td>Exactly 1</td><td>Multiple</td></tr>
+<tr><td>Lookup</td><td>Direct (data in leaf)</td><td>Two steps: secondary lookup → PK → clustered</td></tr>
+<tr><td>InnoDB</td><td>Always clustered on PK</td><td>All non-PK indexes are non-clustered</td></tr>
+<tr><td>PostgreSQL</td><td>Heap storage by default; <code>CLUSTER</code> to reorder physically (one-time)</td><td>Separate B-tree files</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="q6-partial-index"><a class="header" href="#q6-partial-index">Q6: Partial Index</a></h3>
+<pre><code class="language-sql">-- Index only active users (90% are inactive — index much smaller)
+CREATE INDEX idx_active_users ON users(email) WHERE active = true;
+-- Must match WHERE predicate to be used:
+SELECT email FROM users WHERE active = true AND email = 'x@y.com';  -- uses index
+SELECT email FROM users WHERE email = 'x@y.com';  -- does NOT use partial index
+</code></pre>
+<h3 id="q7-functional-index"><a class="header" href="#q7-functional-index">Q7: Functional Index</a></h3>
+<pre><code class="language-sql">CREATE INDEX idx_lower_email ON users(LOWER(email));
+-- Used by: WHERE LOWER(email) = 'foo@bar.com'
+-- NOT used by: WHERE email = 'foo@bar.com' (different expression)
+</code></pre>
+<ul>
+<li>Also called expression index; stores precomputed expression value</li>
+<li>Use when queries always apply function to column</li>
+</ul>
+<h3 id="q8-gin-index-for-jsonb-postgresql"><a class="header" href="#q8-gin-index-for-jsonb-postgresql">Q8: GIN Index for JSONB (PostgreSQL)</a></h3>
+<pre><code class="language-sql">CREATE INDEX idx_gin ON events USING GIN (data);
+-- Supports: @&gt; (contains), &lt;@ (contained by), ? (key exists), ?| ?&amp;
+SELECT * FROM events WHERE data @&gt; '{"type": "click"}';  -- uses GIN index
+</code></pre>
+<ul>
+<li>GIN = Generalized Inverted Index; each JSON key/value indexed as separate entry</li>
+<li>Also used for full-text search (<code>tsvector</code>), arrays</li>
+<li>Slower to write than B-tree; use for read-heavy JSONB queries</li>
+</ul>
+<h3 id="q9-why-low-cardinality-index-hurts"><a class="header" href="#q9-why-low-cardinality-index-hurts">Q9: Why Low-Cardinality Index Hurts</a></h3>
+<ul>
+<li>Boolean column with 50% true/50% false: random heap I/O for 50% of rows → worse than seq scan</li>
+<li>Optimizer estimates index cost (random I/O per row) vs seq scan cost (sequential I/O)</li>
+<li>If index scan touches &gt; 5-15% of table, seq scan wins</li>
+<li>PostgreSQL may choose bitmap index scan as middle ground for moderate selectivity</li>
+</ul>
+<h3 id="q10-uuid-vs-bigint-pk--fragmentation"><a class="header" href="#q10-uuid-vs-bigint-pk--fragmentation">Q10: UUID vs BIGINT PK — Fragmentation</a></h3>
+<ul>
+<li><strong>BIGINT SERIAL/IDENTITY:</strong> Sequential; new rows inserted at end of B-tree → minimal page splits</li>
+<li><strong>UUID v4 (random):</strong> Random insertion → page splits throughout tree → index fragmentation → larger index, slower inserts, cache thrashing</li>
+<li><strong>UUID v7 (time-ordered):</strong> Sequential like BIGINT but globally unique — best of both worlds</li>
+<li><strong>Solution if UUID required:</strong> Use <code>uuid_generate_v7()</code> or ULID; run <code>VACUUM</code> / <code>REINDEX</code> periodically</li>
+</ul>
+<h3 id="q11-fk-not-auto-indexed-postgresql-trap"><a class="header" href="#q11-fk-not-auto-indexed-postgresql-trap">Q11: FK Not Auto-Indexed (PostgreSQL Trap)</a></h3>
+<pre><code class="language-sql">-- PostgreSQL does NOT automatically create index on FK column
+ALTER TABLE orders ADD CONSTRAINT fk_customer FOREIGN KEY (customer_id) REFERENCES customers(id);
+-- SELECT * FROM orders WHERE customer_id = 5  →  Seq Scan on orders (potentially)
+-- FIX:
+CREATE INDEX idx_orders_customer ON orders(customer_id);
+</code></pre>
+<ul>
+<li>MySQL InnoDB auto-creates index on FK (if not already indexed)</li>
+<li>Unindexed FK also causes lock escalation during parent row deletion</li>
+</ul>
+<h3 id="q12-create-index-concurrently"><a class="header" href="#q12-create-index-concurrently">Q12: CREATE INDEX CONCURRENTLY</a></h3>
+<pre><code class="language-sql">CREATE INDEX CONCURRENTLY idx_name ON large_table(column);
+</code></pre>
+<ul>
+<li>Builds index without holding table lock (allows reads and writes during build)</li>
+<li>Takes longer (multiple passes); cannot run inside a transaction</li>
+<li>On failure: leaves invalid index → must <code>DROP INDEX CONCURRENTLY</code> + retry</li>
+<li>Regular <code>CREATE INDEX</code> holds <code>ShareLock</code> — blocks writes</li>
+</ul>
+<h3 id="q13-unused-index-audit-postgresql"><a class="header" href="#q13-unused-index-audit-postgresql">Q13: Unused Index Audit (PostgreSQL)</a></h3>
+<pre><code class="language-sql">SELECT schemaname, tablename, indexname, idx_scan, idx_tup_read, idx_tup_fetch
+FROM pg_stat_user_indexes
+WHERE idx_scan = 0  -- never used since last stats reset
+ORDER BY schemaname, tablename;
+-- Also check index size:
+SELECT pg_size_pretty(pg_relation_size(indexrelid)), indexrelname FROM pg_stat_user_indexes;
+</code></pre>
+<ul>
+<li>Reset stats: <code>SELECT pg_stat_reset();</code></li>
+<li>Unused indexes waste write overhead and storage; drop them</li>
+</ul>
+<h3 id="q14-include-columns-covering-without-key-bloat"><a class="header" href="#q14-include-columns-covering-without-key-bloat">Q14: INCLUDE Columns (Covering Without Key Bloat)</a></h3>
+<pre><code class="language-sql">CREATE INDEX idx_orders_status ON orders(status) INCLUDE (amount, created_at, customer_id);
+-- status is the key (in tree nodes); amount/created_at/customer_id only in leaf pages
+-- Avoids heap fetch for these columns without inflating tree structure
+-- PostgreSQL 11+; SQL Server has similar syntax
+</code></pre>
+<h3 id="q15-bitmap-index-scan"><a class="header" href="#q15-bitmap-index-scan">Q15: Bitmap Index Scan</a></h3>
+<ul>
+<li>Used when query matches moderate % of rows (between index scan and seq scan efficiency)</li>
+<li>Phase 1: Scan index, build in-memory bitmap of matching heap page numbers</li>
+<li>Phase 2: Fetch only those heap pages in order (sequential I/O)</li>
+<li>Multiple bitmap index scans can be AND/OR’d (BitmapAnd, BitmapOr) — enables multi-column filtering without composite index</li>
+</ul>
+<hr>
+<h2 id="section-3-acid--transactions--top-15-questions"><a class="header" href="#section-3-acid--transactions--top-15-questions">Section 3: ACID &amp; Transactions — Top 15 Questions</a></h2>
+<h3 id="q1-acid-internals"><a class="header" href="#q1-acid-internals">Q1: ACID Internals</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Property</th><th>Mechanism</th></tr>
+</thead>
+<tbody>
+<tr><td>Atomicity</td><td>Undo log (rollback segment) — reverses partial changes on failure</td></tr>
+<tr><td>Consistency</td><td>Constraints, triggers, application logic enforced</td></tr>
+<tr><td>Isolation</td><td>MVCC (PostgreSQL/InnoDB) — readers don’t block writers</td></tr>
+<tr><td>Durability</td><td>WAL/Redo log — changes written to log before data pages; survives crash</td></tr>
+</tbody>
+</table>
+</div>
+<ul>
+<li><strong>WAL (Write-Ahead Log):</strong> Write to log first, flush to disk; replay on recovery</li>
+<li><strong>MVCC:</strong> Each row has version metadata (xmin/xmax in PostgreSQL); readers see snapshot, writers create new versions</li>
+<li><strong>Undo log (MySQL InnoDB):</strong> Old row versions stored in undo log; active transactions can see past versions</li>
+</ul>
+<h3 id="q2-isolation-levels-vs-anomalies-matrix"><a class="header" href="#q2-isolation-levels-vs-anomalies-matrix">Q2: Isolation Levels vs Anomalies Matrix</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Isolation Level</th><th>Dirty Read</th><th>Non-Repeatable Read</th><th>Phantom Read</th><th>Write Skew</th></tr>
+</thead>
+<tbody>
+<tr><td>READ UNCOMMITTED</td><td>Possible</td><td>Possible</td><td>Possible</td><td>Possible</td></tr>
+<tr><td>READ COMMITTED</td><td>Prevented</td><td>Possible</td><td>Possible</td><td>Possible</td></tr>
+<tr><td>REPEATABLE READ</td><td>Prevented</td><td>Prevented</td><td>Possible*</td><td>Possible</td></tr>
+<tr><td>SERIALIZABLE</td><td>Prevented</td><td>Prevented</td><td>Prevented</td><td>Prevented</td></tr>
+</tbody>
+</table>
+</div>
+<p>*PostgreSQL REPEATABLE READ also prevents phantoms (via MVCC snapshot). MySQL REPEATABLE READ may still have phantom issues without gap locks.</p>
+<ul>
+<li><strong>Dirty Read:</strong> Reading uncommitted data from another transaction</li>
+<li><strong>Non-Repeatable Read:</strong> Same row returns different value within same transaction</li>
+<li><strong>Phantom Read:</strong> Same range query returns different set of rows within same transaction</li>
+<li><strong>Write Skew:</strong> Two transactions read overlapping data, each writes based on what they read, combined result violates invariant (e.g., on-call schedule)</li>
+</ul>
+<h3 id="q3-mvcc--postgresql-xminxmax-vs-mysql-undo-log"><a class="header" href="#q3-mvcc--postgresql-xminxmax-vs-mysql-undo-log">Q3: MVCC — PostgreSQL xmin/xmax vs MySQL Undo Log</a></h3>
+<p><strong>PostgreSQL:</strong></p>
+<pre><code>xmin = transaction ID that inserted this row version
+xmax = transaction ID that deleted/updated this row (0 if still live)
+</code></pre>
+<ul>
+<li>Reader’s snapshot: row visible if <code>xmin</code> committed before snapshot AND (<code>xmax</code> = 0 OR <code>xmax</code> not committed yet)</li>
+<li>Old versions eventually cleaned up by VACUUM</li>
+</ul>
+<p><strong>MySQL InnoDB:</strong></p>
+<ul>
+<li>Row header has rollback pointer → undo log chain</li>
+<li>Undo log stores old versions; readers walk chain to find version visible to their snapshot</li>
+<li>Purge thread cleans undo log when no active transactions need old versions</li>
+</ul>
+<h3 id="q4-select-for-update-vs-select-for-share"><a class="header" href="#q4-select-for-update-vs-select-for-share">Q4: SELECT FOR UPDATE vs SELECT FOR SHARE</a></h3>
+<pre><code class="language-sql">-- Exclusive lock — blocks other readers wanting FOR UPDATE/SHARE and all writers
+SELECT * FROM accounts WHERE id = 1 FOR UPDATE;
+
+-- Shared lock — multiple readers can hold simultaneously; blocks writers wanting FOR UPDATE
+SELECT * FROM accounts WHERE id = 1 FOR SHARE;
+
+-- Skip locked rows (non-blocking queue processing)
+SELECT * FROM jobs WHERE status = 'PENDING' LIMIT 1 FOR UPDATE SKIP LOCKED;
+</code></pre>
+<ul>
+<li><code>FOR UPDATE NOWAIT</code> — fails immediately if lock unavailable (no waiting)</li>
+</ul>
+<h3 id="q5-deadlock--4-coffman-conditions"><a class="header" href="#q5-deadlock--4-coffman-conditions">Q5: Deadlock — 4 Coffman Conditions</a></h3>
+<ol>
+<li><strong>Mutual exclusion</strong> — resource held exclusively (lock on row)</li>
+<li><strong>Hold and wait</strong> — transaction holds lock A while waiting for lock B</li>
+<li><strong>No preemption</strong> — locks not forcibly taken away</li>
+<li><strong>Circular wait</strong> — Tx1 waits for Tx2’s lock; Tx2 waits for Tx1’s lock</li>
+</ol>
+<p><strong>Prevention:</strong> Acquire locks in consistent global order; use <code>NOWAIT</code>; shorter transactions.
+<strong>Detection:</strong> DB detects cycle in wait-for graph → kills one transaction (deadlock victim).
+<strong>Spring JPA:</strong> <code>@Retryable</code> on service method to retry after deadlock.</p>
+<h3 id="q6-version--optimistic-locking"><a class="header" href="#q6-version--optimistic-locking">Q6: @Version — Optimistic Locking</a></h3>
+<pre><code class="language-java">@Entity
+public class Product {
+    @Id Long id;
+    @Version Integer version;  // JPA increments on each update
+    int stock;
+}
+// UPDATE products SET stock=?, version=version+1 WHERE id=? AND version=?
+// If version mismatch → OptimisticLockException → retry
+</code></pre>
+<ul>
+<li>No DB locks held; fails at commit time if concurrent modification detected</li>
+<li>Best for low-contention scenarios; use pessimistic locking (<code>SELECT FOR UPDATE</code>) for high contention</li>
+</ul>
+<h3 id="q7-normal-forms"><a class="header" href="#q7-normal-forms">Q7: Normal Forms</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>NF</th><th>Rule</th><th>Violation Example</th></tr>
+</thead>
+<tbody>
+<tr><td>1NF</td><td>Atomic values, no repeating groups</td><td>phone stored as “555-1234, 555-5678”</td></tr>
+<tr><td>2NF</td><td>1NF + no partial dependency on composite PK</td><td>(order_id, product_id) PK; product_name depends only on product_id</td></tr>
+<tr><td>3NF</td><td>2NF + no transitive dependency</td><td>employee_id → dept_id → dept_name (transitive)</td></tr>
+<tr><td>BCNF</td><td>3NF + every determinant is a candidate key</td><td>Stricter than 3NF; handles multi-valued dependency anomalies</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="q8-when-to-denormalize"><a class="header" href="#q8-when-to-denormalize">Q8: When to Denormalize</a></h3>
+<ul>
+<li>Reporting/read-heavy queries requiring many joins</li>
+<li>OLAP vs OLTP: OLAP prefers wide denormalized tables (star schema)</li>
+<li>High-traffic tables where join cost is prohibitive</li>
+<li>Caching derived aggregates (total_order_count on customer row)</li>
+<li>Trade-off: faster reads, slower writes, update anomaly risk, data inconsistency</li>
+</ul>
+<h3 id="q9-cap-theorem"><a class="header" href="#q9-cap-theorem">Q9: CAP Theorem</a></h3>
+<ul>
+<li><strong>Consistency:</strong> Every read receives most recent write (or error)</li>
+<li><strong>Availability:</strong> Every request receives a response (not guaranteed latest)</li>
+<li><strong>Partition Tolerance:</strong> System continues operating during network partition</li>
+<li><strong>Rule:</strong> In presence of partition, choose C or A (partition tolerance is non-optional in distributed systems)</li>
+</ul>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>System</th><th>Choice</th><th>Behavior</th></tr>
+</thead>
+<tbody>
+<tr><td>ZooKeeper</td><td>CP</td><td>Returns error if can’t guarantee consistency</td></tr>
+<tr><td>HBase</td><td>CP</td><td>Consistency over availability</td></tr>
+<tr><td>Cassandra</td><td>AP</td><td>Returns possibly stale data rather than error</td></tr>
+<tr><td>DynamoDB</td><td>AP (default)</td><td>Configurable; eventual consistency default</td></tr>
+<tr><td>Spanner</td><td>CP</td><td>External consistency (real-time ordering)</td></tr>
+<tr><td>MongoDB</td><td>CP (default)</td><td>Primary-based consistency</td></tr>
+<tr><td>CouchDB</td><td>AP</td><td>Multi-master, eventual consistency</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="q10-base-vs-acid"><a class="header" href="#q10-base-vs-acid">Q10: BASE vs ACID</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th></th><th>ACID</th><th>BASE</th></tr>
+</thead>
+<tbody>
+<tr><td>Meaning</td><td>Atomicity/Consistency/Isolation/Durability</td><td>Basically Available, Soft state, Eventually consistent</td></tr>
+<tr><td>Guarantees</td><td>Strong, immediate</td><td>Weak, eventual</td></tr>
+<tr><td>Systems</td><td>RDBMS (PostgreSQL, MySQL)</td><td>Cassandra, DynamoDB, CouchDB</td></tr>
+<tr><td>Use case</td><td>Financial, transactional</td><td>High availability, partition tolerance</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="q11-two-phase-commit-2pc-and-its-problem"><a class="header" href="#q11-two-phase-commit-2pc-and-its-problem">Q11: Two-Phase Commit (2PC) and Its Problem</a></h3>
+<ul>
+<li><strong>Phase 1 (Prepare):</strong> Coordinator asks all participants to prepare; each votes Yes/No</li>
+<li><strong>Phase 2 (Commit):</strong> If all Yes → coordinator sends Commit; if any No → sends Abort</li>
+<li><strong>Blocking problem:</strong> If coordinator crashes after Phase 1 but before Phase 2, participants are stuck in prepared state — holding locks, unable to commit or rollback without coordinator recovery</li>
+<li><strong>3PC</strong> reduces blocking but still has issues; Paxos/Raft preferred for modern systems</li>
+</ul>
+<h3 id="q12-saga-vs-2pc"><a class="header" href="#q12-saga-vs-2pc">Q12: Saga vs 2PC</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th></th><th>2PC</th><th>Saga</th></tr>
+</thead>
+<tbody>
+<tr><td>Coupling</td><td>Tight (all participants locked)</td><td>Loose (async events)</td></tr>
+<tr><td>Consistency</td><td>Strong</td><td>Eventual</td></tr>
+<tr><td>Failure handling</td><td>Rollback via abort</td><td>Compensating transactions</td></tr>
+<tr><td>Blocking</td><td>Yes</td><td>No</td></tr>
+<tr><td>Use case</td><td>Same DB / ACID-capable participants</td><td>Microservices, different DBs</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Saga types:</strong></p>
+<ul>
+<li><strong>Choreography:</strong> Services emit events, others react (no central coordinator)</li>
+<li><strong>Orchestration:</strong> Central saga orchestrator sends commands, receives replies</li>
+</ul>
+<h3 id="q13-outbox-pattern"><a class="header" href="#q13-outbox-pattern">Q13: Outbox Pattern</a></h3>
+<pre><code>Problem: Write to DB + publish event to message broker — not atomic (can publish but not commit, or vice versa)
+Solution:
+  1. Write business data + event record to OUTBOX table in same transaction
+  2. Separate publisher reads OUTBOX, publishes to broker, marks as published
+  3. At-least-once delivery; consumer must be idempotent
+</code></pre>
+<ul>
+<li>Alternatives: Transactional Outbox with CDC (Debezium reads WAL/binlog directly)</li>
+<li>Guarantees: Event published if and only if transaction committed</li>
+</ul>
+<h3 id="q14-replication-lag--read-your-writes-problem"><a class="header" href="#q14-replication-lag--read-your-writes-problem">Q14: Replication Lag — Read-Your-Writes Problem</a></h3>
+<pre><code>Problem: User writes to primary, reads from replica (which has lag) → reads own data as not yet written
+Solutions:
+  1. Route reads that immediately follow writes to primary
+  2. Track last write timestamp; only use replica if replica_lag &lt; threshold
+  3. "Read-after-write" consistency: sticky routing based on session token
+  4. Monotonic reads: client always reads from same replica
+  5. Use synchronous replication (performance cost)
+</code></pre>
+<hr>
+<h2 id="section-4-distributed-databases--top-15-questions"><a class="header" href="#section-4-distributed-databases--top-15-questions">Section 4: Distributed Databases — Top 15 Questions</a></h2>
+<h3 id="q1-sharding-strategies"><a class="header" href="#q1-sharding-strategies">Q1: Sharding Strategies</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Strategy</th><th>How</th><th>Pros</th><th>Cons</th></tr>
+</thead>
+<tbody>
+<tr><td>Range sharding</td><td>Shard by key range (A-M, N-Z)</td><td>Good for range queries</td><td>Hot spots if data skewed</td></tr>
+<tr><td>Hash sharding</td><td>Shard by hash(key) % N</td><td>Even distribution</td><td>Range queries need scatter-gather</td></tr>
+<tr><td>Directory sharding</td><td>Lookup table maps key → shard</td><td>Flexible, no rebalancing</td><td>Lookup table bottleneck</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="q2-shard-key-selection-pitfalls"><a class="header" href="#q2-shard-key-selection-pitfalls">Q2: Shard Key Selection Pitfalls</a></h3>
+<ul>
+<li><strong>Hot spot:</strong> Choosing timestamp as shard key → all writes go to latest shard</li>
+<li><strong>Cross-shard joins:</strong> Shard key should align with most common query patterns</li>
+<li><strong>Low cardinality:</strong> Can’t shard on boolean — max 2 shards</li>
+<li><strong>Unbounded growth:</strong> Some shards may grow much larger than others (range sharding)</li>
+<li><strong>Best practice:</strong> Choose key with high cardinality, even distribution, aligns with access pattern (e.g., user_id for user data)</li>
+</ul>
+<h3 id="q3-consistent-hashing--virtual-nodes"><a class="header" href="#q3-consistent-hashing--virtual-nodes">Q3: Consistent Hashing + Virtual Nodes</a></h3>
+<ul>
+<li>Map both servers and keys to a ring (hash space 0 to 2^32)</li>
+<li>Each key assigned to first server clockwise on ring</li>
+<li><strong>Adding server:</strong> Only keys between new server and its predecessor move</li>
+<li><strong>Virtual nodes (vnodes):</strong> Each physical server assigned multiple positions on ring → even load distribution, fewer hot spots, better balance when nodes have different capacities</li>
+<li>Used by: Cassandra, DynamoDB, Riak</li>
+</ul>
+<h3 id="q4-quorum-readswrites"><a class="header" href="#q4-quorum-readswrites">Q4: Quorum Reads/Writes</a></h3>
+<pre><code>N = total replicas
+W = write quorum (must acknowledge write)
+R = read quorum (must respond to read)
+Strong consistency: R + W &gt; N
+Example (N=3): W=2, R=2 → R+W=4 &gt; 3 → consistent
+Availability-first: W=1, R=1 (fast but possibly stale)
+</code></pre>
+<ul>
+<li><strong>Quorum write:</strong> Write coordinator waits for W acknowledgments</li>
+<li><strong>Sloppy quorum (DynamoDB):</strong> Temporarily write to available nodes, hinted handoff when target recovers</li>
+</ul>
+<h3 id="q5-eventual-consistency--conflict-resolution"><a class="header" href="#q5-eventual-consistency--conflict-resolution">Q5: Eventual Consistency — Conflict Resolution</a></h3>
+<ul>
+<li><strong>LWW (Last Write Wins):</strong> Highest timestamp overwrites; risk of data loss on concurrent writes; used by Cassandra (configurable), DynamoDB</li>
+<li><strong>Vector clocks:</strong> Track causality per node; detect concurrent vs sequential writes; client resolves conflicts (like Amazon shopping cart); Riak uses this</li>
+<li><strong>CRDTs (Conflict-free Replicated Data Types):</strong> Data structures that merge deterministically (counters, sets, maps); no conflict resolution needed</li>
+</ul>
+<h3 id="q6-dynamodb--partition-key--sort-key"><a class="header" href="#q6-dynamodb--partition-key--sort-key">Q6: DynamoDB — Partition Key + Sort Key</a></h3>
+<ul>
+<li><strong>Partition key (hash key):</strong> Determines physical partition; must provide exact value for all lookups</li>
+<li><strong>Sort key (range key):</strong> Optional second part of composite key; enables range queries within a partition</li>
+<li><strong>Design pattern:</strong> <code>PK=USER#123</code>, <code>SK=ORDER#2024-01-15</code> → get all orders for user, range on date</li>
+<li><strong>Hot partition:</strong> If partition key lacks cardinality, one partition overloaded → add random suffix + read from all, aggregate</li>
+</ul>
+<h3 id="q7-dynamodb-gsi-vs-lsi"><a class="header" href="#q7-dynamodb-gsi-vs-lsi">Q7: DynamoDB GSI vs LSI</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th></th><th>LSI (Local Secondary Index)</th><th>GSI (Global Secondary Index)</th></tr>
+</thead>
+<tbody>
+<tr><td>Partition key</td><td>Same as base table</td><td>Different attribute</td></tr>
+<tr><td>Sort key</td><td>Different attribute</td><td>Any attribute</td></tr>
+<tr><td>Consistency</td><td>Strong or eventual</td><td>Eventual only</td></tr>
+<tr><td>Throughput</td><td>Shared with base table</td><td>Separate provisioned capacity</td></tr>
+<tr><td>Create time</td><td>Table creation only</td><td>Anytime</td></tr>
+<tr><td>Use case</td><td>Alternate sort within partition</td><td>Alternate access patterns entirely</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="q8-cassandra--partition-key-design-time-bucketing"><a class="header" href="#q8-cassandra--partition-key-design-time-bucketing">Q8: Cassandra — Partition Key Design (Time-Bucketing)</a></h3>
+<pre><code>Problem: Storing time-series data with timestamp as partition key → unbounded partition growth
+Solution: Time-bucketing
+  PK = (sensor_id, bucket)  where bucket = YYYY-MM-DD or YYYY-WW
+  SK = timestamp
+-- Limits partition size; predictable growth
+-- Choose bucket size based on write rate and target partition size (&lt; 100MB recommended)
+</code></pre>
+<ul>
+<li>Cassandra partition = all rows with same PK stored together, sorted by clustering key</li>
+<li>Hot partitions: avoid; write to one partition only (e.g., <code>bucket = current_day</code>)</li>
+</ul>
+<h3 id="q9-mongodb-aggregation-pipeline"><a class="header" href="#q9-mongodb-aggregation-pipeline">Q9: MongoDB Aggregation Pipeline</a></h3>
+<pre><code class="language-javascript">db.orders.aggregate([
+  { $match: { status: "COMPLETED" } },           // filter (like WHERE)
+  { $group: { _id: "$customerId", total: { $sum: "$amount" } } },  // aggregate
+  { $sort: { total: -1 } },                       // sort
+  { $limit: 10 },                                 // top 10
+  { $lookup: {                                    // JOIN
+      from: "customers", localField: "_id",
+      foreignField: "_id", as: "customerInfo"
+  }},
+  { $project: { total: 1, "customerInfo.name": 1 } }  // project fields
+]);
+</code></pre>
+<ul>
+<li>Stages: <code>$match</code>, <code>$group</code>, <code>$sort</code>, <code>$limit</code>, <code>$skip</code>, <code>$lookup</code>, <code>$unwind</code>, <code>$project</code>, <code>$addFields</code>, <code>$facet</code></li>
+<li>Use <code>$match</code> early to reduce document count; <code>$unwind</code> before <code>$group</code> on arrays</li>
+</ul>
+<h3 id="q10-redis-cluster--hash-slots"><a class="header" href="#q10-redis-cluster--hash-slots">Q10: Redis Cluster — Hash Slots</a></h3>
+<ul>
+<li>16384 hash slots total</li>
+<li>Each key mapped to slot: <code>CRC16(key) % 16384</code></li>
+<li>Cluster: each master node owns range of slots (e.g., node1: 0-5460, node2: 5461-10922, node3: 10923-16383)</li>
+<li>Hash tags: <code>{user}.profile</code> and <code>{user}.settings</code> → same slot (ensures co-location for multi-key ops)</li>
+<li>Adding nodes: rebalance slots between nodes; data migrated automatically</li>
+</ul>
+<h3 id="q11-elasticsearch--inverted-index--bm25"><a class="header" href="#q11-elasticsearch--inverted-index--bm25">Q11: Elasticsearch — Inverted Index + BM25</a></h3>
+<ul>
+<li><strong>Inverted index:</strong> Maps terms → list of documents containing them + positions + frequencies</li>
+<li><strong>Indexing:</strong> Text analyzed (tokenized, lowercased, stemmed, stop words removed) → terms stored in inverted index</li>
+<li><strong>BM25 scoring:</strong> Relevance score based on:
+<ul>
+<li>TF (term frequency in document) with saturation (diminishing returns)</li>
+<li>IDF (inverse document frequency — rare terms score higher)</li>
+<li>Field length normalization (shorter docs with term rank higher)</li>
+</ul>
+</li>
+<li><strong>Query types:</strong> <code>match</code> (full-text), <code>term</code> (exact), <code>range</code>, <code>bool</code> (must/should/must_not)</li>
+</ul>
+<h3 id="q12-flyway-vs-liquibase"><a class="header" href="#q12-flyway-vs-liquibase">Q12: Flyway vs Liquibase</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th></th><th>Flyway</th><th>Liquibase</th></tr>
+</thead>
+<tbody>
+<tr><td>Format</td><td>SQL or Java</td><td>XML, YAML, JSON, SQL</td></tr>
+<tr><td>Migration tracking</td><td><code>flyway_schema_history</code></td><td><code>databasechangelog</code></td></tr>
+<tr><td>Rollback</td><td>Pro version / manual</td><td>Built-in rollback support</td></tr>
+<tr><td>Naming convention</td><td><code>V1__description.sql</code>, <code>R__repeatable.sql</code></td><td>Changesets with author + id</td></tr>
+<tr><td>Spring Boot</td><td><code>spring.flyway.*</code></td><td><code>spring.liquibase.*</code></td></tr>
+<tr><td>Philosophy</td><td>Simplicity</td><td>Flexibility</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="q13-expand-contract-migration-parallel-change"><a class="header" href="#q13-expand-contract-migration-parallel-change">Q13: Expand-Contract Migration (Parallel Change)</a></h3>
+<pre><code>Problem: Rename column `user_name` → `username` without downtime
+Solution (3-phase):
+  Phase 1 (Expand): Add new column `username`; app writes to both; reads from old
+  Phase 2 (Migrate): Backfill `username` from `user_name`; app reads from new column
+  Phase 3 (Contract): Drop old `user_name` column
+-- Each phase deployed separately; never breaks running version
+</code></pre>
+<h3 id="q14-zero-downtime-ddl"><a class="header" href="#q14-zero-downtime-ddl">Q14: Zero-Downtime DDL</a></h3>
+<ul>
+<li><strong>ADD COLUMN (with default):</strong> PostgreSQL 11+ stores default in catalog — instant; old versions rewrote table</li>
+<li><strong>ADD INDEX:</strong> <code>CREATE INDEX CONCURRENTLY</code> — no table lock</li>
+<li><strong>ALTER COLUMN TYPE:</strong> Usually requires table rewrite → downtime; use expand-contract instead</li>
+<li><strong>DROP COLUMN:</strong> Fast (just marks invisible); physical reclaim at next VACUUM FULL</li>
+<li><strong>MySQL <code>pt-online-schema-change</code>:</strong> Copies table, applies changes, swaps → triggers keep sync during copy</li>
+</ul>
+<h3 id="q15-multi-tenancy-patterns"><a class="header" href="#q15-multi-tenancy-patterns">Q15: Multi-Tenancy Patterns</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Pattern</th><th>Isolation</th><th>Cost</th><th>Use Case</th></tr>
+</thead>
+<tbody>
+<tr><td>Separate database per tenant</td><td>High</td><td>High</td><td>Enterprise, compliance requirements</td></tr>
+<tr><td>Separate schema per tenant</td><td>Medium</td><td>Medium</td><td>Mid-scale SaaS</td></tr>
+<tr><td>Shared schema + <code>tenant_id</code> column</td><td>Low</td><td>Low</td><td>High-scale SaaS</td></tr>
+<tr><td>Row-Level Security (RLS)</td><td>High (enforced at DB)</td><td>Low</td><td>PostgreSQL; policy-based tenant isolation</td></tr>
+</tbody>
+</table>
+</div>
+<pre><code class="language-sql">-- PostgreSQL RLS example
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON orders
+  USING (tenant_id = current_setting('app.current_tenant')::bigint);
+-- App sets: SET app.current_tenant = '123'
+-- All queries on orders automatically filtered to tenant 123
+</code></pre>
+<hr>
+<h2 id="section-5-quick-reference-tables"><a class="header" href="#section-5-quick-reference-tables">Section 5: Quick Reference Tables</a></h2>
+<h3 id="isolation-levels--anomalies-full-matrix"><a class="header" href="#isolation-levels--anomalies-full-matrix">Isolation Levels × Anomalies (Full Matrix)</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Isolation Level</th><th style="text-align: center">Dirty Read</th><th style="text-align: center">Non-Repeatable Read</th><th style="text-align: center">Phantom Read</th><th style="text-align: center">Write Skew</th><th style="text-align: center">Lost Update</th></tr>
+</thead>
+<tbody>
+<tr><td>READ UNCOMMITTED</td><td style="text-align: center">YES</td><td style="text-align: center">YES</td><td style="text-align: center">YES</td><td style="text-align: center">YES</td><td style="text-align: center">YES</td></tr>
+<tr><td>READ COMMITTED</td><td style="text-align: center">NO</td><td style="text-align: center">YES</td><td style="text-align: center">YES</td><td style="text-align: center">YES</td><td style="text-align: center">YES</td></tr>
+<tr><td>REPEATABLE READ</td><td style="text-align: center">NO</td><td style="text-align: center">NO</td><td style="text-align: center">YES*</td><td style="text-align: center">YES</td><td style="text-align: center">NO</td></tr>
+<tr><td>SERIALIZABLE</td><td style="text-align: center">NO</td><td style="text-align: center">NO</td><td style="text-align: center">NO</td><td style="text-align: center">NO</td><td style="text-align: center">NO</td></tr>
+</tbody>
+</table>
+</div>
+<p>*PostgreSQL RR prevents phantoms via MVCC snapshot.</p>
+<h3 id="sql-join-types-reference"><a class="header" href="#sql-join-types-reference">SQL JOIN Types Reference</a></h3>
+<pre><code>INNER JOIN:  A ∩ B  (matching rows only)
+LEFT JOIN:   A + (A ∩ B)  (all A, matching B or NULL)
+RIGHT JOIN:  B + (A ∩ B)  (all B, matching A or NULL)
+FULL JOIN:   A ∪ B  (all rows from both, NULLs for no match)
+CROSS JOIN:  A × B  (every combination)
+SELF JOIN:   table joined to itself (aliased)
+</code></pre>
+<h3 id="cap-theorem--systems-classification"><a class="header" href="#cap-theorem--systems-classification">CAP Theorem — Systems Classification</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>System</th><th>C</th><th>A</th><th>P</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>ZooKeeper</td><td>YES</td><td>NO</td><td>YES</td><td>CP; refuses requests when partition detected</td></tr>
+<tr><td>HBase</td><td>YES</td><td>NO</td><td>YES</td><td>CP; depends on ZooKeeper</td></tr>
+<tr><td>Cassandra</td><td>NO</td><td>YES</td><td>YES</td><td>AP; tunable consistency</td></tr>
+<tr><td>DynamoDB</td><td>NO</td><td>YES</td><td>YES</td><td>AP by default; strong consistency optional</td></tr>
+<tr><td>Google Spanner</td><td>YES</td><td>~YES</td><td>YES</td><td>CP; TrueTime gives external consistency</td></tr>
+<tr><td>MongoDB</td><td>YES</td><td>NO</td><td>YES</td><td>CP; primary election on partition</td></tr>
+<tr><td>CouchDB</td><td>NO</td><td>YES</td><td>YES</td><td>AP; multi-master replication</td></tr>
+<tr><td>Etcd</td><td>YES</td><td>NO</td><td>YES</td><td>CP; Raft-based strong consistency</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="nosql-database-selection-guide"><a class="header" href="#nosql-database-selection-guide">NoSQL Database Selection Guide</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Use Case</th><th>Database</th><th>Reason</th></tr>
+</thead>
+<tbody>
+<tr><td>Session store, caching, rate limiting</td><td>Redis</td><td>In-memory, sub-ms latency</td></tr>
+<tr><td>User profiles, product catalog (flexible schema)</td><td>MongoDB</td><td>Document model, rich queries</td></tr>
+<tr><td>Time-series, IoT metrics</td><td>InfluxDB / TimescaleDB</td><td>Optimized time-series ingestion</td></tr>
+<tr><td>Full-text search</td><td>Elasticsearch / OpenSearch</td><td>Inverted index, relevance scoring</td></tr>
+<tr><td>Wide-column, high write throughput</td><td>Cassandra</td><td>Append-only writes, linear scale</td></tr>
+<tr><td>Key-value at massive scale</td><td>DynamoDB</td><td>Managed, single-digit ms at any scale</td></tr>
+<tr><td>Graph data (social, recommendation)</td><td>Neo4j / Neptune</td><td>Native graph traversal</td></tr>
+<tr><td>Event streaming / message queue</td><td>Kafka</td><td>Append log, consumer groups, replay</td></tr>
+<tr><td>Leaderboard, sorted sets</td><td>Redis (ZSET)</td><td>O(log N) sorted set operations</td></tr>
+<tr><td>Relational + ACID, moderate scale</td><td>PostgreSQL</td><td>Feature-rich, extensions (PostGIS, JSONB)</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="hikaricp-key-properties"><a class="header" href="#hikaricp-key-properties">HikariCP Key Properties</a></h3>
+<pre><code class="language-properties"># Connection pool sizing
+spring.datasource.hikari.maximum-pool-size=10          # max connections (CPU cores * 2 + disk spindles)
+spring.datasource.hikari.minimum-idle=5                # min idle connections
+spring.datasource.hikari.connection-timeout=30000      # ms to wait for connection from pool
+spring.datasource.hikari.idle-timeout=600000           # ms before idle connection evicted
+spring.datasource.hikari.max-lifetime=1800000          # ms max connection lifetime (&lt; DB wait_timeout)
+spring.datasource.hikari.keepalive-time=300000         # ms; send keepalive to prevent firewall timeout
+spring.datasource.hikari.leak-detection-threshold=2000 # ms; log warning if connection held &gt; threshold
+</code></pre>
+<ul>
+<li><strong>Pool size formula (OLTP):</strong> <code>connections = (cores * 2) + effective_spindle_count</code> (HikariCP docs)</li>
+<li><strong>Connection leak:</strong> Use <code>leak-detection-threshold</code>; always close connections in <code>finally</code> or try-with-resources</li>
+</ul>
+<hr>
+<h2 id="section-6-must-know-sql-patterns"><a class="header" href="#section-6-must-know-sql-patterns">Section 6: Must-Know SQL Patterns</a></h2>
+<h3 id="nth-highest-salary"><a class="header" href="#nth-highest-salary">Nth Highest Salary</a></h3>
+<pre><code class="language-sql">-- Method 1: DENSE_RANK (handles ties correctly)
+SELECT salary FROM (
+  SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk FROM employees
+) ranked WHERE rnk = 3;  -- 3rd highest
+
+-- Method 2: Subquery (no window function)
+SELECT MIN(salary) FROM employees
+WHERE salary IN (SELECT DISTINCT salary FROM employees ORDER BY salary DESC LIMIT 3);
+</code></pre>
+<h3 id="duplicate-detection--deletion"><a class="header" href="#duplicate-detection--deletion">Duplicate Detection + Deletion</a></h3>
+<pre><code class="language-sql">-- Find duplicates
+SELECT email, COUNT(*) FROM users GROUP BY email HAVING COUNT(*) &gt; 1;
+
+-- Delete duplicates, keep lowest id
+DELETE FROM users WHERE id NOT IN (
+  SELECT MIN(id) FROM users GROUP BY email
+);
+
+-- PostgreSQL: Using ctid (physical row identifier)
+DELETE FROM users a USING users b
+WHERE a.email = b.email AND a.id &gt; b.id;
+</code></pre>
+<h3 id="running-total"><a class="header" href="#running-total">Running Total</a></h3>
+<pre><code class="language-sql">SELECT
+  order_date,
+  amount,
+  SUM(amount) OVER (ORDER BY order_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total
+FROM orders;
+-- ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW is default for SUM OVER ORDER BY
+-- ROWS = physical rows; RANGE = logical (same ORDER BY value grouped)
+</code></pre>
+<h3 id="gaps-in-sequence"><a class="header" href="#gaps-in-sequence">Gaps in Sequence</a></h3>
+<pre><code class="language-sql">-- Find missing IDs in sequence
+SELECT s.id + 1 AS gap_start
+FROM orders s
+LEFT JOIN orders n ON n.id = s.id + 1
+WHERE n.id IS NULL AND s.id &lt; (SELECT MAX(id) FROM orders);
+
+-- PostgreSQL: generate_series approach
+SELECT gs.id AS missing_id
+FROM generate_series(1, (SELECT MAX(id) FROM orders)) gs(id)
+LEFT JOIN orders o ON o.id = gs.id
+WHERE o.id IS NULL;
+</code></pre>
+<h3 id="employee-hierarchy-recursive-cte"><a class="header" href="#employee-hierarchy-recursive-cte">Employee Hierarchy (Recursive CTE)</a></h3>
+<pre><code class="language-sql">WITH RECURSIVE org_tree AS (
+  SELECT id, name, manager_id, name::TEXT AS path, 0 AS depth
+  FROM employees WHERE manager_id IS NULL  -- root (CEO)
+  UNION ALL
+  SELECT e.id, e.name, e.manager_id,
+         ot.path || ' &gt; ' || e.name,
+         ot.depth + 1
+  FROM employees e
+  JOIN org_tree ot ON e.manager_id = ot.id
+  WHERE ot.depth &lt; 10  -- safety limit
+)
+SELECT id, name, depth, path FROM org_tree ORDER BY path;
+</code></pre>
+<h3 id="moving-average-window-function"><a class="header" href="#moving-average-window-function">Moving Average (Window Function)</a></h3>
+<pre><code class="language-sql">-- 7-day moving average of daily sales
+SELECT
+  sale_date,
+  daily_total,
+  AVG(daily_total) OVER (
+    ORDER BY sale_date
+    ROWS BETWEEN 6 PRECEDING AND CURRENT ROW  -- 7-day window
+  ) AS moving_avg_7d
+FROM daily_sales;
+-- ROWS = physical rows; use RANGE for calendar-based (handles missing days)
+</code></pre>
+<h3 id="top-n-per-group"><a class="header" href="#top-n-per-group">Top-N Per Group</a></h3>
+<pre><code class="language-sql">-- Top 3 products by sales per category
+SELECT category, product, sales
+FROM (
+  SELECT category, product, sales,
+         ROW_NUMBER() OVER (PARTITION BY category ORDER BY sales DESC) AS rn
+  FROM product_sales
+) ranked
+WHERE rn &lt;= 3;
+
+-- PostgreSQL: DISTINCT ON (one per group)
+SELECT DISTINCT ON (category) category, product, sales
+FROM product_sales ORDER BY category, sales DESC;  -- top 1 per category
+</code></pre>
+<hr>
+<h2 id="section-7-common-traps-20-items"><a class="header" href="#section-7-common-traps-20-items">Section 7: Common Traps (20 Items)</a></h2>
+<ol>
+<li>
+<p><strong>NOT IN with NULL subquery</strong> — If subquery returns any NULL, <code>NOT IN</code> returns 0 rows. Use <code>NOT EXISTS</code> instead.</p>
+</li>
+<li>
+<p><strong>Implicit type conversion breaks index</strong> — <code>WHERE user_id = '123'</code> where <code>user_id</code> is INTEGER forces cast on every row; index not used. Match types exactly.</p>
+</li>
+<li>
+<p><strong>Function on indexed column</strong> — <code>WHERE YEAR(created_at) = 2024</code> prevents index use; rewrite as <code>WHERE created_at &gt;= '2024-01-01' AND created_at &lt; '2025-01-01'</code>.</p>
+</li>
+<li>
+<p><strong>OFFSET pagination at scale</strong> — <code>OFFSET 1000000 LIMIT 10</code> scans and discards 1M rows. Use keyset pagination: <code>WHERE id &gt; last_seen_id ORDER BY id LIMIT 10</code>.</p>
+</li>
+<li>
+<p><strong>SELECT * in production</strong> — Fetches unnecessary columns; breaks covering indexes; fragile against schema changes; serializes hidden LOB columns. Always specify columns.</p>
+</li>
+<li>
+<p><strong>Missing index on FK column (PostgreSQL)</strong> — PostgreSQL does not auto-create FK indexes. Every join or delete cascading through FK does seq scan.</p>
+</li>
+<li>
+<p><strong>IDENTITY / SERIAL breaks batch insert</strong> — If using JDBC <code>executeBatch()</code>, ensure <code>Statement.RETURN_GENERATED_KEYS</code> or use sequence directly; some drivers fetch keys one-by-one.</p>
+</li>
+<li>
+<p><strong>Shared database between microservices</strong> — Creates tight coupling; one service’s schema change can break another; prevents independent deployments. Use private DB per service.</p>
+</li>
+<li>
+<p><strong>Auto-commit in JDBC</strong> — Default is <code>true</code>; each statement is its own transaction. Wrap related statements in explicit transaction: <code>conn.setAutoCommit(false)</code>.</p>
+</li>
+<li>
+<p><strong>Stale statistics cause bad query plans</strong> — After bulk load, <code>ANALYZE</code> (PostgreSQL) or <code>ANALYZE TABLE</code> (MySQL) to update statistics; planner uses them for join ordering and index choice.</p>
+</li>
+<li>
+<p><strong>N+1 query problem</strong> — Loading 100 orders then fetching each order’s customer separately = 101 queries. Fix: <code>JOIN FETCH</code> in JPQL, <code>@EntityGraph</code>, or <code>IN</code> clause batch fetch.</p>
+</li>
+<li>
+<p><strong>String concatenation in queries (SQL injection)</strong> — Never concatenate user input. Use prepared statements / parameterized queries always.</p>
+</li>
+<li>
+<p><strong>Locking entire table with LOCK TABLE</strong> — Prefer row-level locks (<code>SELECT FOR UPDATE</code>). Table-level locks serialize all access.</p>
+</li>
+<li>
+<p><strong>Forgetting transaction on multi-step operation</strong> — Two related updates without transaction; first succeeds, second fails → inconsistent state.</p>
+</li>
+<li>
+<p><strong>Cascade delete without index on FK</strong> — Deleting parent row triggers FK cascade check; without index on child FK column, full child table scan.</p>
+</li>
+<li>
+<p><strong>Using ORM lazy loading outside transaction</strong> — <code>LazyInitializationException</code> in Spring when accessing lazy collection outside <code>@Transactional</code> scope. Use eager fetch or open session in correct scope.</p>
+</li>
+<li>
+<p><strong>DATETIME vs TIMESTAMP in MySQL</strong> — <code>DATETIME</code> stores literal value, no timezone. <code>TIMESTAMP</code> converts to UTC for storage, back to session timezone on retrieval. Use <code>TIMESTAMP</code> for audit fields.</p>
+</li>
+<li>
+<p><strong>COUNT(DISTINCT col)</strong> over large table — No index helps without covering index; may require full scan. Approximate: <code>HLL</code> (HyperLogLog) in PostgreSQL/Redis for cardinality estimation.</p>
+</li>
+<li>
+<p><strong>Deadlock due to inconsistent lock ordering</strong> — Tx1 locks A then B; Tx2 locks B then A → deadlock. Always acquire locks in same global order (e.g., always by ascending primary key).</p>
+</li>
+<li>
+<p><strong>VACUUM not running (PostgreSQL table bloat)</strong> — Dead row versions accumulate if <code>autovacuum</code> disabled or can’t keep up. Table grows; queries slow. Monitor <code>pg_stat_user_tables.n_dead_tup</code>; tune autovacuum or run manual <code>VACUUM ANALYZE</code>.</p>
+</li>
+</ol>
+<hr>
+<h2 id="final-5-minute-recall-checklist"><a class="header" href="#final-5-minute-recall-checklist">Final 5-Minute Recall Checklist</a></h2>
+<ul>
+<li><input disabled="" type="checkbox"> SQL execution order: FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY</li>
+<li><input disabled="" type="checkbox"> DENSE_RANK has no gaps; RANK has gaps; ROW_NUMBER is always unique</li>
+<li><input disabled="" type="checkbox"> NOT IN + NULL = 0 rows. Use NOT EXISTS.</li>
+<li><input disabled="" type="checkbox"> Composite index: leftmost prefix must match for index to be used</li>
+<li><input disabled="" type="checkbox"> PostgreSQL: FK indexes NOT automatic → create manually</li>
+<li><input disabled="" type="checkbox"> MVCC: readers don’t block writers (no read locks in PostgreSQL/InnoDB)</li>
+<li><input disabled="" type="checkbox"> SERIALIZABLE prevents write skew; REPEATABLE READ does not</li>
+<li><input disabled="" type="checkbox"> 2PC blocking problem → Saga pattern for microservices</li>
+<li><input disabled="" type="checkbox"> Outbox pattern: DB write + event in same transaction</li>
+<li><input disabled="" type="checkbox"> CAP: Cassandra=AP, ZooKeeper=CP, Spanner=CP</li>
+<li><input disabled="" type="checkbox"> Consistent hashing + vnodes: adding node only moves adjacent keys</li>
+<li><input disabled="" type="checkbox"> R + W &gt; N = strong consistency in quorum systems</li>
+<li><input disabled="" type="checkbox"> UUID v4 = index fragmentation; use UUID v7 or BIGINT</li>
+<li><input disabled="" type="checkbox"> <code>CREATE INDEX CONCURRENTLY</code>: no table lock; cannot run in transaction</li>
+<li><input disabled="" type="checkbox"> HikariCP <code>max-lifetime</code> must be less than DB <code>wait_timeout</code></li>
+<li><input disabled="" type="checkbox"> Keyset pagination &gt; OFFSET for large datasets</li>
+<li><input disabled="" type="checkbox"> RLS (Row Level Security): tenant isolation enforced at DB level</li>
+<li><input disabled="" type="checkbox"> Expand-contract: safe column rename without downtime</li>
+<li><input disabled="" type="checkbox"> Bitmap index scan: used for moderate selectivity (between index scan and seq scan)</li>
+<li><input disabled="" type="checkbox"> GIN index: JSONB containment queries and full-text search</li>
+<li><input disabled="" type="checkbox"> Know the difference between clustered and non-clustered index</li>
+<li><input disabled="" type="checkbox"> Know UUID fragmentation problem (use BIGINT or UUID v7)</li>
+<li><input disabled="" type="checkbox"> Foreign keys are NOT auto-indexed in PostgreSQL</li>
+<li><input disabled="" type="checkbox"> CREATE INDEX CONCURRENTLY for zero-downtime</li>
+<li><input disabled="" type="checkbox"> Isolation levels: READ COMMITTED is PostgreSQL default, REPEATABLE READ is MySQL default</li>
+<li><input disabled="" type="checkbox"> MVCC: PostgreSQL uses xmin/xmax, MySQL uses undo log chain</li>
+<li><input disabled="" type="checkbox"> Deadlock: 4 Coffman conditions — mutual exclusion, hold-and-wait, no preemption, circular wait</li>
+<li><input disabled="" type="checkbox"> Optimistic locking: @Version generates WHERE version = ? UPDATE; throws OptimisticLockException on conflict</li>
+<li><input disabled="" type="checkbox"> CAP: ZooKeeper = CP, Cassandra = AP, Spanner = CA (with GPS clock)</li>
+<li><input disabled="" type="checkbox"> Sharding: monotonically increasing keys cause hotspots — use hash sharding or Snowflake ID</li>
+<li><input disabled="" type="checkbox"> Consistent hashing: virtual nodes solve uneven distribution on node add/remove</li>
+<li><input disabled="" type="checkbox"> DynamoDB: partition key = hash, sort key = range; GSI = global, LSI = local (same partition)</li>
+<li><input disabled="" type="checkbox"> Cassandra: partition key drives data locality; never use high-cardinality partition key with time as sole clustering key without bucketing</li>
+<li><input disabled="" type="checkbox"> Elasticsearch: shards are immutable Lucene segments; use aliases for zero-downtime reindex</li>
+<li><input disabled="" type="checkbox"> Flyway: expand-contract pattern = add column → deploy → backfill → drop old column</li>
+</ul>
+<hr>
+<p><em>Chapter 26 — Databases Quick Revision | Volume 6: Interview Revision Pack</em></p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../Volume6_Revision_Pack/Chapter25_BackendSystems_Revision.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../Volume6_Revision_Pack/Chapter27_SystemDesign_LLD_Revision.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../Volume6_Revision_Pack/Chapter25_BackendSystems_Revision.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../Volume6_Revision_Pack/Chapter27_SystemDesign_LLD_Revision.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-c22b7243.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../custom-877a7a53.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

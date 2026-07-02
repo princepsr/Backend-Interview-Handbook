@@ -1,0 +1,2658 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Appendix C - Must-Know Code Snippets - Volume 2: Spring Ecosystem</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Spring Core, Spring Boot, Spring Data JPA and Hibernate for SDE2 interviews. 2 deep-dive chapters.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-0392ca55.css">
+        <link rel="stylesheet" href="css/chrome-fc474251.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="custom-aab4aca2.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-6308a16f.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-6f8d2381.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Volume 2: Spring Ecosystem</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="appendix-c-must-know-code-snippets"><a class="header" href="#appendix-c-must-know-code-snippets">Appendix C: Must-Know Code Snippets</a></h1>
+<p><em>Curated production-ready patterns organized by category. Every snippet here has appeared in real FAANG+ interviews.</em></p>
+<hr>
+<h2 id="category-1-core-java-patterns"><a class="header" href="#category-1-core-java-patterns">Category 1: Core Java Patterns</a></h2>
+<h3 id="11-thread-safe-singleton-3-approaches"><a class="header" href="#11-thread-safe-singleton-3-approaches">1.1 Thread-Safe Singleton (3 approaches)</a></h3>
+<pre><code class="language-java">// APPROACH 1: Enum Singleton — preferred; JVM guarantees single instance, serialization-safe
+public enum DatabaseConnection {
+    INSTANCE;
+
+    private final Connection connection;
+
+    DatabaseConnection() {
+        this.connection = createConnection();
+    }
+
+    private Connection createConnection() {
+        // initialize connection
+        return null;
+    }
+
+    public Connection getConnection() {
+        return connection;
+    }
+}
+// Usage: DatabaseConnection.INSTANCE.getConnection()
+</code></pre>
+<pre><code class="language-java">// APPROACH 2: Double-Checked Locking — use when enum is not possible (e.g., needs inheritance)
+public class ConfigManager {
+    // volatile prevents instruction reordering — critical for DCL correctness
+    private static volatile ConfigManager instance;
+    private final Map&lt;String, String&gt; config;
+
+    private ConfigManager() {
+        this.config = loadConfig();
+    }
+
+    public static ConfigManager getInstance() {
+        if (instance == null) {                    // first check (no lock)
+            synchronized (ConfigManager.class) {
+                if (instance == null) {            // second check (with lock)
+                    instance = new ConfigManager();
+                }
+            }
+        }
+        return instance;
+    }
+
+    private Map&lt;String, String&gt; loadConfig() {
+        return new HashMap&lt;&gt;();
+    }
+
+    public String get(String key) {
+        return config.get(key);
+    }
+}
+</code></pre>
+<pre><code class="language-java">// APPROACH 3: Bill Pugh Holder — lazy init without synchronization overhead
+public class MetricsRegistry {
+    private MetricsRegistry() {}
+
+    // Inner class is not loaded until getInstance() is called; class loader guarantees thread safety
+    private static class Holder {
+        static final MetricsRegistry INSTANCE = new MetricsRegistry();
+    }
+
+    public static MetricsRegistry getInstance() {
+        return Holder.INSTANCE;
+    }
+
+    public void record(String metric, long value) {
+        // record metric
+    }
+}
+</code></pre>
+<hr>
+<h3 id="12-immutable-class"><a class="header" href="#12-immutable-class">1.2 Immutable Class</a></h3>
+<pre><code class="language-java">// Immutable class: final class + final fields + defensive copy in constructor AND getter
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+
+public final class Order {                          // final: prevents subclassing
+    private final String orderId;
+    private final Date createdAt;                   // mutable — must be defensively copied
+    private final List&lt;String&gt; items;               // mutable — must be defensively copied
+
+    public Order(String orderId, Date createdAt, List&lt;String&gt; items) {
+        this.orderId = orderId;
+        this.createdAt = new Date(createdAt.getTime());  // defensive copy in constructor
+        this.items = new ArrayList&lt;&gt;(items);              // defensive copy in constructor
+    }
+
+    public String getOrderId() {
+        return orderId;                              // String is immutable — no copy needed
+    }
+
+    public Date getCreatedAt() {
+        return new Date(createdAt.getTime());        // defensive copy in getter
+    }
+
+    public List&lt;String&gt; getItems() {
+        return Collections.unmodifiableList(items); // unmodifiable view in getter
+    }
+
+    @Override
+    public String toString() {
+        return "Order{orderId='" + orderId + "', createdAt=" + createdAt + ", items=" + items + "}";
+    }
+}
+</code></pre>
+<hr>
+<h3 id="13-custom-comparable--comparator"><a class="header" href="#13-custom-comparable--comparator">1.3 Custom Comparable + Comparator</a></h3>
+<pre><code class="language-java">import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+
+// Implement Comparable for natural ordering (e.g., by salary)
+public class Employee implements Comparable&lt;Employee&gt; {
+    private final String name;
+    private final String department;
+    private final double salary;
+
+    public Employee(String name, String department, double salary) {
+        this.name = name;
+        this.department = department;
+        this.salary = salary;
+    }
+
+    @Override
+    public int compareTo(Employee other) {
+        return Double.compare(this.salary, other.salary); // natural order: ascending salary
+    }
+
+    public String getName()       { return name; }
+    public String getDepartment() { return department; }
+    public double getSalary()     { return salary; }
+
+    @Override
+    public String toString() {
+        return name + "(" + salary + ")";
+    }
+
+    public static void main(String[] args) {
+        List&lt;Employee&gt; employees = Arrays.asList(
+            new Employee("Alice", "Eng",  95000),
+            new Employee("Bob",   "HR",   75000),
+            new Employee("Carol", "Eng", 105000)
+        );
+
+        // 1. Natural order (Comparable): sort by salary ascending
+        employees.sort(null);
+        System.out.println("Natural: " + employees);
+
+        // 2. Lambda Comparator: sort by name
+        employees.sort((e1, e2) -&gt; e1.getName().compareTo(e2.getName()));
+        System.out.println("By name: " + employees);
+
+        // 3. Method reference Comparator: sort by department
+        employees.sort(Comparator.comparing(Employee::getDepartment));
+        System.out.println("By dept: " + employees);
+
+        // 4. Chained Comparator: sort by department, then salary descending
+        employees.sort(
+            Comparator.comparing(Employee::getDepartment)
+                      .thenComparing(Comparator.comparingDouble(Employee::getSalary).reversed())
+        );
+        System.out.println("By dept+salary desc: " + employees);
+    }
+}
+</code></pre>
+<hr>
+<h3 id="14-generic-bounded-type"><a class="header" href="#14-generic-bounded-type">1.4 Generic Bounded Type</a></h3>
+<pre><code class="language-java">import java.util.ArrayList;
+import java.util.List;
+
+// Generic stack bounded by Comparable — enables min() without external comparator
+public class BoundedStack&lt;T extends Comparable&lt;T&gt;&gt; {
+    private final List&lt;T&gt; elements = new ArrayList&lt;&gt;();
+
+    public void push(T item) {
+        elements.add(item);
+    }
+
+    public T pop() {
+        if (elements.isEmpty()) throw new RuntimeException("Stack is empty");
+        return elements.remove(elements.size() - 1);
+    }
+
+    public T peek() {
+        if (elements.isEmpty()) throw new RuntimeException("Stack is empty");
+        return elements.get(elements.size() - 1);
+    }
+
+    public T min() {
+        return elements.stream().min(Comparable::compareTo)
+                       .orElseThrow(() -&gt; new RuntimeException("Stack is empty"));
+    }
+
+    // PECS: Producer Extends — copy FROM a source list (we read/produce values from src)
+    public void pushAll(List&lt;? extends T&gt; src) {
+        for (T item : src) push(item);
+    }
+
+    // PECS: Consumer Super — copy INTO a destination list (dest consumes values)
+    public void popAll(List&lt;? super T&gt; dest) {
+        while (!elements.isEmpty()) {
+            dest.add(pop());
+        }
+    }
+
+    public static void main(String[] args) {
+        BoundedStack&lt;Integer&gt; stack = new BoundedStack&lt;&gt;();
+
+        // Producer extends: can push from List&lt;Integer&gt; or List&lt;Integer subtype&gt;
+        List&lt;Integer&gt; source = List.of(3, 1, 4, 1, 5);
+        stack.pushAll(source);
+        System.out.println("Min: " + stack.min()); // 1
+
+        // Consumer super: can pop into List&lt;Integer&gt; or List&lt;Number&gt; or List&lt;Object&gt;
+        List&lt;Number&gt; dest = new ArrayList&lt;&gt;();
+        stack.popAll(dest);
+        System.out.println("Dest: " + dest);
+    }
+}
+</code></pre>
+<hr>
+<h3 id="15-completablefuture-chain"><a class="header" href="#15-completablefuture-chain">1.5 CompletableFuture Chain</a></h3>
+<pre><code class="language-java">import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
+public class CompletableFuturePatterns {
+
+    // 1. Sequential async: thenApply (same thread) → thenCompose (new async stage)
+    public CompletableFuture&lt;String&gt; fetchUserProfile(long userId) {
+        return CompletableFuture
+            .supplyAsync(() -&gt; fetchUser(userId))          // async: fetch user
+            .thenApply(user -&gt; user.toUpperCase())         // sync transform (same thread)
+            .thenCompose(user -&gt;                           // chains new async stage
+                CompletableFuture.supplyAsync(() -&gt; enrichWithPreferences(user)));
+    }
+
+    // 2. Parallel async: allOf waits for all, then join collects results
+    public CompletableFuture&lt;List&lt;String&gt;&gt; fetchAll(List&lt;Long&gt; userIds) {
+        List&lt;CompletableFuture&lt;String&gt;&gt; futures = userIds.stream()
+            .map(id -&gt; CompletableFuture.supplyAsync(() -&gt; fetchUser(id)))
+            .toList();
+
+        return CompletableFuture
+            .allOf(futures.toArray(new CompletableFuture[0]))
+            .thenApply(v -&gt; futures.stream().map(CompletableFuture::join).toList());
+    }
+
+    // 3. Exception handling: exceptionally for recovery, handle for both paths
+    public CompletableFuture&lt;String&gt; fetchWithFallback(long userId) {
+        return CompletableFuture
+            .supplyAsync(() -&gt; fetchUser(userId))
+            .exceptionally(ex -&gt; "ANONYMOUS")             // recover on failure
+            .handle((result, ex) -&gt; {                     // always runs; ex==null on success
+                if (ex != null) return "ERROR: " + ex.getMessage();
+                return result.toUpperCase();
+            });
+    }
+
+    // 4. Timeout (Java 9+): orTimeout throws, completeOnTimeout provides default
+    public CompletableFuture&lt;String&gt; fetchWithTimeout(long userId) {
+        return CompletableFuture
+            .supplyAsync(() -&gt; fetchUser(userId))
+            .orTimeout(500, TimeUnit.MILLISECONDS)         // throws TimeoutException after 500ms
+            // .completeOnTimeout("DEFAULT", 500, TimeUnit.MILLISECONDS) // returns default instead
+            .exceptionally(ex -&gt; "TIMEOUT_FALLBACK");
+    }
+
+    private String fetchUser(long id) { return "user_" + id; }
+    private String enrichWithPreferences(String user) { return user + "_enriched"; }
+}
+</code></pre>
+<hr>
+<h3 id="16-custom-functional-interface--lambda"><a class="header" href="#16-custom-functional-interface--lambda">1.6 Custom Functional Interface + Lambda</a></h3>
+<pre><code class="language-java">import java.util.Arrays;
+import java.util.List;
+import java.util.function.Function;
+
+// Custom @FunctionalInterface with default and static methods
+@FunctionalInterface
+public interface Transformer&lt;T, R&gt; {
+    R transform(T input);                            // single abstract method
+
+    default &lt;V&gt; Transformer&lt;T, V&gt; andThen(Transformer&lt;R, V&gt; after) {
+        return input -&gt; after.transform(this.transform(input));
+    }
+
+    static &lt;T&gt; Transformer&lt;T, T&gt; identity() {
+        return input -&gt; input;
+    }
+}
+
+class MethodReferenceDemo {
+    // All 4 types of method references
+    public static void main(String[] args) {
+        // 1. Static method reference: ClassName::staticMethod
+        Transformer&lt;String, Integer&gt; parseLen = String::length;  // String.length() is instance, but:
+        Function&lt;String, Integer&gt;    parseInt  = Integer::parseInt; // static method ref
+
+        // 2. Instance method on arbitrary instance: ClassName::instanceMethod
+        Transformer&lt;String, String&gt;  toUpper = String::toUpperCase;
+
+        // 3. Instance method on particular instance: instance::instanceMethod
+        String prefix = "Hello_";
+        Transformer&lt;String, String&gt;  addPrefix = prefix::concat;
+
+        // 4. Constructor reference: ClassName::new
+        Transformer&lt;String, StringBuilder&gt; toSB = StringBuilder::new;
+
+        // Compose with andThen
+        Transformer&lt;String, String&gt; pipeline = toUpper.andThen(addPrefix);
+
+        List&lt;String&gt; words = Arrays.asList("world", "java", "lambda");
+        words.stream()
+             .map(pipeline::transform)
+             .forEach(System.out::println);
+        // HELLO_WORLD, HELLO_JAVA, HELLO_LAMBDA
+    }
+}
+</code></pre>
+<hr>
+<h3 id="17-producer-consumer-with-blockingqueue"><a class="header" href="#17-producer-consumer-with-blockingqueue">1.7 Producer-Consumer with BlockingQueue</a></h3>
+<pre><code class="language-java">import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
+
+// Classic producer-consumer: BlockingQueue handles all synchronization automatically
+public class ProducerConsumerDemo {
+    private static final String POISON_PILL = "POISON";
+    private final BlockingQueue&lt;String&gt; queue;
+
+    public ProducerConsumerDemo(int capacity) {
+        this.queue = new ArrayBlockingQueue&lt;&gt;(capacity);
+    }
+
+    class Producer implements Runnable {
+        private final String[] messages;
+
+        Producer(String... messages) { this.messages = messages; }
+
+        @Override
+        public void run() {
+            try {
+                for (String msg : messages) {
+                    queue.put(msg);                         // blocks if queue is full
+                    System.out.println("Produced: " + msg);
+                    Thread.sleep(100);
+                }
+                queue.put(POISON_PILL);                     // signal shutdown
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    class Consumer implements Runnable {
+        @Override
+        public void run() {
+            try {
+                while (true) {
+                    String msg = queue.take();              // blocks if queue is empty
+                    if (POISON_PILL.equals(msg)) break;    // graceful shutdown
+                    System.out.println("Consumed: " + msg);
+                    Thread.sleep(200);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        ProducerConsumerDemo demo = new ProducerConsumerDemo(5);
+        Thread producer = new Thread(demo.new Producer("A", "B", "C", "D", "E"));
+        Thread consumer = new Thread(demo.new Consumer());
+        producer.start();
+        consumer.start();
+        producer.join();
+        consumer.join();
+    }
+}
+</code></pre>
+<hr>
+<h3 id="18-deadlock-example--fix"><a class="header" href="#18-deadlock-example--fix">1.8 Deadlock Example + Fix</a></h3>
+<pre><code class="language-java">// DEADLOCK: Thread1 locks A then B; Thread2 locks B then A — circular wait
+public class DeadlockDemo {
+    private final Object lockA = new Object();
+    private final Object lockB = new Object();
+
+    // Thread 1: acquires A, then tries B
+    public void method1() {
+        synchronized (lockA) {
+            System.out.println(Thread.currentThread().getName() + " holds A, waiting for B");
+            synchronized (lockB) { System.out.println("method1 complete"); }
+        }
+    }
+
+    // Thread 2: acquires B, then tries A — DEADLOCK with method1
+    public void method2() {
+        synchronized (lockB) {
+            System.out.println(Thread.currentThread().getName() + " holds B, waiting for A");
+            synchronized (lockA) { System.out.println("method2 complete"); }
+        }
+    }
+}
+
+// FIX: Consistent lock ordering — always acquire A before B in both methods
+public class DeadlockFixed {
+    private final Object lockA = new Object();
+    private final Object lockB = new Object();
+
+    public void method1() {
+        synchronized (lockA) {                             // always A first
+            synchronized (lockB) {
+                System.out.println("method1 complete");
+            }
+        }
+    }
+
+    public void method2() {
+        synchronized (lockA) {                             // always A first — no circular wait
+            synchronized (lockB) {
+                System.out.println("method2 complete");
+            }
+        }
+    }
+}
+
+// ALTERNATIVE FIX: Use tryLock with timeout to avoid indefinite blocking
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.TimeUnit;
+
+public class DeadlockFixedTryLock {
+    private final Lock lockA = new ReentrantLock();
+    private final Lock lockB = new ReentrantLock();
+
+    public boolean transfer() throws InterruptedException {
+        while (true) {
+            if (lockA.tryLock(50, TimeUnit.MILLISECONDS)) {
+                try {
+                    if (lockB.tryLock(50, TimeUnit.MILLISECONDS)) {
+                        try {
+                            // do work
+                            return true;
+                        } finally { lockB.unlock(); }
+                    }
+                } finally { lockA.unlock(); }
+            }
+            Thread.sleep(10); // back off and retry
+        }
+    }
+}
+</code></pre>
+<hr>
+<h3 id="19-threadlocal--cleanup"><a class="header" href="#19-threadlocal--cleanup">1.9 ThreadLocal + Cleanup</a></h3>
+<pre><code class="language-java">import java.text.SimpleDateFormat;
+import java.util.Date;
+
+// ThreadLocal: each thread gets its own SimpleDateFormat — avoids contention on shared instance
+public class DateFormatter {
+    // SimpleDateFormat is NOT thread-safe; ThreadLocal gives each thread its own instance
+    private static final ThreadLocal&lt;SimpleDateFormat&gt; DATE_FORMAT =
+        ThreadLocal.withInitial(() -&gt; new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"));
+
+    public String format(Date date) {
+        return DATE_FORMAT.get().format(date);
+    }
+
+    public Date parse(String dateStr) throws Exception {
+        return DATE_FORMAT.get().parse(dateStr);
+    }
+
+    // CRITICAL: In thread pool environments, threads are reused — always remove() in finally
+    public String formatSafe(Date date) {
+        try {
+            return DATE_FORMAT.get().format(date);
+        } finally {
+            DATE_FORMAT.remove();                          // prevent memory leak in thread pools
+        }
+    }
+}
+
+// Real-world usage: request context holder (common in Spring)
+public class RequestContext {
+    private static final ThreadLocal&lt;String&gt; CURRENT_USER = new ThreadLocal&lt;&gt;();
+
+    public static void setUser(String userId) { CURRENT_USER.set(userId); }
+    public static String getUser()            { return CURRENT_USER.get(); }
+    public static void clear()                { CURRENT_USER.remove(); }  // call in finally/filter
+}
+</code></pre>
+<hr>
+<h2 id="category-2-collections-patterns"><a class="header" href="#category-2-collections-patterns">Category 2: Collections Patterns</a></h2>
+<h3 id="21-custom-hashmap-operations"><a class="header" href="#21-custom-hashmap-operations">2.1 Custom HashMap Operations</a></h3>
+<pre><code class="language-java">import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class HashMapPatterns {
+
+    public static void main(String[] args) {
+        List&lt;String&gt; words = List.of("apple", "banana", "apple", "cherry", "banana", "apple");
+
+        // 1. getOrDefault: read with fallback — cleaner than null check
+        Map&lt;String, Integer&gt; freq = new HashMap&lt;&gt;();
+        for (String w : words) {
+            freq.put(w, freq.getOrDefault(w, 0) + 1);
+        }
+
+        // 2. merge: update or insert with combining function — ideal for counting/aggregating
+        Map&lt;String, Integer&gt; freq2 = new HashMap&lt;&gt;();
+        for (String w : words) {
+            freq2.merge(w, 1, Integer::sum);               // if absent: put 1; if present: sum
+        }
+
+        // 3. compute: transform existing value, or insert if absent
+        Map&lt;String, Integer&gt; freq3 = new HashMap&lt;&gt;();
+        for (String w : words) {
+            freq3.compute(w, (k, v) -&gt; v == null ? 1 : v + 1);
+        }
+
+        // 4. computeIfAbsent: initialize nested structure lazily — avoids double-lookup
+        Map&lt;String, List&lt;String&gt;&gt; grouped = new HashMap&lt;&gt;();
+        for (String w : words) {
+            grouped.computeIfAbsent(w, k -&gt; new java.util.ArrayList&lt;&gt;()).add(w.toUpperCase());
+        }
+
+        System.out.println("Frequency: " + freq);
+        System.out.println("Grouped: " + grouped);
+    }
+}
+</code></pre>
+<hr>
+<h3 id="22-stream-collectors"><a class="header" href="#22-stream-collectors">2.2 Stream Collectors</a></h3>
+<pre><code class="language-java">import java.util.*;
+import java.util.stream.*;
+
+public class CollectorPatterns {
+
+    record Employee(String name, String dept, double salary, boolean active) {}
+
+    public static void main(String[] args) {
+        List&lt;Employee&gt; employees = List.of(
+            new Employee("Alice", "Eng",  95000, true),
+            new Employee("Bob",   "HR",   75000, false),
+            new Employee("Carol", "Eng", 105000, true),
+            new Employee("Dave",  "HR",   80000, true)
+        );
+
+        // 1. groupingBy: group employees by department
+        Map&lt;String, List&lt;Employee&gt;&gt; byDept =
+            employees.stream().collect(Collectors.groupingBy(Employee::dept));
+
+        // 2. groupingBy + downstream: count per department
+        Map&lt;String, Long&gt; countByDept =
+            employees.stream().collect(Collectors.groupingBy(Employee::dept, Collectors.counting()));
+
+        // 3. partitioningBy: split into two groups by predicate
+        Map&lt;Boolean, List&lt;Employee&gt;&gt; activePartition =
+            employees.stream().collect(Collectors.partitioningBy(Employee::active));
+
+        // 4. toMap with merge function: name → salary, handle duplicates by taking max
+        Map&lt;String, Double&gt; salaryMap = employees.stream().collect(
+            Collectors.toMap(Employee::name, Employee::salary, Double::max));
+
+        // 5. joining: concatenate names
+        String names = employees.stream().map(Employee::name)
+                                .collect(Collectors.joining(", ", "[", "]"));
+
+        // 6. summarizingDouble: stats in one pass
+        DoubleSummaryStatistics stats = employees.stream()
+            .collect(Collectors.summarizingDouble(Employee::salary));
+        System.out.println("Avg salary: " + stats.getAverage());
+        System.out.println("Max salary: " + stats.getMax());
+
+        System.out.println("By dept: " + byDept.keySet());
+        System.out.println("Count: " + countByDept);
+        System.out.println("Names: " + names);
+    }
+}
+</code></pre>
+<hr>
+<h3 id="23-frequency-map--top-k-elements"><a class="header" href="#23-frequency-map--top-k-elements">2.3 Frequency Map + Top-K Elements</a></h3>
+<pre><code class="language-java">import java.util.*;
+import java.util.stream.*;
+
+// Find top-K most frequent words — classic interview problem
+public class TopKFrequent {
+
+    // Approach 1: Streams — clean, readable
+    public List&lt;String&gt; topKStream(String[] words, int k) {
+        return Arrays.stream(words)
+            .collect(java.util.stream.Collectors.groupingBy(w -&gt; w, Collectors.counting()))
+            .entrySet().stream()
+            .sorted(Map.Entry.&lt;String, Long&gt;comparingByValue().reversed())
+            .limit(k)
+            .map(Map.Entry::getKey)
+            .collect(Collectors.toList());
+    }
+
+    // Approach 2: Min-heap of size K — O(n log k), efficient for large n
+    public List&lt;String&gt; topKHeap(String[] words, int k) {
+        Map&lt;String, Integer&gt; freq = new HashMap&lt;&gt;();
+        for (String w : words) freq.merge(w, 1, Integer::sum);
+
+        // Min-heap: smallest frequency at top; evict when size &gt; k
+        PriorityQueue&lt;Map.Entry&lt;String, Integer&gt;&gt; heap =
+            new PriorityQueue&lt;&gt;(Comparator.comparingInt(Map.Entry::getValue));
+
+        for (Map.Entry&lt;String, Integer&gt; entry : freq.entrySet()) {
+            heap.offer(entry);
+            if (heap.size() &gt; k) heap.poll();              // remove least frequent
+        }
+
+        // Collect and reverse (heap gives ascending order)
+        List&lt;String&gt; result = new ArrayList&lt;&gt;();
+        while (!heap.isEmpty()) result.add(heap.poll().getKey());
+        Collections.reverse(result);
+        return result;
+    }
+
+    public static void main(String[] args) {
+        TopKFrequent tk = new TopKFrequent();
+        String[] words = {"apple","banana","apple","cherry","banana","apple","date","cherry"};
+        System.out.println("Stream: " + tk.topKStream(words, 2));  // [apple, banana]
+        System.out.println("Heap:   " + tk.topKHeap(words, 2));    // [apple, banana]
+    }
+}
+</code></pre>
+<hr>
+<h3 id="24-concurrenthashmap-patterns"><a class="header" href="#24-concurrenthashmap-patterns">2.4 ConcurrentHashMap Patterns</a></h3>
+<pre><code class="language-java">import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+
+// ConcurrentHashMap: lock-free reads, segment-level writes; preferred over synchronized HashMap
+public class ConcurrentMapPatterns {
+    private final ConcurrentHashMap&lt;String, AtomicLong&gt; counters = new ConcurrentHashMap&lt;&gt;();
+    private final ConcurrentHashMap&lt;String, ExpensiveObject&gt; cache = new ConcurrentHashMap&lt;&gt;();
+
+    // 1. computeIfAbsent: thread-safe lazy initialization — used for caches and grouping
+    public ExpensiveObject getOrCreate(String key) {
+        return cache.computeIfAbsent(key, k -&gt; new ExpensiveObject(k));
+    }
+
+    // 2. merge: atomic increment without external locking
+    public void increment(String event) {
+        counters.computeIfAbsent(event, k -&gt; new AtomicLong(0)).incrementAndGet();
+        // Alternative: merge with Long
+        // eventCounts.merge(event, 1L, Long::sum);
+    }
+
+    // 3. forEach with parallelismThreshold: parallel processing when map is large
+    public void printStats(long parallelismThreshold) {
+        counters.forEach(parallelismThreshold, (key, count) -&gt;
+            System.out.println(key + ": " + count.get()));
+        // parallelismThreshold=1 → always parallel; Long.MAX_VALUE → always sequential
+    }
+
+    // 4. putIfAbsent: safe first-write-wins semantics
+    public boolean registerOnce(String key, ExpensiveObject obj) {
+        return cache.putIfAbsent(key, obj) == null;        // returns true if this call registered it
+    }
+
+    static class ExpensiveObject {
+        ExpensiveObject(String id) { /* expensive init */ }
+    }
+}
+</code></pre>
+<hr>
+<h2 id="category-3-spring-boot-patterns"><a class="header" href="#category-3-spring-boot-patterns">Category 3: Spring Boot Patterns</a></h2>
+<h3 id="31-complete-securityfilterchain-spring-security-6"><a class="header" href="#31-complete-securityfilterchain-spring-security-6">3.1 Complete SecurityFilterChain (Spring Security 6)</a></h3>
+<pre><code class="language-java">import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+
+    private final JwtAuthFilter jwtAuthFilter;
+
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+        this.jwtAuthFilter = jwtAuthFilter;
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        return http
+            .csrf(csrf -&gt; csrf.disable())                  // stateless API: no CSRF needed
+            .sessionManagement(sm -&gt;
+                sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -&gt; auth
+                .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                .requestMatchers("/api/v1/auth/**").permitAll()
+                .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                .anyRequest().authenticated()
+            )
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            .build();
+    }
+}
+</code></pre>
+<hr>
+<h3 id="32-jwt-token-service"><a class="header" href="#32-jwt-token-service">3.2 JWT Token Service</a></h3>
+<pre><code class="language-java">import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.Keys;
+import org.springframework.stereotype.Service;
+import java.security.Key;
+import java.util.Date;
+import java.util.Map;
+
+@Service
+public class JwtTokenService {
+    private static final long EXPIRATION_MS = 86_400_000L; // 24 hours
+    private final Key signingKey;
+
+    public JwtTokenService(JwtProperties props) {
+        // Key must be &gt;= 256 bits for HS256
+        this.signingKey = Keys.hmacShaKeyFor(props.getSecret().getBytes());
+    }
+
+    // Generate JWT with claims — use for login response
+    public String generateToken(String subject, Map&lt;String, Object&gt; extraClaims) {
+        return Jwts.builder()
+            .setClaims(extraClaims)
+            .setSubject(subject)
+            .setIssuedAt(new Date())
+            .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_MS))
+            .signWith(signingKey, SignatureAlgorithm.HS256)
+            .compact();
+    }
+
+    // Validate token and extract subject — returns null if invalid
+    public String extractSubject(String token) {
+        return extractAllClaims(token).getSubject();
+    }
+
+    public boolean isTokenValid(String token, String expectedSubject) {
+        try {
+            Claims claims = extractAllClaims(token);
+            return expectedSubject.equals(claims.getSubject())
+                &amp;&amp; claims.getExpiration().after(new Date());
+        } catch (JwtException e) {
+            return false;                                  // expired, malformed, bad signature
+        }
+    }
+
+    private Claims extractAllClaims(String token) {
+        return Jwts.parserBuilder()
+            .setSigningKey(signingKey)
+            .build()
+            .parseClaimsJws(token)
+            .getBody();
+    }
+}
+</code></pre>
+<hr>
+<h3 id="33-transactional-with-requires_new"><a class="header" href="#33-transactional-with-requires_new">3.3 @Transactional with REQUIRES_NEW</a></h3>
+<pre><code class="language-java">import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class OrderService {
+    private final OrderRepository orderRepo;
+    private final AuditService auditService;
+
+    public OrderService(OrderRepository orderRepo, AuditService auditService) {
+        this.orderRepo = orderRepo;
+        this.auditService = auditService;
+    }
+
+    @Transactional
+    public void processOrder(Order order) {
+        orderRepo.save(order);
+        auditService.log("ORDER_CREATED", order.getId()); // audit runs in its own tx
+        if (order.getAmount() &lt; 0) {
+            throw new IllegalArgumentException("Negative amount"); // rolls back order tx
+            // but audit log was already committed in its own separate tx
+        }
+    }
+}
+
+@Service
+public class AuditService {
+    private final AuditRepository auditRepo;
+
+    public AuditService(AuditRepository auditRepo) { this.auditRepo = auditRepo; }
+
+    // REQUIRES_NEW: suspends caller's tx, commits independently — audit persists even on rollback
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void log(String event, Long entityId) {
+        auditRepo.save(new AuditLog(event, entityId, System.currentTimeMillis()));
+    }
+}
+</code></pre>
+<hr>
+<h3 id="34-custom-beanpostprocessor"><a class="header" href="#34-custom-beanpostprocessor">3.4 Custom BeanPostProcessor</a></h3>
+<pre><code class="language-java">import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.config.BeanPostProcessor;
+import org.springframework.stereotype.Component;
+
+// BeanPostProcessor: intercepts every bean before/after initialization — use for instrumentation
+@Component
+public class TimingBeanPostProcessor implements BeanPostProcessor {
+
+    @Override
+    public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+        // Called before @PostConstruct / afterPropertiesSet
+        System.out.println("Before init: " + beanName);
+        return bean;                                       // MUST return the bean (or a proxy)
+    }
+
+    @Override
+    public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+        // Called after @PostConstruct / afterPropertiesSet — good place to wrap with proxy
+        System.out.println("After init: " + beanName + " [" + bean.getClass().getSimpleName() + "]");
+        return bean;                                       // return proxy here for AOP-like behavior
+    }
+}
+</code></pre>
+<hr>
+<h3 id="35-spring-events-sync--async"><a class="header" href="#35-spring-events-sync--async">3.5 Spring Events (sync + async)</a></h3>
+<pre><code class="language-java">import org.springframework.context.ApplicationEvent;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
+
+// 1. Define the event
+public class OrderCreatedEvent extends ApplicationEvent {
+    private final Long orderId;
+
+    public OrderCreatedEvent(Object source, Long orderId) {
+        super(source);
+        this.orderId = orderId;
+    }
+
+    public Long getOrderId() { return orderId; }
+}
+
+// 2. Publish the event from a service
+@Service
+public class OrderPublisher {
+    private final ApplicationEventPublisher publisher;
+
+    public OrderPublisher(ApplicationEventPublisher publisher) {
+        this.publisher = publisher;
+    }
+
+    public void createOrder(Order order) {
+        // save order...
+        publisher.publishEvent(new OrderCreatedEvent(this, order.getId()));
+    }
+}
+
+// 3. Synchronous listener — runs in same thread and transaction as publisher
+@Component
+public class SyncOrderListener {
+    @EventListener
+    public void onOrderCreated(OrderCreatedEvent event) {
+        System.out.println("Sync: order " + event.getOrderId());
+    }
+}
+
+// 4. TransactionalEventListener — fires AFTER_COMMIT; skips if tx rolls back
+@Component
+public class TxOrderListener {
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onOrderCommitted(OrderCreatedEvent event) {
+        // Safe to send email/push notification — order is guaranteed persisted
+        System.out.println("TX committed: order " + event.getOrderId());
+    }
+}
+
+// 5. Async listener — runs in separate thread (requires @EnableAsync on config class)
+@Component
+public class AsyncOrderListener {
+    @Async
+    @EventListener
+    public void onOrderCreatedAsync(OrderCreatedEvent event) {
+        System.out.println("Async on thread: " + Thread.currentThread().getName());
+    }
+}
+</code></pre>
+<hr>
+<h3 id="36-configurationproperties"><a class="header" href="#36-configurationproperties">3.6 @ConfigurationProperties</a></h3>
+<pre><code class="language-java">import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+// Type-safe config binding with validation — prefer over @Value for grouped properties
+@Validated
+@ConfigurationProperties(prefix = "app.database")
+public class DatabaseProperties {
+
+    @NotBlank
+    private String url;
+
+    @NotBlank
+    private String username;
+
+    private String password;
+
+    @Min(1)
+    private int maxPoolSize = 10;                  // default value
+
+    @NotNull
+    private PoolConfig pool = new PoolConfig();
+
+    // getters and setters required for binding
+    public String getUrl()              { return url; }
+    public void setUrl(String url)      { this.url = url; }
+    public String getUsername()         { return username; }
+    public void setUsername(String u)   { this.username = u; }
+    public String getPassword()         { return password; }
+    public void setPassword(String p)   { this.password = p; }
+    public int getMaxPoolSize()         { return maxPoolSize; }
+    public void setMaxPoolSize(int s)   { this.maxPoolSize = s; }
+    public PoolConfig getPool()         { return pool; }
+    public void setPool(PoolConfig p)   { this.pool = p; }
+
+    public static class PoolConfig {
+        private int connectionTimeout = 30000;
+        private int idleTimeout = 600000;
+        public int getConnectionTimeout()          { return connectionTimeout; }
+        public void setConnectionTimeout(int t)    { this.connectionTimeout = t; }
+        public int getIdleTimeout()                { return idleTimeout; }
+        public void setIdleTimeout(int t)          { this.idleTimeout = t; }
+    }
+}
+</code></pre>
+<pre><code class="language-yaml"># application.yml — matches prefix = "app.database"
+app:
+  database:
+    url: jdbc:postgresql://localhost:5432/mydb
+    username: app_user
+    password: secret
+    max-pool-size: 20
+    pool:
+      connection-timeout: 30000
+      idle-timeout: 600000
+</code></pre>
+<hr>
+<h3 id="37-custom-healthindicator"><a class="header" href="#37-custom-healthindicator">3.7 Custom HealthIndicator</a></h3>
+<pre><code class="language-java">import org.springframework.boot.actuate.health.Health;
+import org.springframework.boot.actuate.health.HealthIndicator;
+import org.springframework.stereotype.Component;
+
+// Expose downstream dependency health at /actuator/health
+@Component("paymentGateway")                       // name appears in health response key
+public class PaymentGatewayHealthIndicator implements HealthIndicator {
+    private final PaymentGatewayClient client;
+
+    public PaymentGatewayHealthIndicator(PaymentGatewayClient client) {
+        this.client = client;
+    }
+
+    @Override
+    public Health health() {
+        try {
+            long start = System.currentTimeMillis();
+            boolean reachable = client.ping();
+            long latency = System.currentTimeMillis() - start;
+
+            if (reachable) {
+                return Health.up()
+                    .withDetail("latencyMs", latency)
+                    .withDetail("endpoint", client.getEndpoint())
+                    .build();
+            } else {
+                return Health.down()
+                    .withDetail("reason", "ping returned false")
+                    .build();
+            }
+        } catch (Exception e) {
+            return Health.down(e)                  // includes exception message
+                .withDetail("endpoint", client.getEndpoint())
+                .build();
+        }
+    }
+}
+</code></pre>
+<hr>
+<h3 id="38-abstractroutingdatasource-readwrite-split"><a class="header" href="#38-abstractroutingdatasource-readwrite-split">3.8 AbstractRoutingDataSource (Read/Write Split)</a></h3>
+<pre><code class="language-java">import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.springframework.jdbc.datasource.lookup.AbstractRoutingDataSource;
+import org.springframework.stereotype.Component;
+
+import javax.sql.DataSource;
+import java.util.Map;
+
+// 1. Context holder — stores current routing key per thread
+public class DataSourceContext {
+    private static final ThreadLocal&lt;String&gt; CONTEXT = new ThreadLocal&lt;&gt;();
+    public static final String WRITE = "WRITE";
+    public static final String READ  = "READ";
+
+    public static void setWrite() { CONTEXT.set(WRITE); }
+    public static void setRead()  { CONTEXT.set(READ); }
+    public static void clear()    { CONTEXT.remove(); }
+    public static String getCurrent() { return CONTEXT.get(); }
+}
+
+// 2. Routing datasource — selects datasource based on context
+public class RoutingDataSource extends AbstractRoutingDataSource {
+    @Override
+    protected Object determineCurrentLookupKey() {
+        return DataSourceContext.getCurrent();             // returns WRITE or READ
+    }
+}
+
+// 3. Configuration — wire up primary and replica
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class DataSourceConfig {
+    @Bean
+    public DataSource dataSource(DataSource writeDs, DataSource readDs) {
+        RoutingDataSource routing = new RoutingDataSource();
+        routing.setDefaultTargetDataSource(writeDs);
+        routing.setTargetDataSources(Map.of(
+            DataSourceContext.WRITE, writeDs,
+            DataSourceContext.READ,  readDs
+        ));
+        return routing;
+    }
+}
+
+// 4. AOP aspect — automatically route @Transactional(readOnly=true) to replica
+@Aspect
+@Component
+public class DataSourceRoutingAspect {
+
+    // Set READ context before read-only transactions
+    @Before("@annotation(org.springframework.transaction.annotation.Transactional) " +
+            "&amp;&amp; @annotation(tx)")
+    public void setDataSourceContext(
+            org.springframework.transaction.annotation.Transactional tx) {
+        if (tx.readOnly()) {
+            DataSourceContext.setRead();
+        } else {
+            DataSourceContext.setWrite();
+        }
+    }
+}
+</code></pre>
+<hr>
+<h2 id="category-4-jpahibernate-patterns"><a class="header" href="#category-4-jpahibernate-patterns">Category 4: JPA/Hibernate Patterns</a></h2>
+<h3 id="41-n1-fix-with-entitygraph"><a class="header" href="#41-n1-fix-with-entitygraph">4.1 N+1 Fix with @EntityGraph</a></h3>
+<pre><code class="language-java">import jakarta.persistence.*;
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.List;
+
+@Entity
+public class Author {
+    @Id @GeneratedValue Long id;
+    String name;
+
+    @OneToMany(mappedBy = "author", fetch = FetchType.LAZY)
+    List&lt;Book&gt; books;                                      // LAZY: avoid N+1 by default
+}
+
+@Entity
+public class Book {
+    @Id @GeneratedValue Long id;
+    String title;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    Author author;
+}
+
+public interface AuthorRepository extends JpaRepository&lt;Author, Long&gt; {
+
+    // BEFORE (N+1): findAll() loads Authors, then 1 query per Author to load Books
+    // List&lt;Author&gt; findAll();  &lt;-- triggers N+1
+
+    // AFTER: @EntityGraph generates single JOIN FETCH query
+    @EntityGraph(attributePaths = {"books"})
+    List&lt;Author&gt; findAll();                                // one query: SELECT a, b FROM Author a LEFT JOIN FETCH a.books b
+
+    // Named EntityGraph alternative (defined on entity)
+    // @EntityGraph(value = "Author.withBooks")
+    // List&lt;Author&gt; findAllWithGraph();
+}
+</code></pre>
+<hr>
+<h3 id="42-optimistic-locking-with-retry"><a class="header" href="#42-optimistic-locking-with-retry">4.2 Optimistic Locking with Retry</a></h3>
+<pre><code class="language-java">import jakarta.persistence.*;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Entity
+public class Product {
+    @Id @GeneratedValue Long id;
+    String name;
+    int stock;
+
+    @Version                                               // Hibernate manages; increments on each update
+    Integer version;
+}
+
+@Service
+public class InventoryService {
+    private final ProductRepository productRepo;
+
+    public InventoryService(ProductRepository productRepo) {
+        this.productRepo = productRepo;
+    }
+
+    // @Retryable retries up to 3 times with 100ms delay on optimistic lock conflict
+    @Retryable(
+        retryFor = {jakarta.persistence.OptimisticLockException.class,
+                    org.springframework.orm.ObjectOptimisticLockingFailureException.class},
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 100)
+    )
+    @Transactional
+    public void decrementStock(Long productId, int quantity) {
+        Product product = productRepo.findById(productId)
+            .orElseThrow(() -&gt; new RuntimeException("Product not found"));
+
+        if (product.getStock() &lt; quantity) {
+            throw new IllegalStateException("Insufficient stock");
+        }
+        product.setStock(product.getStock() - quantity);
+        productRepo.save(product);                         // throws OptimisticLockException if version mismatch
+    }
+}
+</code></pre>
+<hr>
+<h3 id="43-batch-insert-configuration"><a class="header" href="#43-batch-insert-configuration">4.3 Batch Insert Configuration</a></h3>
+<pre><code class="language-java">import jakarta.persistence.*;
+
+@Entity
+public class Event {
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE,    // SEQUENCE required for batching (IDENTITY disables it)
+                    generator = "event_seq")
+    @SequenceGenerator(name = "event_seq", sequenceName = "event_seq",
+                       allocationSize = 50)                // allocationSize = batch_size for efficiency
+    private Long id;
+
+    private String type;
+    private String payload;
+}
+</code></pre>
+<pre><code class="language-yaml"># application.yml — critical Hibernate batch properties
+spring:
+  jpa:
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 50              # number of inserts per batch
+        order_inserts: true           # group inserts by entity type — required for batching
+        order_updates: true           # group updates by entity type
+        generate_statistics: true     # enable to verify batching is working
+</code></pre>
+<pre><code class="language-java">// Service: flush and clear every batch_size to avoid OutOfMemoryError
+@Service
+public class EventBatchService {
+    @PersistenceContext EntityManager em;
+    private static final int BATCH_SIZE = 50;
+
+    @Transactional
+    public void insertBatch(List&lt;Event&gt; events) {
+        for (int i = 0; i &lt; events.size(); i++) {
+            em.persist(events.get(i));
+            if (i % BATCH_SIZE == 0 &amp;&amp; i &gt; 0) {
+                em.flush();                                // send batch to DB
+                em.clear();                                // detach to free memory
+            }
+        }
+    }
+}
+</code></pre>
+<hr>
+<h3 id="44-dto-projection-interface--record"><a class="header" href="#44-dto-projection-interface--record">4.4 DTO Projection (Interface + Record)</a></h3>
+<pre><code class="language-java">import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+
+// 1. Interface-based projection — Spring generates proxy; no constructor binding required
+public interface OrderSummary {
+    Long getId();
+    String getCustomerName();
+    Double getTotalAmount();
+}
+
+// 2. Record-based projection (Java 16+) — constructor binding via @Query
+public record OrderRecord(Long id, String customerName, Double totalAmount) {}
+
+public interface OrderRepository extends JpaRepository&lt;Order, Long&gt; {
+
+    // Interface projection: Spring creates proxy automatically
+    @Query("SELECT o.id as id, c.name as customerName, o.totalAmount as totalAmount " +
+           "FROM Order o JOIN o.customer c WHERE o.status = :status")
+    List&lt;OrderSummary&gt; findSummariesByStatus(String status);
+
+    // Record projection: constructor expression matches record canonical constructor
+    @Query("SELECT new com.example.OrderRecord(o.id, c.name, o.totalAmount) " +
+           "FROM Order o JOIN o.customer c WHERE o.customerId = :customerId")
+    List&lt;OrderRecord&gt; findOrderRecordsByCustomer(Long customerId);
+}
+</code></pre>
+<hr>
+<h3 id="45-custom-repository-with-specifications"><a class="header" href="#45-custom-repository-with-specifications">4.5 Custom Repository with Specifications</a></h3>
+<pre><code class="language-java">import jakarta.persistence.criteria.*;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+
+public interface ProductRepository
+    extends JpaRepository&lt;Product, Long&gt;, JpaSpecificationExecutor&lt;Product&gt; {}
+
+// Specification builder — compose dynamic queries without string concatenation
+public class ProductSpecifications {
+
+    public static Specification&lt;Product&gt; hasCategory(String category) {
+        return (root, query, cb) -&gt;
+            category == null ? cb.conjunction()            // no filter if null
+                             : cb.equal(root.get("category"), category);
+    }
+
+    public static Specification&lt;Product&gt; priceBetween(Double min, Double max) {
+        return (root, query, cb) -&gt; {
+            if (min == null &amp;&amp; max == null) return cb.conjunction();
+            if (min == null) return cb.lessThanOrEqualTo(root.get("price"), max);
+            if (max == null) return cb.greaterThanOrEqualTo(root.get("price"), min);
+            return cb.between(root.get("price"), min, max);
+        };
+    }
+
+    public static Specification&lt;Product&gt; isInStock() {
+        return (root, query, cb) -&gt; cb.greaterThan(root.get("stock"), 0);
+    }
+}
+
+// Usage in service — compose specs with and()/or()
+@Service
+public class ProductSearchService {
+    private final ProductRepository repo;
+
+    public ProductSearchService(ProductRepository repo) { this.repo = repo; }
+
+    public List&lt;Product&gt; search(String category, Double minPrice, Double maxPrice) {
+        return repo.findAll(
+            Specification.where(ProductSpecifications.hasCategory(category))
+                         .and(ProductSpecifications.priceBetween(minPrice, maxPrice))
+                         .and(ProductSpecifications.isInStock())
+        );
+    }
+}
+</code></pre>
+<hr>
+<h3 id="46-auditing-with-enablejpaauditing"><a class="header" href="#46-auditing-with-enablejpaauditing">4.6 Auditing with @EnableJpaAuditing</a></h3>
+<pre><code class="language-java">import jakarta.persistence.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedBy;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.domain.AuditorAware;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+import org.springframework.security.core.context.SecurityContextHolder;
+
+import java.time.Instant;
+import java.util.Optional;
+
+// 1. Enable auditing in configuration
+@Configuration
+@EnableJpaAuditing(auditorAwareRef = "auditorProvider")
+public class JpaAuditingConfig {
+
+    @Bean
+    public AuditorAware&lt;String&gt; auditorProvider() {
+        return () -&gt; Optional.ofNullable(
+            SecurityContextHolder.getContext().getAuthentication()
+        ).map(auth -&gt; auth.getName());
+    }
+}
+
+// 2. Base auditable entity — extend all entities from this
+@MappedSuperclass
+@EntityListeners(AuditingEntityListener.class)
+public abstract class Auditable {
+
+    @CreatedDate
+    @Column(updatable = false)
+    private Instant createdAt;
+
+    @LastModifiedDate
+    private Instant updatedAt;
+
+    @CreatedBy
+    @Column(updatable = false)
+    private String createdBy;
+
+    @LastModifiedBy
+    private String updatedBy;
+
+    // getters omitted for brevity
+}
+
+// 3. Entity extends Auditable
+@Entity
+public class Order extends Auditable {
+    @Id @GeneratedValue Long id;
+    String status;
+    Double totalAmount;
+}
+</code></pre>
+<hr>
+<h2 id="category-5-kafka-patterns"><a class="header" href="#category-5-kafka-patterns">Category 5: Kafka Patterns</a></h2>
+<h3 id="51-producer-with-transactions-exactly-once"><a class="header" href="#51-producer-with-transactions-exactly-once">5.1 Producer with Transactions (Exactly-Once)</a></h3>
+<pre><code class="language-java">import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.transaction.KafkaTransactionManager;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+// Requires: spring.kafka.producer.transaction-id-prefix=tx-
+@Service
+public class ExactlyOnceProducer {
+    private final KafkaTemplate&lt;String, Object&gt; kafkaTemplate;
+    private final OrderRepository orderRepo;
+
+    public ExactlyOnceProducer(KafkaTemplate&lt;String, Object&gt; kafkaTemplate,
+                                OrderRepository orderRepo) {
+        this.kafkaTemplate = kafkaTemplate;
+        this.orderRepo = orderRepo;
+    }
+
+    // @Transactional wraps DB + Kafka in a single logical transaction
+    // Use KafkaTransactionManager or ChainedTransactionManager for DB+Kafka
+    @Transactional("kafkaTransactionManager")
+    public void processAndPublish(Order order) {
+        orderRepo.save(order);                             // DB write
+        kafkaTemplate.send("orders", order.getId().toString(), order); // Kafka write (transactional)
+        // Both are committed atomically — if either fails, both roll back
+    }
+}
+</code></pre>
+<pre><code class="language-yaml"># application.yml — required for exactly-once semantics
+spring:
+  kafka:
+    producer:
+      transaction-id-prefix: tx-       # enables transactional producer
+      acks: all                         # wait for all replicas
+      retries: 3
+      properties:
+        enable.idempotence: true        # idempotent producer (required for transactions)
+</code></pre>
+<hr>
+<h3 id="52-kafkalistener-with-manual-commit--dlq"><a class="header" href="#52-kafkalistener-with-manual-commit--dlq">5.2 @KafkaListener with Manual Commit + DLQ</a></h3>
+<pre><code class="language-java">import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.listener.AcknowledgingMessageListener;
+import org.springframework.kafka.support.Acknowledgment;
+import org.springframework.stereotype.Component;
+
+@Component
+public class OrderConsumer {
+
+    @KafkaListener(
+        topics = "orders",
+        groupId = "order-service",
+        containerFactory = "manualAckContainerFactory"    // configured with AckMode.MANUAL
+    )
+    public void consume(ConsumerRecord&lt;String, Order&gt; record, Acknowledgment ack) {
+        try {
+            processOrder(record.value());
+            ack.acknowledge();                             // commit offset only on success
+        } catch (RecoverableException e) {
+            // Don't ack — message will be redelivered
+            throw e;
+        } catch (Exception e) {
+            ack.acknowledge();                             // ack to skip; DLQ handles it
+            // DefaultErrorHandler configured below will send to DLT automatically
+        }
+    }
+
+    private void processOrder(Order order) { /* business logic */ }
+}
+</code></pre>
+<pre><code class="language-java">import org.apache.kafka.common.TopicPartition;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
+import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.util.backoff.FixedBackOff;
+
+@Configuration
+public class KafkaConsumerConfig {
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory&lt;?, ?&gt; manualAckContainerFactory(
+            ConsumerFactory&lt;Object, Object&gt; cf,
+            KafkaTemplate&lt;Object, Object&gt; template) {
+
+        var factory = new ConcurrentKafkaListenerContainerFactory&lt;&gt;();
+        factory.setConsumerFactory(cf);
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
+
+        // Send to &lt;topic&gt;.DLT after 3 retries with 1s interval
+        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(template,
+            (record, ex) -&gt; new TopicPartition(record.topic() + ".DLT", record.partition()));
+        factory.setCommonErrorHandler(new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 3)));
+
+        return factory;
+    }
+}
+</code></pre>
+<hr>
+<h3 id="53-idempotent-consumer"><a class="header" href="#53-idempotent-consumer">5.3 Idempotent Consumer</a></h3>
+<pre><code class="language-java">import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
+import org.springframework.stereotype.Component;
+import java.time.Duration;
+
+// Idempotent consumer: deduplicate using message ID stored in Redis
+@Component
+public class IdempotentPaymentConsumer {
+    private static final String DEDUP_KEY_PREFIX = "kafka:processed:";
+    private static final Duration TTL = Duration.ofHours(24);
+
+    private final StringRedisTemplate redis;
+    private final PaymentService paymentService;
+
+    public IdempotentPaymentConsumer(StringRedisTemplate redis, PaymentService paymentService) {
+        this.redis = redis;
+        this.paymentService = paymentService;
+    }
+
+    @KafkaListener(topics = "payments", groupId = "payment-service")
+    public void consume(PaymentEvent event, Acknowledgment ack) {
+        String dedupKey = DEDUP_KEY_PREFIX + event.getMessageId();
+
+        // setIfAbsent = SET NX EX — atomic check-and-set
+        Boolean isNew = redis.opsForValue().setIfAbsent(dedupKey, "1", TTL);
+
+        if (Boolean.TRUE.equals(isNew)) {
+            paymentService.process(event);                 // first time: process
+        } else {
+            // Duplicate: skip silently
+            System.out.println("Skipping duplicate: " + event.getMessageId());
+        }
+        ack.acknowledge();
+    }
+}
+</code></pre>
+<hr>
+<h3 id="54-kafka-streams-word-count"><a class="header" href="#54-kafka-streams-word-count">5.4 Kafka Streams Word Count</a></h3>
+<pre><code class="language-java">import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.streams.StreamsBuilder;
+import org.apache.kafka.streams.kstream.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import java.util.Arrays;
+
+@Configuration
+public class WordCountTopology {
+
+    @Bean
+    public KStream&lt;String, String&gt; wordCountStream(StreamsBuilder builder) {
+        KStream&lt;String, String&gt; textStream = builder.stream("text-input",
+            Consumed.with(Serdes.String(), Serdes.String()));
+
+        KTable&lt;String, Long&gt; wordCounts = textStream
+            .flatMapValues(text -&gt; Arrays.asList(text.toLowerCase().split("\\W+")))
+            .groupBy((key, word) -&gt; word, Grouped.with(Serdes.String(), Serdes.String()))
+            .count(Materialized.as("word-counts-store")); // materialize to state store
+
+        wordCounts.toStream()
+                  .to("word-count-output",
+                      Produced.with(Serdes.String(), Serdes.Long()));
+
+        return textStream;
+    }
+}
+</code></pre>
+<hr>
+<h2 id="category-6-redis-patterns"><a class="header" href="#category-6-redis-patterns">Category 6: Redis Patterns</a></h2>
+<h3 id="61-cacheable-full-configuration"><a class="header" href="#61-cacheable-full-configuration">6.1 @Cacheable Full Configuration</a></h3>
+<pre><code class="language-java">import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.cache.RedisCacheConfiguration;
+import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializationContext;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
+
+import java.time.Duration;
+import java.util.Map;
+
+@Configuration
+public class CacheConfig {
+
+    @Bean
+    public RedisCacheManager cacheManager(RedisConnectionFactory cf) {
+        RedisCacheConfiguration defaults = RedisCacheConfiguration.defaultCacheConfig()
+            .entryTtl(Duration.ofMinutes(10))
+            .disableCachingNullValues()
+            .serializeKeysWith(
+                RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
+            .serializeValuesWith(
+                RedisSerializationContext.SerializationPair.fromSerializer(
+                    new GenericJackson2JsonRedisSerializer()));
+
+        return RedisCacheManager.builder(cf)
+            .cacheDefaults(defaults)
+            .withInitialCacheConfigurations(Map.of(
+                "users",    defaults.entryTtl(Duration.ofMinutes(30)),  // longer TTL for users
+                "products", defaults.entryTtl(Duration.ofMinutes(5))    // shorter TTL for products
+            ))
+            .build();
+    }
+}
+
+@CacheConfig(cacheNames = "users")
+@org.springframework.stereotype.Service
+public class UserCacheService {
+    private final UserRepository userRepo;
+
+    public UserCacheService(UserRepository userRepo) { this.userRepo = userRepo; }
+
+    @Cacheable(key = "#id")                                // cache key: "users::123"
+    public User findById(Long id) {
+        return userRepo.findById(id).orElseThrow();
+    }
+
+    @CacheEvict(key = "#user.id")                         // evict on update
+    public User update(User user) {
+        return userRepo.save(user);
+    }
+
+    @CacheEvict(allEntries = true)                        // clear entire cache
+    public void clearAll() {}
+}
+</code></pre>
+<hr>
+<h3 id="62-redisson-distributed-lock"><a class="header" href="#62-redisson-distributed-lock">6.2 Redisson Distributed Lock</a></h3>
+<pre><code class="language-java">import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
+import org.springframework.stereotype.Service;
+import java.util.concurrent.TimeUnit;
+
+// Distributed lock: prevents concurrent execution across multiple JVM instances
+@Service
+public class DistributedTaskService {
+    private final RedissonClient redisson;
+
+    public DistributedTaskService(RedissonClient redisson) {
+        this.redisson = redisson;
+    }
+
+    public void executeExclusively(String resourceId, Runnable task) {
+        RLock lock = redisson.getLock("lock:" + resourceId);
+        boolean acquired = false;
+        try {
+            // tryLock: waitTime=5s (acquire timeout), leaseTime=30s (auto-release)
+            // leaseTime=-1 enables watchdog (auto-renews every 10s while locked)
+            acquired = lock.tryLock(5, 30, TimeUnit.SECONDS);
+            if (!acquired) {
+                throw new RuntimeException("Could not acquire lock for: " + resourceId);
+            }
+            task.run();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while acquiring lock", e);
+        } finally {
+            if (acquired &amp;&amp; lock.isHeldByCurrentThread()) {
+                lock.unlock();                             // ALWAYS unlock in finally
+            }
+        }
+    }
+}
+</code></pre>
+<hr>
+<h3 id="63-lua-script-for-atomic-rate-limiting"><a class="header" href="#63-lua-script-for-atomic-rate-limiting">6.3 Lua Script for Atomic Rate Limiting</a></h3>
+<pre><code class="language-java">import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.stereotype.Component;
+import java.util.List;
+
+// Sliding window rate limiter using atomic Lua script — no race condition possible
+@Component
+public class RateLimiter {
+    private final StringRedisTemplate redis;
+
+    // Lua script: KEYS[1]=rate limit key, ARGV[1]=limit, ARGV[2]=window(seconds)
+    private static final DefaultRedisScript&lt;Long&gt; RATE_LIMIT_SCRIPT = new DefaultRedisScript&lt;&gt;("""
+        local key    = KEYS[1]
+        local limit  = tonumber(ARGV[1])
+        local window = tonumber(ARGV[2])
+        local current = redis.call('INCR', key)
+        if current == 1 then
+            redis.call('EXPIRE', key, window)
+        end
+        if current &gt; limit then
+            return 0
+        else
+            return 1
+        end
+        """, Long.class);
+
+    public RateLimiter(StringRedisTemplate redis) { this.redis = redis; }
+
+    // Returns true if request is allowed, false if rate limit exceeded
+    public boolean isAllowed(String clientId, int limit, int windowSeconds) {
+        String key = "rate:" + clientId;
+        Long result = redis.execute(
+            RATE_LIMIT_SCRIPT,
+            List.of(key),
+            String.valueOf(limit),
+            String.valueOf(windowSeconds)
+        );
+        return Long.valueOf(1L).equals(result);
+    }
+}
+</code></pre>
+<hr>
+<h3 id="64-cache-stampede-prevention-xfetch-algorithm"><a class="header" href="#64-cache-stampede-prevention-xfetch-algorithm">6.4 Cache Stampede Prevention (XFetch Algorithm)</a></h3>
+<pre><code class="language-java">import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.stereotype.Component;
+import java.time.Duration;
+import java.util.function.Supplier;
+
+// XFetch: probabilistic early expiration prevents thundering herd on cache miss
+@Component
+public class StampedePreventingCache {
+    private final RedisTemplate&lt;String, CacheEntry&gt; redis;
+
+    public StampedePreventingCache(RedisTemplate&lt;String, CacheEntry&gt; redis) {
+        this.redis = redis;
+    }
+
+    public &lt;T&gt; T get(String key, Duration ttl, double beta, Supplier&lt;T&gt; recompute) {
+        CacheEntry entry = redis.opsForValue().get(key);
+
+        if (entry != null) {
+            double remainingTtl = redis.getExpire(key, java.util.concurrent.TimeUnit.MILLISECONDS);
+            double recomputeTime = entry.getDeltaMs();     // how long last recompute took
+
+            // XFetch formula: recompute early with probability proportional to recompute cost
+            double xfetch = -recomputeTime * beta * Math.log(Math.random());
+            if (xfetch &lt; remainingTtl) {
+                return (T) entry.getValue();               // cache hit: return cached value
+            }
+        }
+
+        // Cache miss or probabilistic early expiration: recompute
+        long start = System.currentTimeMillis();
+        T value = recompute.get();
+        long delta = System.currentTimeMillis() - start;
+
+        redis.opsForValue().set(key, new CacheEntry(value, delta), ttl);
+        return value;
+    }
+
+    public record CacheEntry(Object value, long deltaMs) {}
+}
+</code></pre>
+<hr>
+<h2 id="category-7-rest-api-patterns"><a class="header" href="#category-7-rest-api-patterns">Category 7: REST API Patterns</a></h2>
+<h3 id="71-rfc-7807-problem-details-error-handler"><a class="header" href="#71-rfc-7807-problem-details-error-handler">7.1 RFC 7807 Problem Details Error Handler</a></h3>
+<pre><code class="language-java">import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.net.URI;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+// RFC 7807 compliant error responses — returns application/problem+json
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    // Validation errors: 400 with field-level details
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ProblemDetail handleValidation(MethodArgumentNotValidException ex) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        problem.setType(URI.create("https://api.example.com/errors/validation"));
+        problem.setTitle("Validation Failed");
+        problem.setDetail("One or more fields failed validation");
+
+        Map&lt;String, String&gt; errors = ex.getBindingResult().getFieldErrors().stream()
+            .collect(Collectors.toMap(
+                FieldError::getField,
+                fe -&gt; fe.getDefaultMessage() != null ? fe.getDefaultMessage() : "invalid",
+                (a, b) -&gt; a + "; " + b          // merge multiple errors on same field
+            ));
+        problem.setProperty("errors", errors);   // extension member per RFC 7807
+        return problem;
+    }
+
+    // Not found: 404
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ProblemDetail handleNotFound(ResourceNotFoundException ex) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+        problem.setType(URI.create("https://api.example.com/errors/not-found"));
+        problem.setTitle("Resource Not Found");
+        problem.setDetail(ex.getMessage());
+        return problem;
+    }
+
+    // Catch-all: 500
+    @ExceptionHandler(Exception.class)
+    public ProblemDetail handleGeneric(Exception ex) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
+        problem.setType(URI.create("https://api.example.com/errors/internal"));
+        problem.setTitle("Internal Server Error");
+        problem.setDetail("An unexpected error occurred");
+        return problem;
+    }
+}
+
+class ResourceNotFoundException extends RuntimeException {
+    public ResourceNotFoundException(String message) { super(message); }
+}
+</code></pre>
+<hr>
+<h3 id="72-idempotency-key-filter"><a class="header" href="#72-idempotency-key-filter">7.2 Idempotency Key Filter</a></h3>
+<pre><code class="language-java">import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.util.ContentCachingResponseWrapper;
+
+import java.io.IOException;
+import java.time.Duration;
+
+// Idempotency filter: cache response for X-Idempotency-Key header to prevent duplicate processing
+@Component
+public class IdempotencyFilter extends OncePerRequestFilter {
+    private static final String HEADER = "X-Idempotency-Key";
+    private static final Duration TTL = Duration.ofHours(24);
+    private static final String PREFIX = "idempotency:";
+
+    private final StringRedisTemplate redis;
+
+    public IdempotencyFilter(StringRedisTemplate redis) { this.redis = redis; }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain chain) throws IOException, jakarta.servlet.ServletException {
+        String key = request.getHeader(HEADER);
+
+        // Only apply to mutation methods with idempotency key
+        if (key == null || !isMutationMethod(request.getMethod())) {
+            chain.doFilter(request, response);
+            return;
+        }
+
+        String redisKey = PREFIX + key;
+        String cached = redis.opsForValue().get(redisKey);
+
+        if (cached != null) {
+            // Return cached response — idempotent replay
+            response.setStatus(200);
+            response.setContentType("application/json");
+            response.getWriter().write(cached);
+            response.setHeader("X-Idempotency-Replayed", "true");
+            return;
+        }
+
+        // Wrap response to capture body
+        ContentCachingResponseWrapper wrappedResponse = new ContentCachingResponseWrapper(response);
+        chain.doFilter(request, wrappedResponse);
+
+        // Cache only successful responses
+        if (wrappedResponse.getStatus() &lt; 400) {
+            String body = new String(wrappedResponse.getContentAsByteArray());
+            redis.opsForValue().set(redisKey, body, TTL);
+        }
+        wrappedResponse.copyBodyToResponse();
+    }
+
+    private boolean isMutationMethod(String method) {
+        return "POST".equals(method) || "PUT".equals(method) || "PATCH".equals(method);
+    }
+}
+</code></pre>
+<hr>
+<h3 id="73-cursor-based-pagination"><a class="header" href="#73-cursor-based-pagination">7.3 Cursor-Based Pagination</a></h3>
+<pre><code class="language-java">import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Service;
+import java.util.Base64;
+import java.util.List;
+
+// Keyset pagination: consistent under inserts, O(log n) vs O(n) for offset pagination
+public record CursorPage&lt;T&gt;(
+    List&lt;T&gt; items,
+    String nextCursor,                                     // null if no more pages
+    boolean hasMore
+) {}
+
+public interface OrderRepository extends JpaRepository&lt;Order, Long&gt; {
+    @Query("SELECT o FROM Order o WHERE o.id &gt; :cursor ORDER BY o.id ASC LIMIT :pageSize")
+    List&lt;Order&gt; findAfterCursor(Long cursor, int pageSize);
+}
+
+@Service
+public class OrderPaginationService {
+    private final OrderRepository repo;
+
+    public OrderPaginationService(OrderRepository repo) { this.repo = repo; }
+
+    public CursorPage&lt;Order&gt; getPage(String encodedCursor, int pageSize) {
+        Long cursor = decodeCursor(encodedCursor);
+
+        // Fetch pageSize+1 to detect if there's a next page
+        List&lt;Order&gt; results = repo.findAfterCursor(cursor, pageSize + 1);
+
+        boolean hasMore = results.size() &gt; pageSize;
+        List&lt;Order&gt; items = hasMore ? results.subList(0, pageSize) : results;
+
+        String nextCursor = hasMore
+            ? encodeCursor(items.get(items.size() - 1).getId())
+            : null;
+
+        return new CursorPage&lt;&gt;(items, nextCursor, hasMore);
+    }
+
+    private String encodeCursor(Long id) {
+        return Base64.getUrlEncoder().encodeToString(("cursor:" + id).getBytes());
+    }
+
+    private Long decodeCursor(String encoded) {
+        if (encoded == null) return 0L;
+        String decoded = new String(Base64.getUrlDecoder().decode(encoded));
+        return Long.parseLong(decoded.replace("cursor:", ""));
+    }
+}
+</code></pre>
+<hr>
+<h3 id="74-webclient-with-retry--circuit-breaker"><a class="header" href="#74-webclient-with-retry--circuit-breaker">7.4 WebClient with Retry + Circuit Breaker</a></h3>
+<pre><code class="language-java">import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
+
+import java.time.Duration;
+
+@Service
+public class InventoryClient {
+    private final WebClient webClient;
+    private final CircuitBreaker circuitBreaker;
+
+    public InventoryClient(WebClient.Builder builder, CircuitBreakerRegistry registry) {
+        this.webClient = builder.baseUrl("https://inventory-service").build();
+        this.circuitBreaker = registry.circuitBreaker("inventory");
+    }
+
+    public Mono&lt;InventoryResponse&gt; getStock(String productId) {
+        return webClient.get()
+            .uri("/api/stock/{id}", productId)
+            .retrieve()
+            .onStatus(status -&gt; status.is5xxServerError(),
+                      response -&gt; Mono.error(new ServiceException("5xx from inventory")))
+            .bodyToMono(InventoryResponse.class)
+            // Retry: 3 attempts, exponential backoff, only on 5xx (not 4xx)
+            .retryWhen(Retry.backoff(3, Duration.ofMillis(100))
+                           .maxBackoff(Duration.ofSeconds(2))
+                           .filter(ex -&gt; ex instanceof ServiceException))
+            // Circuit breaker: open after 50% failure rate, half-open after 5s wait
+            .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
+            // Fallback: return default response when circuit is open
+            .onErrorReturn(io.github.resilience4j.circuitbreaker.CallNotPermittedException.class,
+                           InventoryResponse.unavailable());
+    }
+}
+
+record InventoryResponse(String productId, int quantity, boolean available) {
+    static InventoryResponse unavailable() {
+        return new InventoryResponse(null, 0, false);
+    }
+}
+
+class ServiceException extends RuntimeException {
+    ServiceException(String msg) { super(msg); }
+}
+</code></pre>
+<hr>
+<h2 id="category-8-database-patterns"><a class="header" href="#category-8-database-patterns">Category 8: Database Patterns</a></h2>
+<h3 id="81-hikaricp-optimal-configuration"><a class="header" href="#81-hikaricp-optimal-configuration">8.1 HikariCP Optimal Configuration</a></h3>
+<pre><code class="language-yaml"># application.yml — HikariCP connection pool tuning
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/mydb
+    username: app_user
+    password: secret
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      # Pool sizing: formula = (core_count * 2) + effective_spindle_count
+      maximum-pool-size: 10          # max connections; don't over-provision
+      minimum-idle: 5                # keep warm connections ready
+      
+      # Timeouts
+      connection-timeout: 30000      # max wait for connection from pool (ms)
+      idle-timeout: 600000           # remove idle connection after 10min (ms)
+      max-lifetime: 1800000          # replace connection after 30min (ms) — shorter than DB timeout
+      keepalive-time: 300000         # send keepalive query every 5min to prevent stale connections
+      
+      # Validation
+      connection-test-query: SELECT 1  # validate connection before use (PostgreSQL supports isValid())
+      validation-timeout: 5000       # timeout for validation query (ms)
+      
+      pool-name: MyApp-HikariPool    # visible in JMX/metrics
+      
+      # Leak detection — logs stack trace of connection held &gt; threshold
+      leak-detection-threshold: 60000  # 60s; set to 0 to disable
+</code></pre>
+<hr>
+<h3 id="82-flyway-migration-with-expand-contract"><a class="header" href="#82-flyway-migration-with-expand-contract">8.2 Flyway Migration with Expand-Contract</a></h3>
+<pre><code class="language-sql">-- V1__add_email_column.sql — EXPAND: add nullable column (zero downtime, old code ignores it)
+ALTER TABLE users ADD COLUMN email VARCHAR(255);
+
+-- No constraint yet — old application version still works without email
+</code></pre>
+<pre><code class="language-sql">-- V2__backfill_email.sql — BACKFILL: populate data before adding constraint
+-- Run in batches to avoid long table locks
+UPDATE users SET email = username || '@example.com' WHERE email IS NULL;
+</code></pre>
+<pre><code class="language-sql">-- V3__add_email_not_null.sql — CONTRACT: add constraint now that all rows have data
+-- Only safe after old app version is fully retired (no code writing NULL email)
+ALTER TABLE users ALTER COLUMN email SET NOT NULL;
+ALTER TABLE users ADD CONSTRAINT users_email_unique UNIQUE (email);
+</code></pre>
+<hr>
+<h3 id="83-row-level-security-in-postgresql"><a class="header" href="#83-row-level-security-in-postgresql">8.3 Row-Level Security in PostgreSQL</a></h3>
+<pre><code class="language-sql">-- Row-Level Security: tenants can only see their own rows — enforced at DB level
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+
+-- Policy: users see only rows where tenant_id matches the app.current_tenant setting
+CREATE POLICY tenant_isolation ON orders
+    USING (tenant_id = current_setting('app.current_tenant')::BIGINT);
+
+-- Optional write policy (if read policy doesn't cover writes)
+CREATE POLICY tenant_insert ON orders FOR INSERT
+    WITH CHECK (tenant_id = current_setting('app.current_tenant')::BIGINT);
+
+-- App user must not be superuser (superusers bypass RLS)
+GRANT SELECT, INSERT, UPDATE, DELETE ON orders TO app_user;
+</code></pre>
+<pre><code class="language-java">// Spring integration: set tenant context before each query via AOP or interceptor
+import org.hibernate.resource.jdbc.spi.StatementInspector;
+import org.springframework.stereotype.Component;
+
+@Component
+public class TenantStatementInspector implements StatementInspector {
+    @Override
+    public String inspect(String sql) {
+        // Executed before every Hibernate statement — set PostgreSQL session variable
+        return sql;
+    }
+}
+
+// Better approach: use Spring's TransactionSynchronizationManager or a JDBC interceptor
+@Component
+public class TenantAwareDataSourceProxy {
+    private final DataSource dataSource;
+
+    public Connection getConnectionForTenant(Long tenantId) throws Exception {
+        Connection conn = dataSource.getConnection();
+        try (var stmt = conn.prepareStatement("SET app.current_tenant = ?")) {
+            stmt.setLong(1, tenantId);
+            stmt.execute();
+        }
+        return conn;
+    }
+}
+</code></pre>
+<hr>
+<h3 id="84-postgresql-advisory-lock"><a class="header" href="#84-postgresql-advisory-lock">8.4 PostgreSQL Advisory Lock</a></h3>
+<pre><code class="language-java">import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Component;
+
+// Advisory lock: lightweight distributed lock using PostgreSQL — no external dependency
+@Component
+public class PostgresAdvisoryLock {
+    private final JdbcTemplate jdbc;
+
+    public PostgresAdvisoryLock(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+
+    // Blocking acquire — waits until lock is available (session-level)
+    public void lock(long lockId) {
+        jdbc.execute("SELECT pg_advisory_lock(" + lockId + ")");
+    }
+
+    // Non-blocking try — returns true if acquired, false if already held
+    public boolean tryLock(long lockId) {
+        return Boolean.TRUE.equals(
+            jdbc.queryForObject("SELECT pg_try_advisory_lock(?)", Boolean.class, lockId));
+    }
+
+    // Release session-level advisory lock
+    public void unlock(long lockId) {
+        jdbc.execute("SELECT pg_advisory_unlock(" + lockId + ")");
+    }
+
+    // Transaction-level: automatically released at transaction end
+    public boolean tryLockTransactional(long lockId) {
+        return Boolean.TRUE.equals(
+            jdbc.queryForObject("SELECT pg_try_advisory_xact_lock(?)", Boolean.class, lockId));
+    }
+
+    // Usage pattern with manual lock/unlock
+    public void executeWithLock(long lockId, Runnable task) {
+        boolean acquired = tryLock(lockId);
+        if (!acquired) throw new RuntimeException("Could not acquire advisory lock: " + lockId);
+        try {
+            task.run();
+        } finally {
+            unlock(lockId);
+        }
+    }
+}
+</code></pre>
+<hr>
+<h2 id="category-9-lld-patterns"><a class="header" href="#category-9-lld-patterns">Category 9: LLD Patterns</a></h2>
+<h3 id="91-strategy-pattern-complete"><a class="header" href="#91-strategy-pattern-complete">9.1 Strategy Pattern (Complete)</a></h3>
+<pre><code class="language-java">import org.springframework.stereotype.Component;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+// Strategy: swap algorithms at runtime without changing the context class
+public interface DiscountStrategy {
+    double apply(double originalPrice, int quantity);
+    String name();
+}
+
+@Component("noDiscount")
+public class NoDiscountStrategy implements DiscountStrategy {
+    @Override public double apply(double price, int qty) { return price; }
+    @Override public String name() { return "NONE"; }
+}
+
+@Component("bulkDiscount")
+public class BulkDiscountStrategy implements DiscountStrategy {
+    @Override
+    public double apply(double price, int qty) {
+        if (qty &gt;= 100) return price * 0.70;               // 30% off for 100+
+        if (qty &gt;= 50)  return price * 0.80;               // 20% off for 50+
+        if (qty &gt;= 10)  return price * 0.90;               // 10% off for 10+
+        return price;
+    }
+    @Override public String name() { return "BULK"; }
+}
+
+@Component("seasonalDiscount")
+public class SeasonalDiscountStrategy implements DiscountStrategy {
+    @Override
+    public double apply(double price, int qty) {
+        return price * 0.85;                               // flat 15% seasonal discount
+    }
+    @Override public String name() { return "SEASONAL"; }
+}
+
+// Context: holds current strategy, delegates calculation to it
+@Component
+public class PriceCalculator {
+    private final Map&lt;String, DiscountStrategy&gt; strategies;
+
+    // Spring injects all DiscountStrategy beans as a list
+    public PriceCalculator(List&lt;DiscountStrategy&gt; strategyList) {
+        this.strategies = strategyList.stream()
+            .collect(Collectors.toMap(DiscountStrategy::name, Function.identity()));
+    }
+
+    public double calculate(double price, int qty, String strategyName) {
+        DiscountStrategy strategy = strategies.getOrDefault(strategyName,
+            strategies.get("NONE"));
+        return strategy.apply(price, qty);
+    }
+}
+</code></pre>
+<hr>
+<h3 id="92-observer-pattern-complete"><a class="header" href="#92-observer-pattern-complete">9.2 Observer Pattern (Complete)</a></h3>
+<pre><code class="language-java">import org.springframework.context.ApplicationEvent;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
+import java.util.ArrayList;
+import java.util.List;
+
+// PURE JAVA IMPLEMENTATION (without Spring)
+public interface OrderObserver {
+    void onOrderPlaced(Order order);
+}
+
+public class OrderSubject {
+    private final List&lt;OrderObserver&gt; observers = new ArrayList&lt;&gt;();
+
+    public void addObserver(OrderObserver observer)    { observers.add(observer); }
+    public void removeObserver(OrderObserver observer) { observers.remove(observer); }
+
+    public void placeOrder(Order order) {
+        // business logic...
+        notifyObservers(order);
+    }
+
+    private void notifyObservers(Order order) {
+        observers.forEach(o -&gt; o.onOrderPlaced(order));  // synchronous notification
+    }
+}
+
+public class EmailNotificationObserver implements OrderObserver {
+    @Override public void onOrderPlaced(Order order) {
+        System.out.println("Email sent for order: " + order.getId());
+    }
+}
+
+public class InventoryObserver implements OrderObserver {
+    @Override public void onOrderPlaced(Order order) {
+        System.out.println("Inventory updated for order: " + order.getId());
+    }
+}
+
+// SPRING APPLICATION EVENT IMPLEMENTATION (preferred in Spring apps)
+public class OrderPlacedEvent extends ApplicationEvent {
+    private final Order order;
+    public OrderPlacedEvent(Object source, Order order) { super(source); this.order = order; }
+    public Order getOrder() { return order; }
+}
+
+@Service
+public class OrderEventPublisher {
+    private final ApplicationEventPublisher publisher;
+    public OrderEventPublisher(ApplicationEventPublisher publisher) { this.publisher = publisher; }
+
+    public void placeOrder(Order order) {
+        // business logic...
+        publisher.publishEvent(new OrderPlacedEvent(this, order));
+    }
+}
+
+@Component
+public class EmailListener {
+    @EventListener
+    public void handle(OrderPlacedEvent event) {
+        System.out.println("Spring Email for: " + event.getOrder().getId());
+    }
+}
+
+@Component
+public class AnalyticsListener {
+    @EventListener
+    public void handle(OrderPlacedEvent event) {
+        System.out.println("Analytics tracked: " + event.getOrder().getId());
+    }
+}
+</code></pre>
+<hr>
+<h3 id="93-builder-pattern-manual"><a class="header" href="#93-builder-pattern-manual">9.3 Builder Pattern (Manual)</a></h3>
+<pre><code class="language-java">import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
+
+// Builder: construct complex immutable object step-by-step with validation
+public final class HttpRequest {
+    private final String method;
+    private final String url;
+    private final java.util.Map&lt;String, String&gt; headers;
+    private final String body;
+    private final int timeoutMs;
+    private final int retries;
+    private final Instant createdAt;
+
+    private HttpRequest(Builder builder) {
+        this.method    = builder.method;
+        this.url       = builder.url;
+        this.headers   = Collections.unmodifiableMap(new java.util.HashMap&lt;&gt;(builder.headers));
+        this.body      = builder.body;
+        this.timeoutMs = builder.timeoutMs;
+        this.retries   = builder.retries;
+        this.createdAt = Instant.now();
+    }
+
+    public String getMethod()   { return method; }
+    public String getUrl()      { return url; }
+    public String getBody()     { return body; }
+    public int getTimeoutMs()   { return timeoutMs; }
+    public int getRetries()     { return retries; }
+
+    public static Builder builder(String method, String url) {
+        return new Builder(method, url);
+    }
+
+    public static final class Builder {
+        // Required parameters
+        private final String method;
+        private final String url;
+
+        // Optional parameters with defaults
+        private java.util.Map&lt;String, String&gt; headers = new java.util.HashMap&lt;&gt;();
+        private String body;
+        private int timeoutMs = 30_000;
+        private int retries   = 0;
+
+        private Builder(String method, String url) {
+            this.method = method;
+            this.url    = url;
+        }
+
+        public Builder header(String key, String value) {
+            this.headers.put(key, value);
+            return this;
+        }
+
+        public Builder body(String body) {
+            this.body = body;
+            return this;
+        }
+
+        public Builder timeoutMs(int timeoutMs) {
+            this.timeoutMs = timeoutMs;
+            return this;
+        }
+
+        public Builder retries(int retries) {
+            this.retries = retries;
+            return this;
+        }
+
+        public HttpRequest build() {
+            // Validation in build() — fail fast before object is created
+            if (method == null || method.isBlank()) throw new IllegalStateException("method required");
+            if (url == null || url.isBlank())       throw new IllegalStateException("url required");
+            if (timeoutMs &lt;= 0)                     throw new IllegalStateException("timeout must be positive");
+            if (retries &lt; 0)                        throw new IllegalStateException("retries must be &gt;= 0");
+            return new HttpRequest(this);
+        }
+    }
+
+    // Usage:
+    // HttpRequest req = HttpRequest.builder("POST", "https://api.example.com/orders")
+    //     .header("Content-Type", "application/json")
+    //     .body("{\"item\": \"book\"}")
+    //     .timeoutMs(5000)
+    //     .retries(3)
+    //     .build();
+}
+</code></pre>
+<hr>
+<h3 id="94-state-machine-order"><a class="header" href="#94-state-machine-order">9.4 State Machine (Order)</a></h3>
+<pre><code class="language-java">import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.Map;
+import java.util.Set;
+
+// State machine: explicit transitions prevent invalid state changes
+public enum OrderStatus {
+    PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED
+}
+
+public class OrderStateMachine {
+    // Define valid transitions: from state → set of allowed next states
+    private static final Map&lt;OrderStatus, Set&lt;OrderStatus&gt;&gt; TRANSITIONS =
+        new EnumMap&lt;&gt;(OrderStatus.class);
+
+    static {
+        TRANSITIONS.put(OrderStatus.PENDING,   EnumSet.of(OrderStatus.CONFIRMED, OrderStatus.CANCELLED));
+        TRANSITIONS.put(OrderStatus.CONFIRMED, EnumSet.of(OrderStatus.SHIPPED,   OrderStatus.CANCELLED));
+        TRANSITIONS.put(OrderStatus.SHIPPED,   EnumSet.of(OrderStatus.DELIVERED));
+        TRANSITIONS.put(OrderStatus.DELIVERED, EnumSet.noneOf(OrderStatus.class)); // terminal
+        TRANSITIONS.put(OrderStatus.CANCELLED, EnumSet.noneOf(OrderStatus.class)); // terminal
+    }
+
+    private OrderStatus currentStatus;
+
+    public OrderStateMachine(OrderStatus initialStatus) {
+        this.currentStatus = initialStatus;
+    }
+
+    public void transition(OrderStatus nextStatus) {
+        Set&lt;OrderStatus&gt; allowed = TRANSITIONS.getOrDefault(currentStatus, EnumSet.noneOf(OrderStatus.class));
+        if (!allowed.contains(nextStatus)) {
+            throw new IllegalStateException(
+                "Invalid transition: " + currentStatus + " → " + nextStatus +
+                ". Allowed: " + allowed);
+        }
+        System.out.println("Transitioning: " + currentStatus + " → " + nextStatus);
+        this.currentStatus = nextStatus;
+    }
+
+    public OrderStatus getStatus() { return currentStatus; }
+    public boolean canTransitionTo(OrderStatus next) {
+        return TRANSITIONS.getOrDefault(currentStatus, EnumSet.noneOf(OrderStatus.class)).contains(next);
+    }
+
+    public static void main(String[] args) {
+        OrderStateMachine sm = new OrderStateMachine(OrderStatus.PENDING);
+        sm.transition(OrderStatus.CONFIRMED);
+        sm.transition(OrderStatus.SHIPPED);
+        sm.transition(OrderStatus.DELIVERED);
+        // sm.transition(OrderStatus.CANCELLED); // throws: DELIVERED is terminal
+    }
+}
+</code></pre>
+<hr>
+<h3 id="95-balance-simplification-algorithm-splitwise"><a class="header" href="#95-balance-simplification-algorithm-splitwise">9.5 Balance Simplification Algorithm (Splitwise)</a></h3>
+<pre><code class="language-java">import java.util.*;
+
+// Minimizes number of transactions to settle group expenses — greedy with max-heap/min-heap
+public class BalanceSimplifier {
+
+    public record Transaction(String from, String to, double amount) {}
+
+    public List&lt;Transaction&gt; simplify(Map&lt;String, Double&gt; balances) {
+        // Max-heap: person who is owed the most (creditor)
+        PriorityQueue&lt;Map.Entry&lt;String, Double&gt;&gt; creditors =
+            new PriorityQueue&lt;&gt;((a, b) -&gt; Double.compare(b.getValue(), a.getValue()));
+
+        // Min-heap: person who owes the most (debtor) — most negative balance first
+        PriorityQueue&lt;Map.Entry&lt;String, Double&gt;&gt; debtors =
+            new PriorityQueue&lt;&gt;(Comparator.comparingDouble(Map.Entry::getValue));
+
+        for (Map.Entry&lt;String, Double&gt; entry : balances.entrySet()) {
+            if (entry.getValue() &gt; 0.001)        creditors.offer(entry);
+            else if (entry.getValue() &lt; -0.001)  debtors.offer(entry);
+        }
+
+        List&lt;Transaction&gt; result = new ArrayList&lt;&gt;();
+
+        while (!creditors.isEmpty() &amp;&amp; !debtors.isEmpty()) {
+            Map.Entry&lt;String, Double&gt; creditor = creditors.poll();
+            Map.Entry&lt;String, Double&gt; debtor   = debtors.poll();
+
+            double amount = Math.min(creditor.getValue(), -debtor.getValue());
+            result.add(new Transaction(debtor.getKey(), creditor.getKey(), amount));
+
+            double newCreditorBalance = creditor.getValue() - amount;
+            double newDebtorBalance   = debtor.getValue()   + amount;
+
+            if (newCreditorBalance &gt; 0.001) creditors.offer(Map.entry(creditor.getKey(), newCreditorBalance));
+            if (newDebtorBalance  &lt; -0.001) debtors.offer(Map.entry(debtor.getKey(), newDebtorBalance));
+        }
+
+        return result;
+    }
+
+    // Net balance computation from expense list
+    public Map&lt;String, Double&gt; computeNetBalances(List&lt;Expense&gt; expenses) {
+        Map&lt;String, Double&gt; balances = new HashMap&lt;&gt;();
+
+        for (Expense expense : expenses) {
+            double share = expense.amount() / expense.participants().size();
+            // Payer gains (is owed) the amount minus their own share
+            balances.merge(expense.payer(), expense.amount() - share, Double::sum);
+            // Each other participant owes their share
+            for (String participant : expense.participants()) {
+                if (!participant.equals(expense.payer())) {
+                    balances.merge(participant, -share, Double::sum);
+                }
+            }
+        }
+        return balances;
+    }
+
+    public record Expense(String payer, double amount, List&lt;String&gt; participants) {}
+
+    public static void main(String[] args) {
+        BalanceSimplifier simplifier = new BalanceSimplifier();
+
+        List&lt;Expense&gt; expenses = List.of(
+            new Expense("Alice", 90.0, List.of("Alice", "Bob", "Carol")),  // each owes 30
+            new Expense("Bob",   60.0, List.of("Alice", "Bob", "Carol")),  // each owes 20
+            new Expense("Carol", 30.0, List.of("Alice", "Bob", "Carol"))   // each owes 10
+        );
+
+        Map&lt;String, Double&gt; balances = simplifier.computeNetBalances(expenses);
+        System.out.println("Balances: " + balances);
+        // Alice: +60-20-10 = +30, Bob: +40-30-10 = 0, Carol: +20-30-20 = -30
+
+        List&lt;Transaction&gt; transactions = simplifier.simplify(balances);
+        transactions.forEach(t -&gt;
+            System.out.printf("%s pays %s $%.2f%n", t.from(), t.to(), t.amount()));
+    }
+}
+</code></pre>
+<hr>
+<p><em>End of Appendix C</em></p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="APPENDIX_Tables.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="APPENDIX_Tables.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-09f2665d.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-c22b7243.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="custom-877a7a53.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

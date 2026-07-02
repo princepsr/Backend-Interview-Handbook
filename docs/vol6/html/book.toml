@@ -1,0 +1,40 @@
+[book]
+title = "Volume 6: Revision Pack"
+authors = ["Prince Singh"]
+description = "Rapid revision across all 5 volumes + 100 mock Q&As + interview-day checklist. Use in the final week before your interview."
+language = "en"
+src = "."
+
+[build]
+build-dir = "../../docs/vol6"
+create-missing = false
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+no-section-label = false
+fold = { enable = true, level = 1 }
+additional-css = ["custom.css"]
+additional-js = ["custom.js"]
+
+[output.html.print]
+enable = true
+page-break = true
+
+[output.html.search]
+enable = true
+limit-results = 30
+use-boolean-and = true
+boost-title = 2
+boost-hierarchy = 1
+boost-paragraph = 1
+expand = true
+heading-split-level = 3
+
+[output.pdf]
+enable = true
+output-filename = "Volume6_RevisionPack.pdf"
+print-background = true
+prefer-css-page-size = true
+landscape = false
+display-header-footer = false

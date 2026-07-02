@@ -1,0 +1,3281 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Chapter 20 - SOLID and Clean Architecture - Volume 5: System Design and LLD</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Design Patterns, SOLID, LLD Case Studies and System Design HLD for SDE2 interviews. 4 chapters.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-0392ca55.css">
+        <link rel="stylesheet" href="../css/chrome-fc474251.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../custom-aab4aca2.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-8494a828.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-02008dcc.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Volume 5: System Design and LLD</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="volume-5-system-design--lld"><a class="header" href="#volume-5-system-design--lld">Volume 5: System Design &amp; LLD</a></h1>
+<h1 id="chapter-20-solid-principles--clean-architecture"><a class="header" href="#chapter-20-solid-principles--clean-architecture">Chapter 20: SOLID Principles &amp; Clean Architecture</a></h1>
+<hr>
+<h1 id="chapter-20--solid-principles--clean-architecture-part-a"><a class="header" href="#chapter-20--solid-principles--clean-architecture-part-a">Chapter 20 — SOLID Principles &amp; Clean Architecture (Part A)</a></h1>
+<blockquote>
+<p><strong>Target Audience:</strong> SDE2 / Senior Engineer | <strong>Stack:</strong> Java 17, Spring Boot 3.x<br><strong>Interview Frequency:</strong> ★★★★★ (FAANG+, MANGA, top product companies)</p>
+</blockquote>
+<hr>
+<h3 id="topic-1-single-responsibility-principle-srp"><a class="header" href="#topic-1-single-responsibility-principle-srp">Topic 1: Single Responsibility Principle (SRP)</a></h3>
+<p><strong>Difficulty:</strong> Medium | <strong>Frequency:</strong> Very High | <strong>Companies:</strong> Google, Amazon, Microsoft, Uber, Flipkart</p>
+<p><strong>Q:</strong> What is the Single Responsibility Principle, how do you identify violations, and how does it apply to microservices decomposition?</p>
+<p><strong>Short Answer:</strong><br>SRP states that a class should have only one reason to change — meaning it should encapsulate a single cohesive responsibility. A “God class” that handles persistence, business logic, and HTTP serialization all at once violates SRP because changes to any one concern force recompilation and retesting of unrelated code. In microservices, SRP maps naturally to service decomposition: each service owns one bounded business capability.</p>
+<p><strong>Deep Explanation:</strong><br>Robert C. Martin defined SRP as “a class should have one, and only one, reason to change.” The word <em>reason</em> refers to an <em>actor</em> — a stakeholder or system whose requirements drive change. If the same class must change when the UI team changes the response format AND when the DBA changes the schema AND when the business team changes pricing logic, it has three reasons to change and therefore violates SRP.</p>
+<p><strong>Identifying SRP violations:</strong></p>
+<ul>
+<li>The class name contains “And”, “Manager”, “Util”, “Helper”, or “Service” doing 10 things</li>
+<li>The class has more than 200-300 lines in most codebases</li>
+<li>The class imports from persistence, HTTP, scheduling, and email in the same file</li>
+<li>Unit testing requires mocking 5+ collaborators</li>
+<li>Changes to unrelated features frequently cause you to touch this class</li>
+</ul>
+<p><strong>God Class anti-pattern:</strong> A single <code>UserService</code> that: validates input, hashes passwords, persists to DB, sends welcome emails, generates JWT tokens, logs audit trails, and publishes Kafka events — every team in the company has a reason to modify it.</p>
+<p><strong>Microservices SRP:</strong> Each microservice should own one business capability (Order Service, Inventory Service, Payment Service). If your Payment Service also manages user profiles “for convenience,” you have a distributed God class.</p>
+<p><strong>Real-World Example:</strong><br>At a fintech startup, a <code>TransactionService</code> grew to 2,000 lines handling: fraud detection, ledger updates, notification dispatch, PDF receipt generation, and regulatory reporting. When the compliance team mandated a new reporting format, developers had to touch code adjacent to fraud detection logic — a regression caused a production incident. The fix: extract <code>FraudDetectionService</code>, <code>LedgerService</code>, <code>NotificationService</code>, <code>ReceiptService</code>, <code>RegulatoryReportingService</code>.</p>
+<p><strong>Code Example:</strong></p>
+<pre><code class="language-java">// ============================================================
+// BAD: God class violating SRP — multiple reasons to change
+// ============================================================
+@Service
+public class UserService {
+
+    @Autowired private UserRepository userRepository;
+    @Autowired private JavaMailSender mailSender;
+    @Autowired private JwtUtil jwtUtil;
+    @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private KafkaTemplate&lt;String, String&gt; kafkaTemplate;
+
+    // Reason 1: Business logic changes
+    public void registerUser(String email, String password) {
+        if (!email.contains("@")) throw new IllegalArgumentException("Bad email");
+
+        // Reason 2: Persistence schema changes
+        User user = new User();
+        user.setEmail(email);
+        user.setPasswordHash(passwordEncoder.encode(password));
+        userRepository.save(user);
+
+        // Reason 3: Email template changes
+        SimpleMailMessage msg = new SimpleMailMessage();
+        msg.setTo(email);
+        msg.setSubject("Welcome!");
+        msg.setText("Thanks for registering.");
+        mailSender.send(msg);
+
+        // Reason 4: JWT strategy changes
+        String token = jwtUtil.generate(email);
+        System.out.println("Token: " + token);
+
+        // Reason 5: Kafka topic/schema changes
+        kafkaTemplate.send("user-events", "USER_REGISTERED:" + email);
+    }
+}
+
+// ============================================================
+// GOOD: Each class has exactly one reason to change
+// ============================================================
+
+// Responsibility 1: User registration business logic only
+@Service
+@RequiredArgsConstructor
+public class UserRegistrationService {
+
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final UserValidator userValidator;
+    private final ApplicationEventPublisher eventPublisher;
+
+    public User register(RegisterUserCommand cmd) {
+        userValidator.validate(cmd);  // delegates validation
+        User user = User.create(cmd.email(), passwordEncoder.encode(cmd.password()));
+        userRepository.save(user);
+        eventPublisher.publishEvent(new UserRegisteredEvent(user.getId(), user.getEmail()));
+        return user;
+    }
+}
+
+// Responsibility 2: Email notifications — only changes when email strategy changes
+@Component
+@RequiredArgsConstructor
+public class UserWelcomeEmailHandler implements ApplicationListener&lt;UserRegisteredEvent&gt; {
+
+    private final JavaMailSender mailSender;
+    private final EmailTemplateRenderer templateRenderer;
+
+    @Override
+    public void onApplicationEvent(UserRegisteredEvent event) {
+        String body = templateRenderer.render("welcome", Map.of("email", event.email()));
+        SimpleMailMessage msg = new SimpleMailMessage();
+        msg.setTo(event.email());
+        msg.setSubject("Welcome!");
+        msg.setText(body);
+        mailSender.send(msg);
+    }
+}
+
+// Responsibility 3: Kafka publishing — only changes when event schema changes
+@Component
+@RequiredArgsConstructor
+public class UserEventPublisher implements ApplicationListener&lt;UserRegisteredEvent&gt; {
+
+    private final KafkaTemplate&lt;String, UserEvent&gt; kafkaTemplate;
+
+    @Override
+    public void onApplicationEvent(UserRegisteredEvent event) {
+        kafkaTemplate.send("user-events", new UserEvent("USER_REGISTERED", event.userId()));
+    }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ol>
+<li>How does SRP differ from cohesion? Are they the same concept? (SRP is about actors/reasons to change; cohesion is about how strongly related the elements of a module are — related but distinct)</li>
+<li>Can SRP be over-applied? What happens when you split too aggressively? (Yes — nano-classes with single methods lead to indirection explosion; balance with cohesion)</li>
+<li>How do you apply SRP at the package/module level in a large Java monolith?</li>
+</ol>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Confusing SRP with “a class should do only one thing” — the precise definition is one <em>reason to change</em> (actor), not one operation</li>
+<li>Splitting classes so finely that every method becomes its own class — this violates cohesion and creates anemic domain models</li>
+<li>Applying SRP only to classes but ignoring methods, packages, and microservices</li>
+</ul>
+<p><strong>Interview Traps:</strong></p>
+<ul>
+<li>Interviewer asks “is a 500-line class always a SRP violation?” — No. A complex domain object with many coherent behaviors can be large; size alone doesn’t determine SRP violation</li>
+<li>“How would you refactor a God class in a live production system?” — expect an answer about strangler fig pattern, gradual extraction, not a big-bang rewrite</li>
+</ul>
+<p><strong>Quick Revision:</strong> SRP = one actor, one reason to change; God classes accumulate responsibilities; use domain events to decouple side effects.</p>
+<hr>
+<h3 id="topic-2-openclosed-principle-ocp"><a class="header" href="#topic-2-openclosed-principle-ocp">Topic 2: Open/Closed Principle (OCP)</a></h3>
+<p><strong>Difficulty:</strong> Medium-Hard | <strong>Frequency:</strong> High | <strong>Companies:</strong> Amazon, Netflix, Atlassian, Stripe, Shopify</p>
+<p><strong>Q:</strong> What is the Open/Closed Principle and how do you achieve it in Java without modifying existing code when adding new behavior?</p>
+<p><strong>Short Answer:</strong><br>OCP states that software entities should be open for extension but closed for modification — you should be able to add new behavior without changing existing, tested code. The primary mechanism is polymorphism: define abstractions (interfaces/abstract classes) so new implementations can be plugged in. In Spring Boot, this manifests as Strategy beans, <code>@Conditional</code> configurations, and plugin architectures.</p>
+<p><strong>Deep Explanation:</strong><br>Bertrand Meyer coined OCP; Martin later reframed it in terms of polymorphic OCP. The core insight: every time you open a stable class to add a feature, you risk breaking existing behavior and invalidating existing tests.</p>
+<p><strong>Achieving OCP:</strong></p>
+<ol>
+<li><strong>Strategy Pattern</strong> — extract the varying behavior into an interface; add new strategies without modifying the context</li>
+<li><strong>Template Method</strong> — define the algorithm skeleton in a base class; subclasses override steps</li>
+<li><strong>Decorator Pattern</strong> — wrap objects to add behavior without modifying the wrapped class</li>
+<li><strong>Spring @Conditional</strong> — add new beans/configurations conditionally without changing existing config classes</li>
+<li><strong>Plugin architecture</strong> — use <code>ServiceLoader</code> or Spring’s component scanning to discover implementations</li>
+</ol>
+<p><strong>When is a switch/if-else an OCP violation?</strong> When adding a new <em>type</em> requires you to add a new case to an existing switch statement scattered across the codebase. This is the classic “type switch” smell.</p>
+<p><strong>Real-World Example:</strong><br>A payment gateway originally supported only credit cards. Each new payment method (PayPal, UPI, crypto) required modifying the <code>PaymentProcessor</code> class, adding an if-else branch, touching fraud-check logic, and re-testing everything. After applying OCP with a <code>PaymentStrategy</code> interface, adding a new payment method meant creating a new class and registering it as a Spring bean — zero changes to existing classes.</p>
+<p><strong>Code Example:</strong></p>
+<pre><code class="language-java">// ============================================================
+// BAD: Violates OCP — every new discount type requires
+// modifying existing DiscountCalculator
+// ============================================================
+public class DiscountCalculator {
+
+    public double calculate(Order order, String discountType) {
+        // Adding "FLASH_SALE" means opening this class
+        return switch (discountType) {
+            case "PERCENTAGE" -&gt; order.getTotal() * 0.10;
+            case "FIXED"      -&gt; order.getTotal() - 50.0;
+            case "BOGO"       -&gt; order.getTotal() * 0.50;
+            // Next sprint: add FLASH_SALE, LOYALTY_POINTS, REFERRAL...
+            // Every addition touches this class → regression risk
+            default -&gt; order.getTotal();
+        };
+    }
+}
+
+// ============================================================
+// GOOD: OCP via Strategy pattern + Spring bean registration
+// New discount types = new class, zero modification to existing
+// ============================================================
+
+// Closed abstraction — never changes
+public interface DiscountStrategy {
+    boolean supports(String discountType);
+    double apply(Order order);
+}
+
+// Extension point 1 — closed after implementation
+@Component
+public class PercentageDiscountStrategy implements DiscountStrategy {
+    @Override
+    public boolean supports(String type) { return "PERCENTAGE".equals(type); }
+    @Override
+    public double apply(Order order) { return order.getTotal() * 0.10; }
+}
+
+@Component
+public class FixedDiscountStrategy implements DiscountStrategy {
+    @Override
+    public boolean supports(String type) { return "FIXED".equals(type); }
+    @Override
+    public double apply(Order order) { return Math.max(0, order.getTotal() - 50.0); }
+}
+
+// Extension point 2: add FlashSaleDiscountStrategy — no existing class touched
+@Component
+public class FlashSaleDiscountStrategy implements DiscountStrategy {
+    @Override
+    public boolean supports(String type) { return "FLASH_SALE".equals(type); }
+    @Override
+    public double apply(Order order) { return order.getTotal() * 0.30; }
+}
+
+// Context — closed for modification, open for extension via Spring injection
+@Service
+@RequiredArgsConstructor
+public class DiscountCalculator {
+
+    // Spring auto-collects ALL DiscountStrategy beans — new strategies auto-register
+    private final List&lt;DiscountStrategy&gt; strategies;
+
+    public double calculate(Order order, String discountType) {
+        return strategies.stream()
+            .filter(s -&gt; s.supports(discountType))
+            .findFirst()
+            .map(s -&gt; s.apply(order))
+            .orElse(order.getTotal());
+    }
+}
+
+// ============================================================
+// Spring @Conditional as OCP — different implementations
+// loaded based on environment without modifying config class
+// ============================================================
+@Configuration
+public class StorageConfig {
+
+    @Bean
+    @ConditionalOnProperty(name = "storage.type", havingValue = "s3")
+    public StorageService s3Storage(S3Client s3Client) {
+        return new S3StorageService(s3Client);
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "storage.type", havingValue = "gcs")
+    public StorageService gcsStorage(Storage gcsClient) {
+        return new GCSStorageService(gcsClient);
+    }
+
+    // Adding Azure storage = new @Bean method, no existing beans modified
+    @Bean
+    @ConditionalOnProperty(name = "storage.type", havingValue = "azure")
+    public StorageService azureStorage(BlobServiceClient blobClient) {
+        return new AzureStorageService(blobClient);
+    }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ol>
+<li>Can you perfectly adhere to OCP? What’s the practical limit? (No — you must predict the right extension points; wrong abstractions cause worse rigidity)</li>
+<li>How does the Decorator pattern achieve OCP differently from Strategy? (Decorator adds behavior to existing objects at runtime via wrapping; Strategy swaps the algorithm)</li>
+<li>What’s the relationship between OCP and Feature Flags?</li>
+</ol>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Creating an interface for every class “just in case” — YAGNI applies; extract the abstraction when you have two concrete implementations</li>
+<li>Confusing “closed for modification” with “immutable” — it means don’t change the public contract and tested behavior, not that the source is locked</li>
+<li>Using inheritance instead of composition for OCP — inheritance creates tight coupling; prefer composition via Strategy/Decorator</li>
+</ul>
+<p><strong>Interview Traps:</strong></p>
+<ul>
+<li>“Does OCP mean you should never modify existing code?” — No, it means stable, tested modules shouldn’t require modification to add new features; refactoring and bug fixing are valid modifications</li>
+<li>“How do you design the extension point before knowing what extensions will come?” — this is the hardest part; use domain knowledge and defer abstraction until you see the second concrete case (Rule of Three)</li>
+</ul>
+<p><strong>Quick Revision:</strong> OCP = open for extension, closed for modification; achieve via Strategy pattern, Spring bean lists, and @Conditional — never via switch/if-else on type.</p>
+<hr>
+<h3 id="topic-3-liskov-substitution-principle-lsp"><a class="header" href="#topic-3-liskov-substitution-principle-lsp">Topic 3: Liskov Substitution Principle (LSP)</a></h3>
+<p><strong>Difficulty:</strong> Hard | <strong>Frequency:</strong> Medium-High | <strong>Companies:</strong> Google, Jane Street, Goldman Sachs, Two Sigma, Palantir</p>
+<p><strong>Q:</strong> What is the Liskov Substitution Principle, what is the classic Square-Rectangle violation, and how do Java generics wildcards relate to LSP?</p>
+<p><strong>Short Answer:</strong><br>LSP states that objects of a subtype must be substitutable for objects of their supertype without altering program correctness — meaning a subclass must honor the behavioral contract (preconditions, postconditions, invariants) of its parent. The Square-extends-Rectangle example shows how a geometrically intuitive hierarchy can break client code because Square’s <code>setWidth</code> must also set height, violating Rectangle’s established contract. Java generics wildcards (<code>? extends T</code> / <code>? super T</code>) encode covariance and contravariance constraints that prevent LSP violations at the type system level.</p>
+<p><strong>Deep Explanation:</strong><br>Barbara Liskov (1987): “If S is a subtype of T, then objects of type T may be replaced with objects of type S without altering any of the desirable properties of the program.”</p>
+<p><strong>LSP requires subclasses to:</strong></p>
+<ul>
+<li>Not strengthen preconditions (accept at least what the parent accepts)</li>
+<li>Not weaken postconditions (guarantee at least what the parent guarantees)</li>
+<li>Preserve invariants established by the parent</li>
+<li>Not throw new checked exceptions not declared by the parent</li>
+</ul>
+<p><strong>Contract-based programming (Design by Contract):</strong></p>
+<ul>
+<li><strong>Precondition:</strong> what must be true before a method is called</li>
+<li><strong>Postcondition:</strong> what must be true after a method returns</li>
+<li><strong>Invariant:</strong> what must always be true about an object’s state</li>
+</ul>
+<p><strong>Java generics and LSP (variance):</strong></p>
+<ul>
+<li><code>List&lt;Dog&gt;</code> is NOT a subtype of <code>List&lt;Animal&gt;</code> (invariant) — this prevents heap pollution</li>
+<li><code>List&lt;? extends Animal&gt;</code> — covariant, read-only (producer), honors LSP for reads</li>
+<li><code>List&lt;? super Dog&gt;</code> — contravariant, write-only (consumer), honors LSP for writes</li>
+<li>PECS: Producer Extends, Consumer Super</li>
+</ul>
+<p><strong>Real-World Example:</strong><br>A <code>ReadOnlyList</code> that extends <code>ArrayList</code> and throws <code>UnsupportedOperationException</code> from <code>add()</code> violates LSP — any code accepting an <code>ArrayList</code> and calling <code>add()</code> will fail at runtime with the subtype. Java’s <code>Collections.unmodifiableList</code> wisely wraps rather than extends, and <code>List</code> interface callers should handle <code>UnsupportedOperationException</code> — but most don’t. This is why <code>java.util.Stack</code> extending <code>Vector</code> is considered a design mistake in the JDK.</p>
+<p><strong>Code Example:</strong></p>
+<pre><code class="language-java">// ============================================================
+// BAD: Classic Square extends Rectangle — LSP violation
+// ============================================================
+public class Rectangle {
+    protected int width;
+    protected int height;
+
+    public void setWidth(int w)  { this.width = w; }
+    public void setHeight(int h) { this.height = h; }
+    public int area() { return width * height; }
+}
+
+public class Square extends Rectangle {
+    // Must keep width == height — but this breaks Rectangle's contract
+    @Override
+    public void setWidth(int w)  { this.width = w; this.height = w; }  // side-effect!
+    @Override
+    public void setHeight(int h) { this.width = h; this.height = h; }  // side-effect!
+}
+
+// Client code that works for Rectangle but BREAKS with Square
+public class GeometryClient {
+    public void resizeToDoubleWidth(Rectangle r) {
+        int originalHeight = r.height;         // save height
+        r.setWidth(r.width * 2);               // change only width
+        // Rectangle: area = 2w * h  ✓
+        // Square:    area = (2w) * (2w) ✗ — height was also changed!
+        assert r.area() == r.width * originalHeight : "LSP violated!";
+    }
+}
+
+// ============================================================
+// GOOD: Separate hierarchy — no forced is-a relationship
+// ============================================================
+public interface Shape {
+    int area();
+}
+
+// Immutable value objects — no setters, no contract violation possible
+public record Rectangle(int width, int height) implements Shape {
+    public Rectangle {
+        if (width &lt;= 0 || height &lt;= 0) throw new IllegalArgumentException("Dimensions must be positive");
+    }
+    @Override public int area() { return width * height; }
+
+    // Returns a NEW rectangle — no mutation contract issues
+    public Rectangle withWidth(int newWidth) { return new Rectangle(newWidth, this.height); }
+}
+
+public record Square(int side) implements Shape {
+    public Square {
+        if (side &lt;= 0) throw new IllegalArgumentException("Side must be positive");
+    }
+    @Override public int area() { return side * side; }
+}
+
+// ============================================================
+// Java Generics and LSP — PECS in action
+// ============================================================
+public class AnimalShelter {
+
+    // Producer Extends: read animals from source, covariant
+    // List&lt;Dog&gt; can be passed here — safe because we only read
+    public static double totalWeight(List&lt;? extends Animal&gt; animals) {
+        return animals.stream().mapToDouble(Animal::weight).sum();
+    }
+
+    // Consumer Super: add dogs to dest, contravariant
+    // List&lt;Animal&gt; can be passed here — safe because we only write Dogs
+    public static void addRescuedDogs(List&lt;? super Dog&gt; shelter, List&lt;Dog&gt; rescued) {
+        shelter.addAll(rescued);
+    }
+
+    // LSP-correct: Subtype (List&lt;Dog&gt;) substitutable for reading
+    public static void demo() {
+        List&lt;Dog&gt; dogs = List.of(new Dog("Rex", 30.0), new Dog("Buddy", 25.0));
+        double total = totalWeight(dogs);  // List&lt;Dog&gt; substituted for List&lt;? extends Animal&gt; ✓
+
+        List&lt;Animal&gt; allAnimals = new ArrayList&lt;&gt;();
+        addRescuedDogs(allAnimals, new ArrayList&lt;&gt;(dogs)); // List&lt;Animal&gt; accepted as consumer ✓
+    }
+}
+
+// ============================================================
+// Contract-based LSP: using Java assertions / preconditions
+// ============================================================
+public abstract class BankAccount {
+    protected BigDecimal balance;
+
+    // Postcondition: balance must decrease by exactly amount
+    public void withdraw(BigDecimal amount) {
+        if (amount.compareTo(BigDecimal.ZERO) &lt;= 0)
+            throw new IllegalArgumentException("Amount must be positive");  // precondition
+        BigDecimal before = balance;
+        doWithdraw(amount);
+        // Invariant check: balance must have decreased by exactly amount
+        assert balance.equals(before.subtract(amount)) : "Postcondition violated";
+    }
+
+    protected abstract void doWithdraw(BigDecimal amount);
+}
+
+public class SavingsAccount extends BankAccount {
+    @Override
+    protected void doWithdraw(BigDecimal amount) {
+        if (balance.subtract(amount).compareTo(BigDecimal.ZERO) &lt; 0)
+            throw new InsufficientFundsException("Cannot overdraft savings account");
+        balance = balance.subtract(amount);
+        // Postcondition honored: balance decreased by exactly amount ✓
+    }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ol>
+<li>How does LSP relate to covariant return types and contravariant parameter types in Java method overriding?</li>
+<li>Why is <code>java.util.Stack</code> extending <code>Vector</code> considered an LSP violation?</li>
+<li>How do you enforce LSP in code reviews when inheritance hierarchies grow over time?</li>
+</ol>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Thinking LSP is just about runtime substitution; it’s about <em>behavioral</em> contract preservation, not just compile-time type compatibility</li>
+<li>Solving Square-Rectangle by making both methods no-ops in Square — this violates postconditions, not just preconditions</li>
+<li>Confusing LSP with polymorphism — LSP is the <em>contract</em> constraint on polymorphism</li>
+</ul>
+<p><strong>Interview Traps:</strong></p>
+<ul>
+<li>“Is <code>ArrayList</code> a valid subtype of <code>List</code>?” — Yes, perfectly; all contracts honored</li>
+<li>“Does throwing <code>UnsupportedOperationException</code> from an inherited method violate LSP?” — Yes if the parent’s contract doesn’t declare it as a possibility; the <code>Collections.unmodifiableList</code> approach violates LSP for the <code>add()</code> contract</li>
+<li>Follow-up: “Then why does Java’s standard library have this violation?” — historical baggage; the lesson is don’t use inheritance to restrict behavior</li>
+</ul>
+<p><strong>Quick Revision:</strong> LSP = subtypes must honor parent’s behavioral contract (pre/post conditions + invariants); Square-Rectangle is the canonical violation; Java generics use wildcards to encode variance safely.</p>
+<hr>
+<h3 id="topic-4-interface-segregation-principle-isp"><a class="header" href="#topic-4-interface-segregation-principle-isp">Topic 4: Interface Segregation Principle (ISP)</a></h3>
+<p><strong>Difficulty:</strong> Medium | <strong>Frequency:</strong> Medium-High | <strong>Companies:</strong> Amazon, Microsoft, Adobe, Salesforce, VMware</p>
+<p><strong>Q:</strong> What is the Interface Segregation Principle, what is a fat interface, and how does Spring exemplify ISP through its interface hierarchy?</p>
+<p><strong>Short Answer:</strong><br>ISP states that no client should be forced to depend on methods it does not use — prefer many small, role-specific interfaces over one large general-purpose interface. Fat interfaces force implementing classes to stub out irrelevant methods (often with <code>UnsupportedOperationException</code> or empty bodies), which is a design smell. Spring’s own API demonstrates ISP excellently: <code>BeanFactory</code>, <code>ApplicationContext</code>, <code>ConfigurableApplicationContext</code>, and <code>WebApplicationContext</code> form a hierarchy of increasingly rich, role-specific contracts.</p>
+<p><strong>Deep Explanation:</strong><br>ISP is the interface-level application of SRP. Where SRP asks “does this class have one reason to change?”, ISP asks “does this interface’s client use all of its methods?”</p>
+<p><strong>Fat interface symptoms:</strong></p>
+<ul>
+<li>Implementing classes stub methods with <code>throw new UnsupportedOperationException()</code></li>
+<li>Large interfaces (10+ methods) with unrelated method clusters</li>
+<li>Clients import an interface but only call 2 of its 15 methods</li>
+<li>Mock objects in tests require stubbing 10 methods to test 1 behavior</li>
+</ul>
+<p><strong>Role interfaces:</strong> Small interfaces that represent a specific capability or role an object can play. An object can implement multiple role interfaces (composition over a single fat interface).</p>
+<p><strong>Java marker interfaces:</strong> <code>Serializable</code>, <code>Cloneable</code>, <code>RandomAccess</code> — zero-method interfaces that communicate a capability to the JVM or framework. ISP-compliant because implementing classes don’t have to provide any method — they just declare the capability.</p>
+<p><strong>Spring’s ISP hierarchy:</strong></p>
+<pre><code>BeanFactory (basic bean lookup)
+  └── HierarchicalBeanFactory (parent context support)
+        └── ListableBeanFactory (listing beans)
+              └── ApplicationContext (adds events, i18n, resources)
+                    └── ConfigurableApplicationContext (adds lifecycle management)
+                          └── WebApplicationContext (adds servlet context)
+</code></pre>
+<p>Each layer adds only what specific clients need. A library that just needs bean lookup depends on <code>BeanFactory</code>; web code depends on <code>WebApplicationContext</code>.</p>
+<p><strong>Real-World Example:</strong><br>A <code>DocumentProcessor</code> interface with <code>read()</code>, <code>write()</code>, <code>print()</code>, <code>fax()</code>, <code>scan()</code>, and <code>ocr()</code> forces every implementing class to handle all operations. A <code>PDFRenderer</code> that only reads and renders is forced to implement <code>fax()</code> by throwing <code>UnsupportedOperationException</code>. The fix: <code>Readable</code>, <code>Writable</code>, <code>Printable</code>, <code>Faxable</code>, <code>Scannable</code> role interfaces — <code>PDFRenderer implements Readable, Printable</code>.</p>
+<p><strong>Code Example:</strong></p>
+<pre><code class="language-java">// ============================================================
+// BAD: Fat interface — forces all implementors to handle
+// every operation even if irrelevant to their role
+// ============================================================
+public interface WorkerInterface {
+    void work();
+    void eat();
+    void sleep();
+    void attendMeeting();
+    void writeCodeReview();
+    void deployToProduction();
+}
+
+// RobotWorker is forced to implement biological functions
+public class RobotWorker implements WorkerInterface {
+    @Override public void work() { System.out.println("Robot working"); }
+    @Override public void eat()  { throw new UnsupportedOperationException("Robots don't eat"); }  // 🚩
+    @Override public void sleep() { throw new UnsupportedOperationException("Robots don't sleep"); }  // 🚩
+    @Override public void attendMeeting() { System.out.println("Robot attending meeting"); }
+    @Override public void writeCodeReview() { throw new UnsupportedOperationException("Not programmed for this"); }
+    @Override public void deployToProduction() { System.out.println("Robot deploying"); }
+}
+
+// ============================================================
+// GOOD: Role interfaces — each interface represents one role
+// ============================================================
+
+// Narrow role interfaces
+public interface Workable       { void work(); }
+public interface Feedable       { void eat();  void sleep(); }
+public interface Meetable       { void attendMeeting(); }
+public interface CodeReviewer   { void writeCodeReview(); }
+public interface Deployable     { void deployToProduction(); }
+
+// Human engineer implements all roles relevant to humans
+public class HumanEngineer implements Workable, Feedable, Meetable, CodeReviewer, Deployable {
+    @Override public void work()             { System.out.println("Human coding"); }
+    @Override public void eat()              { System.out.println("Human eating lunch"); }
+    @Override public void sleep()            { System.out.println("Human sleeping 8 hours"); }
+    @Override public void attendMeeting()    { System.out.println("Human in standup"); }
+    @Override public void writeCodeReview()  { System.out.println("Human reviewing PR"); }
+    @Override public void deployToProduction() { System.out.println("Human deploying"); }
+}
+
+// Robot only implements roles relevant to robots — no stubs needed
+public class RobotEngineer implements Workable, Meetable, Deployable {
+    @Override public void work()               { System.out.println("Robot executing tasks"); }
+    @Override public void attendMeeting()      { System.out.println("Robot attending as observer"); }
+    @Override public void deployToProduction() { System.out.println("Robot CI/CD pipeline"); }
+    // No eat(), sleep(), writeCodeReview() — robot doesn't need them ✓
+}
+
+// ============================================================
+// Spring ISP example — depend on the narrowest interface
+// ============================================================
+@Service
+public class BeanInspector {
+
+    // BAD: Depends on ApplicationContext (heavy) just to list beans
+    // private final ApplicationContext context;
+
+    // GOOD: Depend on ListableBeanFactory — the narrowest interface that provides what we need
+    private final ListableBeanFactory beanFactory;
+
+    public BeanInspector(ListableBeanFactory beanFactory) {
+        this.beanFactory = beanFactory;
+    }
+
+    public String[] getAllBeanNames() {
+        return beanFactory.getBeanDefinitionNames();  // Only need this method
+    }
+}
+
+// ============================================================
+// Repository segregation — read vs write separation (CQRS-aligned)
+// ============================================================
+public interface ReadableUserRepository {
+    Optional&lt;User&gt; findById(UUID id);
+    List&lt;User&gt; findByEmail(String email);
+    Page&lt;User&gt; findAll(Pageable pageable);
+}
+
+public interface WritableUserRepository {
+    User save(User user);
+    void deleteById(UUID id);
+    void deleteAll(List&lt;UUID&gt; ids);
+}
+
+// Full repository for admin services
+public interface UserRepository extends ReadableUserRepository, WritableUserRepository {}
+
+// Read-only service — depends only on ReadableUserRepository (ISP)
+@Service
+@RequiredArgsConstructor
+public class UserQueryService {
+    private final ReadableUserRepository userRepository;  // Can't accidentally call save() ✓
+
+    public UserDTO findUser(UUID id) {
+        return userRepository.findById(id).map(UserDTO::from)
+            .orElseThrow(() -&gt; new UserNotFoundException(id));
+    }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ol>
+<li>How does ISP relate to CQRS (Command Query Responsibility Segregation)?</li>
+<li>When should you combine role interfaces into a composite interface vs keeping them separate?</li>
+<li>How does ISP apply to REST API design (not just Java interfaces)?</li>
+</ol>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Creating one interface per class just to satisfy ISP — interfaces should represent roles/contracts, not be 1:1 with implementations</li>
+<li>Forgetting ISP applies to abstract classes too, not just Java interfaces</li>
+<li>Over-segregating to the point where every method is its own interface — diminishing returns past a point</li>
+</ul>
+<p><strong>Interview Traps:</strong></p>
+<ul>
+<li>“Doesn’t Java 8’s default methods make ISP less relevant?” — Default methods help implement adapters but don’t remove the need for segregation; they can bloat interfaces if misused</li>
+<li>“How is ISP different from SRP?” — SRP is about a class having one reason to change (implementation perspective); ISP is about clients not being forced to depend on unused methods (client perspective)</li>
+</ul>
+<p><strong>Quick Revision:</strong> ISP = many small role interfaces over one fat interface; fat interfaces breed <code>UnsupportedOperationException</code> stubs; Spring’s <code>BeanFactory</code>→<code>ApplicationContext</code> hierarchy is a textbook ISP example.</p>
+<hr>
+<h3 id="topic-5-dependency-inversion-principle-dip"><a class="header" href="#topic-5-dependency-inversion-principle-dip">Topic 5: Dependency Inversion Principle (DIP)</a></h3>
+<p><strong>Difficulty:</strong> Medium-Hard | <strong>Frequency:</strong> Very High | <strong>Companies:</strong> Google, Amazon, Netflix, Thoughtworks, Pivotal</p>
+<p><strong>Q:</strong> What is the Dependency Inversion Principle, why does field injection violate its spirit, and how does hexagonal architecture embody DIP?</p>
+<p><strong>Short Answer:</strong><br>DIP states that high-level modules should not depend on low-level modules — both should depend on abstractions; and abstractions should not depend on details, details should depend on abstractions. In Spring, constructor injection wires abstractions at object creation time, making dependencies explicit and testable. Field injection with <code>@Autowired</code> hides dependencies and makes classes harder to test outside a Spring container, undermining DIP’s testability goal. Hexagonal architecture (Ports &amp; Adapters) is the architectural expression of DIP.</p>
+<p><strong>Deep Explanation:</strong><br>DIP has two statements:</p>
+<ol>
+<li>High-level modules should not depend on low-level modules. Both should depend on abstractions.</li>
+<li>Abstractions should not depend on details. Details (concrete implementations) should depend on abstractions.</li>
+</ol>
+<p><strong>Why dependency inversion, not just dependency injection?</strong>
+DI (the mechanism) enables DIP (the principle). But you can use DI without achieving DIP — e.g., injecting <code>MySQLUserRepository</code> (concrete) into <code>UserService</code> via constructor is DI but not DIP. DIP requires the injection point to be an abstraction (<code>UserRepository</code> interface).</p>
+<p><strong>Constructor vs Field Injection:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Aspect</th><th>Constructor Injection</th><th>Field Injection (<code>@Autowired</code>)</th></tr>
+</thead>
+<tbody>
+<tr><td>Testability</td><td>Plain <code>new</code> in tests, no container needed</td><td>Requires Spring container or reflection tricks</td></tr>
+<tr><td>Immutability</td><td>Dependencies can be <code>final</code></td><td>Cannot be <code>final</code></td></tr>
+<tr><td>Mandatory deps</td><td>Enforced at compile time</td><td>Fails at runtime with <code>NullPointerException</code></td></tr>
+<tr><td>Circular dependency</td><td>Spring detects it eagerly</td><td>Spring may silently proxy around it</td></tr>
+<tr><td>DIP compliance</td><td>Explicit contract</td><td>Implicit, container-managed magic</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Hexagonal Architecture and DIP:</strong></p>
+<ul>
+<li><strong>Domain layer</strong> (high-level) defines Ports (interfaces) — it never depends on frameworks</li>
+<li><strong>Infrastructure layer</strong> (low-level) implements Adapters — it depends on domain ports</li>
+<li>Spring wires adapters to ports at startup — DIP at architectural scale</li>
+</ul>
+<p><strong>Real-World Example:</strong><br>A <code>ReportService</code> directly instantiated <code>new PDFReportGenerator()</code> — when the client asked for Excel output, the team had to modify <code>ReportService</code>. After applying DIP: <code>ReportService</code> depends on <code>ReportGenerator</code> interface; <code>PDFReportGenerator</code> and <code>ExcelReportGenerator</code> implement it; Spring injects the right one based on config. <code>ReportService</code> never changed.</p>
+<p><strong>Code Example:</strong></p>
+<pre><code class="language-java">// ============================================================
+// BAD: High-level module depends directly on low-level module
+// AND field injection hiding dependencies
+// ============================================================
+@Service
+public class OrderService {
+
+    @Autowired  // 🚩 Field injection — hidden dependency, non-final, untestable without container
+    private MySQLOrderRepository orderRepository;  // 🚩 Depends on concrete class
+
+    @Autowired
+    private SmtpEmailSender emailSender;  // 🚩 Concrete SMTP implementation
+
+    @Autowired
+    private StripePaymentGateway paymentGateway;  // 🚩 Tied to Stripe forever
+
+    public OrderConfirmation placeOrder(PlaceOrderCommand cmd) {
+        // Tightly coupled — can't swap email provider, payment gateway, or DB
+        PaymentResult payment = paymentGateway.charge(cmd.cardToken(), cmd.amount());
+        Order order = Order.from(cmd, payment.transactionId());
+        orderRepository.save(order);
+        emailSender.sendOrderConfirmation(cmd.email(), order.getId());
+        return new OrderConfirmation(order.getId(), payment.transactionId());
+    }
+}
+
+// ============================================================
+// GOOD: Both high-level and low-level depend on abstractions
+// Constructor injection makes dependencies explicit + final
+// ============================================================
+
+// Domain-level abstractions (Ports in hexagonal terms)
+public interface OrderRepository {
+    void save(Order order);
+    Optional&lt;Order&gt; findById(UUID id);
+}
+
+public interface EmailNotificationService {
+    void sendOrderConfirmation(String email, UUID orderId);
+}
+
+public interface PaymentGateway {
+    PaymentResult charge(String token, Money amount);
+    void refund(String transactionId);
+}
+
+// High-level module depends only on abstractions
+@Service
+public class OrderService {
+
+    private final OrderRepository orderRepository;          // interface ✓
+    private final EmailNotificationService emailService;    // interface ✓
+    private final PaymentGateway paymentGateway;           // interface ✓
+
+    // Constructor injection: explicit, final, testable without Spring container
+    public OrderService(OrderRepository orderRepository,
+                        EmailNotificationService emailService,
+                        PaymentGateway paymentGateway) {
+        this.orderRepository = orderRepository;
+        this.emailService = emailService;
+        this.paymentGateway = paymentGateway;
+    }
+
+    public OrderConfirmation placeOrder(PlaceOrderCommand cmd) {
+        PaymentResult payment = paymentGateway.charge(cmd.cardToken(), cmd.amount());
+        Order order = Order.from(cmd, payment.transactionId());
+        orderRepository.save(order);
+        emailService.sendOrderConfirmation(cmd.email(), order.getId());
+        return new OrderConfirmation(order.getId(), payment.transactionId());
+    }
+}
+
+// Low-level modules implement abstractions (Adapters in hexagonal terms)
+@Repository
+public class JpaOrderRepository implements OrderRepository {
+    private final SpringDataOrderRepository jpaRepo;  // Spring Data JPA detail
+    public JpaOrderRepository(SpringDataOrderRepository jpaRepo) { this.jpaRepo = jpaRepo; }
+
+    @Override public void save(Order order) { jpaRepo.save(OrderEntity.from(order)); }
+    @Override public Optional&lt;Order&gt; findById(UUID id) {
+        return jpaRepo.findById(id).map(OrderEntity::toDomain);
+    }
+}
+
+@Component
+public class SendGridEmailService implements EmailNotificationService {
+    private final SendGridClient sendGrid;
+    public SendGridEmailService(SendGridClient sendGrid) { this.sendGrid = sendGrid; }
+
+    @Override
+    public void sendOrderConfirmation(String email, UUID orderId) {
+        sendGrid.send(email, "Order confirmed: " + orderId);
+    }
+}
+
+// Pure unit test — no Spring container, no mocks framework needed for wiring
+class OrderServiceTest {
+    @Test
+    void placeOrder_chargesAndPersists() {
+        // Can instantiate directly — constructor injection enables this
+        var mockRepo = new InMemoryOrderRepository();
+        var mockEmail = new NoOpEmailService();
+        var mockPayment = new FakePaymentGateway(PaymentResult.success("txn-123"));
+
+        var service = new OrderService(mockRepo, mockEmail, mockPayment);
+        var confirmation = service.placeOrder(TestFixtures.validOrderCommand());
+
+        assertThat(confirmation.transactionId()).isEqualTo("txn-123");
+        assertThat(mockRepo.count()).isEqualTo(1);
+    }
+}
+
+// ============================================================
+// Hexagonal Architecture: Ports &amp; Adapters with Spring
+// ============================================================
+// Domain defines the port (inbound) — no framework dependencies
+public interface ProcessOrderUseCase {
+    OrderConfirmation execute(PlaceOrderCommand cmd);
+}
+
+// Application core implements the use case using outbound ports
+@UseCase  // custom stereotype, not Spring @Service — domain stays clean
+public class ProcessOrderUseCaseImpl implements ProcessOrderUseCase {
+    // Uses outbound ports (interfaces defined in domain)
+    private final OrderRepository orderRepository;
+    private final PaymentGateway paymentGateway;
+
+    @Override
+    public OrderConfirmation execute(PlaceOrderCommand cmd) { /* ... */ return null; }
+}
+
+// Inbound adapter: REST controller calls the use case port
+@RestController
+@RequiredArgsConstructor
+public class OrderController {
+    private final ProcessOrderUseCase processOrderUseCase;  // depends on port, not impl
+
+    @PostMapping("/orders")
+    public ResponseEntity&lt;OrderConfirmationDTO&gt; placeOrder(@RequestBody PlaceOrderRequest req) {
+        var confirmation = processOrderUseCase.execute(req.toCommand());
+        return ResponseEntity.ok(OrderConfirmationDTO.from(confirmation));
+    }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ol>
+<li>If constructor injection is always preferred, when is setter injection acceptable?</li>
+<li>How does Spring Boot’s auto-configuration relate to DIP? Does it violate it?</li>
+<li>What is the difference between dependency inversion and dependency injection containers?</li>
+</ol>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Injecting concrete classes (e.g., <code>@Autowired JdbcTemplate</code> directly in service) — this is DI without DIP</li>
+<li>Creating interfaces only for services with two implementations, but leaving repositories as concrete — inconsistent application</li>
+<li>Confusing the Dependency Inversion Principle with the Inversion of Control container</li>
+</ul>
+<p><strong>Interview Traps:</strong></p>
+<ul>
+<li>“Doesn’t Spring Boot auto-configuration violate DIP since it creates concrete beans?” — Auto-configuration operates at the infrastructure layer; the domain still depends on abstractions; DIP is satisfied if the domain doesn’t know about Spring</li>
+<li>“When would you NOT use constructor injection?” — Circular dependencies (use setter injection to break the cycle), optional dependencies with <code>@Autowired(required = false)</code></li>
+</ul>
+<p><strong>Quick Revision:</strong> DIP = high-level modules depend on abstractions, not concretes; constructor injection enables testability; hexagonal architecture is DIP at architectural scale.</p>
+<hr>
+<h3 id="topic-6-dry-kiss-yagni"><a class="header" href="#topic-6-dry-kiss-yagni">Topic 6: DRY, KISS, YAGNI</a></h3>
+<p><strong>Difficulty:</strong> Medium | <strong>Frequency:</strong> High | <strong>Companies:</strong> All FAANG+, all product startups</p>
+<p><strong>Q:</strong> Explain DRY, KISS, and YAGNI with practical Java examples. When does DRY actually cause harm?</p>
+<p><strong>Short Answer:</strong><br>DRY (Don’t Repeat Yourself) advocates that every piece of knowledge should have a single authoritative representation — violating it creates divergence where the same logic exists in multiple places and updates must be applied consistently everywhere. KISS (Keep It Simple, Stupid) pushes for the simplest solution that works. YAGNI (You Ain’t Gonna Need It) warns against implementing features speculatively before they’re actually required. The tension: premature DRY abstraction (WET — Wrong Extraction Timing) can create worse coupling than the duplication it tried to eliminate.</p>
+<p><strong>Deep Explanation:</strong></p>
+<p><strong>DRY — deeper than copy-paste:</strong>
+DRY is about knowledge duplication, not just code duplication. Two methods with identical code that represent <em>different business concepts</em> should NOT be merged — they’ll diverge as requirements change. Conversely, two methods with <em>different code</em> that both encode the same business rule (e.g., VAT calculation) violate DRY even if the code looks different.</p>
+<p><strong>The Wrong Abstraction (WET) problem:</strong>
+Over-eager DRY creates premature abstractions. When you find two pieces of similar code and immediately extract them into a shared utility, you might be:</p>
+<ol>
+<li>Coupling two unrelated concepts because they <em>happened</em> to look the same today</li>
+<li>Creating a shared function that must satisfy increasingly divergent requirements</li>
+<li>Adding parameters, flags, and conditionals to the abstraction until it’s more complex than the original duplication</li>
+</ol>
+<p>Sandi Metz: “Duplication is far cheaper than the wrong abstraction.”</p>
+<p><strong>Rule of Three:</strong> Don’t abstract until you see the same pattern three times — by then you understand the true shape of the abstraction.</p>
+<p><strong>KISS in practice:</strong></p>
+<ul>
+<li>Prefer <code>List.of()</code> over a custom collection builder</li>
+<li>Prefer a simple <code>switch</code> expression over a strategy pattern when there are 2 cases</li>
+<li>Prefer synchronous REST calls over event-driven choreography when simplicity suffices</li>
+<li>The most maintainable code is the code that doesn’t exist</li>
+</ul>
+<p><strong>YAGNI in practice:</strong></p>
+<ul>
+<li>Don’t add a caching layer before profiling shows it’s needed</li>
+<li>Don’t design for multi-tenancy before the second tenant exists</li>
+<li>Don’t add pagination to an endpoint that returns 10 items</li>
+<li>Don’t implement an event bus because “we might need it someday”</li>
+</ul>
+<p><strong>Real-World Example:</strong><br>Two teams at a fintech independently built identical transaction fee calculation logic. When the fee structure changed, only one team updated their code. The divergence caused incorrect fee displays in the mobile app for 3 days. After applying DRY, a single <code>FeeCalculationService</code> became the authoritative source. — Separately, a team eagerly DRY’d their user validation across registration and profile update, then spent two sprints untangling them when the rules diverged.</p>
+<p><strong>Code Example:</strong></p>
+<pre><code class="language-java">// ============================================================
+// BAD: DRY violation — same business knowledge in two places
+// ============================================================
+public class OrderService {
+    public double calculateShipping(Order order) {
+        // Free shipping logic duplicated in TWO places
+        if (order.getTotal() &gt; 100.0) return 0.0;
+        return order.getWeightKg() * 2.5;
+    }
+}
+
+public class CartService {
+    public double estimateShipping(Cart cart) {
+        // Same free-shipping threshold — if it changes to $75, must update BOTH
+        if (cart.getTotal() &gt; 100.0) return 0.0;
+        return cart.getTotalWeightKg() * 2.5;  // same formula
+    }
+}
+
+// ============================================================
+// GOOD: DRY — single authoritative source for shipping logic
+// ============================================================
+@Component
+public class ShippingCalculator {
+    private static final double FREE_SHIPPING_THRESHOLD = 100.0;
+    private static final double RATE_PER_KG = 2.5;
+
+    public Money calculate(Money orderTotal, double weightKg) {
+        if (orderTotal.isGreaterThan(Money.of(FREE_SHIPPING_THRESHOLD))) {
+            return Money.ZERO;
+        }
+        return Money.of(weightKg * RATE_PER_KG);
+    }
+}
+
+// Both services delegate to the single authoritative calculator
+@Service @RequiredArgsConstructor
+public class OrderService {
+    private final ShippingCalculator shippingCalculator;
+    public Money calculateShipping(Order order) {
+        return shippingCalculator.calculate(order.getTotal(), order.getWeightKg());
+    }
+}
+
+// ============================================================
+// BAD: Premature DRY / Wrong Abstraction
+// Two things that look similar but are actually different concepts
+// ============================================================
+// Registration validation and profile update validation look similar today...
+public class UserValidator {
+    public void validate(UserData data, boolean isRegistration) {
+        if (isRegistration) {
+            validateEmailUnique(data.email());  // only for registration
+            validatePasswordStrength(data.password());
+        }
+        validateEmailFormat(data.email());
+        validateNameLength(data.name());
+        if (!isRegistration) {
+            validatePhoneFormat(data.phone());  // only for profile update
+        }
+        // Flag-based conditionals — classic wrong abstraction smell
+    }
+}
+
+// ============================================================
+// GOOD: Keep them separate — they'll diverge
+// ============================================================
+@Component
+public class RegistrationValidator {
+    public void validate(RegisterCommand cmd) {
+        validateEmailFormat(cmd.email());
+        validateEmailUnique(cmd.email());
+        validatePasswordStrength(cmd.password());
+        validateNameLength(cmd.name());
+    }
+}
+
+@Component
+public class ProfileUpdateValidator {
+    public void validate(UpdateProfileCommand cmd) {
+        validateEmailFormat(cmd.email());
+        validateNameLength(cmd.name());
+        validatePhoneFormat(cmd.phone());
+        // Different rules, different future — should be separate
+    }
+}
+
+// ============================================================
+// YAGNI violation: building event bus "just in case"
+// ============================================================
+// BAD: Overengineered event infrastructure for simple use case
+public class OrderService {
+    private final EventBus eventBus;        // complex Guava EventBus
+    private final EventRouter router;       // custom routing logic
+    private final EventSerializer ser;      // JSON serialization
+    private final DeadLetterQueue dlq;      // dead letter handling
+
+    public void completeOrder(Order order) {
+        OrderCompletedEvent evt = new OrderCompletedEvent(order);
+        eventBus.post(ser.serialize(evt));  // 4 dependencies for... one email
+    }
+}
+
+// GOOD: YAGNI — just call the email service directly
+@Service @RequiredArgsConstructor
+public class OrderService {
+    private final OrderRepository orderRepository;
+    private final EmailNotificationService emailService;
+
+    public void completeOrder(Order order) {
+        order.complete();
+        orderRepository.save(order);
+        emailService.sendCompletionEmail(order);  // direct call — simple, testable, correct
+        // Add event bus WHEN you have &gt;1 subscriber or need async processing
+    }
+}
+
+// ============================================================
+// KISS: Simple beats clever
+// ============================================================
+// BAD: Overly clever stream pipeline
+public List&lt;String&gt; getActiveUserEmails(List&lt;User&gt; users) {
+    return users.stream()
+        .collect(Collectors.partitioningBy(User::isActive))
+        .get(true)
+        .stream()
+        .filter(u -&gt; u.getEmail() != null)
+        .map(User::getEmail)
+        .distinct()
+        .sorted(Comparator.naturalOrder())
+        .collect(Collectors.toUnmodifiableList());
+}
+
+// GOOD: Clear intent, easy to read and modify
+public List&lt;String&gt; getActiveUserEmails(List&lt;User&gt; users) {
+    return users.stream()
+        .filter(User::isActive)
+        .map(User::getEmail)
+        .filter(Objects::nonNull)
+        .distinct()
+        .sorted()
+        .toList();  // Java 16+ — simpler terminal operation
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ol>
+<li>How do you distinguish between code that <em>should</em> be DRY’d and code that just <em>looks</em> similar?</li>
+<li>At what point does a YAGNI-guided codebase become technical debt that slows feature development?</li>
+<li>How does DRY apply at the database level (normalized vs denormalized schemas)?</li>
+</ol>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Treating DRY as “eliminate all code duplication” rather than “eliminate knowledge duplication”</li>
+<li>Applying YAGNI to avoid writing tests, documentation, or proper error handling — these are needed now</li>
+<li>Using KISS to justify shortcuts that will cost much more to undo later (e.g., hardcoding configuration values)</li>
+</ul>
+<p><strong>Interview Traps:</strong></p>
+<ul>
+<li>“Should you always apply DRY?” — No; accidental duplication (code that looks the same but represents different knowledge) should stay separate</li>
+<li>“Is copy-paste always bad?” — No; sometimes the right answer is to duplicate and then diverge freely; the wrong abstraction is worse than duplication</li>
+<li>“How does DRY apply in microservices?” — Shared libraries vs duplicated domain logic is a nuanced trade-off; sharing a library creates coupling between services</li>
+</ul>
+<p><strong>Quick Revision:</strong> DRY = eliminate knowledge duplication (not just code); KISS = simplest working solution; YAGNI = don’t build what you don’t need yet; premature DRY creates wrong abstractions worse than duplication.</p>
+<hr>
+<h3 id="topic-7-clean-architecture"><a class="header" href="#topic-7-clean-architecture">Topic 7: Clean Architecture</a></h3>
+<p><strong>Difficulty:</strong> Hard | <strong>Frequency:</strong> High | <strong>Companies:</strong> Netflix, Uber, Airbnb, thoughtworks, Jane Street</p>
+<p><strong>Q:</strong> Explain Clean Architecture’s layers and dependency rule. How does it compare to traditional layered architecture, and how do you implement it in Spring Boot?</p>
+<p><strong>Short Answer:</strong><br>Clean Architecture (Robert C. Martin) organizes code into concentric circles — Entities (enterprise rules), Use Cases (application rules), Interface Adapters (controllers/presenters/gateways), and Frameworks &amp; Drivers (Spring, DB, web) — where the fundamental rule is that dependencies point inward only. Unlike traditional layered architecture where the domain layer depends on the infrastructure (via JPA annotations, etc.), Clean Architecture inverts this so the domain is framework-free and the infrastructure depends on domain-defined interfaces (Ports).</p>
+<p><strong>Deep Explanation:</strong></p>
+<p><strong>The four layers (inner to outer):</strong></p>
+<ol>
+<li>
+<p><strong>Entities (Enterprise Business Rules)</strong></p>
+<ul>
+<li>Pure domain objects — <code>Order</code>, <code>Customer</code>, <code>Money</code></li>
+<li>No framework annotations (<code>@Entity</code>, <code>@JsonProperty</code> etc.)</li>
+<li>No dependencies on outer layers</li>
+<li>Change only when fundamental business rules change</li>
+</ul>
+</li>
+<li>
+<p><strong>Use Cases (Application Business Rules)</strong></p>
+<ul>
+<li>Orchestrate entities to fulfill a user goal: <code>PlaceOrderUseCase</code>, <code>ProcessRefundUseCase</code></li>
+<li>Define outbound Ports (interfaces) — <code>OrderRepository</code>, <code>PaymentGateway</code></li>
+<li>No knowledge of HTTP, SQL, Kafka — only domain concepts</li>
+<li>Change only when application-specific behavior changes</li>
+</ul>
+</li>
+<li>
+<p><strong>Interface Adapters</strong></p>
+<ul>
+<li>Controllers, Presenters, Gateways — translate between use case language and external formats</li>
+<li>REST controllers convert HTTP requests → Use Case commands → HTTP responses</li>
+<li>JPA repositories implement domain repository interfaces (Ports)</li>
+<li>Kafka adapters implement domain event port interfaces</li>
+</ul>
+</li>
+<li>
+<p><strong>Frameworks &amp; Drivers</strong></p>
+<ul>
+<li>Spring Boot, Hibernate, PostgreSQL, Kafka, Redis</li>
+<li>Pure configuration — wire everything together</li>
+<li>This layer is the “plugin” layer — swap it without touching the domain</li>
+</ul>
+</li>
+</ol>
+<p><strong>Dependency Rule (the central rule):</strong>
+Source code dependencies must point inward. Nothing in an inner circle can know about anything in an outer circle. The name of something declared in an outer circle must not be mentioned by the code in an inner circle.</p>
+<p><strong>Crossed Wires — How the inner circle uses outer circle implementations:</strong>
+The Use Case layer defines a <code>UserRepository</code> interface. The Infrastructure layer implements <code>JpaUserRepository implements UserRepository</code>. At runtime, Spring injects the JPA implementation. At compile time, the Use Case only knows the interface — the dependency rule is honored.</p>
+<p><strong>Clean Architecture vs Traditional Layered Architecture:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Aspect</th><th>Layered (MVC/3-tier)</th><th>Clean Architecture</th></tr>
+</thead>
+<tbody>
+<tr><td>Domain depends on</td><td>Infrastructure (JPA, @Entity)</td><td>Nothing (pure Java)</td></tr>
+<tr><td>Testability</td><td>Integration tests required</td><td>Unit-testable without container</td></tr>
+<tr><td>Framework coupling</td><td>High (domain has Spring/JPA annotations)</td><td>Low (framework is a plugin)</td></tr>
+<tr><td>Change cost</td><td>Changing DB requires domain changes</td><td>Changing DB is isolated to adapters</td></tr>
+<tr><td>Complexity</td><td>Simple to start</td><td>Higher upfront complexity</td></tr>
+<tr><td>When to use</td><td>Small CRUD apps, prototypes</td><td>Complex domain, long-lived systems</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Real-World Example:</strong><br>Netflix’s recommendation engine domain logic has zero dependencies on their HTTP framework or Cassandra client. This allowed them to migrate from REST to gRPC, from Cassandra to a custom store, and from synchronous to reactive — without touching domain logic. At a smaller scale, a fintech company migrated from Stripe to Adyen by only replacing their <code>StripePaymentGateway</code> adapter with <code>AdyenPaymentGateway</code> — <code>ProcessPaymentUseCase</code> was untouched.</p>
+<p><strong>Code Example:</strong></p>
+<pre><code class="language-java">// ============================================================
+// Clean Architecture in Spring Boot — Package structure:
+//
+// com.example.ecommerce
+// ├── domain/                     ← Layer 1: Entities
+// │   ├── model/Order.java
+// │   ├── model/Money.java
+// │   └── event/OrderPlacedEvent.java
+// ├── application/                ← Layer 2: Use Cases + Ports
+// │   ├── port/in/PlaceOrderUseCase.java     (inbound port)
+// │   ├── port/out/OrderRepository.java      (outbound port)
+// │   ├── port/out/PaymentGateway.java       (outbound port)
+// │   └── service/PlaceOrderService.java     (use case impl)
+// ├── adapter/                    ← Layer 3: Interface Adapters
+// │   ├── web/OrderController.java
+// │   ├── persistence/JpaOrderRepository.java
+// │   └── payment/StripePaymentGateway.java
+// └── config/                     ← Layer 4: Framework config
+//     └── ApplicationConfig.java
+// ============================================================
+
+// ---- LAYER 1: Domain Entity (no framework dependencies) ----
+public class Order {  // NOT @Entity — pure domain object
+    private final UUID id;
+    private final UUID customerId;
+    private final List&lt;OrderItem&gt; items;
+    private OrderStatus status;
+    private final Money total;
+
+    // Domain behavior — business logic lives here
+    public void confirm() {
+        if (this.status != OrderStatus.PENDING)
+            throw new InvalidOrderStateException("Can only confirm PENDING orders");
+        this.status = OrderStatus.CONFIRMED;
+    }
+
+    public boolean canBeCancelled() {
+        return status == OrderStatus.PENDING || status == OrderStatus.CONFIRMED;
+    }
+    // Pure Java — no Spring, no JPA, no Jackson annotations
+}
+
+// ---- LAYER 2: Inbound Port (use case interface) ----
+public interface PlaceOrderUseCase {
+    OrderId execute(PlaceOrderCommand command);  // command is also a domain object
+}
+
+// ---- LAYER 2: Outbound Ports (defined in application layer) ----
+public interface OrderRepository {
+    void save(Order order);
+    Optional&lt;Order&gt; findById(OrderId id);
+}
+
+public interface PaymentGateway {
+    PaymentResult charge(CustomerId customerId, Money amount, PaymentToken token);
+}
+
+// ---- LAYER 2: Use Case Implementation ----
+@UseCase  // custom annotation, NOT @Service — keeps domain intent clear
+@Transactional
+@RequiredArgsConstructor
+public class PlaceOrderService implements PlaceOrderUseCase {
+
+    private final OrderRepository orderRepository;  // outbound port
+    private final PaymentGateway paymentGateway;     // outbound port
+    private final OrderIdGenerator idGenerator;      // outbound port
+
+    @Override
+    public OrderId execute(PlaceOrderCommand cmd) {
+        // Pure business logic — no HTTP, no SQL, no Kafka here
+        Order order = Order.create(
+            idGenerator.generate(),
+            cmd.customerId(),
+            cmd.items()
+        );
+
+        PaymentResult payment = paymentGateway.charge(
+            cmd.customerId(), order.getTotal(), cmd.paymentToken()
+        );
+
+        if (!payment.isSuccessful()) throw new PaymentFailedException(payment.errorCode());
+
+        order.confirm();
+        orderRepository.save(order);
+
+        return order.getId();
+    }
+}
+
+// ---- LAYER 3: Inbound Adapter (Web) ----
+@RestController
+@RequestMapping("/api/v1/orders")
+@RequiredArgsConstructor
+public class OrderController {
+
+    private final PlaceOrderUseCase placeOrderUseCase;  // depends on port, not impl
+
+    @PostMapping
+    public ResponseEntity&lt;PlaceOrderResponse&gt; placeOrder(
+            @Valid @RequestBody PlaceOrderRequest request,
+            Authentication auth) {
+
+        // Adapter translates: HTTP → domain command
+        PlaceOrderCommand command = PlaceOrderCommandMapper.from(request, auth.getName());
+        OrderId orderId = placeOrderUseCase.execute(command);
+
+        // Adapter translates: domain result → HTTP response
+        return ResponseEntity
+            .created(URI.create("/api/v1/orders/" + orderId.value()))
+            .body(new PlaceOrderResponse(orderId.value()));
+    }
+}
+
+// ---- LAYER 3: Outbound Adapter (Persistence) ----
+@Repository
+@RequiredArgsConstructor
+public class JpaOrderRepositoryAdapter implements OrderRepository {
+
+    private final SpringDataOrderRepository springDataRepo;  // JPA dependency isolated here
+    private final OrderEntityMapper mapper;
+
+    @Override
+    public void save(Order order) {
+        OrderEntity entity = mapper.toEntity(order);  // domain → JPA entity mapping
+        springDataRepo.save(entity);
+    }
+
+    @Override
+    public Optional&lt;Order&gt; findById(OrderId id) {
+        return springDataRepo.findById(id.value())
+            .map(mapper::toDomain);  // JPA entity → domain object mapping
+    }
+}
+
+// ---- LAYER 3: Outbound Adapter (Payment) ----
+@Component
+@RequiredArgsConstructor
+public class StripePaymentGatewayAdapter implements PaymentGateway {
+
+    private final StripeClient stripeClient;  // Stripe SDK isolated here
+
+    @Override
+    public PaymentResult charge(CustomerId customerId, Money amount, PaymentToken token) {
+        try {
+            Charge charge = stripeClient.charges().create(
+                ChargeCreateParams.builder()
+                    .setAmount(amount.toCents())
+                    .setCurrency(amount.currency().code())
+                    .setSource(token.value())
+                    .build()
+            );
+            return PaymentResult.success(charge.getId());
+        } catch (StripeException e) {
+            return PaymentResult.failure(e.getCode());
+        }
+    }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ol>
+<li>What is the cost of Clean Architecture, and when is it NOT worth applying?</li>
+<li>How do you handle cross-cutting concerns (logging, transactions) in Clean Architecture without polluting the domain?</li>
+<li>How does Clean Architecture interact with CQRS?</li>
+</ol>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Putting <code>@Entity</code> or <code>@Table</code> on domain objects — this violates the dependency rule; use separate JPA entity classes and mappers</li>
+<li>Having use case services call <code>@Repository</code> Spring beans directly — use the port interface</li>
+<li>Creating Clean Architecture “by package name” but still letting domain classes import Spring annotations</li>
+</ul>
+<p><strong>Interview Traps:</strong></p>
+<ul>
+<li>“Isn’t Clean Architecture overkill for most applications?” — Yes for simple CRUD apps; the inflection point is when you need multiple infrastructure implementations, complex domain logic, or long-term maintainability. Most startups should start simpler and migrate toward Clean Architecture as complexity grows.</li>
+<li>“How do you handle Spring’s <code>@Transactional</code> in Clean Architecture?” — Apply it at the Use Case service level (outermost application layer); don’t push transaction management into the domain</li>
+</ul>
+<p><strong>Quick Revision:</strong> Clean Architecture = concentric layers, dependencies point inward only, domain has zero framework dependencies, infrastructure implements domain-defined port interfaces.</p>
+<hr>
+<h3 id="topic-8-domain-driven-design-ddd-basics"><a class="header" href="#topic-8-domain-driven-design-ddd-basics">Topic 8: Domain-Driven Design (DDD) Basics</a></h3>
+<p><strong>Difficulty:</strong> Hard | <strong>Frequency:</strong> High | <strong>Companies:</strong> Amazon, Netflix, Spotify, Thoughtworks, Zalando</p>
+<p><strong>Q:</strong> Explain the core DDD building blocks — Bounded Context, Aggregate, Entity vs Value Object, Repository, Domain Events, and Ubiquitous Language. How do these map to a Spring Boot microservices architecture?</p>
+<p><strong>Short Answer:</strong><br>DDD is a software development approach where the design is driven by the domain model and close collaboration with domain experts. Key tactical patterns: Entities have identity and mutable state; Value Objects have no identity and are immutable; Aggregates are consistency boundaries protecting invariants; Repositories provide collection-like access to aggregates; Domain Events communicate state changes across boundaries. Strategic DDD uses Bounded Contexts to partition a large domain into autonomous areas, each with its own ubiquitous language and model.</p>
+<p><strong>Deep Explanation:</strong></p>
+<p><strong>Ubiquitous Language:</strong>
+A shared vocabulary between developers and domain experts, used in code, tests, discussions, and documentation. If domain experts say “a Customer places an Order that contains Line Items,” your code should have <code>Customer</code>, <code>Order</code>, and <code>LineItem</code> — not <code>UserRecord</code>, <code>PurchaseRequest</code>, and <code>CartEntry</code>. When the language in code diverges from what domain experts say, bugs hide in translation gaps.</p>
+<p><strong>Entity vs Value Object:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Aspect</th><th>Entity</th><th>Value Object</th></tr>
+</thead>
+<tbody>
+<tr><td>Identity</td><td>Unique ID (e.g., UUID)</td><td>No identity</td></tr>
+<tr><td>Equality</td><td>By ID</td><td>By all field values</td></tr>
+<tr><td>Mutability</td><td>Mutable state over time</td><td>Immutable</td></tr>
+<tr><td>Lifecycle</td><td>Has lifecycle (created, modified, deleted)</td><td>Created and discarded</td></tr>
+<tr><td>Examples</td><td>Customer, Order, Product</td><td>Money, Address, Email, DateRange</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Aggregate:</strong>
+A cluster of domain objects treated as a single unit for data changes. Every aggregate has a root (the Aggregate Root) — the only object in the cluster that external objects may hold a reference to. The aggregate root enforces all invariants.</p>
+<p>Rules:</p>
+<ol>
+<li>Reference other aggregates by ID only (not by object reference)</li>
+<li>All invariants within an aggregate must be consistent after every transaction</li>
+<li>One aggregate = one transaction (generally)</li>
+<li>Size an aggregate by its transactional consistency requirement, not by data relatedness</li>
+</ol>
+<p><strong>Bounded Context:</strong>
+An explicit boundary within which a domain model applies and has a specific meaning. The same word (e.g., “Customer”) means different things in different contexts — in Sales, Customer includes purchasing history; in Shipping, Customer is just a delivery address. Each Bounded Context becomes a microservice (or module) with its own data store.</p>
+<p><strong>Domain Events:</strong>
+Something that happened in the domain that domain experts care about: <code>OrderPlaced</code>, <code>PaymentProcessed</code>, <code>CustomerUpgraded</code>. Events communicate facts across Bounded Contexts without tight coupling. They are named in past tense (something <em>that happened</em>).</p>
+<p><strong>Context Mapping patterns:</strong></p>
+<ul>
+<li><strong>Shared Kernel:</strong> two contexts share a subset of the model (highest coupling)</li>
+<li><strong>Customer-Supplier:</strong> upstream (supplier) produces, downstream (customer) consumes</li>
+<li><strong>Anti-Corruption Layer (ACL):</strong> translator between two contexts with different models</li>
+<li><strong>Open Host Service:</strong> well-documented API others can integrate with</li>
+<li><strong>Conformist:</strong> downstream adopts upstream’s model wholesale</li>
+</ul>
+<p><strong>Real-World Example:</strong><br>An e-commerce platform had a single <code>Order</code> concept used across Catalog, Cart, Fulfillment, Billing, and Analytics. Attempting to satisfy all contexts in one model made it impossible to evolve. After strategic DDD: <code>ShoppingCart</code> in Cart context, <code>SalesOrder</code> in Billing context, <code>FulfillmentOrder</code> in Warehouse context — same real-world concept, different models, each evolving independently. Events (<code>OrderConfirmed</code>, <code>PaymentReceived</code>) synchronize state across contexts asynchronously.</p>
+<p><strong>Code Example:</strong></p>
+<pre><code class="language-java">// ============================================================
+// Value Object — immutable, equality by value, no identity
+// ============================================================
+public record Money(BigDecimal amount, Currency currency) {
+
+    // Canonical constructor with validation
+    public Money {
+        Objects.requireNonNull(amount, "amount must not be null");
+        Objects.requireNonNull(currency, "currency must not be null");
+        if (amount.scale() &gt; 2) throw new IllegalArgumentException("Max 2 decimal places");
+    }
+
+    public static Money of(double amount, Currency currency) {
+        return new Money(BigDecimal.valueOf(amount).setScale(2, RoundingMode.HALF_UP), currency);
+    }
+
+    public static Money usd(double amount) { return of(amount, Currency.USD); }
+
+    public Money add(Money other) {
+        if (!this.currency.equals(other.currency))
+            throw new IllegalArgumentException("Cannot add different currencies");
+        return new Money(this.amount.add(other.amount), this.currency);  // immutable — new instance
+    }
+
+    public boolean isGreaterThan(Money other) {
+        return this.amount.compareTo(other.amount) &gt; 0;
+    }
+}
+
+// ============================================================
+// Entity — has identity, mutable state, lifecycle
+// ============================================================
+public class OrderItem {
+    private final OrderItemId id;  // own identity
+    private final ProductId productId;
+    private int quantity;
+    private final Money unitPrice;
+
+    // Entities compared by identity
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof OrderItem other)) return false;
+        return id.equals(other.id);  // ID-based equality
+    }
+}
+
+// ============================================================
+// Aggregate Root — enforces invariants for the Order cluster
+// ============================================================
+public class Order {  // Aggregate Root
+
+    private final OrderId id;
+    private final CustomerId customerId;  // Reference by ID only — not Customer object
+    private final List&lt;OrderItem&gt; items;  // Part of aggregate — can hold direct ref
+    private OrderStatus status;
+    private Money total;
+
+    // Factory method — ensures valid initial state
+    public static Order create(OrderId id, CustomerId customerId, List&lt;OrderItem&gt; items) {
+        if (items.isEmpty()) throw new DomainException("Order must have at least one item");
+        Order order = new Order(id, customerId, items, OrderStatus.PENDING);
+        order.recalculateTotal();
+        return order;
+    }
+
+    // Domain behavior — enforces business invariants
+    public void addItem(OrderItem item) {
+        if (status != OrderStatus.PENDING)
+            throw new DomainException("Cannot add items to a non-pending order");
+        items.add(item);
+        recalculateTotal();
+    }
+
+    public void confirm(Money paymentAmount) {
+        if (status != OrderStatus.PENDING)
+            throw new DomainException("Only pending orders can be confirmed");
+        if (!paymentAmount.equals(this.total))
+            throw new DomainException("Payment amount must equal order total");
+        this.status = OrderStatus.CONFIRMED;
+        // Domain Event recorded (collected for publication after transaction)
+        DomainEvents.raise(new OrderConfirmedEvent(this.id, this.customerId, this.total));
+    }
+
+    private void recalculateTotal() {
+        this.total = items.stream()
+            .map(item -&gt; item.getUnitPrice().multiply(item.getQuantity()))
+            .reduce(Money.usd(0), Money::add);
+    }
+
+    // NO setters — state changes only through domain methods that enforce invariants
+}
+
+// ============================================================
+// Repository — collection-like abstraction for aggregates
+// Only for aggregate roots (NOT for OrderItem directly)
+// ============================================================
+public interface OrderRepository {
+    void save(Order order);
+    Optional&lt;Order&gt; findById(OrderId id);
+    List&lt;Order&gt; findByCustomerId(CustomerId customerId);
+    // Note: No findOrderItemByProductId() — query aggregate root, not children
+}
+
+// ============================================================
+// Domain Events — past tense, immutable facts
+// ============================================================
+public record OrderConfirmedEvent(
+    OrderId orderId,
+    CustomerId customerId,
+    Money total,
+    Instant occurredAt
+) implements DomainEvent {
+    public OrderConfirmedEvent(OrderId orderId, CustomerId customerId, Money total) {
+        this(orderId, customerId, total, Instant.now());
+    }
+}
+
+// ============================================================
+// Domain Event Handlers — cross-context integration
+// Each bounded context reacts to events it cares about
+// ============================================================
+// In Fulfillment Bounded Context
+@Component
+@RequiredArgsConstructor
+public class FulfillmentOrderCreator {
+
+    private final FulfillmentOrderRepository fulfillmentRepo;
+
+    @EventListener
+    @Transactional
+    public void on(OrderConfirmedEvent event) {
+        // Create a FulfillmentOrder — different model from Order in Sales context
+        FulfillmentOrder fulfillmentOrder = FulfillmentOrder.create(
+            FulfillmentOrderId.generate(),
+            event.orderId(),   // referenced by ID — no direct coupling
+            event.customerId()
+        );
+        fulfillmentRepo.save(fulfillmentOrder);
+    }
+}
+
+// In Billing Bounded Context
+@Component
+@RequiredArgsConstructor
+public class InvoiceGenerator {
+    private final InvoiceRepository invoiceRepository;
+
+    @EventListener
+    @Async  // Different context can process asynchronously
+    public void on(OrderConfirmedEvent event) {
+        Invoice invoice = Invoice.generate(event.orderId(), event.total(), event.occurredAt());
+        invoiceRepository.save(invoice);
+    }
+}
+
+// ============================================================
+// Anti-Corruption Layer (ACL) — translating between contexts
+// ============================================================
+@Component
+@RequiredArgsConstructor
+public class ExternalInventoryACL {
+
+    private final LegacyInventoryClient legacyClient;  // external system with different model
+
+    // Translates legacy model → our domain model
+    public StockLevel getStockLevel(ProductId productId) {
+        LegacyStockResponse response = legacyClient.checkStock(productId.value().toString());
+        // ACL translates foreign concept "AVAIL_QTY" into our domain concept "StockLevel"
+        return StockLevel.of(response.getAvailQty(), response.getReservedQty());
+    }
+}
+
+// ============================================================
+// Bounded Context — Spring Boot Microservice structure
+// Each BC = separate Maven module / microservice
+// ============================================================
+/*
+  order-service/          ← Sales Bounded Context
+    domain/
+      Order.java          ← Aggregate Root
+      OrderItem.java      ← Entity (within Order aggregate)
+      Money.java          ← Value Object
+      OrderStatus.java    ← Enum (domain concept)
+      OrderConfirmedEvent.java ← Domain Event
+
+  fulfillment-service/    ← Fulfillment Bounded Context
+    domain/
+      FulfillmentOrder.java ← Different aggregate, different model
+      PickList.java
+      ShipmentTracker.java
+
+  (Each service has its OWN database — no shared schema)
+*/
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ol>
+<li>How do you determine aggregate boundaries? What’s the rule of thumb for aggregate size?</li>
+<li>How do you handle eventual consistency between aggregates when a business transaction must span two aggregates?</li>
+<li>What is the Saga pattern and how does it relate to DDD?</li>
+</ol>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Making aggregates too large — grouping everything related in one aggregate creates performance and contention problems; size by transactional invariant, not by conceptual relatedness</li>
+<li>Putting domain logic in application services (anemic domain model) — business rules belong on entities and aggregates</li>
+<li>Using the same model across bounded contexts — this is the most common DDD anti-pattern; resist the “single source of truth” urge for cross-cutting entities</li>
+</ul>
+<p><strong>Interview Traps:</strong></p>
+<ul>
+<li>“Should every microservice be a bounded context?” — 1:1 mapping is a good default, but a large bounded context might warrant multiple services, and two small bounded contexts might share a service; the boundary is logical, not technical</li>
+<li>“How do you choose between Domain Events and direct service calls for cross-context communication?” — Events for eventual consistency and decoupling; direct calls when you need synchronous consistency guarantees (and accept the coupling cost)</li>
+<li>“What is an Anemic Domain Model and why is it a DDD anti-pattern?” — An object with only getters/setters and no domain behavior; business logic leaks into services, violating encapsulation</li>
+</ul>
+<p><strong>Quick Revision:</strong> DDD = model software after the domain using Ubiquitous Language; Aggregates enforce invariants and are the unit of consistency; Bounded Contexts isolate models; Domain Events decouple contexts; Value Objects are immutable and compared by value.</p>
+<hr>
+<h2 id="quick-reference-card--part-a"><a class="header" href="#quick-reference-card--part-a">Quick Reference Card — Part A</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Principle</th><th>One-Line Summary</th><th>Key Pattern</th></tr>
+</thead>
+<tbody>
+<tr><td>SRP</td><td>One class, one reason to change</td><td>Domain Events for side effects</td></tr>
+<tr><td>OCP</td><td>Extend without modifying</td><td>Strategy + Spring bean lists</td></tr>
+<tr><td>LSP</td><td>Subtypes honor parent contracts</td><td>Prefer composition, record types</td></tr>
+<tr><td>ISP</td><td>Clients depend only on what they use</td><td>Role interfaces, narrow ports</td></tr>
+<tr><td>DIP</td><td>High-level depends on abstractions</td><td>Constructor injection, hexagonal</td></tr>
+<tr><td>DRY</td><td>One authoritative knowledge source</td><td>Extract when 3+ duplicates appear</td></tr>
+<tr><td>Clean Arch</td><td>Dependencies inward only</td><td>Ports &amp; Adapters</td></tr>
+<tr><td>DDD</td><td>Domain drives design</td><td>Aggregates, Events, Bounded Contexts</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<p><em>Part B covers: Design Patterns (Creational, Structural, Behavioral), Anti-Patterns, Code Smells, Refactoring Techniques, and CQRS/Event Sourcing.</em></p>
+<hr>
+<h1 id="chapter-20--solid-principles--clean-architecture-part-b"><a class="header" href="#chapter-20--solid-principles--clean-architecture-part-b">Chapter 20 — SOLID Principles &amp; Clean Architecture (Part B)</a></h1>
+<h3 id="topics-915--cheat-sheet--java-17--sde2--faang"><a class="header" href="#topics-915--cheat-sheet--java-17--sde2--faang">Topics 9–15 + Cheat Sheet | Java 17 | SDE2 / FAANG+</a></h3>
+<hr>
+<h2 id="table-of-contents"><a class="header" href="#table-of-contents">Table of Contents</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>#</th><th>Topic</th></tr>
+</thead>
+<tbody>
+<tr><td>9</td><td>Code Smells &amp; Refactoring</td></tr>
+<tr><td>10</td><td>CQRS Pattern</td></tr>
+<tr><td>11</td><td>Event Sourcing</td></tr>
+<tr><td>12</td><td>Hexagonal Architecture (Ports &amp; Adapters)</td></tr>
+<tr><td>13</td><td>Testing Principles</td></tr>
+<tr><td>14</td><td>API Design Principles</td></tr>
+<tr><td>15</td><td>Technical Debt</td></tr>
+<tr><td>—</td><td>Cheat Sheet</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="topic-9--code-smells--refactoring"><a class="header" href="#topic-9--code-smells--refactoring">Topic 9 — Code Smells &amp; Refactoring</a></h2>
+<h3 id="what-is-a-code-smell"><a class="header" href="#what-is-a-code-smell">What is a Code Smell?</a></h3>
+<p>A <strong>code smell</strong> is a surface-level indication that something may be wrong deeper in the code. It does not always mean a bug exists, but it signals a design problem that will compound over time.</p>
+<blockquote>
+<p>“A code smell is a hint that something has gone wrong somewhere in your code. Use the smell to track down the problem.”
+— Martin Fowler, <em>Refactoring</em></p>
+</blockquote>
+<hr>
+<h3 id="smell-1-long-method"><a class="header" href="#smell-1-long-method">Smell 1: Long Method</a></h3>
+<p><strong>Symptom:</strong> A method exceeds ~20 lines, handles multiple concerns, and is hard to name with a single verb phrase.</p>
+<pre><code class="language-java">// BAD — Long Method
+public void processOrder(Order order) {
+    // validate
+    if (order.getItems() == null || order.getItems().isEmpty()) {
+        throw new IllegalArgumentException("Order must have items");
+    }
+    if (order.getCustomerId() == null) {
+        throw new IllegalArgumentException("Customer ID required");
+    }
+
+    // calculate totals
+    double subtotal = 0;
+    for (OrderItem item : order.getItems()) {
+        subtotal += item.getPrice() * item.getQuantity();
+    }
+    double tax = subtotal * 0.08;
+    double shipping = subtotal &gt; 100 ? 0 : 9.99;
+    double total = subtotal + tax + shipping;
+    order.setTotal(total);
+
+    // persist
+    orderRepository.save(order);
+
+    // notify
+    emailService.sendOrderConfirmation(order.getCustomerId(), order.getId());
+    smsService.sendConfirmation(order.getCustomerId(), order.getId());
+}
+</code></pre>
+<pre><code class="language-java">// GOOD — Extract Method refactoring
+public void processOrder(Order order) {
+    validateOrder(order);
+    calculateTotals(order);
+    orderRepository.save(order);
+    notifyCustomer(order);
+}
+
+private void validateOrder(Order order) {
+    if (order.getItems() == null || order.getItems().isEmpty()) {
+        throw new IllegalArgumentException("Order must have items");
+    }
+    if (order.getCustomerId() == null) {
+        throw new IllegalArgumentException("Customer ID required");
+    }
+}
+
+private void calculateTotals(Order order) {
+    double subtotal = order.getItems().stream()
+        .mapToDouble(item -&gt; item.getPrice() * item.getQuantity())
+        .sum();
+    double tax = subtotal * TAX_RATE;
+    double shipping = subtotal &gt; FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
+    order.setTotal(subtotal + tax + shipping);
+}
+
+private void notifyCustomer(Order order) {
+    emailService.sendOrderConfirmation(order.getCustomerId(), order.getId());
+    smsService.sendConfirmation(order.getCustomerId(), order.getId());
+}
+</code></pre>
+<p><strong>Refactoring techniques:</strong> Extract Method, Replace Temp with Query, Decompose Conditional.</p>
+<hr>
+<h3 id="smell-2-large-class-god-class"><a class="header" href="#smell-2-large-class-god-class">Smell 2: Large Class (God Class)</a></h3>
+<p><strong>Symptom:</strong> A class has too many fields, methods, and responsibilities. It knows too much and does too much.</p>
+<pre><code class="language-java">// BAD — God Class
+public class UserService {
+    // user management
+    public User createUser(CreateUserRequest req) { ... }
+    public void updateProfile(Long userId, ProfileDto dto) { ... }
+    public void deleteUser(Long userId) { ... }
+
+    // authentication
+    public String login(String email, String password) { ... }
+    public void logout(String token) { ... }
+    public void resetPassword(String email) { ... }
+
+    // billing
+    public void createSubscription(Long userId, PlanType plan) { ... }
+    public Invoice generateInvoice(Long userId, YearMonth month) { ... }
+    public void processPayment(Long userId, PaymentDetails details) { ... }
+
+    // reporting
+    public UserActivityReport getActivityReport(Long userId) { ... }
+    public List&lt;User&gt; getInactiveUsers(Duration threshold) { ... }
+}
+</code></pre>
+<pre><code class="language-java">// GOOD — Split by responsibility (SRP)
+@Service
+public class UserManagementService {
+    public User createUser(CreateUserRequest req) { ... }
+    public void updateProfile(Long userId, ProfileDto dto) { ... }
+    public void deleteUser(Long userId) { ... }
+}
+
+@Service
+public class AuthenticationService {
+    public AuthToken login(String email, String password) { ... }
+    public void logout(String token) { ... }
+    public void resetPassword(String email) { ... }
+}
+
+@Service
+public class BillingService {
+    public void createSubscription(Long userId, PlanType plan) { ... }
+    public Invoice generateInvoice(Long userId, YearMonth month) { ... }
+    public void processPayment(Long userId, PaymentDetails details) { ... }
+}
+
+@Service
+public class UserReportingService {
+    public UserActivityReport getActivityReport(Long userId) { ... }
+    public List&lt;User&gt; getInactiveUsers(Duration threshold) { ... }
+}
+</code></pre>
+<p><strong>Refactoring techniques:</strong> Extract Class, Move Method, Move Field.</p>
+<hr>
+<h3 id="smell-3-feature-envy"><a class="header" href="#smell-3-feature-envy">Smell 3: Feature Envy</a></h3>
+<p><strong>Symptom:</strong> A method seems more interested in the data of another class than its own — it calls many methods on a foreign object.</p>
+<pre><code class="language-java">// BAD — Feature Envy: OrderPrinter envies Order's data
+public class OrderPrinter {
+    public String format(Order order) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Customer: ").append(order.getCustomer().getFirstName())
+          .append(" ").append(order.getCustomer().getLastName());
+        sb.append("\nEmail: ").append(order.getCustomer().getEmail());
+        sb.append("\nAddress: ").append(order.getCustomer().getAddress().getStreet())
+          .append(", ").append(order.getCustomer().getAddress().getCity());
+        sb.append("\nTotal: ").append(order.getTotal());
+        return sb.toString();
+    }
+}
+</code></pre>
+<pre><code class="language-java">// GOOD — Move the method to where the data lives
+public class Order {
+    private Customer customer;
+    private double total;
+
+    public String formatForPrint() {
+        return "Customer: %s\nEmail: %s\nAddress: %s\nTotal: %.2f"
+            .formatted(
+                customer.fullName(),
+                customer.getEmail(),
+                customer.formattedAddress(),
+                total
+            );
+    }
+}
+
+public class Customer {
+    public String fullName() {
+        return firstName + " " + lastName;
+    }
+    public String formattedAddress() {
+        return address.getStreet() + ", " + address.getCity();
+    }
+}
+</code></pre>
+<p><strong>Refactoring techniques:</strong> Move Method, Extract Method then Move.</p>
+<hr>
+<h3 id="smell-4-primitive-obsession"><a class="header" href="#smell-4-primitive-obsession">Smell 4: Primitive Obsession</a></h3>
+<p><strong>Symptom:</strong> Using primitive types (String, int, double) to represent domain concepts that deserve their own class.</p>
+<pre><code class="language-java">// BAD — Primitives for domain concepts
+public class Order {
+    private String status;           // should be an enum or value object
+    private double price;            // no currency, no precision guarantee
+    private String phoneNumber;      // no validation
+    private String zipCode;          // no format enforcement
+}
+
+public void ship(Order order) {
+    if (order.getStatus().equals("PAID")) {   // magic string
+        ...
+    }
+}
+</code></pre>
+<pre><code class="language-java">// GOOD — Replace Primitive with Object / Value Object
+public enum OrderStatus { PENDING, PAID, SHIPPED, DELIVERED, CANCELLED }
+
+public record Money(BigDecimal amount, Currency currency) {
+    public Money {
+        Objects.requireNonNull(amount);
+        Objects.requireNonNull(currency);
+        if (amount.compareTo(BigDecimal.ZERO) &lt; 0) {
+            throw new IllegalArgumentException("Amount cannot be negative");
+        }
+    }
+    public Money add(Money other) {
+        if (!currency.equals(other.currency)) throw new IllegalArgumentException("Currency mismatch");
+        return new Money(amount.add(other.amount), currency);
+    }
+}
+
+public record PhoneNumber(String value) {
+    private static final Pattern PATTERN = Pattern.compile("^\\+?[1-9]\\d{1,14}$");
+    public PhoneNumber {
+        if (!PATTERN.matcher(value).matches()) throw new IllegalArgumentException("Invalid phone: " + value);
+    }
+}
+
+public class Order {
+    private OrderStatus status;
+    private Money price;
+    private PhoneNumber contactPhone;
+}
+</code></pre>
+<p><strong>Refactoring techniques:</strong> Replace Primitive with Object, Introduce Value Object, Replace Type Code with Class.</p>
+<hr>
+<h3 id="smell-5-data-clumps"><a class="header" href="#smell-5-data-clumps">Smell 5: Data Clumps</a></h3>
+<p><strong>Symptom:</strong> The same group of data items (e.g., firstName, lastName, email) appear together repeatedly across multiple methods and classes, but are never encapsulated together.</p>
+<pre><code class="language-java">// BAD — Data Clumps
+public void sendEmail(String firstName, String lastName, String email, String subject, String body) { ... }
+public User createUser(String firstName, String lastName, String email, String role) { ... }
+public Invoice bill(String firstName, String lastName, String email, Money amount) { ... }
+</code></pre>
+<pre><code class="language-java">// GOOD — Extract Class for the clump
+public record PersonName(String firstName, String lastName) {
+    public String full() { return firstName + " " + lastName; }
+}
+
+public record ContactInfo(PersonName name, String email) {}
+
+public void sendEmail(ContactInfo contact, String subject, String body) { ... }
+public User createUser(ContactInfo contact, Role role) { ... }
+public Invoice bill(ContactInfo contact, Money amount) { ... }
+</code></pre>
+<p><strong>Refactoring techniques:</strong> Extract Class, Introduce Parameter Object, Preserve Whole Object.</p>
+<hr>
+<h3 id="smell-6-shotgun-surgery"><a class="header" href="#smell-6-shotgun-surgery">Smell 6: Shotgun Surgery</a></h3>
+<p><strong>Symptom:</strong> Every time you make one logical change, you must make many small edits scattered across many different classes. The opposite of Large Class — the responsibility is too distributed.</p>
+<pre><code class="language-java">// BAD — VAT rate change requires touching 6 classes
+public class OrderCalculator {
+    public double calculateTax(double amount) { return amount * 0.20; }  // change here
+}
+public class InvoiceGenerator {
+    public double computeVAT(double net) { return net * 0.20; }          // and here
+}
+public class QuoteService {
+    public double estimateTax(double price) { return price * 0.20; }     // and here
+}
+// ... and 3 more classes
+</code></pre>
+<pre><code class="language-java">// GOOD — Centralize the varying concept
+@Component
+public class TaxPolicy {
+    @Value("${tax.vat-rate:0.20}")
+    private double vatRate;
+
+    public Money calculateVAT(Money netAmount) {
+        return new Money(netAmount.amount().multiply(BigDecimal.valueOf(vatRate)),
+                         netAmount.currency());
+    }
+}
+
+// All services inject TaxPolicy — one change, everywhere consistent
+@Service
+public class OrderCalculator {
+    private final TaxPolicy taxPolicy;
+    public Money calculateTax(Money amount) { return taxPolicy.calculateVAT(amount); }
+}
+</code></pre>
+<p><strong>Refactoring techniques:</strong> Move Method, Move Field, Inline Class (consolidate), introduce a single authoritative class.</p>
+<hr>
+<h3 id="smell-7-divergent-change"><a class="header" href="#smell-7-divergent-change">Smell 7: Divergent Change</a></h3>
+<p><strong>Symptom:</strong> One class is changed for many different reasons — each “why” for a change is different. Violates SRP at a higher level: the class has multiple axes of variation.</p>
+<pre><code class="language-java">// BAD — UserService changes when: auth logic changes, DB schema changes, notification format changes
+public class UserService {
+    public User authenticate(String email, String password) {
+        // auth logic — axis 1
+        User user = userRepository.findByEmail(email)   // DB access — axis 2
+            .orElseThrow(() -&gt; new AuthException("Not found"));
+        emailService.sendLoginAlert(user.getEmail());   // notification — axis 3
+        return user;
+    }
+}
+</code></pre>
+<pre><code class="language-java">// GOOD — One class per axis of change
+@Service
+public class AuthenticationService {          // changes when: auth algorithm changes
+    private final UserRepository userRepository;
+    private final PasswordEncoder encoder;
+    public AuthToken authenticate(Credentials creds) { ... }
+}
+
+@Repository
+public class UserRepository { ... }          // changes when: DB schema changes
+
+@Service
+public class LoginNotificationService { ... } // changes when: notification format changes
+</code></pre>
+<p><strong>Refactoring techniques:</strong> Extract Class, move related methods together.</p>
+<hr>
+<h3 id="refactoring-techniques-summary"><a class="header" href="#refactoring-techniques-summary">Refactoring Techniques Summary</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Technique</th><th>When to Apply</th></tr>
+</thead>
+<tbody>
+<tr><td>Extract Method</td><td>Long method; repeated code blocks</td></tr>
+<tr><td>Extract Class</td><td>Large class; data clumps; divergent change</td></tr>
+<tr><td>Move Method/Field</td><td>Feature envy; shotgun surgery</td></tr>
+<tr><td>Replace Primitive with Object</td><td>Primitive obsession</td></tr>
+<tr><td>Introduce Parameter Object</td><td>Data clumps in method signatures</td></tr>
+<tr><td>Inline Class</td><td>Too many trivial classes after shotgun surgery fix</td></tr>
+<tr><td>Replace Type Code with Subclasses</td><td>Type codes driving conditionals</td></tr>
+<tr><td>Replace Conditional with Polymorphism</td><td>Switch/if chains on type</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="topic-10--cqrs-pattern"><a class="header" href="#topic-10--cqrs-pattern">Topic 10 — CQRS Pattern</a></h2>
+<h3 id="what-is-cqrs"><a class="header" href="#what-is-cqrs">What is CQRS?</a></h3>
+<p><strong>Command Query Responsibility Segregation (CQRS)</strong> separates the <em>write</em> model (commands that change state) from the <em>read</em> model (queries that return data). Coined by Greg Young, inspired by Meyer’s CQS principle.</p>
+<pre><code>Traditional:         CQRS:
+                     ┌──────────────────────────────┐
+┌──────────┐         │   COMMAND SIDE               │
+│  Service │         │  Commands → Command Handlers  │
+│ read +   │         │  → Write Model → Write DB     │
+│ write    │         ├──────────────────────────────┤
+│ same     │         │   QUERY SIDE                  │
+│ model    │         │  Queries → Query Handlers     │
+└──────────┘         │  → Read Model → Read DB/Cache │
+                     └──────────────────────────────┘
+</code></pre>
+<h3 id="why-cqrs"><a class="header" href="#why-cqrs">Why CQRS?</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Problem</th><th>CQRS Solution</th></tr>
+</thead>
+<tbody>
+<tr><td>Read and write scalability differ</td><td>Scale read replicas independently</td></tr>
+<tr><td>Domain model cluttered with projection concerns</td><td>Separate models, each optimised</td></tr>
+<tr><td>Complex queries slow down the write path</td><td>Dedicated read store (denormalised)</td></tr>
+<tr><td>Audit / event history needed</td><td>Commands pair naturally with event sourcing</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h3 id="spring-implementation"><a class="header" href="#spring-implementation">Spring Implementation</a></h3>
+<pre><code class="language-java">// ─── DOMAIN ──────────────────────────────────────────────────────────────────
+
+// Write model — rich domain object
+@Entity
+@Table(name = "products")
+public class Product {
+    @Id @GeneratedValue
+    private Long id;
+    private String name;
+    private BigDecimal price;
+    private int stockQuantity;
+
+    public void adjustStock(int delta) {
+        if (stockQuantity + delta &lt; 0) throw new InsufficientStockException(id);
+        this.stockQuantity += delta;
+    }
+
+    public void updatePrice(BigDecimal newPrice) {
+        if (newPrice.compareTo(BigDecimal.ZERO) &lt;= 0) throw new InvalidPriceException();
+        this.price = newPrice;
+    }
+}
+
+// ─── COMMANDS ────────────────────────────────────────────────────────────────
+
+public sealed interface ProductCommand permits
+    CreateProductCommand, UpdatePriceCommand, AdjustStockCommand {}
+
+public record CreateProductCommand(
+    String name,
+    BigDecimal price,
+    int initialStock
+) implements ProductCommand {}
+
+public record UpdatePriceCommand(
+    Long productId,
+    BigDecimal newPrice
+) implements ProductCommand {}
+
+public record AdjustStockCommand(
+    Long productId,
+    int delta
+) implements ProductCommand {}
+
+// ─── COMMAND HANDLERS ────────────────────────────────────────────────────────
+
+@Service
+@Transactional
+public class ProductCommandService {
+    private final ProductWriteRepository writeRepository;
+    private final ApplicationEventPublisher eventPublisher;
+
+    public Long handle(CreateProductCommand cmd) {
+        var product = new Product(cmd.name(), cmd.price(), cmd.initialStock());
+        Product saved = writeRepository.save(product);
+        eventPublisher.publishEvent(new ProductCreatedEvent(saved.getId(), saved.getName()));
+        return saved.getId();
+    }
+
+    public void handle(UpdatePriceCommand cmd) {
+        Product product = writeRepository.findById(cmd.productId())
+            .orElseThrow(() -&gt; new ProductNotFoundException(cmd.productId()));
+        product.updatePrice(cmd.newPrice());
+        eventPublisher.publishEvent(new PriceUpdatedEvent(cmd.productId(), cmd.newPrice()));
+    }
+
+    public void handle(AdjustStockCommand cmd) {
+        Product product = writeRepository.findById(cmd.productId())
+            .orElseThrow(() -&gt; new ProductNotFoundException(cmd.productId()));
+        product.adjustStock(cmd.delta());
+    }
+}
+
+// ─── QUERIES ─────────────────────────────────────────────────────────────────
+
+// Read model — flat DTO optimized for queries (denormalised)
+public record ProductSummaryView(
+    Long id,
+    String name,
+    BigDecimal price,
+    int stockQuantity,
+    String categoryName,    // denormalised — no join needed
+    double averageRating    // denormalised — pre-computed
+) {}
+
+public record ProductDetailView(
+    Long id,
+    String name,
+    String description,
+    BigDecimal price,
+    int stockQuantity,
+    String categoryName,
+    List&lt;String&gt; tags,
+    double averageRating,
+    int reviewCount
+) {}
+
+// ─── QUERY HANDLERS ──────────────────────────────────────────────────────────
+
+@Service
+@Transactional(readOnly = true)
+public class ProductQueryService {
+    private final ProductReadRepository readRepository;
+
+    // Optimised query — hits a read-optimised projection, not the rich domain model
+    public Page&lt;ProductSummaryView&gt; findAll(ProductSearchCriteria criteria, Pageable pageable) {
+        return readRepository.findSummaries(criteria, pageable);
+    }
+
+    public Optional&lt;ProductDetailView&gt; findById(Long id) {
+        return readRepository.findDetailById(id);
+    }
+
+    public List&lt;ProductSummaryView&gt; findLowStock(int threshold) {
+        return readRepository.findByStockQuantityLessThan(threshold);
+    }
+}
+
+// ─── CONTROLLER ──────────────────────────────────────────────────────────────
+
+@RestController
+@RequestMapping("/api/v1/products")
+public class ProductController {
+    private final ProductCommandService commandService;
+    private final ProductQueryService queryService;
+
+    // Writes go to command service
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public Map&lt;String, Long&gt; create(@RequestBody @Valid CreateProductRequest req) {
+        Long id = commandService.handle(new CreateProductCommand(req.name(), req.price(), req.initialStock()));
+        return Map.of("id", id);
+    }
+
+    @PatchMapping("/{id}/price")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updatePrice(@PathVariable Long id, @RequestBody @Valid UpdatePriceRequest req) {
+        commandService.handle(new UpdatePriceCommand(id, req.price()));
+    }
+
+    // Reads go to query service
+    @GetMapping
+    public Page&lt;ProductSummaryView&gt; list(ProductSearchCriteria criteria, Pageable pageable) {
+        return queryService.findAll(criteria, pageable);
+    }
+
+    @GetMapping("/{id}")
+    public ProductDetailView get(@PathVariable Long id) {
+        return queryService.findById(id)
+            .orElseThrow(() -&gt; new ResponseStatusException(HttpStatus.NOT_FOUND));
+    }
+}
+</code></pre>
+<h3 id="eventual-consistency-in-cqrs"><a class="header" href="#eventual-consistency-in-cqrs">Eventual Consistency in CQRS</a></h3>
+<p>When the read store is updated asynchronously (e.g., via events from the write store):</p>
+<pre><code class="language-java">// Event listener updates the read model when the write model changes
+@Component
+public class ProductReadModelProjector {
+    private final ProductReadRepository readRepository;
+
+    @EventListener
+    @Async
+    public void on(ProductCreatedEvent event) {
+        // Write to read store — could be a different DB, Elasticsearch, Redis, etc.
+        readRepository.upsertSummary(new ProductSummaryView(
+            event.productId(), event.name(), event.price(), event.initialStock(),
+            event.categoryName(), 0.0
+        ));
+    }
+
+    @EventListener
+    @Async
+    public void on(PriceUpdatedEvent event) {
+        readRepository.updatePrice(event.productId(), event.newPrice());
+    }
+}
+</code></pre>
+<p><strong>Interview tip:</strong> “Eventual consistency means reads may briefly return stale data after a write. The UI should tolerate this — e.g., by showing the value the user just submitted (optimistic UI) while the projection catches up.”</p>
+<hr>
+<h2 id="topic-11--event-sourcing"><a class="header" href="#topic-11--event-sourcing">Topic 11 — Event Sourcing</a></h2>
+<h3 id="core-concept"><a class="header" href="#core-concept">Core Concept</a></h3>
+<p>In traditional CRUD, you store the <strong>current state</strong> of an entity. In Event Sourcing, you store the <strong>sequence of events</strong> that led to the current state. State is derived by replaying events.</p>
+<pre><code>Traditional CRUD:
+  ORDER table → { id:1, status:"SHIPPED", total:99.99 }   ← only current state
+
+Event Sourcing:
+  EVENTS table:
+  { aggregate_id:1, seq:1, type:"OrderPlaced",   data:{total:99.99} }
+  { aggregate_id:1, seq:2, type:"PaymentReceived",data:{amount:99.99}}
+  { aggregate_id:1, seq:3, type:"OrderShipped",  data:{carrier:"FedEx"}}
+  
+  Current state = replay seq 1→3
+</code></pre>
+<hr>
+<h3 id="implementation"><a class="header" href="#implementation">Implementation</a></h3>
+<pre><code class="language-java">// ─── EVENTS ──────────────────────────────────────────────────────────────────
+
+public sealed interface OrderEvent permits
+    OrderPlacedEvent, PaymentReceivedEvent, OrderShippedEvent, OrderCancelledEvent {}
+
+public record OrderPlacedEvent(
+    UUID orderId,
+    UUID customerId,
+    List&lt;OrderItem&gt; items,
+    Money total,
+    Instant occurredAt
+) implements OrderEvent {}
+
+public record PaymentReceivedEvent(
+    UUID orderId,
+    Money amount,
+    String transactionId,
+    Instant occurredAt
+) implements OrderEvent {}
+
+public record OrderShippedEvent(
+    UUID orderId,
+    String carrier,
+    String trackingNumber,
+    Instant occurredAt
+) implements OrderEvent {}
+
+// ─── AGGREGATE ───────────────────────────────────────────────────────────────
+
+public class Order {
+    private UUID id;
+    private UUID customerId;
+    private OrderStatus status;
+    private Money total;
+    private String trackingNumber;
+
+    // Pending events to be persisted
+    private final List&lt;OrderEvent&gt; pendingEvents = new ArrayList&lt;&gt;();
+
+    // Reconstitute from events (replay)
+    public static Order reconstitute(List&lt;OrderEvent&gt; history) {
+        var order = new Order();
+        history.forEach(order::apply);
+        return order;
+    }
+
+    // ── Command methods (business logic) ─────────────────────────────────────
+
+    public static Order place(UUID customerId, List&lt;OrderItem&gt; items, Money total) {
+        var order = new Order();
+        var event = new OrderPlacedEvent(UUID.randomUUID(), customerId, items, total, Instant.now());
+        order.apply(event);
+        order.pendingEvents.add(event);
+        return order;
+    }
+
+    public void receivePayment(Money amount, String transactionId) {
+        if (status != OrderStatus.PENDING) throw new IllegalStateException("Order not pending");
+        var event = new PaymentReceivedEvent(id, amount, transactionId, Instant.now());
+        apply(event);
+        pendingEvents.add(event);
+    }
+
+    public void ship(String carrier, String trackingNumber) {
+        if (status != OrderStatus.PAID) throw new IllegalStateException("Order not paid");
+        var event = new OrderShippedEvent(id, carrier, trackingNumber, Instant.now());
+        apply(event);
+        pendingEvents.add(event);
+    }
+
+    // ── Apply methods (state mutation — no business logic here) ───────────────
+
+    private void apply(OrderEvent event) {
+        switch (event) {
+            case OrderPlacedEvent e -&gt; {
+                this.id = e.orderId();
+                this.customerId = e.customerId();
+                this.total = e.total();
+                this.status = OrderStatus.PENDING;
+            }
+            case PaymentReceivedEvent e -&gt; this.status = OrderStatus.PAID;
+            case OrderShippedEvent e -&gt; {
+                this.status = OrderStatus.SHIPPED;
+                this.trackingNumber = e.trackingNumber();
+            }
+            case OrderCancelledEvent e -&gt; this.status = OrderStatus.CANCELLED;
+        }
+    }
+
+    public List&lt;OrderEvent&gt; drainPendingEvents() {
+        var events = List.copyOf(pendingEvents);
+        pendingEvents.clear();
+        return events;
+    }
+}
+
+// ─── EVENT STORE ─────────────────────────────────────────────────────────────
+
+public interface EventStore {
+    void append(UUID aggregateId, List&lt;OrderEvent&gt; events, long expectedVersion);
+    List&lt;OrderEvent&gt; load(UUID aggregateId);
+    List&lt;OrderEvent&gt; loadFrom(UUID aggregateId, long fromSequence);
+}
+
+@Repository
+public class JdbcEventStore implements EventStore {
+    private final JdbcTemplate jdbc;
+    private final ObjectMapper mapper;
+
+    @Override
+    @Transactional
+    public void append(UUID aggregateId, List&lt;OrderEvent&gt; events, long expectedVersion) {
+        // Optimistic concurrency check
+        Long currentVersion = jdbc.queryForObject(
+            "SELECT COALESCE(MAX(sequence_number), 0) FROM order_events WHERE aggregate_id = ?",
+            Long.class, aggregateId);
+
+        if (!Objects.equals(currentVersion, expectedVersion)) {
+            throw new OptimisticConcurrencyException(
+                "Expected version %d but found %d".formatted(expectedVersion, currentVersion));
+        }
+
+        long seq = expectedVersion;
+        for (OrderEvent event : events) {
+            seq++;
+            jdbc.update(
+                "INSERT INTO order_events (aggregate_id, sequence_number, event_type, event_data, occurred_at) VALUES (?,?,?,?,?)",
+                aggregateId, seq, event.getClass().getSimpleName(),
+                serializeEvent(event), Instant.now()
+            );
+        }
+    }
+
+    @Override
+    public List&lt;OrderEvent&gt; load(UUID aggregateId) {
+        return jdbc.query(
+            "SELECT event_type, event_data FROM order_events WHERE aggregate_id = ? ORDER BY sequence_number",
+            (rs, row) -&gt; deserializeEvent(rs.getString("event_type"), rs.getString("event_data")),
+            aggregateId
+        );
+    }
+}
+
+// ─── REPOSITORY ──────────────────────────────────────────────────────────────
+
+@Component
+public class EventSourcedOrderRepository {
+    private final EventStore eventStore;
+
+    public Order load(UUID orderId) {
+        List&lt;OrderEvent&gt; events = eventStore.load(orderId);
+        if (events.isEmpty()) throw new OrderNotFoundException(orderId);
+        return Order.reconstitute(events);
+    }
+
+    public void save(Order order) {
+        List&lt;OrderEvent&gt; newEvents = order.drainPendingEvents();
+        eventStore.append(order.getId(), newEvents, order.getVersion());
+    }
+}
+</code></pre>
+<h3 id="snapshotting"><a class="header" href="#snapshotting">Snapshotting</a></h3>
+<p>Replaying thousands of events on every load is slow. Snapshots periodically checkpoint the state.</p>
+<pre><code class="language-java">public class SnapshotStrategy {
+    private static final int SNAPSHOT_THRESHOLD = 100;
+
+    public boolean shouldSnapshot(long eventCount) {
+        return eventCount % SNAPSHOT_THRESHOLD == 0;
+    }
+}
+
+// Load: try snapshot first, then load only events after snapshot version
+public Order loadWithSnapshot(UUID orderId) {
+    Optional&lt;OrderSnapshot&gt; snapshot = snapshotStore.findLatest(orderId);
+    if (snapshot.isPresent()) {
+        OrderSnapshot snap = snapshot.get();
+        List&lt;OrderEvent&gt; tail = eventStore.loadFrom(orderId, snap.version() + 1);
+        Order order = Order.fromSnapshot(snap);
+        tail.forEach(order::applyExisting);
+        return order;
+    }
+    return Order.reconstitute(eventStore.load(orderId));
+}
+</code></pre>
+<h3 id="event-sourcing-vs-traditional-crud"><a class="header" href="#event-sourcing-vs-traditional-crud">Event Sourcing vs Traditional CRUD</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Aspect</th><th>Event Sourcing</th><th>Traditional CRUD</th></tr>
+</thead>
+<tbody>
+<tr><td>Storage</td><td>Event log (append-only)</td><td>Current state table</td></tr>
+<tr><td>Audit trail</td><td>Built-in — full history</td><td>Requires separate audit table</td></tr>
+<tr><td>Temporal queries</td><td>Easy — replay to any point</td><td>Hard — need history tables</td></tr>
+<tr><td>Debugging</td><td>Replay what happened</td><td>Check logs</td></tr>
+<tr><td>Complexity</td><td>High — new paradigm</td><td>Low — familiar</td></tr>
+<tr><td>Storage cost</td><td>Higher — events accumulate</td><td>Lower — current state only</td></tr>
+<tr><td>Read performance</td><td>Slower (replay) mitigated by snapshots</td><td>Faster direct lookup</td></tr>
+<tr><td>Best for</td><td>Complex domains, audit-critical, CQRS complement</td><td>Simple CRUD, high read/write ratio</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="topic-12--hexagonal-architecture-ports--adapters"><a class="header" href="#topic-12--hexagonal-architecture-ports--adapters">Topic 12 — Hexagonal Architecture (Ports &amp; Adapters)</a></h2>
+<h3 id="overview"><a class="header" href="#overview">Overview</a></h3>
+<p>Proposed by Alistair Cockburn. The goal: <strong>the application core must be independent of all infrastructure concerns</strong>. It communicates with the outside world through <strong>ports</strong> (interfaces) and <strong>adapters</strong> (implementations).</p>
+<pre><code>                    ┌─────────────────────────────────────────┐
+ REST Controller    │              APPLICATION CORE            │
+ (Driving Adapter)──┤──► Driving Port ───────────────────────┤
+                    │    (e.g. OrderUseCase interface)         │
+ CLI                │                                          │
+ (Driving Adapter)──┤──► Domain Services ◄──► Domain Model   │
+                    │                                          │
+                    │    Driven Port ─────────────────────────┤──► JPA Adapter
+                    │    (e.g. OrderRepository interface)      │    (Driven Adapter)
+                    │                                          │
+                    │    Driven Port ─────────────────────────┤──► Email SMTP Adapter
+                    │    (e.g. NotificationPort interface)     │
+                    └─────────────────────────────────────────┘
+</code></pre>
+<ul>
+<li><strong>Driving adapters</strong> (left side) initiate interactions: REST, CLI, gRPC, message consumer</li>
+<li><strong>Driven adapters</strong> (right side) are called by the application: DB, email, payment gateway, file system</li>
+</ul>
+<hr>
+<h3 id="implementation-1"><a class="header" href="#implementation-1">Implementation</a></h3>
+<pre><code class="language-java">// ─── DOMAIN MODEL ────────────────────────────────────────────────────────────
+
+// Pure Java — no framework annotations
+public class Order {
+    private final OrderId id;
+    private final CustomerId customerId;
+    private final List&lt;OrderLine&gt; lines;
+    private OrderStatus status;
+    private Money total;
+
+    public Order(OrderId id, CustomerId customerId, List&lt;OrderLine&gt; lines) {
+        this.id = Objects.requireNonNull(id);
+        this.customerId = Objects.requireNonNull(customerId);
+        this.lines = List.copyOf(lines);
+        this.status = OrderStatus.PENDING;
+        this.total = calculateTotal();
+    }
+
+    public void confirm() {
+        if (status != OrderStatus.PENDING) throw new IllegalStateException("Cannot confirm: " + status);
+        this.status = OrderStatus.CONFIRMED;
+    }
+
+    private Money calculateTotal() {
+        return lines.stream()
+            .map(OrderLine::subtotal)
+            .reduce(Money.ZERO_USD, Money::add);
+    }
+}
+
+// ─── DRIVING PORTS (what the application exposes) ────────────────────────────
+
+public interface PlaceOrderUseCase {
+    OrderId placeOrder(PlaceOrderCommand command);
+}
+
+public interface GetOrderUseCase {
+    OrderDetails getOrder(OrderId orderId);
+}
+
+// ─── DRIVEN PORTS (what the application requires) ────────────────────────────
+
+public interface OrderRepository {  // driven port — persistence abstraction
+    void save(Order order);
+    Optional&lt;Order&gt; findById(OrderId orderId);
+    List&lt;Order&gt; findByCustomerId(CustomerId customerId);
+}
+
+public interface NotificationPort {  // driven port — notification abstraction
+    void notifyOrderPlaced(CustomerId customerId, OrderId orderId, Money total);
+}
+
+public interface PaymentPort {  // driven port — payment abstraction
+    PaymentResult charge(CustomerId customerId, Money amount, PaymentMethod method);
+}
+
+// ─── APPLICATION SERVICE (core — implements driving ports, uses driven ports) ──
+
+@Service
+public class PlaceOrderService implements PlaceOrderUseCase {
+    private final OrderRepository orderRepository;    // driven port injected
+    private final NotificationPort notificationPort;  // driven port injected
+    private final PaymentPort paymentPort;            // driven port injected
+
+    public PlaceOrderService(
+        OrderRepository orderRepository,
+        NotificationPort notificationPort,
+        PaymentPort paymentPort
+    ) {
+        this.orderRepository = orderRepository;
+        this.notificationPort = notificationPort;
+        this.paymentPort = paymentPort;
+    }
+
+    @Override
+    public OrderId placeOrder(PlaceOrderCommand command) {
+        // Business logic lives here — no HTTP, no JPA, no SMTP
+        List&lt;OrderLine&gt; lines = command.items().stream()
+            .map(item -&gt; new OrderLine(item.productId(), item.quantity(), item.unitPrice()))
+            .toList();
+
+        var order = new Order(OrderId.generate(), command.customerId(), lines);
+
+        PaymentResult payment = paymentPort.charge(
+            command.customerId(), order.getTotal(), command.paymentMethod());
+        if (!payment.isSuccessful()) throw new PaymentFailedException(payment.reason());
+
+        order.confirm();
+        orderRepository.save(order);
+        notificationPort.notifyOrderPlaced(command.customerId(), order.getId(), order.getTotal());
+
+        return order.getId();
+    }
+}
+
+// ─── DRIVING ADAPTER — REST ───────────────────────────────────────────────────
+
+@RestController
+@RequestMapping("/api/v1/orders")
+public class OrderController {  // driving adapter — knows HTTP, translates to use case
+    private final PlaceOrderUseCase placeOrderUseCase;
+    private final GetOrderUseCase getOrderUseCase;
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public PlaceOrderResponse place(@RequestBody @Valid PlaceOrderHttpRequest request) {
+        PlaceOrderCommand command = OrderHttpMapper.toCommand(request);
+        OrderId orderId = placeOrderUseCase.placeOrder(command);
+        return new PlaceOrderResponse(orderId.value());
+    }
+}
+
+// ─── DRIVEN ADAPTER — JPA PERSISTENCE ────────────────────────────────────────
+
+@Repository
+public class JpaOrderRepository implements OrderRepository {  // driven adapter — knows JPA
+    private final OrderJpaRepository jpaRepository;
+    private final OrderPersistenceMapper mapper;
+
+    @Override
+    public void save(Order order) {
+        OrderEntity entity = mapper.toEntity(order);
+        jpaRepository.save(entity);
+    }
+
+    @Override
+    public Optional&lt;Order&gt; findById(OrderId orderId) {
+        return jpaRepository.findById(orderId.value())
+            .map(mapper::toDomain);
+    }
+}
+
+// ─── DRIVEN ADAPTER — EMAIL NOTIFICATION ──────────────────────────────────────
+
+@Component
+public class SmtpNotificationAdapter implements NotificationPort {
+    private final JavaMailSender mailSender;
+
+    @Override
+    public void notifyOrderPlaced(CustomerId customerId, OrderId orderId, Money total) {
+        // SMTP specifics stay here — the domain doesn't know about email
+        SimpleMailMessage msg = new SimpleMailMessage();
+        msg.setTo(resolveEmail(customerId));
+        msg.setSubject("Order Confirmed: " + orderId.value());
+        msg.setText("Your order of " + total + " has been placed.");
+        mailSender.send(msg);
+    }
+}
+
+// ─── IN-MEMORY ADAPTER — for testing ─────────────────────────────────────────
+
+public class InMemoryOrderRepository implements OrderRepository {
+    private final Map&lt;OrderId, Order&gt; store = new ConcurrentHashMap&lt;&gt;();
+
+    @Override
+    public void save(Order order) { store.put(order.getId(), order); }
+
+    @Override
+    public Optional&lt;Order&gt; findById(OrderId orderId) {
+        return Optional.ofNullable(store.get(orderId));
+    }
+}
+</code></pre>
+<h3 id="testing-benefits--swap-adapters"><a class="header" href="#testing-benefits--swap-adapters">Testing Benefits — Swap Adapters</a></h3>
+<pre><code class="language-java">// Unit test — no Spring, no DB, no SMTP
+class PlaceOrderServiceTest {
+    private final OrderRepository orderRepo = new InMemoryOrderRepository();
+    private final NotificationPort notifier = mock(NotificationPort.class);
+    private final PaymentPort payment = mock(PaymentPort.class);
+    private final PlaceOrderUseCase useCase = new PlaceOrderService(orderRepo, notifier, payment);
+
+    @Test
+    void placeOrder_confirmsOrderAndNotifiesCustomer() {
+        when(payment.charge(any(), any(), any())).thenReturn(PaymentResult.success("txn-123"));
+
+        OrderId orderId = useCase.placeOrder(aValidCommand());
+
+        assertThat(orderRepo.findById(orderId)).isPresent();
+        verify(notifier).notifyOrderPlaced(any(), eq(orderId), any());
+    }
+}
+// No @SpringBootTest, no TestContainers, no mocked HTTP — fast and focused
+</code></pre>
+<hr>
+<h2 id="topic-13--testing-principles"><a class="header" href="#topic-13--testing-principles">Topic 13 — Testing Principles</a></h2>
+<h3 id="the-test-pyramid"><a class="header" href="#the-test-pyramid">The Test Pyramid</a></h3>
+<pre><code>              ╱╲
+             ╱  ╲          E2E Tests
+            ╱ E2E╲         (few, slow, costly, test full system)
+           ╱──────╲
+          ╱        ╲       Integration Tests
+         ╱  INTEG.  ╲      (some, medium speed, test component interactions)
+        ╱────────────╲
+       ╱              ╲    Unit Tests
+      ╱     UNIT       ╲   (many, fast, cheap, test single units in isolation)
+     ╱──────────────────╲
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Level</th><th>Count</th><th>Speed</th><th>Purpose</th><th>Tools</th></tr>
+</thead>
+<tbody>
+<tr><td>Unit</td><td>70%</td><td>ms</td><td>Logic correctness</td><td>JUnit 5, Mockito</td></tr>
+<tr><td>Integration</td><td>20%</td><td>seconds</td><td>Component wiring</td><td>@SpringBootTest, TestContainers</td></tr>
+<tr><td>E2E</td><td>10%</td><td>minutes</td><td>User journey validation</td><td>Selenium, RestAssured</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h3 id="test-doubles"><a class="header" href="#test-doubles">Test Doubles</a></h3>
+<pre><code class="language-java">// ─── DUMMY ──── passed but never used (satisfies compiler/DI)
+NotificationPort dummy = null; // or a no-op implementation
+
+// ─── STUB ─────  provides canned answers to calls
+public class StubUserRepository implements UserRepository {
+    @Override
+    public Optional&lt;User&gt; findById(Long id) {
+        return Optional.of(new User(id, "test@example.com"));  // always returns same thing
+    }
+}
+
+// ─── MOCK ─────  verifies interactions (with Mockito)
+@ExtendWith(MockitoExtension.class)
+class OrderServiceTest {
+    @Mock NotificationPort notificationPort;
+
+    @Test
+    void ship_sendsNotification() {
+        orderService.ship(orderId);
+        verify(notificationPort, times(1)).notifyShipped(eq(orderId));
+    }
+}
+
+// ─── SPY ──────  wraps a real object, can verify calls AND delegate to real
+@Spy
+private List&lt;String&gt; spyList = new ArrayList&lt;&gt;();
+
+@Test
+void spy_delegatesToReal() {
+    spyList.add("element");
+    verify(spyList).add("element");        // verify the call
+    assertThat(spyList).hasSize(1);        // real behaviour executed
+}
+
+// ─── FAKE ─────  working implementation with shortcuts (e.g. in-memory DB)
+public class FakeOrderRepository implements OrderRepository {
+    private final Map&lt;OrderId, Order&gt; store = new HashMap&lt;&gt;();
+
+    @Override public void save(Order o) { store.put(o.getId(), o); }
+    @Override public Optional&lt;Order&gt; findById(OrderId id) { return Optional.ofNullable(store.get(id)); }
+    // No actual database — fast, but behaves like one for test purposes
+}
+</code></pre>
+<hr>
+<h3 id="first-principles"><a class="header" href="#first-principles">FIRST Principles</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Letter</th><th>Principle</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td>F</td><td><strong>Fast</strong></td><td>Tests run in milliseconds, not seconds</td></tr>
+<tr><td>I</td><td><strong>Independent</strong></td><td>No test depends on another test’s state</td></tr>
+<tr><td>R</td><td><strong>Repeatable</strong></td><td>Same result every time, any environment</td></tr>
+<tr><td>S</td><td><strong>Self-Validating</strong></td><td>Pass or fail — no manual inspection</td></tr>
+<tr><td>T</td><td><strong>Timely</strong></td><td>Written just before the production code (TDD)</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h3 id="tdd--red-green-refactor"><a class="header" href="#tdd--red-green-refactor">TDD — Red-Green-Refactor</a></h3>
+<pre><code class="language-java">// ── RED: write a failing test ─────────────────────────────────────────────────
+@Test
+void calculateTax_appliesConfiguredRate() {
+    var taxService = new TaxService(0.10);
+    Money result = taxService.calculate(Money.of(100, "USD"));
+    assertThat(result).isEqualTo(Money.of(10, "USD"));  // RED: TaxService doesn't exist yet
+}
+
+// ── GREEN: write the minimum code to pass ────────────────────────────────────
+public class TaxService {
+    private final double rate;
+    public TaxService(double rate) { this.rate = rate; }
+
+    public Money calculate(Money base) {
+        return new Money(base.amount().multiply(BigDecimal.valueOf(rate)), base.currency());
+    }
+}
+// Test passes — GREEN
+
+// ── REFACTOR: improve without breaking ───────────────────────────────────────
+public class TaxService {
+    private final BigDecimal rate;
+
+    public TaxService(double rate) {
+        this.rate = BigDecimal.valueOf(rate).setScale(4, RoundingMode.HALF_UP);
+    }
+
+    public Money calculate(Money base) {
+        BigDecimal taxAmount = base.amount()
+            .multiply(rate)
+            .setScale(2, RoundingMode.HALF_UP);
+        return new Money(taxAmount, base.currency());
+    }
+}
+// Still GREEN — precision improved, test unchanged
+</code></pre>
+<hr>
+<h3 id="integration-test-example"><a class="header" href="#integration-test-example">Integration Test Example</a></h3>
+<pre><code class="language-java">@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Testcontainers
+class OrderIntegrationTest {
+    @Container
+    static PostgreSQLContainer&lt;?&gt; postgres = new PostgreSQLContainer&lt;&gt;("postgres:15")
+        .withDatabaseName("testdb");
+
+    @DynamicPropertySource
+    static void configure(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
+    }
+
+    @Autowired
+    private TestRestTemplate restTemplate;
+
+    @Test
+    void placeOrder_returnsCreatedWithOrderId() {
+        var request = new PlaceOrderHttpRequest(customerId, items, paymentMethod);
+
+        ResponseEntity&lt;PlaceOrderResponse&gt; response = restTemplate
+            .postForEntity("/api/v1/orders", request, PlaceOrderResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(response.getBody().orderId()).isNotNull();
+    }
+}
+</code></pre>
+<hr>
+<h2 id="topic-14--api-design-principles"><a class="header" href="#topic-14--api-design-principles">Topic 14 — API Design Principles</a></h2>
+<h3 id="cohesion--coupling-in-apis"><a class="header" href="#cohesion--coupling-in-apis">Cohesion &amp; Coupling in APIs</a></h3>
+<p><strong>High cohesion:</strong> An API surface exposes a coherent set of related operations. A <code>UserProfileApi</code> should only expose profile operations — not billing or authentication.</p>
+<p><strong>Low coupling:</strong> Callers depend on the API contract (interface), not the implementation. Changes to internal implementation should not require caller changes.</p>
+<pre><code class="language-java">// BAD — low cohesion, high coupling
+@RestController
+public class GodController {
+    @GetMapping("/user/{id}") public User getUser(...) { ... }
+    @PostMapping("/order") public Order placeOrder(...) { ... }
+    @GetMapping("/product/{id}") public Product getProduct(...) { ... }
+    @PostMapping("/payment") public Receipt pay(...) { ... }
+}
+
+// GOOD — high cohesion, clear boundaries
+@RestController @RequestMapping("/api/v1/users")
+public class UserController { ... }
+
+@RestController @RequestMapping("/api/v1/orders")
+public class OrderController { ... }
+
+@RestController @RequestMapping("/api/v1/products")
+public class ProductController { ... }
+</code></pre>
+<hr>
+<h3 id="api-as-a-product"><a class="header" href="#api-as-a-product">API as a Product</a></h3>
+<p>An API is a product consumed by other developers. Design it for the <strong>consumer</strong>, not for your internal model.</p>
+<pre><code class="language-java">// BAD — API leaks internal structure (tight coupling to DB model)
+@GetMapping("/orders/{id}")
+public OrderEntity getOrder(@PathVariable Long id) {
+    return orderRepository.findById(id).orElseThrow();  // returns JPA entity directly!
+}
+
+// GOOD — API contract is stable, independent of persistence model
+@GetMapping("/orders/{id}")
+public OrderResponse getOrder(@PathVariable Long id) {
+    Order order = orderQueryService.findById(OrderId.of(id));
+    return OrderResponseMapper.toResponse(order);  // maps domain → stable API DTO
+}
+
+// Stable API DTO — consumers depend on this, not the DB schema
+public record OrderResponse(
+    String orderId,
+    String status,
+    @JsonFormat(shape = JsonFormat.Shape.STRING) BigDecimal total,
+    String currency,
+    List&lt;OrderLineResponse&gt; lines,
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'") LocalDateTime placedAt
+) {}
+</code></pre>
+<hr>
+<h3 id="backward-compatibility--semantic-versioning"><a class="header" href="#backward-compatibility--semantic-versioning">Backward Compatibility &amp; Semantic Versioning</a></h3>
+<p><strong>SemVer:</strong> <code>MAJOR.MINOR.PATCH</code></p>
+<ul>
+<li><code>PATCH</code>: bug fixes, no API change</li>
+<li><code>MINOR</code>: new features, backward compatible (add optional fields, new endpoints)</li>
+<li><code>MAJOR</code>: breaking changes (remove/rename fields, change semantics)</li>
+</ul>
+<pre><code class="language-java">// Strategy 1: URI versioning
+@RequestMapping("/api/v1/users")  // stable v1
+@RequestMapping("/api/v2/users")  // v2 with breaking changes
+
+// Strategy 2: Header versioning
+@GetMapping("/users/{id}")
+public ResponseEntity&lt;UserResponse&gt; getUser(
+    @PathVariable Long id,
+    @RequestHeader(value = "Accept-Version", defaultValue = "v1") String version
+) {
+    return switch (version) {
+        case "v2" -&gt; ResponseEntity.ok(userServiceV2.getUser(id));
+        default   -&gt; ResponseEntity.ok(userServiceV1.getUser(id));
+    };
+}
+
+// Strategy 3: Content-type negotiation
+// Accept: application/vnd.myapi.v2+json
+</code></pre>
+<hr>
+<h3 id="deprecation-strategy"><a class="header" href="#deprecation-strategy">Deprecation Strategy</a></h3>
+<pre><code class="language-java">// Step 1: Mark as deprecated — communicate in API response
+@GetMapping("/v1/users/{id}")
+@Deprecated
+public ResponseEntity&lt;UserV1Response&gt; getUserV1(@PathVariable Long id) {
+    HttpHeaders headers = new HttpHeaders();
+    headers.add("Deprecation", "true");
+    headers.add("Sunset", "2025-12-31");  // RFC 8594 — when it will be removed
+    headers.add("Link", "&lt;/api/v2/users/" + id + "&gt;; rel=\"successor-version\"");
+    return ResponseEntity.ok().headers(headers).body(userService.getUserV1(id));
+}
+
+// Step 2: Monitor usage of deprecated endpoint
+@EventListener
+public void on(DeprecatedEndpointCalledEvent event) {
+    metricsService.increment("deprecated.endpoint.calls", "path", event.path());
+    log.warn("Deprecated endpoint called: {} by client: {}", event.path(), event.clientId());
+}
+
+// Step 3: Remove after sunset date with proper migration guide in docs
+</code></pre>
+<hr>
+<h3 id="api-design-checklist"><a class="header" href="#api-design-checklist">API Design Checklist</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Concern</th><th>Best Practice</th></tr>
+</thead>
+<tbody>
+<tr><td>Naming</td><td>Nouns for resources, verbs for RPC (<code>/orders</code>, not <code>/getOrder</code>)</td></tr>
+<tr><td>HTTP methods</td><td>GET (idempotent), POST (create), PUT (replace), PATCH (partial update), DELETE</td></tr>
+<tr><td>Status codes</td><td>200/201/204 for success; 400 for bad input; 404 for not found; 409 for conflict; 422 for validation; 500 for server error</td></tr>
+<tr><td>Pagination</td><td>Cursor-based for large datasets; <code>?cursor=X&amp;limit=20</code></td></tr>
+<tr><td>Filtering</td><td><code>?status=ACTIVE&amp;createdAfter=2024-01-01</code></td></tr>
+<tr><td>Error format</td><td>Consistent: <code>{ "code": "VALIDATION_ERROR", "message": "...", "details": [...] }</code></td></tr>
+<tr><td>Idempotency</td><td><code>Idempotency-Key</code> header for POST mutations</td></tr>
+<tr><td>Rate limiting</td><td><code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code>, <code>Retry-After</code> headers</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="topic-15--technical-debt"><a class="header" href="#topic-15--technical-debt">Topic 15 — Technical Debt</a></h2>
+<h3 id="types-of-technical-debt"><a class="header" href="#types-of-technical-debt">Types of Technical Debt</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Type</th><th>Description</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Deliberate &amp; Prudent</strong></td><td>“We know the right way, but we need to ship now” — documented, planned payback</td><td>TODO: refactor when we have time; using direct SQL instead of ORM for speed</td></tr>
+<tr><td><strong>Deliberate &amp; Reckless</strong></td><td>“We don’t have time for design” — no plan to fix</td><td>Copy-pasting code, skipping tests, hardcoding credentials</td></tr>
+<tr><td><strong>Inadvertent &amp; Prudent</strong></td><td>“Now we know how we should have done it” — learned after the fact</td><td>Discovered that the service should be split after implementing it</td></tr>
+<tr><td><strong>Inadvertent &amp; Reckless</strong></td><td>Don’t even know they’re doing it wrong</td><td>Misusing transactions, ignoring thread safety</td></tr>
+<tr><td><strong>Bit Rot</strong></td><td>Good code that decays as the surrounding system changes</td><td>Old integration code that no longer matches updated contract</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h3 id="measuring-technical-debt"><a class="header" href="#measuring-technical-debt">Measuring Technical Debt</a></h3>
+<p><strong>Cyclomatic Complexity</strong> — number of independent paths through a method. Higher = harder to test and maintain.</p>
+<pre><code class="language-java">// BAD — Cyclomatic Complexity: 8 (every branch adds 1)
+public String classify(int score, boolean vip, String region) {
+    if (score &gt; 90) {                              // +1
+        if (vip) {                                 // +1
+            return "PLATINUM";
+        } else {
+            return "GOLD";
+        }
+    } else if (score &gt; 70) {                       // +1
+        if (region.equals("EU")) {                 // +1
+            return "SILVER_EU";
+        } else if (region.equals("US")) {          // +1
+            return "SILVER_US";
+        } else {
+            return "SILVER";
+        }
+    } else if (score &gt; 50) {                       // +1
+        return vip ? "BRONZE_VIP" : "BRONZE";      // +1
+    }
+    return "STANDARD";
+}
+// Cyclomatic complexity = 8; target &lt; 5 per method
+</code></pre>
+<pre><code class="language-java">// GOOD — reduce complexity with strategy/table lookup
+private static final List&lt;ClassificationRule&gt; RULES = List.of(
+    new ClassificationRule(score -&gt; score &gt; 90 &amp;&amp; vip,           "PLATINUM"),
+    new ClassificationRule(score -&gt; score &gt; 90,                   "GOLD"),
+    new ClassificationRule(score -&gt; score &gt; 70 &amp;&amp; isEU(region),  "SILVER_EU"),
+    new ClassificationRule(score -&gt; score &gt; 70 &amp;&amp; isUS(region),  "SILVER_US"),
+    new ClassificationRule(score -&gt; score &gt; 70,                   "SILVER"),
+    new ClassificationRule(score -&gt; score &gt; 50 &amp;&amp; vip,           "BRONZE_VIP"),
+    new ClassificationRule(score -&gt; score &gt; 50,                   "BRONZE")
+);
+
+public String classify(int score, boolean vip, String region) {
+    return RULES.stream()
+        .filter(rule -&gt; rule.matches(score, vip, region))
+        .map(ClassificationRule::label)
+        .findFirst()
+        .orElse("STANDARD");
+}
+// Cyclomatic complexity = 1; each rule is independently testable
+</code></pre>
+<p><strong>Coupling metrics:</strong></p>
+<pre><code class="language-java">// Afferent coupling (Ca) — how many classes depend on this class
+// High Ca = dangerous to change (ripple effect)
+
+// Efferent coupling (Ce) — how many classes this class depends on
+// High Ce = this class knows too much (fragile)
+
+// Instability = Ce / (Ca + Ce)
+// 0 = maximally stable (nothing depends on changing), 1 = maximally unstable
+
+// Example: measure with tools like JDepend, ArchUnit
+@AnalyzeClasses(packages = "com.example")
+public class CouplingTest {
+    @ArchTest
+    static final ArchRule domainShouldNotDependOnInfrastructure =
+        noClasses().that().resideInAPackage("..domain..")
+                   .should().dependOnClassesThat()
+                   .resideInAnyPackage("..infrastructure..", "..adapter..");
+}
+</code></pre>
+<hr>
+<h3 id="strategies-to-manage-technical-debt"><a class="header" href="#strategies-to-manage-technical-debt">Strategies to Manage Technical Debt</a></h3>
+<h4 id="1-boy-scout-rule"><a class="header" href="#1-boy-scout-rule">1. Boy Scout Rule</a></h4>
+<pre><code class="language-java">// When you open a file to make a change, leave it cleaner than you found it
+// Don't do a massive refactor — just clean the immediate area
+
+// You came to add a feature to processOrder:
+public void processOrder(Order order) {
+    // Before: validate() is 50 lines inline; extract it while you're here
+    validateOrder(order);        // extracted — small, targeted improvement
+    calculateTotals(order);
+    orderRepository.save(order);
+    notifyCustomer(order);
+}
+</code></pre>
+<h4 id="2-refactoring-sprints-dedicated-debt-repayment"><a class="header" href="#2-refactoring-sprints-dedicated-debt-repayment">2. Refactoring Sprints (Dedicated Debt Repayment)</a></h4>
+<pre><code>Sprint planning:
+  ┌─────────────────────────────────────────┐
+  │  Technical Debt Backlog                 │
+  │  ┌──────────────────────────────────┐   │
+  │  │ [HIGH] UserService God Class     │   │
+  │  │   Effort: 3 sprints              │   │
+  │  │   Impact: -40% change fail rate  │   │
+  │  ├──────────────────────────────────┤   │
+  │  │ [MED] Replace magic strings      │   │
+  │  │   Effort: 1 sprint               │   │
+  │  │   Impact: -15% config bugs       │   │
+  │  └──────────────────────────────────┘   │
+  └─────────────────────────────────────────┘
+
+Allocation: 20% of each sprint to debt (sustainable pace)
+           or dedicated "debt sprint" every quarter
+</code></pre>
+<h4 id="3-strangler-fig-pattern-for-large-debt"><a class="header" href="#3-strangler-fig-pattern-for-large-debt">3. Strangler Fig Pattern for Large Debt</a></h4>
+<pre><code class="language-java">// Gradually replace legacy system — new functionality written in clean code
+// Legacy code strangled over time, not rewritten all at once
+
+@Component
+public class OrderProcessingFacade {
+    private final LegacyOrderService legacy;
+    private final NewOrderService newService;
+
+    @Value("${feature.new-order-processing:false}")
+    private boolean useNewService;
+
+    public OrderResult processOrder(Order order) {
+        if (useNewService &amp;&amp; isEligibleForNewService(order)) {
+            return newService.processOrder(order);   // gradually migrate
+        }
+        return legacy.processOrder(order);           // fall back to legacy
+    }
+}
+</code></pre>
+<h4 id="4-code-metrics-thresholds-enforce-with-ci"><a class="header" href="#4-code-metrics-thresholds-enforce-with-ci">4. Code Metrics Thresholds (enforce with CI)</a></h4>
+<pre><code class="language-yaml"># .sonarqube.yml / SonarQube Quality Gate
+quality_gate:
+  conditions:
+    - metric: code_smells
+      operator: GREATER_THAN
+      threshold: 100          # fail if &gt; 100 new smells
+    - metric: cognitive_complexity
+      operator: GREATER_THAN
+      threshold: 15           # per method
+    - metric: duplicated_lines_density
+      operator: GREATER_THAN
+      threshold: 3            # max 3% duplication
+    - metric: coverage
+      operator: LESS_THAN
+      threshold: 80           # min 80% test coverage on new code
+    - metric: security_hotspots_reviewed
+      operator: LESS_THAN
+      threshold: 100
+</code></pre>
+<hr>
+<h1 id="cheat-sheet--solid-principles--clean-architecture"><a class="header" href="#cheat-sheet--solid-principles--clean-architecture">Cheat Sheet — SOLID Principles &amp; Clean Architecture</a></h1>
+<hr>
+<h2 id="1-solid-principles-quick-reference"><a class="header" href="#1-solid-principles-quick-reference">1. SOLID Principles Quick Reference</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Principle</th><th>One-Liner</th><th>Violation Example</th><th>Fix</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>S</strong> — SRP</td><td>One class, one reason to change</td><td><code>UserService</code> handles auth, billing, reporting</td><td>Split into <code>AuthService</code>, <code>BillingService</code>, <code>ReportingService</code></td></tr>
+<tr><td><strong>O</strong> — OCP</td><td>Open for extension, closed for modification</td><td><code>if (type == "email") ... else if (type == "sms")...</code></td><td><code>NotificationStrategy</code> interface + implementors</td></tr>
+<tr><td><strong>L</strong> — LSP</td><td>Subtypes must be substitutable for base types</td><td><code>Square extends Rectangle</code> breaks <code>setWidth</code> contract</td><td>Use composition; don’t inherit just for reuse</td></tr>
+<tr><td><strong>I</strong> — ISP</td><td>Clients shouldn’t depend on interfaces they don’t use</td><td><code>Worker</code> interface forces <code>Robot</code> to implement <code>eat()</code></td><td>Split: <code>Workable</code>, <code>Feedable</code> interfaces</td></tr>
+<tr><td><strong>D</strong> — DIP</td><td>Depend on abstractions, not concretions</td><td><code>OrderService</code> <code>new</code>s a <code>MySQLOrderRepository</code></td><td>Inject <code>OrderRepository</code> interface</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="2-clean-architecture-layers-ascii-diagram"><a class="header" href="#2-clean-architecture-layers-ascii-diagram">2. Clean Architecture Layers (ASCII Diagram)</a></h2>
+<pre><code>┌──────────────────────────────────────────────────────────────────────────┐
+│                         FRAMEWORKS &amp; DRIVERS                              │
+│   Spring Boot · REST Controllers · JPA · Kafka · Redis · React · CLI     │
+│ ┌────────────────────────────────────────────────────────────────────┐   │
+│ │                    INTERFACE ADAPTERS                               │   │
+│ │   Controllers · Presenters · Gateways · Repository Implementations │   │
+│ │ ┌──────────────────────────────────────────────────────────────┐   │   │
+│ │ │                   APPLICATION USE CASES                       │   │   │
+│ │ │   PlaceOrderUseCase · GetOrderUseCase · CancelOrderUseCase   │   │   │
+│ │ │ ┌──────────────────────────────────────────────────────┐     │   │   │
+│ │ │ │              ENTERPRISE BUSINESS RULES               │     │   │   │
+│ │ │ │   Order · Customer · Product · Money · OrderStatus   │     │   │   │
+│ │ │ │         (Pure Java — no framework imports)           │     │   │   │
+│ │ │ └──────────────────────────────────────────────────────┘     │   │   │
+│ │ └──────────────────────────────────────────────────────────────┘   │   │
+│ └────────────────────────────────────────────────────────────────────┘   │
+└──────────────────────────────────────────────────────────────────────────┘
+
+Dependency Rule: arrows point INWARD ONLY
+Inner layers know nothing about outer layers
+</code></pre>
+<hr>
+<h2 id="3-code-smell-quick-reference"><a class="header" href="#3-code-smell-quick-reference">3. Code Smell Quick Reference</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Smell</th><th>Symptom</th><th>Fix</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Long Method</strong></td><td>Method &gt; 20 lines; hard to name</td><td>Extract Method</td></tr>
+<tr><td><strong>Large Class</strong></td><td>&gt; 500 lines; many fields; multiple concerns</td><td>Extract Class, Move Method</td></tr>
+<tr><td><strong>Feature Envy</strong></td><td>Method uses another class’s data more than its own</td><td>Move Method to that class</td></tr>
+<tr><td><strong>Primitive Obsession</strong></td><td>String for status; double for money; int for ID</td><td>Introduce Value Object / Replace Primitive with Object</td></tr>
+<tr><td><strong>Data Clumps</strong></td><td>Same 3+ fields appear together everywhere</td><td>Extract Class; Introduce Parameter Object</td></tr>
+<tr><td><strong>Shotgun Surgery</strong></td><td>One change forces edits in many unrelated classes</td><td>Move Method/Field; consolidate</td></tr>
+<tr><td><strong>Divergent Change</strong></td><td>One class changes for many different reasons</td><td>Extract Class per axis of change</td></tr>
+<tr><td><strong>Switch Statements</strong></td><td><code>switch</code>/<code>if</code> chains on type code</td><td>Replace with Polymorphism / Strategy</td></tr>
+<tr><td><strong>Parallel Inheritance</strong></td><td>Adding a subclass in one hierarchy requires one in another</td><td>Merge or use delegation</td></tr>
+<tr><td><strong>Lazy Class</strong></td><td>Class does so little it doesn’t justify its existence</td><td>Inline Class</td></tr>
+<tr><td><strong>Speculative Generality</strong></td><td>Abstract hooks, params “just in case”</td><td>YAGNI — remove unused abstraction</td></tr>
+<tr><td><strong>Temporary Field</strong></td><td>Field only set in some scenarios</td><td>Extract Class; use Optional</td></tr>
+<tr><td><strong>Message Chains</strong></td><td><code>a.b().c().d().e()</code> — Law of Demeter violation</td><td>Hide Delegate; add intermediary method</td></tr>
+<tr><td><strong>Middle Man</strong></td><td>Class delegates everything to another class</td><td>Remove Middle Man; call directly</td></tr>
+<tr><td><strong>Comments (as smell)</strong></td><td>Comment explains what the code does (not why)</td><td>Extract Method with meaningful name</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="4-design-principle-interaction-map"><a class="header" href="#4-design-principle-interaction-map">4. Design Principle Interaction Map</a></h2>
+<pre><code>                    ┌──────────┐
+                    │   SRP    │──────────────────────────────────┐
+                    │ (1 reason│                                  │
+                    │to change)│                                  │
+                    └────┬─────┘                                  │
+                         │ enables                                │ prevents
+                         ▼                                        ▼
+                    ┌──────────┐         ┌──────────┐       ┌──────────┐
+                    │   OCP    │──────── ▶│ Strategy │       │ God      │
+                    │(open/    │ uses     │ Pattern  │       │ Class    │
+                    │ closed)  │         └──────────┘       │ Smell    │
+                    └────┬─────┘                            └──────────┘
+                         │ requires
+                         ▼
+                    ┌──────────┐                    ┌──────────────────┐
+                    │   LSP    │                    │  Clean           │
+                    │(Liskov   │◀───────────────────│  Architecture    │
+                    │substitu- │  enforces correct  │  (Dependency     │
+                    │  tion)   │  abstraction       │   Rule)          │
+                    └────┬─────┘                    └────────┬─────────┘
+                         │ guides                            │ separates layers
+                         ▼                                   ▼
+                    ┌──────────┐         ┌──────────┐  ┌──────────┐
+                    │   ISP    │─────────▶│  Port    │  │Hexagonal │
+                    │(interface│ defines  │Interface │  │Arch.     │
+                    │segregat.)│          └──────────┘  └──────────┘
+                    └────┬─────┘               ▲
+                         │ enables             │ implements
+                         ▼                     │
+                    ┌──────────┐         ┌──────────┐
+                    │   DIP    │─────────▶│Adapter   │
+                    │(depend on│ realized │Pattern   │
+                    │abstracts)│    by    └──────────┘
+                    └──────────┘
+                         │
+                         │ facilitates
+                         ▼
+                    ┌──────────────────────────┐
+                    │         CQRS             │
+                    │  (separate command/query │
+                    │   models per abstraction)│
+                    └──────────────────────────┘
+                              │
+                              │ pairs with
+                              ▼
+                    ┌──────────────────────────┐
+                    │      Event Sourcing      │
+                    │  (commands → events →    │
+                    │   state reconstruction)  │
+                    └──────────────────────────┘
+
+Key:
+──▶  uses / requires
+◀──  enables / informs
+</code></pre>
+<hr>
+<h2 id="5-interview-quick-fire-reference"><a class="header" href="#5-interview-quick-fire-reference">5. Interview Quick-Fire Reference</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Question</th><th>Answer in 1 sentence</th></tr>
+</thead>
+<tbody>
+<tr><td>CQRS in one line</td><td>Separate the model for writing state from the model for reading state</td></tr>
+<tr><td>Event Sourcing in one line</td><td>Store a sequence of immutable events, not the current state; rebuild state by replay</td></tr>
+<tr><td>Hexagonal in one line</td><td>Application core communicates with the outside world only through port interfaces, keeping it infrastructure-agnostic</td></tr>
+<tr><td>TDD cycle</td><td>Red (failing test) → Green (minimum code to pass) → Refactor (improve without breaking)</td></tr>
+<tr><td>Cyclomatic complexity</td><td>Number of linearly independent paths through a method; target ≤ 5</td></tr>
+<tr><td>Boy Scout Rule</td><td>Always leave the code a little cleaner than you found it</td></tr>
+<tr><td>Strangler Fig</td><td>Gradually replace legacy by routing new features to new implementation until old code can be deleted</td></tr>
+<tr><td>SemVer breaking change</td><td>Increment the MAJOR version; signal to consumers their code may break</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<p><em>End of Chapter 20 Part B — SOLID Principles &amp; Clean Architecture</em>
+<em>Volume 5: System Design &amp; Low-Level Design</em></p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../Volume5_SystemDesign_LLD/Chapter19_Design_Patterns.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../Volume5_SystemDesign_LLD/Chapter21_LLD_Case_Studies.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../Volume5_SystemDesign_LLD/Chapter19_Design_Patterns.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../Volume5_SystemDesign_LLD/Chapter21_LLD_Case_Studies.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-c22b7243.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../custom-877a7a53.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

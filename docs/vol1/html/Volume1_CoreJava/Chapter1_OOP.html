@@ -1,0 +1,1050 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Chapter 1 - OOP Fundamentals - Volume 1: Core Java</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Core Java fundamentals for SDE2 interviews. OOP, Collections, Java 8+, JVM Internals, Multithreading and Concurrency. 6 chapters, 100+ Q&amp;As.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-0392ca55.css">
+        <link rel="stylesheet" href="../css/chrome-fc474251.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../custom-aab4aca2.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-ea348324.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-4ace9b61.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Volume 1: Core Java</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="volume-1-core-java"><a class="header" href="#volume-1-core-java">Volume 1: Core Java</a></h1>
+<h1 id="chapter-1-object-oriented-programming-oop-in-java"><a class="header" href="#chapter-1-object-oriented-programming-oop-in-java">Chapter 1: Object-Oriented Programming (OOP) in Java</a></h1>
+<hr>
+<h2 id="table-of-contents"><a class="header" href="#table-of-contents">Table of Contents</a></h2>
+<ol>
+<li>Classes and Objects</li>
+<li>Encapsulation</li>
+<li>Inheritance</li>
+<li>Polymorphism — Compile-time vs Runtime</li>
+<li>Abstraction — Abstract Classes vs Interfaces</li>
+<li>Association, Aggregation, Composition</li>
+<li>Method Overloading vs Overriding</li>
+<li>Constructor Chaining and <code>super</code></li>
+<li><code>static</code> keyword — Fields, Methods, Blocks, Nested Classes</li>
+<li><code>final</code> keyword — Variables, Methods, Classes</li>
+<li><code>this</code> vs <code>super</code></li>
+<li>Object class methods — <code>equals()</code>, <code>hashCode()</code>, <code>toString()</code>, <code>clone()</code></li>
+<li>Covariant Return Types</li>
+<li>Marker Interfaces</li>
+</ol>
+<hr>
+<h2 id="1-classes-and-objects"><a class="header" href="#1-classes-and-objects">1. Classes and Objects</a></h2>
+<p><strong>Difficulty:</strong> Easy
+<strong>Interview Frequency:</strong> Very High
+<strong>Asked at:</strong> Amazon, TCS, Infosys, Accenture, Goldman Sachs (screening rounds)</p>
+<h3 id="short-interview-answer-3060-seconds"><a class="header" href="#short-interview-answer-3060-seconds">Short Interview Answer (30–60 seconds)</a></h3>
+<p>A <strong>class</strong> is a blueprint that defines state (fields) and behavior (methods). An <strong>object</strong> is a runtime instance of that class, allocated on the heap. In Java, every object is created via <code>new</code>, which triggers memory allocation and constructor execution.</p>
+<h3 id="deep-explanation"><a class="header" href="#deep-explanation">Deep Explanation</a></h3>
+<p>When you write <code>Employee e = new Employee("Alice", 90000)</code>:</p>
+<ol>
+<li>The JVM allocates memory on the <strong>heap</strong> for the <code>Employee</code> object.</li>
+<li>All instance fields are initialized to default values (0, null, false).</li>
+<li>The constructor runs, setting fields to the provided values.</li>
+<li>A reference to the heap object is stored in the local variable <code>e</code> on the <strong>stack</strong>.</li>
+</ol>
+<p>The reference <code>e</code> is not the object — it is a pointer to the object. This distinction matters in pass-by-value discussions.</p>
+<h3 id="java-code-example"><a class="header" href="#java-code-example">Java Code Example</a></h3>
+<pre><code class="language-java">public class Employee {
+    private String name;
+    private double salary;
+
+    public Employee(String name, double salary) {
+        this.name = name;
+        this.salary = salary;
+    }
+
+    public String getName() { return name; }
+    public double getSalary() { return salary; }
+}
+
+// Usage
+Employee e1 = new Employee("Alice", 90000);
+Employee e2 = e1;          // e2 points to the same heap object
+e2.salary = 95000;         // changes are visible via e1 as well
+</code></pre>
+<h3 id="follow-up-questions"><a class="header" href="#follow-up-questions">Follow-up Questions</a></h3>
+<ul>
+<li>Is Java pass-by-value or pass-by-reference? <em>(Always pass-by-value; for objects, the value is the reference.)</em></li>
+<li>Where are objects stored vs references?</li>
+<li>What happens to the object when no reference points to it?</li>
+</ul>
+<h3 id="common-mistakes"><a class="header" href="#common-mistakes">Common Mistakes</a></h3>
+<ul>
+<li>Confusing the reference with the object itself.</li>
+<li>Assuming assigning <code>e2 = e1</code> creates a copy of the object.</li>
+</ul>
+<h3 id="quick-revision"><a class="header" href="#quick-revision">Quick Revision</a></h3>
+<blockquote>
+<p>Class = blueprint. Object = heap instance. Reference = stack pointer to heap. Java is always pass-by-value.</p>
+</blockquote>
+<hr>
+<h2 id="2-encapsulation"><a class="header" href="#2-encapsulation">2. Encapsulation</a></h2>
+<p><strong>Difficulty:</strong> Easy
+<strong>Interview Frequency:</strong> Very High
+<strong>Asked at:</strong> All companies — commonly asked in screening rounds</p>
+<h3 id="short-interview-answer"><a class="header" href="#short-interview-answer">Short Interview Answer</a></h3>
+<p>Encapsulation is the practice of restricting direct access to an object’s internal state by making fields <code>private</code> and exposing controlled access through <code>public</code> getter/setter methods. It protects invariants and decouples the internal representation from the external interface.</p>
+<h3 id="deep-explanation-1"><a class="header" href="#deep-explanation-1">Deep Explanation</a></h3>
+<p>Encapsulation is not just about getters and setters — it is about <strong>protecting invariants</strong>. Consider a <code>BankAccount</code> class: the balance should never go negative. If the field is public, any caller can set <code>account.balance = -10000</code>. Making it private and routing all mutations through a <code>withdraw()</code> method allows you to enforce the rule in one place.</p>
+<p><strong>Benefits in production systems:</strong></p>
+<ul>
+<li>You can change the internal representation without breaking callers (e.g., storing balance in cents instead of dollars).</li>
+<li>Thread safety can be added in one place.</li>
+<li>Logging, auditing, and validation live in the setter/method, not scattered across callers.</li>
+</ul>
+<h3 id="java-code-example-1"><a class="header" href="#java-code-example-1">Java Code Example</a></h3>
+<pre><code class="language-java">public class BankAccount {
+    private double balance;  // cannot be accessed directly
+
+    public BankAccount(double initialBalance) {
+        if (initialBalance &lt; 0) throw new IllegalArgumentException("Negative balance");
+        this.balance = initialBalance;
+    }
+
+    public double getBalance() {
+        return balance;
+    }
+
+    public void withdraw(double amount) {
+        if (amount &gt; balance) throw new IllegalStateException("Insufficient funds");
+        this.balance -= amount;
+    }
+
+    public void deposit(double amount) {
+        if (amount &lt;= 0) throw new IllegalArgumentException("Invalid deposit amount");
+        this.balance += amount;
+    }
+}
+</code></pre>
+<h3 id="follow-up-questions-1"><a class="header" href="#follow-up-questions-1">Follow-up Questions</a></h3>
+<ul>
+<li>What is the difference between encapsulation and data hiding?</li>
+<li>Can encapsulation be broken? <em>(Yes — via reflection.)</em></li>
+<li>How does encapsulation relate to immutability?</li>
+</ul>
+<h3 id="common-mistakes-1"><a class="header" href="#common-mistakes-1">Common Mistakes</a></h3>
+<ul>
+<li>Adding getters and setters for every field without thinking — this is “anemic encapsulation” and provides no protection.</li>
+<li>Returning mutable objects from getters (e.g., returning a <code>List</code> field directly — callers can modify it).</li>
+</ul>
+<h3 id="interview-trap"><a class="header" href="#interview-trap">Interview Trap</a></h3>
+<blockquote>
+<p>“I make all fields private and add getters/setters — that’s encapsulation.”</p>
+</blockquote>
+<p>This is incomplete. The interviewer expects you to mention invariant protection and controlled mutation, not just access modifiers.</p>
+<h3 id="quick-revision-1"><a class="header" href="#quick-revision-1">Quick Revision</a></h3>
+<blockquote>
+<p>Encapsulation = private fields + public controlled access. True goal is invariant protection, not just hiding fields.</p>
+</blockquote>
+<hr>
+<h2 id="3-inheritance"><a class="header" href="#3-inheritance">3. Inheritance</a></h2>
+<p><strong>Difficulty:</strong> Medium
+<strong>Interview Frequency:</strong> Very High
+<strong>Asked at:</strong> Amazon, Microsoft, Flipkart, Accenture, Cognizant, Goldman Sachs</p>
+<h3 id="short-interview-answer-1"><a class="header" href="#short-interview-answer-1">Short Interview Answer</a></h3>
+<p>Inheritance allows a subclass to acquire the fields and methods of a superclass, enabling code reuse and establishing an IS-A relationship. Java supports single inheritance for classes and multiple inheritance through interfaces.</p>
+<h3 id="deep-explanation-2"><a class="header" href="#deep-explanation-2">Deep Explanation</a></h3>
+<p><strong>What gets inherited:</strong></p>
+<ul>
+<li>All <code>public</code> and <code>protected</code> members of the superclass.</li>
+<li>Package-private members if subclass is in the same package.</li>
+<li><code>private</code> members are NOT inherited (though they exist in the object’s memory).</li>
+</ul>
+<p><strong>What does NOT get inherited:</strong></p>
+<ul>
+<li>Constructors (but the subclass constructor implicitly calls <code>super()</code> unless overridden).</li>
+<li><code>static</code> members are not polymorphic — they belong to the class, not the instance.</li>
+</ul>
+<p><strong>Why Java does not support multiple class inheritance:</strong>
+The <strong>Diamond Problem</strong> — if class <code>C</code> extends both <code>A</code> and <code>B</code>, and both define <code>display()</code>, the compiler cannot determine which version to use. Java resolves this by allowing multiple interface inheritance (since Java 8 default methods introduced a controlled form of this, resolved via explicit override).</p>
+<p><strong>Inheritance vs Composition:</strong>
+Favor composition over inheritance (Effective Java, Item 18). Inheritance creates tight coupling — a change in the superclass can break all subclasses. Composition (“HAS-A”) provides flexibility.</p>
+<h3 id="java-code-example-2"><a class="header" href="#java-code-example-2">Java Code Example</a></h3>
+<pre><code class="language-java">public class Vehicle {
+    protected String brand;
+    protected int speed;
+
+    public Vehicle(String brand, int speed) {
+        this.brand = brand;
+        this.speed = speed;
+    }
+
+    public void accelerate() {
+        System.out.println(brand + " accelerating");
+    }
+}
+
+public class ElectricCar extends Vehicle {
+    private int batteryLevel;
+
+    public ElectricCar(String brand, int speed, int batteryLevel) {
+        super(brand, speed);   // must be first statement
+        this.batteryLevel = batteryLevel;
+    }
+
+    @Override
+    public void accelerate() {
+        System.out.println(brand + " accelerating silently, battery: " + batteryLevel + "%");
+    }
+}
+</code></pre>
+<h3 id="follow-up-questions-2"><a class="header" href="#follow-up-questions-2">Follow-up Questions</a></h3>
+<ul>
+<li>Why does Java not support multiple inheritance of classes?</li>
+<li>What is the Diamond Problem?</li>
+<li>When would you prefer composition over inheritance?</li>
+<li>Can a constructor be inherited? <em>(No.)</em></li>
+<li>What happens if the superclass has no default constructor?</li>
+</ul>
+<h3 id="common-mistakes-2"><a class="header" href="#common-mistakes-2">Common Mistakes</a></h3>
+<ul>
+<li>Forgetting to call <code>super(...)</code> when the parent has no no-arg constructor — causes compilation error.</li>
+<li>Overusing inheritance for code reuse when composition is more appropriate.</li>
+</ul>
+<h3 id="interview-trap-1"><a class="header" href="#interview-trap-1">Interview Trap</a></h3>
+<blockquote>
+<p>“Inheritance always improves reuse.”</p>
+</blockquote>
+<p>The trap: inheritance can cause <strong>fragile base class</strong> problems. If the superclass changes its behavior, all subclasses are affected, often in unexpected ways.</p>
+<h3 id="quick-revision-2"><a class="header" href="#quick-revision-2">Quick Revision</a></h3>
+<blockquote>
+<p>Java: single class inheritance, multiple interface inheritance. Constructors not inherited. Prefer composition for flexibility.</p>
+</blockquote>
+<hr>
+<h2 id="4-polymorphism--compile-time-vs-runtime"><a class="header" href="#4-polymorphism--compile-time-vs-runtime">4. Polymorphism — Compile-time vs Runtime</a></h2>
+<p><strong>Difficulty:</strong> Medium
+<strong>Interview Frequency:</strong> Very High
+<strong>Asked at:</strong> Amazon, Google, Adobe, Razorpay, Goldman Sachs, Infosys</p>
+<h3 id="short-interview-answer-2"><a class="header" href="#short-interview-answer-2">Short Interview Answer</a></h3>
+<p>Polymorphism means “one interface, many implementations.” Java has two forms: <strong>compile-time polymorphism</strong> (method overloading — resolved by the compiler based on method signature) and <strong>runtime polymorphism</strong> (method overriding — resolved at runtime via dynamic dispatch through the vtable).</p>
+<h3 id="deep-explanation-3"><a class="header" href="#deep-explanation-3">Deep Explanation</a></h3>
+<p><strong>Compile-time (Static) Polymorphism — Overloading:</strong></p>
+<ul>
+<li>Resolved during compilation.</li>
+<li>Differentiated by number, type, and order of parameters.</li>
+<li>Return type alone is NOT sufficient to distinguish overloaded methods.</li>
+<li><code>@Override</code> annotation does NOT apply here.</li>
+</ul>
+<p><strong>Runtime (Dynamic) Polymorphism — Overriding:</strong></p>
+<ul>
+<li>Resolved at runtime using the actual object type, not the reference type.</li>
+<li>JVM uses the <strong>virtual method table (vtable)</strong> — a per-class lookup table of method pointers.</li>
+<li>Only instance methods participate in runtime polymorphism. <code>static</code> and <code>private</code> methods do not.</li>
+</ul>
+<p><strong>Internal mechanism — vtable:</strong>
+When the JVM encounters <code>animal.sound()</code> where <code>animal</code> is declared as <code>Animal</code> but points to a <code>Dog</code>, it looks up the vtable of the actual object type (<code>Dog</code>) to find the correct <code>sound()</code> method. This dispatch happens at runtime, not compile time.</p>
+<h3 id="java-code-example-3"><a class="header" href="#java-code-example-3">Java Code Example</a></h3>
+<pre><code class="language-java">// Runtime polymorphism
+public abstract class Animal {
+    public abstract String sound();
+
+    public void describe() {
+        System.out.println("I am a " + getClass().getSimpleName() + " and I say: " + sound());
+    }
+}
+
+public class Dog extends Animal {
+    @Override
+    public String sound() { return "Woof"; }
+}
+
+public class Cat extends Animal {
+    @Override
+    public String sound() { return "Meow"; }
+}
+
+// Usage
+Animal a = new Dog();   // reference type: Animal, actual type: Dog
+a.sound();              // calls Dog.sound() at runtime — "Woof"
+
+// Compile-time polymorphism
+public class Calculator {
+    public int add(int a, int b) { return a + b; }
+    public double add(double a, double b) { return a + b; }          // overload
+    public int add(int a, int b, int c) { return a + b + c; }        // overload
+}
+</code></pre>
+<h3 id="real-world-backend-example"><a class="header" href="#real-world-backend-example">Real-World Backend Example</a></h3>
+<p>In a payment processing system, you have a <code>PaymentProcessor</code> interface implemented by <code>StripeProcessor</code>, <code>PaypalProcessor</code>, and <code>RazorpayProcessor</code>. The service layer holds a <code>PaymentProcessor</code> reference — at runtime, the correct implementation is dispatched based on the actual object injected by the Spring container. This is runtime polymorphism in production.</p>
+<h3 id="follow-up-questions-3"><a class="header" href="#follow-up-questions-3">Follow-up Questions</a></h3>
+<ul>
+<li>Can <code>static</code> methods be overridden? <em>(No — they are hidden, not overridden.)</em></li>
+<li>Can <code>private</code> methods be overridden? <em>(No — they are not visible to subclasses.)</em></li>
+<li>What is method hiding?</li>
+<li>What is the role of the vtable in method dispatch?</li>
+<li>Can constructors be polymorphic?</li>
+</ul>
+<h3 id="common-mistakes-3"><a class="header" href="#common-mistakes-3">Common Mistakes</a></h3>
+<ul>
+<li>Thinking <code>static</code> method overriding exists — it is actually <strong>method hiding</strong>.</li>
+<li>Confusing overloading with overriding.</li>
+</ul>
+<h3 id="interview-trap-2"><a class="header" href="#interview-trap-2">Interview Trap</a></h3>
+<pre><code class="language-java">Animal a = new Dog();
+// Calling a static method:
+a.staticMethod(); // This calls Animal.staticMethod(), NOT Dog.staticMethod()
+</code></pre>
+<p>Static methods are resolved based on the <strong>reference type</strong>, not the actual object type.</p>
+<h3 id="quick-revision-3"><a class="header" href="#quick-revision-3">Quick Revision</a></h3>
+<blockquote>
+<p>Overloading = compile-time, same class, different params. Overriding = runtime, subclass, same signature. static/private methods NOT overridden.</p>
+</blockquote>
+<hr>
+<h2 id="5-abstraction--abstract-classes-vs-interfaces"><a class="header" href="#5-abstraction--abstract-classes-vs-interfaces">5. Abstraction — Abstract Classes vs Interfaces</a></h2>
+<p><strong>Difficulty:</strong> Medium
+<strong>Interview Frequency:</strong> Very High
+<strong>Asked at:</strong> Amazon, Microsoft, Adobe, Salesforce, Goldman Sachs, Wipro</p>
+<h3 id="short-interview-answer-3"><a class="header" href="#short-interview-answer-3">Short Interview Answer</a></h3>
+<p>Abstraction hides implementation details and exposes only what is necessary. Java provides two mechanisms: <strong>abstract classes</strong> (partial abstraction, can have state and concrete methods) and <strong>interfaces</strong> (full contract definition, supports multiple inheritance). Since Java 8, interfaces can have <code>default</code> and <code>static</code> methods.</p>
+<h3 id="deep-explanation-4"><a class="header" href="#deep-explanation-4">Deep Explanation</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Feature</th><th>Abstract Class</th><th>Interface</th></tr>
+</thead>
+<tbody>
+<tr><td>Instantiation</td><td>Cannot be instantiated</td><td>Cannot be instantiated</td></tr>
+<tr><td>Methods</td><td>Abstract + concrete</td><td>Abstract + default + static (Java 8+)</td></tr>
+<tr><td>Fields</td><td>Instance fields allowed</td><td>Only <code>public static final</code> constants</td></tr>
+<tr><td>Constructors</td><td>Can have constructors</td><td>No constructors</td></tr>
+<tr><td>Access modifiers</td><td>Any</td><td>Methods are <code>public</code> by default</td></tr>
+<tr><td>Inheritance</td><td>Single</td><td>Multiple</td></tr>
+<tr><td>State</td><td>Can maintain state</td><td>No instance state</td></tr>
+<tr><td>Use case</td><td>IS-A with shared behavior</td><td>CAN-DO contract</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>When to use abstract class:</strong></p>
+<ul>
+<li>When subclasses share significant common implementation.</li>
+<li>When you need to maintain state common to all subclasses.</li>
+<li>Template Method Pattern relies on abstract classes.</li>
+</ul>
+<p><strong>When to use interface:</strong></p>
+<ul>
+<li>To define a capability contract (<code>Serializable</code>, <code>Comparable</code>, <code>Runnable</code>).</li>
+<li>When unrelated classes need to share a contract.</li>
+<li>When you need multiple inheritance of type.</li>
+</ul>
+<p><strong>Java 8 default methods — why they were added:</strong>
+Before Java 8, adding a new method to an interface broke all implementing classes. Default methods allow backward-compatible interface evolution. This is why <code>Collection.stream()</code> was added without breaking existing code.</p>
+<h3 id="java-code-example-4"><a class="header" href="#java-code-example-4">Java Code Example</a></h3>
+<pre><code class="language-java">// Abstract class — template method pattern
+public abstract class ReportGenerator {
+    // Template method — defines the algorithm skeleton
+    public final void generateReport() {
+        fetchData();
+        processData();
+        formatOutput();
+        deliver();
+    }
+
+    protected abstract void fetchData();
+    protected abstract void processData();
+
+    protected void formatOutput() {
+        System.out.println("Default PDF formatting");
+    }
+
+    private void deliver() {
+        System.out.println("Delivering report");
+    }
+}
+
+// Interface — capability contract
+public interface Auditable {
+    void logAction(String action);
+
+    default void logWithTimestamp(String action) {
+        System.out.println(System.currentTimeMillis() + ": " + action);
+        logAction(action);
+    }
+}
+
+public class InvoiceReportGenerator extends ReportGenerator implements Auditable {
+    @Override
+    protected void fetchData() { /* fetch from DB */ }
+
+    @Override
+    protected void processData() { /* process invoices */ }
+
+    @Override
+    public void logAction(String action) { /* write to audit log */ }
+}
+</code></pre>
+<h3 id="follow-up-questions-4"><a class="header" href="#follow-up-questions-4">Follow-up Questions</a></h3>
+<ul>
+<li>Can an interface extend another interface? <em>(Yes, and multiple interfaces.)</em></li>
+<li>Can an abstract class implement an interface without implementing all methods? <em>(Yes — it defers implementation to concrete subclasses.)</em></li>
+<li>What are sealed classes (Java 17)? How do they relate to abstraction?</li>
+<li>What is the difference between <code>default</code> method in interface and concrete method in abstract class?</li>
+<li>What happens when two interfaces provide conflicting <code>default</code> methods?</li>
+</ul>
+<h3 id="interview-trap-3"><a class="header" href="#interview-trap-3">Interview Trap</a></h3>
+<blockquote>
+<p>“Interfaces are always better because they support multiple inheritance.”</p>
+</blockquote>
+<p>The trap: interfaces cannot hold state. If you need shared mutable state across implementations, abstract classes are the right tool. Also, <code>default</code> method conflicts require explicit resolution in the implementing class.</p>
+<h3 id="quick-revision-4"><a class="header" href="#quick-revision-4">Quick Revision</a></h3>
+<blockquote>
+<p>Abstract class = IS-A + shared state/behavior. Interface = CAN-DO contract + multiple inheritance. Java 8 default methods allow backward-compatible evolution.</p>
+</blockquote>
+<hr>
+<h2 id="6-association-aggregation-composition"><a class="header" href="#6-association-aggregation-composition">6. Association, Aggregation, Composition</a></h2>
+<p><strong>Difficulty:</strong> Medium
+<strong>Interview Frequency:</strong> High
+<strong>Asked at:</strong> Amazon, Adobe, Salesforce, Goldman Sachs (senior rounds), Capgemini</p>
+<h3 id="short-interview-answer-4"><a class="header" href="#short-interview-answer-4">Short Interview Answer</a></h3>
+<p>These describe relationships between objects. <strong>Association</strong> is a general “uses-a” relationship. <strong>Aggregation</strong> is a weak “HAS-A” — the child can exist independently. <strong>Composition</strong> is a strong “HAS-A” — the child cannot exist without the parent (ownership with same lifecycle).</p>
+<h3 id="deep-explanation-5"><a class="header" href="#deep-explanation-5">Deep Explanation</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Relationship</th><th>Type</th><th>Lifecycle</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td>Association</td><td>Uses-A</td><td>Independent</td><td>Teacher uses Classroom</td></tr>
+<tr><td>Aggregation</td><td>Weak HAS-A</td><td>Child independent</td><td>Department HAS Employees</td></tr>
+<tr><td>Composition</td><td>Strong HAS-A</td><td>Child depends on parent</td><td>House HAS Rooms</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Composition in production:</strong> A <code>PaymentOrder</code> contains <code>LineItems</code>. When the order is deleted, all line items are deleted. Line items have no existence outside an order — this is composition.</p>
+<p><strong>Aggregation in production:</strong> A <code>Project</code> has <code>Employees</code>. Employees exist independently and can be reassigned to other projects. Deleting the project does not delete the employees — this is aggregation.</p>
+<h3 id="java-code-example-5"><a class="header" href="#java-code-example-5">Java Code Example</a></h3>
+<pre><code class="language-java">// Composition — Room cannot exist without House
+public class House {
+    private final List&lt;Room&gt; rooms;   // House creates and owns Rooms
+
+    public House(int numberOfRooms) {
+        rooms = new ArrayList&lt;&gt;();
+        for (int i = 0; i &lt; numberOfRooms; i++) {
+            rooms.add(new Room("Room-" + (i + 1)));
+        }
+    }
+}
+
+// Aggregation — Employee exists independently
+public class Department {
+    private String name;
+    private List&lt;Employee&gt; employees;  // Department references existing Employees
+
+    public Department(String name) {
+        this.name = name;
+        this.employees = new ArrayList&lt;&gt;();
+    }
+
+    public void addEmployee(Employee e) {
+        employees.add(e);
+    }
+}
+</code></pre>
+<h3 id="follow-up-questions-5"><a class="header" href="#follow-up-questions-5">Follow-up Questions</a></h3>
+<ul>
+<li>How do you model these relationships in a relational database?</li>
+<li>In JPA, which cascade types represent composition vs aggregation?</li>
+<li>How does garbage collection behave differently for aggregation vs composition?</li>
+</ul>
+<h3 id="quick-revision-5"><a class="header" href="#quick-revision-5">Quick Revision</a></h3>
+<blockquote>
+<p>Composition = child created and owned by parent (same lifecycle). Aggregation = child exists independently. Association = loosest — just uses the other object.</p>
+</blockquote>
+<hr>
+<h2 id="7-method-overloading-vs-overriding"><a class="header" href="#7-method-overloading-vs-overriding">7. Method Overloading vs Overriding</a></h2>
+<p><strong>Difficulty:</strong> Easy–Medium
+<strong>Interview Frequency:</strong> Very High
+<strong>Asked at:</strong> Almost every company in first or second round</p>
+<h3 id="comparison-table"><a class="header" href="#comparison-table">Comparison Table</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Aspect</th><th>Overloading</th><th>Overriding</th></tr>
+</thead>
+<tbody>
+<tr><td>Location</td><td>Same class</td><td>Subclass</td></tr>
+<tr><td>Signature</td><td>Different</td><td>Same</td></tr>
+<tr><td>Return type</td><td>Can differ</td><td>Must be same or covariant</td></tr>
+<tr><td>Access modifier</td><td>Can be anything</td><td>Cannot reduce visibility</td></tr>
+<tr><td>Exceptions</td><td>Can throw any</td><td>Cannot throw new/broader checked exceptions</td></tr>
+<tr><td>Binding</td><td>Compile-time (static)</td><td>Runtime (dynamic)</td></tr>
+<tr><td><code>static</code> methods</td><td>Yes</td><td>No (hidden, not overridden)</td></tr>
+<tr><td><code>private</code> methods</td><td>Yes</td><td>No</td></tr>
+<tr><td><code>final</code> methods</td><td>Yes</td><td>No</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="interview-trap-4"><a class="header" href="#interview-trap-4">Interview Trap</a></h3>
+<pre><code class="language-java">public class Parent {
+    public Number getValue() { return 42; }
+}
+
+public class Child extends Parent {
+    @Override
+    public Integer getValue() { return 42; }  // Valid — covariant return type
+}
+</code></pre>
+<p>Covariant return types are allowed in overriding (Java 5+). <code>Integer</code> IS-A <code>Number</code>, so this compiles.</p>
+<h3 id="follow-up-questions-6"><a class="header" href="#follow-up-questions-6">Follow-up Questions</a></h3>
+<ol>
+<li>Can you override a static method in Java?</li>
+<li>What happens if you change only the return type in an overriding method?</li>
+<li>What is covariant return type and when is it useful?</li>
+</ol>
+<h3 id="quick-revision-6"><a class="header" href="#quick-revision-6">Quick Revision</a></h3>
+<blockquote>
+<p>Overloading = same class, different params, compile-time. Overriding = subclass, same signature, runtime. Covariant return types allowed.</p>
+</blockquote>
+<hr>
+<h2 id="8-constructor-chaining-and-super"><a class="header" href="#8-constructor-chaining-and-super">8. Constructor Chaining and <code>super</code></a></h2>
+<p><strong>Difficulty:</strong> Medium
+<strong>Interview Frequency:</strong> High
+<strong>Asked at:</strong> Amazon, Microsoft, TCS, Infosys</p>
+<h3 id="short-interview-answer-5"><a class="header" href="#short-interview-answer-5">Short Interview Answer</a></h3>
+<p>Constructor chaining allows one constructor to call another. <code>this(...)</code> calls a constructor in the same class. <code>super(...)</code> calls the parent class constructor. Both must be the <strong>first statement</strong> in the constructor body, so they cannot both appear in the same constructor.</p>
+<h3 id="deep-explanation-6"><a class="header" href="#deep-explanation-6">Deep Explanation</a></h3>
+<p><strong>Rule:</strong> If the first line of a constructor is not <code>this(...)</code> or <code>super(...)</code>, the compiler inserts an implicit <code>super()</code> call. If the parent class has no no-arg constructor, this causes a <strong>compile error</strong>.</p>
+<p><strong>Execution order:</strong></p>
+<ol>
+<li><code>super()</code> chain executes top-down (grandparent → parent → child).</li>
+<li>Instance initializer blocks execute in the order they appear.</li>
+<li>Constructor body executes.</li>
+</ol>
+<h3 id="java-code-example-6"><a class="header" href="#java-code-example-6">Java Code Example</a></h3>
+<pre><code class="language-java">public class Vehicle {
+    protected String brand;
+    protected int year;
+
+    public Vehicle(String brand) {
+        this(brand, 2024);  // chains to Vehicle(String, int)
+    }
+
+    public Vehicle(String brand, int year) {
+        this.brand = brand;
+        this.year = year;
+    }
+}
+
+public class Car extends Vehicle {
+    private int doors;
+
+    public Car(String brand) {
+        this(brand, 4);  // chains to Car(String, int)
+    }
+
+    public Car(String brand, int doors) {
+        super(brand);    // calls Vehicle(String)
+        this.doors = doors;
+    }
+}
+</code></pre>
+<h3 id="follow-up-questions-7"><a class="header" href="#follow-up-questions-7">Follow-up Questions</a></h3>
+<ul>
+<li>What happens if you have a circular constructor chain?  <em>(Compile error.)</em></li>
+<li>Can you call <code>super()</code> and <code>this()</code> in the same constructor? <em>(No — only one can be the first statement.)</em></li>
+</ul>
+<h3 id="quick-revision-7"><a class="header" href="#quick-revision-7">Quick Revision</a></h3>
+<blockquote>
+<p><code>this(...)</code> = same class constructor. <code>super(...)</code> = parent constructor. Both must be first line. Compiler inserts implicit <code>super()</code> if absent.</p>
+</blockquote>
+<hr>
+<h2 id="9-static-keyword"><a class="header" href="#9-static-keyword">9. <code>static</code> Keyword</a></h2>
+<p><strong>Difficulty:</strong> Medium
+<strong>Interview Frequency:</strong> Very High
+<strong>Asked at:</strong> Amazon, Google, Adobe, Goldman Sachs, Accenture</p>
+<h3 id="short-interview-answer-6"><a class="header" href="#short-interview-answer-6">Short Interview Answer</a></h3>
+<p><code>static</code> means the member belongs to the <strong>class</strong>, not to any instance. Static members are loaded when the class is loaded and shared across all instances. They cannot access instance members directly because no <code>this</code> reference exists in a static context.</p>
+<h3 id="deep-explanation-7"><a class="header" href="#deep-explanation-7">Deep Explanation</a></h3>
+<p><strong>Static fields:</strong> Single copy per class, shared across all instances. Useful for constants (<code>static final</code>) and counters.</p>
+<p><strong>Static methods:</strong> Cannot use <code>this</code> or <code>super</code>. Cannot call instance methods directly. Overriding does not apply — static methods are hidden, not overridden.</p>
+<p><strong>Static blocks:</strong> Executed once when the class is loaded by the ClassLoader, before any constructor runs. Used for complex static initialization.</p>
+<p><strong>Static nested classes:</strong> Belongs to the outer class at the type level, not to any instance. Can be instantiated without an outer class instance. Unlike inner classes, does not hold a reference to the outer class.</p>
+<p><strong>Static import (Java 5+):</strong> Allows using static members without class qualification. Commonly used with <code>Math.*</code> or <code>Assert.*</code> in tests.</p>
+<h3 id="java-code-example-7"><a class="header" href="#java-code-example-7">Java Code Example</a></h3>
+<pre><code class="language-java">public class DatabaseConnectionPool {
+    private static final int MAX_POOL_SIZE = 10;
+    private static int activeConnections = 0;
+    private static final DatabaseConnectionPool INSTANCE;
+
+    // Static block — runs once on class load
+    static {
+        System.out.println("Initializing connection pool");
+        INSTANCE = new DatabaseConnectionPool();
+    }
+
+    private DatabaseConnectionPool() {}
+
+    public static DatabaseConnectionPool getInstance() {
+        return INSTANCE;
+    }
+
+    public static int getActiveConnections() {
+        return activeConnections;
+    }
+
+    // Static nested class
+    public static class ConnectionStats {
+        public static String summary() {
+            return "Active: " + activeConnections + "/" + MAX_POOL_SIZE;
+        }
+    }
+}
+</code></pre>
+<h3 id="follow-up-questions-8"><a class="header" href="#follow-up-questions-8">Follow-up Questions</a></h3>
+<ul>
+<li>Can a <code>static</code> method be <code>synchronized</code>? <em>(Yes — it locks on the Class object, not an instance.)</em></li>
+<li>Can static methods be overridden? <em>(No — method hiding occurs.)</em></li>
+<li>Can static blocks throw exceptions? <em>(Yes, but only unchecked, or checked wrapped in ExceptionInInitializerError.)</em></li>
+<li>When is the static block executed?</li>
+</ul>
+<h3 id="common-mistakes-4"><a class="header" href="#common-mistakes-4">Common Mistakes</a></h3>
+<ul>
+<li>Accessing static fields through object references — compiles but misleads readers.</li>
+<li>Assuming static synchronized methods lock the same monitor as instance synchronized methods — they do not.</li>
+</ul>
+<h3 id="quick-revision-8"><a class="header" href="#quick-revision-8">Quick Revision</a></h3>
+<blockquote>
+<p>static = belongs to class. Static block runs once on class load. Static methods: no <code>this</code>, no override. Static nested class: no outer instance reference.</p>
+</blockquote>
+<hr>
+<h2 id="10-final-keyword"><a class="header" href="#10-final-keyword">10. <code>final</code> Keyword</a></h2>
+<p><strong>Difficulty:</strong> Easy–Medium
+<strong>Interview Frequency:</strong> High
+<strong>Asked at:</strong> Amazon, Adobe, Goldman Sachs, TCS</p>
+<h3 id="short-interview-answer-7"><a class="header" href="#short-interview-answer-7">Short Interview Answer</a></h3>
+<p><code>final</code> prevents modification. A <code>final</code> variable cannot be reassigned, a <code>final</code> method cannot be overridden, and a <code>final</code> class cannot be subclassed.</p>
+<h3 id="deep-explanation-8"><a class="header" href="#deep-explanation-8">Deep Explanation</a></h3>
+<p><strong><code>final</code> variable:</strong></p>
+<ul>
+<li>Primitive: value cannot change after assignment.</li>
+<li>Reference: reference cannot point to another object, but the object’s internal state CAN change.</li>
+<li>Must be initialized at declaration, in an instance initializer, or in every constructor.</li>
+</ul>
+<p><strong><code>final</code> method:</strong></p>
+<ul>
+<li>Cannot be overridden in subclasses.</li>
+<li>JIT compiler can inline <code>final</code> methods — performance benefit.</li>
+<li><code>private</code> methods are implicitly final (cannot be overridden anyway).</li>
+</ul>
+<p><strong><code>final</code> class:</strong></p>
+<ul>
+<li>Cannot be subclassed.</li>
+<li><code>String</code>, <code>Integer</code>, and all wrapper classes are <code>final</code>.</li>
+<li>Ensures immutability and prevents subclasses from breaking contracts.</li>
+</ul>
+<p><strong>Effectively final (Java 8+):</strong>
+A variable that is never reassigned after initialization. Lambda expressions and anonymous classes can only capture effectively final or explicitly final local variables.</p>
+<h3 id="java-code-example-8"><a class="header" href="#java-code-example-8">Java Code Example</a></h3>
+<pre><code class="language-java">public final class ImmutableMoney {
+    private final String currency;
+    private final double amount;
+
+    public ImmutableMoney(String currency, double amount) {
+        this.currency = currency;
+        this.amount = amount;
+    }
+
+    public ImmutableMoney add(ImmutableMoney other) {
+        if (!this.currency.equals(other.currency))
+            throw new IllegalArgumentException("Currency mismatch");
+        return new ImmutableMoney(currency, this.amount + other.amount);
+    }
+
+    // Getters only, no setters
+    public String getCurrency() { return currency; }
+    public double getAmount() { return amount; }
+}
+
+// Effectively final in lambda context
+public void process(List&lt;String&gt; items) {
+    String prefix = "PROCESSED_";   // effectively final
+    items.forEach(item -&gt; System.out.println(prefix + item));
+    // prefix = "OTHER_";  // would break effectivly-final, lambda would not compile
+}
+</code></pre>
+<h3 id="interview-trap-5"><a class="header" href="#interview-trap-5">Interview Trap</a></h3>
+<pre><code class="language-java">final List&lt;String&gt; list = new ArrayList&lt;&gt;();
+list.add("item");   // Valid — reference is final, not the list contents
+list = new ArrayList&lt;&gt;();  // Compile error — cannot reassign reference
+</code></pre>
+<h3 id="follow-up-questions-9"><a class="header" href="#follow-up-questions-9">Follow-up Questions</a></h3>
+<ul>
+<li>Is <code>String</code> immutable because it is <code>final</code>? <em>(No — <code>final</code> prevents subclassing. Immutability comes from <code>private final char[]</code> and no mutation methods.)</em></li>
+<li>What is the difference between <code>final</code>, <code>finally</code>, and <code>finalize()</code>?</li>
+<li>Can a <code>final</code> variable be changed via reflection? <em>(Technically yes, but unreliable and undefined behavior.)</em></li>
+</ul>
+<h3 id="quick-revision-9"><a class="header" href="#quick-revision-9">Quick Revision</a></h3>
+<blockquote>
+<p><code>final</code> var = no reassignment (object state can change). <code>final</code> method = no override. <code>final</code> class = no subclass. <code>String</code> is final AND immutable.</p>
+</blockquote>
+<hr>
+<h2 id="11-equals-and-hashcode--the-contract"><a class="header" href="#11-equals-and-hashcode--the-contract">11. <code>equals()</code> and <code>hashCode()</code> — The Contract</a></h2>
+<p><strong>Difficulty:</strong> Medium–Hard
+<strong>Interview Frequency:</strong> Very High
+<strong>Asked at:</strong> Amazon, Google, Adobe, Goldman Sachs, Razorpay, Flipkart</p>
+<h3 id="short-interview-answer-8"><a class="header" href="#short-interview-answer-8">Short Interview Answer</a></h3>
+<p><code>equals()</code> defines logical equality. <code>hashCode()</code> returns an integer used by hash-based collections. The critical contract: <strong>if two objects are equal (<code>equals</code> returns true), they must have the same <code>hashCode</code></strong>. The reverse is not required (hash collisions are allowed).</p>
+<h3 id="deep-explanation-9"><a class="header" href="#deep-explanation-9">Deep Explanation</a></h3>
+<p><strong>The Contract (from <code>Object</code> Javadoc):</strong></p>
+<ol>
+<li><code>equals()</code> must be: reflexive, symmetric, transitive, consistent, and <code>x.equals(null)</code> returns false.</li>
+<li>If <code>a.equals(b)</code> is true, then <code>a.hashCode() == b.hashCode()</code> must be true.</li>
+<li>The reverse is not required — two unequal objects CAN have the same <code>hashCode</code> (hash collision).</li>
+</ol>
+<p><strong>What happens when you break the contract:</strong>
+If you override <code>equals()</code> without overriding <code>hashCode()</code>, objects that are logically equal will have different hash codes. When used as <code>HashMap</code> keys, the map will NOT find the key even if the same logical key is used for lookup — it looks in a different bucket.</p>
+<p><strong>Performance consideration in Java 17:</strong></p>
+<ul>
+<li><code>Objects.hash(field1, field2, ...)</code> is convenient but creates a varargs array.</li>
+<li>For performance-critical code, manually compute: <code>31 * field1.hashCode() + field2.hashCode()</code>.</li>
+<li>Java records automatically generate <code>equals()</code> and <code>hashCode()</code> based on all components.</li>
+</ul>
+<h3 id="java-code-example-9"><a class="header" href="#java-code-example-9">Java Code Example</a></h3>
+<pre><code class="language-java">public class OrderId {
+    private final String value;
+
+    public OrderId(String value) {
+        this.value = Objects.requireNonNull(value, "OrderId cannot be null");
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof OrderId other)) return false;  // Java 16 pattern matching
+        return Objects.equals(value, other.value);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(value);
+    }
+
+    @Override
+    public String toString() {
+        return "OrderId{" + value + "}";
+    }
+}
+
+// With Java 17 record — equals/hashCode auto-generated
+public record TransactionId(String value) {}
+</code></pre>
+<h3 id="real-world-backend-example-1"><a class="header" href="#real-world-backend-example-1">Real-World Backend Example</a></h3>
+<p>In a payment service, <code>OrderId</code> objects are used as <code>HashMap</code> keys to cache order statuses. If <code>hashCode()</code> is not overridden, two <code>OrderId("ORD-001")</code> objects will hash to different buckets and the cache lookup will always miss, causing unnecessary database queries.</p>
+<h3 id="follow-up-questions-10"><a class="header" href="#follow-up-questions-10">Follow-up Questions</a></h3>
+<ul>
+<li>What is the default <code>hashCode()</code> implementation in <code>Object</code>? <em>(Typically based on memory address, but not guaranteed.)</em></li>
+<li>What happens if <code>hashCode()</code> always returns a constant? <em>(Legal but degrades HashMap to O(n) performance — all entries in one bucket.)</em></li>
+<li>How does Java 17 record handle <code>equals()</code>/<code>hashCode()</code>?</li>
+<li>What is the impact on <code>HashSet</code> when <code>equals()</code>/<code>hashCode()</code> contract is violated?</li>
+</ul>
+<h3 id="common-mistakes-5"><a class="header" href="#common-mistakes-5">Common Mistakes</a></h3>
+<ul>
+<li>Overriding <code>equals()</code> but not <code>hashCode()</code>.</li>
+<li>Including mutable fields in <code>hashCode()</code> — if the field changes after the object is added to a <code>HashSet</code>, it will be “lost.”</li>
+</ul>
+<h3 id="interview-trap-6"><a class="header" href="#interview-trap-6">Interview Trap</a></h3>
+<blockquote>
+<p>What happens if you put an object in a <code>HashSet</code>, then modify one of its fields (which is included in <code>hashCode()</code>)?</p>
+</blockquote>
+<p>The object becomes “unreachable” inside the <code>HashSet</code> — it exists but cannot be found with <code>contains()</code> because it is now in the wrong bucket.</p>
+<h3 id="quick-revision-10"><a class="header" href="#quick-revision-10">Quick Revision</a></h3>
+<blockquote>
+<p><code>equals()</code> contract: reflexive, symmetric, transitive. If <code>a.equals(b)</code>, then <code>a.hashCode() == b.hashCode()</code>. Always override both together. Records do this automatically.</p>
+</blockquote>
+<hr>
+<h2 id="12-clone-and-the-cloneable-interface"><a class="header" href="#12-clone-and-the-cloneable-interface">12. <code>clone()</code> and the Cloneable Interface</a></h2>
+<p><strong>Difficulty:</strong> Medium
+<strong>Interview Frequency:</strong> Medium
+<strong>Asked at:</strong> Amazon, Adobe, Goldman Sachs (senior rounds)</p>
+<h3 id="short-interview-answer-9"><a class="header" href="#short-interview-answer-9">Short Interview Answer</a></h3>
+<p><code>clone()</code> creates a copy of an object. Java’s built-in cloning mechanism is considered broken by many experts (Effective Java). It performs a <strong>shallow copy</strong> by default — object fields are not deeply copied, only references are copied. You must implement <code>Cloneable</code> (a marker interface) and override <code>clone()</code> to enable cloning.</p>
+<h3 id="deep-explanation-10"><a class="header" href="#deep-explanation-10">Deep Explanation</a></h3>
+<p><strong>Shallow copy:</strong> Copies field values. Primitive fields are duplicated. Reference fields copy the reference, not the object — both original and clone point to the same nested objects.</p>
+<p><strong>Deep copy:</strong> Recursively copies all nested objects. Must be done manually or via serialization.</p>
+<p><strong>Problems with <code>clone()</code>:</strong></p>
+<ul>
+<li><code>Cloneable</code> does not declare a <code>clone()</code> method — you must override it from <code>Object</code>.</li>
+<li><code>Object.clone()</code> throws <code>CloneNotSupportedException</code> if <code>Cloneable</code> is not implemented.</li>
+<li>Does not call the constructor — can bypass invariants.</li>
+<li>Shallow by default — dangerous for mutable fields.</li>
+</ul>
+<p><strong>Preferred alternatives:</strong></p>
+<ul>
+<li>Copy constructors: <code>new Employee(existingEmployee)</code></li>
+<li>Copy factories: <code>Employee.copyOf(existingEmployee)</code></li>
+<li>Serialization/deserialization for deep copy</li>
+<li>Libraries: Apache Commons <code>SerializationUtils.clone()</code>, or <code>ObjectMapper</code> with JSON serialization</li>
+</ul>
+<h3 id="java-code-example-10"><a class="header" href="#java-code-example-10">Java Code Example</a></h3>
+<pre><code class="language-java">// Deep clone via copy constructor (preferred)
+public class Order {
+    private String orderId;
+    private List&lt;LineItem&gt; items;
+
+    // Copy constructor — safe deep copy
+    public Order(Order other) {
+        this.orderId = other.orderId;
+        this.items = other.items.stream()
+            .map(LineItem::new)   // copy constructor for LineItem too
+            .collect(Collectors.toList());
+    }
+}
+</code></pre>
+<h3 id="follow-up-questions-11"><a class="header" href="#follow-up-questions-11">Follow-up Questions</a></h3>
+<ol>
+<li>What is the difference between shallow copy and deep copy?</li>
+<li>Why is Cloneable considered a broken design in Java?</li>
+<li>What is a better alternative to clone() for creating copies of objects?</li>
+</ol>
+<h3 id="quick-revision-11"><a class="header" href="#quick-revision-11">Quick Revision</a></h3>
+<blockquote>
+<p><code>clone()</code> is broken — prefer copy constructors or copy factories. Shallow copy copies references. Always override <code>hashCode()</code>/<code>equals()</code> when implementing <code>clone()</code>.</p>
+</blockquote>
+<hr>
+<h2 id="chapter-summary--oop-quick-reference"><a class="header" href="#chapter-summary--oop-quick-reference">Chapter Summary — OOP Quick Reference</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Concept</th><th>Key Point</th></tr>
+</thead>
+<tbody>
+<tr><td>Class vs Object</td><td>Class = blueprint, Object = heap instance</td></tr>
+<tr><td>Encapsulation</td><td>Private fields + controlled access = invariant protection</td></tr>
+<tr><td>Inheritance</td><td>IS-A, single class, multiple interface</td></tr>
+<tr><td>Polymorphism</td><td>Overloading = compile-time, Overriding = runtime (vtable)</td></tr>
+<tr><td>Abstract vs Interface</td><td>IS-A with state vs CAN-DO contract</td></tr>
+<tr><td><code>final</code></td><td>No reassign / no override / no subclass</td></tr>
+<tr><td><code>static</code></td><td>Class-level, no <code>this</code>, no override (hiding)</td></tr>
+<tr><td><code>equals</code>/<code>hashCode</code></td><td>Always override both; if equal, must have same hash</td></tr>
+<tr><td>Composition</td><td>Favor over inheritance for flexibility</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<p><em>End of Chapter 1 — Next: Chapter 2: Strings, Wrapper Classes, and Exceptions</em></p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../COMPANY_GUIDE.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../Volume1_CoreJava/Chapter2_Strings_Wrappers_Exceptions.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../COMPANY_GUIDE.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../Volume1_CoreJava/Chapter2_Strings_Wrappers_Exceptions.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-c22b7243.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../custom-877a7a53.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

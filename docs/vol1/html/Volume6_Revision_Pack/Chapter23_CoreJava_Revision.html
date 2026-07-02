@@ -1,0 +1,943 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Chapter 23 - Core Java Revision - Volume 1: Core Java</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Core Java fundamentals for SDE2 interviews. OOP, Collections, Java 8+, JVM Internals, Multithreading and Concurrency. 6 chapters, 100+ Q&amp;As.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-0392ca55.css">
+        <link rel="stylesheet" href="../css/chrome-fc474251.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../custom-aab4aca2.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-ea348324.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-4ace9b61.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Volume 1: Core Java</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="volume-6-interview-revision-pack"><a class="header" href="#volume-6-interview-revision-pack">Volume 6: Interview Revision Pack</a></h1>
+<h1 id="chapter-23-core-java--quick-revision"><a class="header" href="#chapter-23-core-java--quick-revision">Chapter 23: Core Java — Quick Revision</a></h1>
+<blockquote>
+<p>Last-day cheat sheet. Dense bullets. No fluff. SDE2 target.</p>
+</blockquote>
+<hr>
+<h2 id="section-1-oop--top-10-interview-questions"><a class="header" href="#section-1-oop--top-10-interview-questions">Section 1: OOP — Top 10 Interview Questions</a></h2>
+<p><strong>Q1. Abstraction vs Encapsulation?</strong></p>
+<ul>
+<li>Abstraction = hiding <em>what</em> (interface/abstract class hides implementation details from caller); Encapsulation = hiding <em>how</em> (bundling data + methods, controlling access via modifiers).</li>
+</ul>
+<p><strong>Q2. Types of Polymorphism?</strong></p>
+<ul>
+<li>Compile-time (static): method overloading, resolved by compiler via method signature.</li>
+<li>Runtime (dynamic): method overriding, resolved by JVM via vtable/virtual dispatch.</li>
+</ul>
+<p><strong>Q3. Overloading vs Overriding?</strong></p>
+<ul>
+<li>Overloading: same class, same name, different parameter list; resolved at compile time.</li>
+<li>Overriding: subclass redefines parent method with same signature; resolved at runtime; needs <code>@Override</code>; return type can be covariant.</li>
+</ul>
+<p><strong>Q4. Interface vs Abstract Class?</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th></th><th>Interface</th><th>Abstract Class</th></tr>
+</thead>
+<tbody>
+<tr><td>State</td><td>No instance fields (only <code>static final</code>)</td><td>Can have instance fields</td></tr>
+<tr><td>Constructor</td><td>No</td><td>Yes</td></tr>
+<tr><td>Multiple inheritance</td><td>Yes</td><td>No</td></tr>
+<tr><td>Default methods</td><td>Yes (Java 8+)</td><td>Yes</td></tr>
+<tr><td>Use when</td><td>Capability contract (Serializable, Runnable)</td><td>Shared base + partial impl</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Q5. Composition vs Inheritance?</strong></p>
+<ul>
+<li>Inheritance = “is-a”; tight coupling, breaks encapsulation (fragile base class problem).</li>
+<li>Composition = “has-a”; prefer it; swap implementations at runtime, no coupling.</li>
+</ul>
+<p><strong>Q6. Covariant Return Types?</strong></p>
+<ul>
+<li>Overriding method can return a subtype of the parent’s return type (Java 5+).</li>
+<li><code>Animal clone()</code> in parent → <code>Dog clone()</code> valid in <code>Dog</code> subclass.</li>
+</ul>
+<p><strong>Q7. Marker Interfaces?</strong></p>
+<ul>
+<li>Empty interfaces (<code>Serializable</code>, <code>Cloneable</code>, <code>RandomAccess</code>) used as type tags.</li>
+<li>Modern alternative: annotations (<code>@FunctionalInterface</code>, custom annotations).</li>
+</ul>
+<p><strong>Q8. How to make an Immutable class?</strong></p>
+<ol>
+<li><code>final</code> class (prevent subclassing).</li>
+<li>All fields <code>private final</code>.</li>
+<li>No setters.</li>
+<li>Deep copy mutable fields in constructor and getters.</li>
+<li>(Optional) <code>Collections.unmodifiableList</code> for collection fields.</li>
+</ol>
+<p><strong>Q9. equals() / hashCode() contract?</strong></p>
+<ul>
+<li>If <code>a.equals(b)</code> then <code>a.hashCode() == b.hashCode()</code> — MUST hold.</li>
+<li>Reverse not required (hash collision OK).</li>
+<li>If you override <code>equals</code>, you MUST override <code>hashCode</code>.</li>
+<li><code>equals</code> must be: reflexive, symmetric, transitive, consistent, null-safe.</li>
+</ul>
+<p><strong>Q10. clone() gotchas?</strong></p>
+<ul>
+<li><code>Object.clone()</code> does shallow copy; implement <code>Cloneable</code> (marker), override <code>clone()</code> as <code>public</code>.</li>
+<li>For deep copy: manually clone mutable fields, or use copy constructor / serialization.</li>
+<li>Prefer copy constructors over <code>clone()</code> in practice.</li>
+</ul>
+<hr>
+<h2 id="section-2-strings--wrappers--top-10-questions"><a class="header" href="#section-2-strings--wrappers--top-10-questions">Section 2: Strings &amp; Wrappers — Top 10 Questions</a></h2>
+<p><strong>Q1. String Pool?</strong></p>
+<ul>
+<li>String literals stored in JVM’s string pool (PermGen/Metaspace area); same literal reuses same object.</li>
+<li><code>new String("hello")</code> always creates heap object, bypasses pool.</li>
+</ul>
+<p><strong>Q2. intern()?</strong></p>
+<ul>
+<li><code>str.intern()</code> returns canonical pool reference; useful to deduplicate runtime strings.</li>
+<li>Side effect: can bloat string pool if overused.</li>
+</ul>
+<p><strong>Q3. String vs StringBuilder vs StringBuffer?</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th></th><th>String</th><th>StringBuilder</th><th>StringBuffer</th></tr>
+</thead>
+<tbody>
+<tr><td>Mutability</td><td>Immutable</td><td>Mutable</td><td>Mutable</td></tr>
+<tr><td>Thread-safe</td><td>Yes (immutable)</td><td>No</td><td>Yes (synchronized)</td></tr>
+<tr><td>Performance</td><td>Slow in loops</td><td>Fast</td><td>~20-25% slower than SB</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Q4. Why is String immutable?</strong></p>
+<ul>
+<li>Security (class loading, passwords, network params).</li>
+<li>String pool feasibility (shared refs safe only if immutable).</li>
+<li>Safe for use as HashMap keys (hashCode cached after first call).</li>
+<li>Thread safety inherently.</li>
+</ul>
+<p><strong>Q5. Integer cache (-128 to 127)?</strong></p>
+<ul>
+<li><code>Integer.valueOf(127) == Integer.valueOf(127)</code> → <code>true</code> (cached).</li>
+<li><code>Integer.valueOf(128) == Integer.valueOf(128)</code> → <code>false</code> (new heap objects).</li>
+<li>Cache range configurable via <code>-XX:AutoBoxCacheMax=N</code> (upper bound only).</li>
+</ul>
+<p><strong>Q6. Autoboxing pitfalls?</strong></p>
+<ul>
+<li><code>Integer a = null; int b = a;</code> → NullPointerException (unboxing null).</li>
+<li><code>==</code> on Integer outside cache range: false even for “equal” values.</li>
+<li>Autoboxing in tight loops creates GC pressure (use <code>int[]</code> / primitives).</li>
+</ul>
+<p><strong>Q7. String.format vs concatenation performance?</strong></p>
+<ul>
+<li><code>+</code> operator on literals: compiler optimizes to <code>StringBuilder</code> at compile time.</li>
+<li><code>+</code> in loop: creates new <code>StringBuilder</code> each iteration — use explicit <code>StringBuilder.append()</code>.</li>
+<li><code>String.format</code>: slowest (regex parsing of format string); use only for readability.</li>
+<li>Java 15+: <code>String</code> templates (preview); Java 21: stable string templates.</li>
+</ul>
+<p><strong>Q8. Compact Strings (Java 9)?</strong></p>
+<ul>
+<li>Before: char[] (2 bytes/char) always. After: byte[] with encoding flag.</li>
+<li>Latin-1 strings use 1 byte/char → ~50% heap reduction for ASCII-heavy apps.</li>
+<li>Transparent; no API change.</li>
+</ul>
+<p><strong>Q9. char vs String?</strong></p>
+<ul>
+<li><code>char</code> is primitive, 16-bit UTF-16 code unit; cannot represent supplementary Unicode (code points &gt; U+FFFF).</li>
+<li>Use <code>int</code> (code point) or <code>String</code> for full Unicode handling.</li>
+<li><code>Character</code> wrapper has <code>isLetter()</code>, <code>isDigit()</code>, <code>toLowerCase()</code> utilities.</li>
+</ul>
+<p><strong>Q10. String.equals() vs ==?</strong></p>
+<ul>
+<li><code>==</code> compares object references (identity).</li>
+<li><code>.equals()</code> compares character content.</li>
+<li>Always use <code>.equals()</code> for value comparison; use <code>Objects.equals(a, b)</code> for null safety.</li>
+</ul>
+<hr>
+<h2 id="section-3-collections--top-15-questions"><a class="header" href="#section-3-collections--top-15-questions">Section 3: Collections — Top 15 Questions</a></h2>
+<p><strong>Q1. HashMap internals?</strong></p>
+<ul>
+<li>Backed by <code>Node&lt;K,V&gt;[]</code> array (table). Default capacity 16, load factor 0.75.</li>
+<li>Hash: <code>(key == null) ? 0 : (h = key.hashCode()) ^ (h &gt;&gt;&gt; 16)</code> — spreads high bits.</li>
+<li>Bucket index: <code>hash &amp; (n-1)</code>.</li>
+<li>Treeification: bucket list → Red-Black Tree when bucket size &gt;= 8 AND table size &gt;= 64.</li>
+<li>Resize (rehash): at <code>size &gt; capacity * loadFactor</code>; capacity doubles.</li>
+</ul>
+<p><strong>Q2. ConcurrentHashMap vs synchronized HashMap?</strong></p>
+<ul>
+<li><code>Collections.synchronizedMap(map)</code>: one lock on entire map; one thread at a time.</li>
+<li><code>ConcurrentHashMap</code>: segment/bin-level locking (Java 8: CAS + <code>synchronized</code> on head node only); multiple threads read/write different buckets concurrently.</li>
+<li><code>ConcurrentHashMap</code>: no null keys/values; <code>synchronizedMap</code> allows null.</li>
+</ul>
+<p><strong>Q3. LinkedHashMap vs TreeMap?</strong></p>
+<ul>
+<li><code>LinkedHashMap</code>: insertion-order (or access-order if <code>accessOrder=true</code>); O(1) get/put; perfect for LRU cache.</li>
+<li><code>TreeMap</code>: sorted by natural order or <code>Comparator</code>; O(log n) get/put; implements <code>NavigableMap</code> (floorKey, ceilingKey).</li>
+</ul>
+<p><strong>Q4. ArrayDeque vs LinkedList as Queue?</strong></p>
+<ul>
+<li><code>ArrayDeque</code>: array-backed, resizes; faster in practice (cache-friendly), no node allocation overhead.</li>
+<li><code>LinkedList</code>: node-per-element; slower; also implements <code>List</code> (extra overhead).</li>
+<li>Prefer <code>ArrayDeque</code> for stack/queue; use <code>LinkedList</code> only when you need <code>List</code> + <code>Deque</code>.</li>
+</ul>
+<p><strong>Q5. Fail-fast vs Fail-safe iterators?</strong></p>
+<ul>
+<li>Fail-fast: iterates original collection; throws <code>ConcurrentModificationException</code> if <code>modCount</code> changes (HashMap, ArrayList).</li>
+<li>Fail-safe: iterates a copy/snapshot; no exception (ConcurrentHashMap, CopyOnWriteArrayList); may not see latest writes.</li>
+</ul>
+<p><strong>Q6. Comparable vs Comparator?</strong></p>
+<ul>
+<li><code>Comparable&lt;T&gt;</code>: <code>compareTo(T o)</code> in the class itself; natural ordering; one order only.</li>
+<li><code>Comparator&lt;T&gt;</code>: external; multiple orderings; use with <code>sorted()</code>, <code>Collections.sort()</code>, <code>TreeMap</code>.</li>
+<li>Java 8: <code>Comparator.comparing(Person::getName).thenComparing(Person::getAge)</code>.</li>
+</ul>
+<p><strong>Q7. PriorityQueue ordering?</strong></p>
+<ul>
+<li>Min-heap by default (natural order); head = smallest element.</li>
+<li>For max-heap: <code>new PriorityQueue&lt;&gt;(Comparator.reverseOrder())</code>.</li>
+<li>No guaranteed order during iteration; only <code>poll()</code> / <code>peek()</code> give sorted access.</li>
+</ul>
+<p><strong>Q8. EnumMap?</strong></p>
+<ul>
+<li>Backed by array indexed by enum ordinal; O(1) operations; more efficient than HashMap for enum keys.</li>
+<li>No null keys; iteration order = enum declaration order.</li>
+</ul>
+<p><strong>Q9. IdentityHashMap?</strong></p>
+<ul>
+<li>Uses <code>==</code> (reference equality) and <code>System.identityHashCode()</code> instead of <code>equals()</code>/<code>hashCode()</code>.</li>
+<li>Use case: object graph serialization, canonicalization, framework internals.</li>
+</ul>
+<p><strong>Q10. WeakHashMap use case?</strong></p>
+<ul>
+<li>Keys held by weak references; GC can collect key if no strong reference exists → entry auto-removed.</li>
+<li>Use case: caches where keys are live objects (metadata, listeners).</li>
+</ul>
+<p><strong>Q11. Collections.unmodifiableList vs List.of()?</strong></p>
+<ul>
+<li><code>unmodifiableList</code>: wrapper around existing list; original can still be mutated by reference holder.</li>
+<li><code>List.of()</code> (Java 9): truly immutable; no nulls; throws on any structural/element change.</li>
+<li><code>List.copyOf()</code> (Java 10): immutable deep copy.</li>
+</ul>
+<p><strong>Q12. Why does HashMap allow null key?</strong></p>
+<ul>
+<li>Null key always maps to bucket 0 (special-cased in <code>put</code>/<code>get</code>); valid design choice.</li>
+<li><code>ConcurrentHashMap</code> disallows null to avoid ambiguity: <code>get()</code> returning null means “absent” vs “value is null” — no atomic way to distinguish without separate <code>containsKey()</code>.</li>
+</ul>
+<p><strong>Q13. ArrayList vs LinkedList?</strong></p>
+<ul>
+<li>ArrayList: O(1) random access; O(n) insert/delete in middle; cache-friendly.</li>
+<li>LinkedList: O(n) random access; O(1) insert/delete at known node; high memory overhead (prev/next pointers).</li>
+<li>In practice: ArrayList almost always wins due to CPU cache effects.</li>
+</ul>
+<p><strong>Q14. Set implementations?</strong></p>
+<ul>
+<li><code>HashSet</code>: backed by HashMap; O(1); no order.</li>
+<li><code>LinkedHashSet</code>: insertion order; slightly slower.</li>
+<li><code>TreeSet</code>: sorted (NavigableSet); O(log n).</li>
+<li><code>EnumSet</code>: bit-vector; extremely fast for enum values.</li>
+<li><code>CopyOnWriteArraySet</code>: thread-safe, good for small, read-heavy sets.</li>
+</ul>
+<p><strong>Q15. Initial capacity for HashMap?</strong></p>
+<ul>
+<li>Provide if expected size known: <code>new HashMap&lt;&gt;(expectedSize / 0.75 + 1)</code> to avoid rehashes.</li>
+<li>Each rehash is O(n); for large maps this matters at startup.</li>
+</ul>
+<hr>
+<h2 id="section-4-java-8--top-15-questions"><a class="header" href="#section-4-java-8--top-15-questions">Section 4: Java 8+ — Top 15 Questions</a></h2>
+<p><strong>Q1. Lambda vs Anonymous Class?</strong></p>
+<ul>
+<li>Lambda: no class file generated (invokedynamic); <code>this</code> = enclosing class; no state.</li>
+<li>Anonymous class: new <code>.class</code> file; <code>this</code> = anonymous class instance; can have state/fields.</li>
+<li>Lambda only works for functional interfaces (exactly one abstract method).</li>
+</ul>
+<p><strong>Q2. Method Reference Types?</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Type</th><th>Syntax</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td>Static</td><td><code>Class::staticMethod</code></td><td><code>Integer::parseInt</code></td></tr>
+<tr><td>Instance (unbound)</td><td><code>Class::instanceMethod</code></td><td><code>String::toUpperCase</code></td></tr>
+<tr><td>Instance (bound)</td><td><code>instance::method</code></td><td><code>str::contains</code></td></tr>
+<tr><td>Constructor</td><td><code>Class::new</code></td><td><code>ArrayList::new</code></td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Q3. Stream lazy evaluation?</strong></p>
+<ul>
+<li>Intermediate ops (filter, map, sorted) are lazy — no work until terminal op.</li>
+<li>Short-circuit terminals (findFirst, anyMatch) stop processing early.</li>
+<li>Entire pipeline fused into one pass over data.</li>
+</ul>
+<p><strong>Q4. Terminal vs Intermediate operations?</strong></p>
+<ul>
+<li>Intermediate: <code>filter</code>, <code>map</code>, <code>flatMap</code>, <code>distinct</code>, <code>sorted</code>, <code>limit</code>, <code>peek</code> — return <code>Stream</code>.</li>
+<li>Terminal: <code>collect</code>, <code>forEach</code>, <code>reduce</code>, <code>count</code>, <code>findFirst</code>, <code>anyMatch</code>, <code>toList</code> — trigger execution.</li>
+<li>Stream cannot be reused after terminal op.</li>
+</ul>
+<p><strong>Q5. flatMap?</strong></p>
+<ul>
+<li><code>map</code>: one-to-one; wraps result in stream of streams.</li>
+<li><code>flatMap</code>: one-to-many; flattens Stream&lt;Stream<t>&gt; → Stream<t>.</t></t></li>
+<li>Example: <code>List&lt;List&lt;String&gt;&gt; → flatMap(Collection::stream) → Stream&lt;String&gt;</code>.</li>
+</ul>
+<p><strong>Q6. Optional.orElse vs orElseGet?</strong></p>
+<ul>
+<li><code>orElse(value)</code>: always evaluates the argument (even if Optional is present).</li>
+<li><code>orElseGet(supplier)</code>: lazy — supplier called only if Optional is empty.</li>
+<li>Rule: if default is a method call / expensive, use <code>orElseGet</code>.</li>
+</ul>
+<p><strong>Q7. CompletableFuture.thenApply vs thenCompose?</strong></p>
+<ul>
+<li><code>thenApply(fn)</code>: <code>fn</code> returns a plain value → wraps in CompletableFuture (like <code>map</code>).</li>
+<li><code>thenCompose(fn)</code>: <code>fn</code> returns a CompletableFuture → flattens (like <code>flatMap</code>); avoids <code>CompletableFuture&lt;CompletableFuture&lt;T&gt;&gt;</code>.</li>
+</ul>
+<p><strong>Q8. Parallel stream pitfalls?</strong></p>
+<ul>
+<li>Shared mutable state → race conditions (never use <code>forEach</code> with external accumulator).</li>
+<li>Small datasets: thread overhead &gt; gain.</li>
+<li>Ordered pipelines (sorted, findFirst) reduce parallelism benefit.</li>
+<li>I/O-bound tasks: use async (CompletableFuture), not parallel streams.</li>
+<li>Default <code>ForkJoinPool.commonPool()</code> is shared — starving it affects other tasks.</li>
+</ul>
+<p><strong>Q9. Collectors.groupingBy?</strong></p>
+<pre><code class="language-java">Map&lt;Dept, List&lt;Employee&gt;&gt; byDept =
+    employees.stream()
+             .collect(Collectors.groupingBy(Employee::getDept));
+// with downstream:
+Map&lt;Dept, Long&gt; countByDept =
+    employees.stream()
+             .collect(Collectors.groupingBy(Employee::getDept, Collectors.counting()));
+</code></pre>
+<p><strong>Q10. reduce vs collect?</strong></p>
+<ul>
+<li><code>reduce</code>: immutable reduction (produces single value); not suitable for mutable containers.</li>
+<li><code>collect</code>: mutable reduction into container (List, Map, StringBuilder); uses <code>Collector</code>.</li>
+<li>Never <code>reduce</code> into a List (creates O(n²) intermediate lists).</li>
+</ul>
+<p><strong>Q11. var (local type inference, Java 10)?</strong></p>
+<ul>
+<li>Only for local variables with initializer; not for fields, parameters, return types.</li>
+<li>Type inferred at compile time — still statically typed.</li>
+<li>Avoid when type is not obvious from RHS; hurts readability.</li>
+</ul>
+<p><strong>Q12. Records (Java 16)?</strong></p>
+<ul>
+<li><code>record Point(int x, int y) {}</code> — compiler generates constructor, accessors, <code>equals</code>, <code>hashCode</code>, <code>toString</code>.</li>
+<li>Implicitly final; fields are private final.</li>
+<li>Can add compact constructors, static methods, implement interfaces.</li>
+</ul>
+<p><strong>Q13. Sealed Classes (Java 17)?</strong></p>
+<ul>
+<li><code>sealed interface Shape permits Circle, Rectangle, Triangle {}</code> — restricts which classes can extend.</li>
+<li>Enables exhaustive pattern matching in <code>switch</code>.</li>
+<li>Permitted subclasses: <code>final</code>, <code>sealed</code>, or <code>non-sealed</code>.</li>
+</ul>
+<p><strong>Q14. Pattern Matching instanceof (Java 16)?</strong></p>
+<ul>
+<li><code>if (obj instanceof String s) { s.length(); }</code> — no explicit cast.</li>
+<li>Scope of pattern variable: true branch of <code>if</code> (or negated false branch with <code>&amp;&amp;</code>/<code>||</code>).</li>
+<li>Java 21: full switch pattern matching — <code>switch(shape) { case Circle c -&gt; ... }</code>.</li>
+</ul>
+<p><strong>Q15. Text Blocks (Java 15)?</strong></p>
+<ul>
+<li><code>"""..."""</code> — multi-line string; incidental whitespace stripped; <code>\n</code> handled.</li>
+<li>Trailing <code>"""</code> position controls indentation stripping.</li>
+<li>Embedded <code>"</code> do not need escaping; use <code>\</code> at line end for line continuation.</li>
+</ul>
+<hr>
+<h2 id="section-5-jvm-internals--top-10-questions"><a class="header" href="#section-5-jvm-internals--top-10-questions">Section 5: JVM Internals — Top 10 Questions</a></h2>
+<p><strong>Q1. Heap vs Stack vs Metaspace?</strong></p>
+<ul>
+<li>Stack: per-thread; holds frames (local vars, operand stack, return addr); LIFO; fast; StackOverflowError on overflow.</li>
+<li>Heap: shared; object instances, arrays; GC’d; OutOfMemoryError if full.</li>
+<li>Metaspace (Java 8+, replaced PermGen): class metadata, method bytecode, static fields; auto-grows (configurable with <code>-XX:MaxMetaspaceSize</code>).</li>
+</ul>
+<p><strong>Q2. G1 GC regions?</strong></p>
+<ul>
+<li>Heap divided into equal-sized regions (~1-32 MB); each region labelled Eden/Survivor/Old/Humongous dynamically.</li>
+<li>Humongous: objects &gt; 50% region size; directly in Old gen.</li>
+<li>GC: concurrent marking + mixed collections; predictable pause time (<code>-XX:MaxGCPauseMillis</code>).</li>
+<li>Default GC since Java 9.</li>
+</ul>
+<p><strong>Q3. ZGC vs G1?</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th></th><th>G1</th><th>ZGC</th></tr>
+</thead>
+<tbody>
+<tr><td>Pause target</td><td>~200ms (tunable)</td><td>&lt;1ms (Java 15+)</td></tr>
+<tr><td>Heap</td><td>Any</td><td>Any (TB-scale)</td></tr>
+<tr><td>Concurrent</td><td>Marking only</td><td>Marking + Compaction</td></tr>
+<tr><td>CPU overhead</td><td>Low</td><td>Higher (~15%)</td></tr>
+<tr><td>Production since</td><td>Java 9</td><td>Java 15</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Q4. JIT tiers?</strong></p>
+<ul>
+<li>Tier 0: Interpreter.</li>
+<li>Tier 1-2: C1 (client compiler) — fast compile, no heavy opts.</li>
+<li>Tier 3: C1 with profiling.</li>
+<li>Tier 4: C2 (server compiler) — slow compile, heavy optimization (inlining, loop unrolling, escape analysis).</li>
+<li>Hot code (&gt;=10,000 invocations default) promoted to Tier 4.</li>
+</ul>
+<p><strong>Q5. Escape Analysis?</strong></p>
+<ul>
+<li>JIT detects objects that don’t escape method scope → allocates them on stack (no GC pressure).</li>
+<li>Also enables scalar replacement (object fields as local vars) and lock elision (synchronized on non-escaping object removed).</li>
+</ul>
+<p><strong>Q6. Class Loading Delegation Model?</strong></p>
+<ul>
+<li>Bootstrap CL → Extension/Platform CL → Application CL → Custom CLs.</li>
+<li>Child first checks parent; loads class if parent can’t (parent delegation).</li>
+<li>Breaks cycle: child CL can override by checking self first (OSGI, Tomcat webapps).</li>
+</ul>
+<p><strong>Q7. OOM types?</strong></p>
+<ul>
+<li><code>Java heap space</code>: heap exhausted; increase <code>-Xmx</code> or fix leaks.</li>
+<li><code>GC overhead limit exceeded</code>: GC spending &gt;98% time, &lt;2% freed.</li>
+<li><code>Metaspace</code>: class metadata overflow; set <code>-XX:MaxMetaspaceSize</code>.</li>
+<li><code>Unable to create new native thread</code>: OS thread limit hit.</li>
+<li><code>Direct buffer memory</code>: off-heap NIO buffers; tune <code>-XX:MaxDirectMemorySize</code>.</li>
+</ul>
+<p><strong>Q8. -Xmx vs -Xms?</strong></p>
+<ul>
+<li><code>-Xms</code>: initial heap size (JVM requests from OS at start).</li>
+<li><code>-Xmx</code>: maximum heap size.</li>
+<li>In containers/prod: set equal to avoid heap resizing pauses and RSS estimation issues.</li>
+<li>Rule: <code>-Xmx</code> = ~75% of container memory.</li>
+</ul>
+<p><strong>Q9. Key GC tuning flags?</strong></p>
+<pre><code>-XX:+UseG1GC / -XX:+UseZGC / -XX:+UseShenandoahGC
+-XX:MaxGCPauseMillis=200
+-XX:G1HeapRegionSize=16m
+-XX:InitiatingHeapOccupancyPercent=45
+-XX:+PrintGCDetails -Xlog:gc*:file=gc.log
+</code></pre>
+<p><strong>Q10. Heap dump analysis?</strong></p>
+<ul>
+<li>Generate: <code>jmap -dump:format=b,file=heap.hprof &lt;pid&gt;</code> or <code>-XX:+HeapDumpOnOutOfMemoryError</code>.</li>
+<li>Analyze: Eclipse MAT (Leak Suspects report), VisualVM, JProfiler.</li>
+<li>Key: find largest retained heap objects; GC roots keeping objects alive.</li>
+</ul>
+<hr>
+<h2 id="section-6-multithreading--top-15-questions"><a class="header" href="#section-6-multithreading--top-15-questions">Section 6: Multithreading — Top 15 Questions</a></h2>
+<p><strong>Q1. synchronized vs ReentrantLock?</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th></th><th>synchronized</th><th>ReentrantLock</th></tr>
+</thead>
+<tbody>
+<tr><td>Try lock</td><td>No</td><td><code>tryLock()</code> / <code>tryLock(timeout)</code></td></tr>
+<tr><td>Interruptible</td><td>No</td><td><code>lockInterruptibly()</code></td></tr>
+<tr><td>Fairness</td><td>No</td><td><code>new ReentrantLock(true)</code></td></tr>
+<tr><td>Condition vars</td><td>One (wait/notify)</td><td>Multiple (<code>newCondition()</code>)</td></tr>
+<tr><td>Auto-release</td><td>Yes (block exit)</td><td>Manual <code>finally { unlock() }</code></td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Q2. volatile — visibility NOT atomicity?</strong></p>
+<ul>
+<li><code>volatile</code> guarantees: write visible to all threads immediately (no L1/L2 cache hiding); prevents reordering around the write/read.</li>
+<li>Does NOT make compound operations atomic: <code>volatile int i; i++</code> is NOT atomic (read-modify-write = 3 ops).</li>
+<li>Use <code>AtomicInteger</code> for atomic increments.</li>
+</ul>
+<p><strong>Q3. Happens-before rules (key subset)?</strong></p>
+<ul>
+<li>Program order: each action HB next action in same thread.</li>
+<li>Monitor unlock HB subsequent lock of same monitor.</li>
+<li><code>volatile</code> write HB subsequent read of same variable.</li>
+<li>Thread start HB any action in started thread.</li>
+<li>Thread termination HB <code>join()</code> return.</li>
+</ul>
+<p><strong>Q4. Double-checked locking (DCL)?</strong></p>
+<pre><code class="language-java">private volatile static Singleton instance; // volatile REQUIRED
+public static Singleton getInstance() {
+    if (instance == null) {              // first check (no lock)
+        synchronized (Singleton.class) {
+            if (instance == null) {      // second check (with lock)
+                instance = new Singleton();
+            }
+        }
+    }
+    return instance;
+}
+</code></pre>
+<p>Without <code>volatile</code>: partial construction visible due to reordering.</p>
+<p><strong>Q5. ThreadPoolExecutor parameters?</strong></p>
+<pre><code>corePoolSize   — threads always alive
+maxPoolSize    — max threads when queue full
+keepAliveTime  — extra threads idle timeout
+workQueue      — LinkedBlockingQueue / SynchronousQueue / ArrayBlockingQueue
+rejectionHandler — AbortPolicy(default) / CallerRunsPolicy / DiscardPolicy / DiscardOldestPolicy
+</code></pre>
+<ul>
+<li>Task submitted: if threads &lt; core → new thread; else enqueue; if queue full and threads &lt; max → new thread; else reject.</li>
+</ul>
+<p><strong>Q6. ForkJoinPool?</strong></p>
+<ul>
+<li>Designed for recursive divide-and-conquer tasks.</li>
+<li>Work-stealing: idle threads steal tasks from other threads’ deques (LIFO steal → FIFO consume = cache-friendly).</li>
+<li><code>RecursiveTask&lt;V&gt;</code> (returns value), <code>RecursiveAction</code> (no return).</li>
+<li><code>commonPool()</code> used by parallel streams, <code>CompletableFuture</code>.</li>
+</ul>
+<p><strong>Q7. Deadlock 4 conditions (Coffman)?</strong></p>
+<ol>
+<li>Mutual exclusion — resources non-shareable.</li>
+<li>Hold and wait — thread holds resource while waiting for another.</li>
+<li>No preemption — resources not forcibly taken.</li>
+<li>Circular wait — T1→R1→T2→R2→T1.</li>
+</ol>
+<ul>
+<li>Prevention: consistent lock ordering, <code>tryLock()</code> with timeout, lock-free algorithms.</li>
+</ul>
+<p><strong>Q8. ThreadLocal memory leak?</strong></p>
+<ul>
+<li><code>ThreadLocal</code> value held via <code>Thread.threadLocals</code> map; key = weak ref to ThreadLocal, value = strong ref.</li>
+<li>In thread pools (long-lived threads): if <code>ThreadLocal</code> is GC’d, key becomes null, but value stays until thread dies → leak.</li>
+<li>Fix: always call <code>threadLocal.remove()</code> in <code>finally</code> block after use.</li>
+</ul>
+<p><strong>Q9. Virtual Threads (Java 21)?</strong></p>
+<ul>
+<li>Lightweight threads managed by JVM (not OS threads); mount/unmount on carrier (platform) threads.</li>
+<li>1M+ virtual threads possible; near-zero creation cost.</li>
+<li>Blocking I/O in virtual thread → unmounts from carrier (non-blocking at OS level).</li>
+<li>API: <code>Thread.ofVirtual().start(task)</code> or <code>Executors.newVirtualThreadPerTaskExecutor()</code>.</li>
+<li>Not faster for CPU-bound; game-changer for I/O-bound server code.</li>
+</ul>
+<p><strong>Q10. CAS &amp; ABA problem?</strong></p>
+<ul>
+<li>CAS (Compare-And-Swap): atomic hardware instruction; <code>AtomicInteger.compareAndSet(expect, update)</code>.</li>
+<li>ABA: value changes A→B→A; CAS sees A, succeeds, but semantic state changed.</li>
+<li>Fix: <code>AtomicStampedReference&lt;V&gt;</code> (adds version stamp); <code>AtomicMarkableReference</code>.</li>
+</ul>
+<p><strong>Q11. LongAdder vs AtomicLong?</strong></p>
+<ul>
+<li><code>AtomicLong</code>: single cell; high contention → CAS loop spinning → degraded throughput.</li>
+<li><code>LongAdder</code>: cell array (one per thread under contention); threads update own cell; <code>sum()</code> aggregates.</li>
+<li>Use <code>LongAdder</code> for high-frequency increments (counters, metrics); <code>AtomicLong</code> when you need exact current value atomically.</li>
+</ul>
+<p><strong>Q12. CountDownLatch vs CyclicBarrier vs Semaphore?</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th></th><th>CountDownLatch</th><th>CyclicBarrier</th><th>Semaphore</th></tr>
+</thead>
+<tbody>
+<tr><td>Reusable</td><td>No</td><td>Yes</td><td>Yes</td></tr>
+<tr><td>Use</td><td>Wait for N events</td><td>N threads meet at barrier</td><td>Limit concurrent access</td></tr>
+<tr><td>Key method</td><td><code>await()</code> / <code>countDown()</code></td><td><code>await()</code></td><td><code>acquire()</code> / <code>release()</code></td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Q13. BlockingQueue types?</strong></p>
+<ul>
+<li><code>ArrayBlockingQueue</code>: bounded, array-backed, fair option.</li>
+<li><code>LinkedBlockingQueue</code>: optionally bounded (default Integer.MAX_VALUE = effectively unbounded).</li>
+<li><code>SynchronousQueue</code>: zero capacity; each put waits for take (handoff).</li>
+<li><code>PriorityBlockingQueue</code>: unbounded, priority-ordered.</li>
+<li><code>DelayQueue</code>: elements available only after delay expires.</li>
+</ul>
+<p><strong>Q14. wait() vs sleep() vs yield()?</strong></p>
+<ul>
+<li><code>wait()</code>: releases lock; must be in <code>synchronized</code> block; woken by <code>notify()</code>/<code>notifyAll()</code> or timeout.</li>
+<li><code>sleep()</code>: does NOT release lock; thread pauses for duration; <code>InterruptedException</code>.</li>
+<li><code>yield()</code>: hint to scheduler to let equal-priority threads run; may be ignored; does not release lock.</li>
+</ul>
+<p><strong>Q15. StampedLock?</strong></p>
+<ul>
+<li>Java 8; supports: Write lock, Read lock, Optimistic read (no lock — validates after).</li>
+<li>Optimistic read pattern: stamp = <code>tryOptimisticRead()</code> → read → <code>validate(stamp)</code>; retry with read lock on failure.</li>
+<li>Not reentrant; no Condition support; faster than <code>ReadWriteLock</code> for read-heavy workloads.</li>
+</ul>
+<hr>
+<h2 id="section-7-common-traps--gotchas"><a class="header" href="#section-7-common-traps--gotchas">Section 7: Common Traps &amp; Gotchas</a></h2>
+<ol>
+<li><strong>Integer overflow</strong>: <code>int</code> wraps silently; use <code>Math.addExact()</code> or <code>long</code> for large arithmetic.</li>
+<li><strong>String <code>+</code> in loop</strong>: creates O(n) StringBuilder objects; use <code>StringBuilder.append()</code> explicitly.</li>
+<li><strong><code>==</code> on Integer outside cache</strong>: <code>Integer a = 200; Integer b = 200; a == b</code> → <code>false</code>; use <code>.equals()</code>.</li>
+<li><strong>NPE from autoboxing</strong>: <code>Integer x = null; int y = x;</code> → NPE; always null-check before unbox.</li>
+<li><strong>ConcurrentModificationException</strong>: never <code>list.remove()</code> inside <code>for-each</code>; use <code>iterator.remove()</code> or <code>removeIf()</code>.</li>
+<li><strong>iterator.remove() vs list.remove(index)</strong>: <code>list.remove(0)</code> during iteration breaks index; only <code>Iterator.remove()</code> is safe.</li>
+<li><strong>HashMap initial capacity</strong>: not providing expected size causes multiple rehashes for large maps; pre-size with <code>size / 0.75 + 1</code>.</li>
+<li><strong>Thread-safe singleton via class loading</strong>: enum singleton or static holder idiom is simpler than DCL.</li>
+<li><strong>DCL without volatile</strong>: partial construction visible to other threads; always mark instance <code>volatile</code>.</li>
+<li><strong>Stream reuse</strong>: stream is consumed after terminal op; <code>IllegalStateException</code> on second terminal; recreate stream.</li>
+<li><strong>Optional.get() without isPresent()</strong>: throws <code>NoSuchElementException</code>; always use <code>orElse</code>/<code>orElseThrow</code>/<code>ifPresent</code>.</li>
+<li><strong>Comparator returning Integer.MIN_VALUE</strong>: <code>return o1.val - o2.val</code> overflows for large negatives; use <code>Integer.compare(o1.val, o2.val)</code>.</li>
+<li><strong><code>finalize()</code> reliability</strong>: not guaranteed to run; not for resource cleanup; use try-with-resources instead.</li>
+<li><strong>Static field in inner class</strong>: non-static inner class cannot have <code>static</code> fields; use <code>static</code> nested class.</li>
+<li><strong>String switch falls through</strong>: <code>switch</code> on String uses <code>equals()</code>; still falls through without <code>break</code>.</li>
+<li><strong>Arrays.asList() is fixed-size</strong>: <code>add()</code>/<code>remove()</code> throw <code>UnsupportedOperationException</code>; backed by array; <code>set()</code> works.</li>
+<li><strong>Collections.sort vs List.sort</strong>: <code>List.sort()</code> (Java 8) is slightly faster (no array copy); both TimSort O(n log n).</li>
+<li><strong>wait() in loop, not if</strong>: spurious wakeups possible; always <code>while (!condition) wait()</code>.</li>
+<li><strong>Thread.stop() deprecated</strong>: never use; use volatile flag or <code>interrupt()</code> + check <code>Thread.isInterrupted()</code>.</li>
+<li><strong>long/double non-atomic on 32-bit JVM</strong>: reads/writes of <code>long</code>/<code>double</code> fields not guaranteed atomic without <code>volatile</code>; moot on modern 64-bit JVMs but still spec-defined.</li>
+</ol>
+<hr>
+<h2 id="section-8-must-know-code-snippets"><a class="header" href="#section-8-must-know-code-snippets">Section 8: Must-Know Code Snippets</a></h2>
+<h3 id="81-thread-safe-singleton--enum-preferred"><a class="header" href="#81-thread-safe-singleton--enum-preferred">8.1 Thread-safe Singleton — Enum (Preferred)</a></h3>
+<pre><code class="language-java">public enum Singleton {
+    INSTANCE;
+    public void doWork() { /* ... */ }
+}
+// Usage: Singleton.INSTANCE.doWork();
+// JVM guarantees: single instantiation, serialization-safe, thread-safe
+</code></pre>
+<h3 id="82-thread-safe-singleton--dcl"><a class="header" href="#82-thread-safe-singleton--dcl">8.2 Thread-safe Singleton — DCL</a></h3>
+<pre><code class="language-java">public class Singleton {
+    private static volatile Singleton instance;
+    private Singleton() {}
+    public static Singleton getInstance() {
+        if (instance == null) {
+            synchronized (Singleton.class) {
+                if (instance == null) instance = new Singleton();
+            }
+        }
+        return instance;
+    }
+}
+</code></pre>
+<h3 id="83-custom-comparator--lambda--method-reference"><a class="header" href="#83-custom-comparator--lambda--method-reference">8.3 Custom Comparator — Lambda + Method Reference</a></h3>
+<pre><code class="language-java">List&lt;Employee&gt; employees = ...;
+// Multi-key sort: by dept then by name
+employees.sort(Comparator.comparing(Employee::getDept)
+                         .thenComparing(Employee::getName)
+                         .reversed());
+// Null-safe:
+employees.sort(Comparator.comparing(Employee::getName,
+               Comparator.nullsLast(Comparator.naturalOrder())));
+</code></pre>
+<h3 id="84-stream-with-groupingby"><a class="header" href="#84-stream-with-groupingby">8.4 Stream with groupingBy</a></h3>
+<pre><code class="language-java">// Group employees by department, then count per department
+Map&lt;String, Long&gt; headcountByDept = employees.stream()
+    .collect(Collectors.groupingBy(
+        Employee::getDept,
+        Collectors.counting()
+    ));
+
+// Group and get list of names per department
+Map&lt;String, List&lt;String&gt;&gt; namesByDept = employees.stream()
+    .collect(Collectors.groupingBy(
+        Employee::getDept,
+        Collectors.mapping(Employee::getName, Collectors.toList())
+    ));
+</code></pre>
+<h3 id="85-completablefuture-chain"><a class="header" href="#85-completablefuture-chain">8.5 CompletableFuture Chain</a></h3>
+<pre><code class="language-java">CompletableFuture&lt;String&gt; result = CompletableFuture
+    .supplyAsync(() -&gt; fetchUserId())               // async, ForkJoinPool
+    .thenApplyAsync(id -&gt; fetchUserName(id))        // map: String -&gt; String
+    .thenCompose(name -&gt; fetchProfile(name))        // flatMap: returns CF&lt;Profile&gt;
+    .thenApply(Profile::getSummary)
+    .exceptionally(ex -&gt; "default-summary")        // error recovery
+    .whenComplete((val, ex) -&gt; log(val, ex));       // side effect, always runs
+
+String summary = result.get(5, TimeUnit.SECONDS);  // block with timeout
+</code></pre>
+<h3 id="86-producer-consumer-with-blockingqueue"><a class="header" href="#86-producer-consumer-with-blockingqueue">8.6 Producer-Consumer with BlockingQueue</a></h3>
+<pre><code class="language-java">BlockingQueue&lt;Integer&gt; queue = new ArrayBlockingQueue&lt;&gt;(10);
+
+// Producer
+Runnable producer = () -&gt; {
+    for (int i = 0; i &lt; 100; i++) {
+        try { queue.put(i); }           // blocks when full
+        catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
+    }
+};
+
+// Consumer
+Runnable consumer = () -&gt; {
+    while (!Thread.currentThread().isInterrupted()) {
+        try {
+            Integer item = queue.poll(1, TimeUnit.SECONDS); // blocks 1s max
+            if (item == null) break;    // timeout = no more data
+            process(item);
+        } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+    }
+};
+
+new Thread(producer).start();
+new Thread(consumer).start();
+</code></pre>
+<h3 id="87-deadlock-example"><a class="header" href="#87-deadlock-example">8.7 Deadlock Example</a></h3>
+<pre><code class="language-java">Object lockA = new Object();
+Object lockB = new Object();
+
+Thread t1 = new Thread(() -&gt; {
+    synchronized (lockA) {
+        sleep(50);
+        synchronized (lockB) { /* work */ }  // waits for lockB
+    }
+});
+
+Thread t2 = new Thread(() -&gt; {
+    synchronized (lockB) {
+        sleep(50);
+        synchronized (lockA) { /* work */ }  // waits for lockA → DEADLOCK
+    }
+});
+// Fix: always acquire locks in same order (lockA then lockB) in both threads
+</code></pre>
+<hr>
+<h2 id="quick-reference-card"><a class="header" href="#quick-reference-card">Quick Reference Card</a></h2>
+<h3 id="big-o-cheat-sheet--collections"><a class="header" href="#big-o-cheat-sheet--collections">Big-O Cheat Sheet — Collections</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operation</th><th>ArrayList</th><th>LinkedList</th><th>HashMap</th><th>TreeMap</th><th>PriorityQueue</th></tr>
+</thead>
+<tbody>
+<tr><td>get(i)</td><td>O(1)</td><td>O(n)</td><td>O(1) avg</td><td>O(log n)</td><td>O(n)</td></tr>
+<tr><td>add</td><td>O(1) amort</td><td>O(1)</td><td>O(1) avg</td><td>O(log n)</td><td>O(log n)</td></tr>
+<tr><td>remove</td><td>O(n)</td><td>O(n)</td><td>O(1) avg</td><td>O(log n)</td><td>O(log n)</td></tr>
+<tr><td>contains</td><td>O(n)</td><td>O(n)</td><td>O(1) avg</td><td>O(log n)</td><td>O(n)</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="java-version-timeline-interview-relevance"><a class="header" href="#java-version-timeline-interview-relevance">Java Version Timeline (Interview Relevance)</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Version</th><th>Key Features</th></tr>
+</thead>
+<tbody>
+<tr><td>Java 8</td><td>Lambdas, Streams, Optional, CompletableFuture, Default methods, LocalDateTime</td></tr>
+<tr><td>Java 9</td><td>Modules, List.of(), compact strings, Stream.takeWhile/dropWhile</td></tr>
+<tr><td>Java 10</td><td><code>var</code> local type inference, List.copyOf()</td></tr>
+<tr><td>Java 11</td><td>String methods (isBlank, strip, lines), HttpClient, running single-file</td></tr>
+<tr><td>Java 14</td><td>Records (preview), helpful NPE messages</td></tr>
+<tr><td>Java 15</td><td>Text blocks, sealed classes (preview)</td></tr>
+<tr><td>Java 16</td><td>Records (stable), pattern matching instanceof (stable)</td></tr>
+<tr><td>Java 17</td><td>Sealed classes (stable) — LTS</td></tr>
+<tr><td>Java 21</td><td>Virtual threads (stable), sequenced collections, pattern matching switch — LTS</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<p><em>End of Chapter 23 — Core Java Quick Revision</em></p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../Volume1_CoreJava/Chapter6_Multithreading_Concurrency.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../APPENDIX_Architecture_Diagrams.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../Volume1_CoreJava/Chapter6_Multithreading_Concurrency.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../APPENDIX_Architecture_Diagrams.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-c22b7243.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../custom-877a7a53.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

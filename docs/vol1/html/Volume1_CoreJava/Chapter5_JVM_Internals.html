@@ -1,0 +1,1980 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Chapter 5 - JVM Internals and GC - Volume 1: Core Java</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Core Java fundamentals for SDE2 interviews. OOP, Collections, Java 8+, JVM Internals, Multithreading and Concurrency. 6 chapters, 100+ Q&amp;As.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-0392ca55.css">
+        <link rel="stylesheet" href="../css/chrome-fc474251.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../custom-aab4aca2.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-ea348324.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-4ace9b61.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Volume 1: Core Java</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="chapter-5-jvm-internals"><a class="header" href="#chapter-5-jvm-internals">Chapter 5: JVM Internals</a></h1>
+<p><strong>Target Audience:</strong> Java SDE2 candidates (2–5 years experience)<br><strong>Baseline:</strong> Java 17 LTS<br><strong>Companies:</strong> Amazon, Google, Goldman Sachs, Morgan Stanley, Stripe, Uber, Netflix, Atlassian, JPMorgan</p>
+<hr>
+<h2 id="table-of-contents"><a class="header" href="#table-of-contents">Table of Contents</a></h2>
+<ol>
+<li><a href="#1-jvm-memory-architecture">JVM Memory Architecture</a></li>
+<li><a href="#2-garbage-collection">Garbage Collection</a></li>
+<li><a href="#3-class-loading">Class Loading</a></li>
+<li><a href="#4-jit-compiler">JIT Compiler</a></li>
+<li><a href="#5-practical-diagnostics">Practical Diagnostics</a></li>
+<li><a href="#6-jvm-memory-cheat-sheet">JVM Memory Cheat Sheet</a></li>
+</ol>
+<hr>
+<h2 id="1-jvm-memory-architecture"><a class="header" href="#1-jvm-memory-architecture">1. JVM Memory Architecture</a></h2>
+<hr>
+<h3 id="q1-describe-all-jvm-memory-areas-and-what-each-one-stores"><a class="header" href="#q1-describe-all-jvm-memory-areas-and-what-each-one-stores">Q1. Describe all JVM memory areas and what each one stores.</a></h3>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> Very High<br><strong>Companies:</strong> Amazon, Google, Goldman Sachs, Morgan Stanley, JPMorgan, Atlassian, Stripe</p>
+<hr>
+<p><img src="https://upload.wikimedia.org/wikipedia/commons/3/3a/Java_virtual_machine_architecture.svg" alt="Java Virtual Machine Architecture">
+<em>JVM Architecture — Class Loader, Runtime Data Areas (Heap, Stack, Method Area), and Execution Engine</em></p>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>The JVM divides memory into several runtime data areas. The <strong>Heap</strong> stores all object instances and is shared across threads. The <strong>Stack</strong> stores method frames (local variables, operand stack) and is thread-local. <strong>Metaspace</strong> stores class metadata and method bytecode, living in native memory. The <strong>Code Cache</strong> stores JIT-compiled native code. The <strong>Native Method Stack</strong> supports JNI calls. The <strong>PC Register</strong> holds the current bytecode instruction pointer and is thread-local.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p>The JVM specification defines six runtime data areas:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Memory Area</th><th>Stored Content</th><th>Thread Scope</th><th>Managed By</th></tr>
+</thead>
+<tbody>
+<tr><td>Heap</td><td>Object instances, arrays</td><td>Shared</td><td>GC</td></tr>
+<tr><td>JVM Stack</td><td>Method frames, local vars, operand stack</td><td>Thread-local</td><td>JVM (auto-pop on return)</td></tr>
+<tr><td>Metaspace</td><td>Class metadata, method bytecode, constant pool</td><td>Shared</td><td>JVM + OS</td></tr>
+<tr><td>Code Cache</td><td>JIT-compiled native code</td><td>Shared</td><td>JIT compiler</td></tr>
+<tr><td>Native Method Stack</td><td>Native (C/C++) method frames</td><td>Thread-local</td><td>OS</td></tr>
+<tr><td>PC Register</td><td>Current bytecode instruction address</td><td>Thread-local</td><td>JVM</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Heap</strong> is the primary GC-managed region. Every <code>new</code> keyword allocates on the heap (unless escape analysis moves it to the stack). Shared across all threads, requiring synchronization and GC to manage lifecycle.</p>
+<p><strong>JVM Stack</strong> is created per thread at thread creation. Each method invocation pushes a <strong>stack frame</strong> containing:</p>
+<ul>
+<li>Local variable array (index 0 = <code>this</code> for instance methods)</li>
+<li>Operand stack (values pushed/popped during bytecode execution)</li>
+<li>Frame data (reference to constant pool, return address)</li>
+</ul>
+<p>Frames are LIFO — the current frame is always on top. When a method returns, its frame is popped. <code>StackOverflowError</code> occurs when the stack exceeds its maximum depth (<code>-Xss</code> flag).</p>
+<p><strong>Metaspace</strong> (introduced Java 8, replaced PermGen) lives in <strong>native memory</strong> outside the JVM heap. It stores:</p>
+<ul>
+<li>Class structures (field names, method signatures, bytecode)</li>
+<li>Runtime constant pool</li>
+<li>Static variable references (note: static variable <em>values</em> moved to heap in Java 8+)</li>
+<li>Method bytecode</li>
+</ul>
+<p>Unlike PermGen, Metaspace grows dynamically. Without <code>-XX:MaxMetaspaceSize</code>, it can grow until native memory exhaustion.</p>
+<p><strong>Code Cache</strong> is a memory region storing native machine code produced by the JIT compiler. Managed by the JVM’s code cache manager with eviction when full.</p>
+<hr>
+<p><strong>Real-World Backend Example</strong></p>
+<p>In a Spring Boot microservice handling 10,000 concurrent requests, each request thread allocates a JVM stack. At default <code>-Xss512k</code> per thread, 10,000 threads consume ~5 GB in stack memory alone. This is why modern services prefer async/reactive models (Project Reactor, Virtual Threads in Java 21) over traditional thread-per-request.</p>
+<hr>
+<p><strong>Java 17 Code Example</strong></p>
+<pre><code class="language-java">public class MemoryAreaDemo {
+
+    // Static field reference lives in Metaspace class structure;
+    // the object it points to lives on the Heap
+    private static final List&lt;String&gt; CACHE = new ArrayList&lt;&gt;();
+
+    public void processRequest(String data) {
+        // 'data' reference is in stack frame local variable array
+        // The String object is on the heap
+        String processed = data.toUpperCase(); // new String object on heap
+        CACHE.add(processed);                  // reference added to heap object
+    }
+
+    // Recursive method — each call pushes a new frame onto thread stack
+    public int factorial(int n) {
+        if (n &lt;= 1) return 1;
+        return n * factorial(n - 1); // deep recursion → StackOverflowError
+    }
+}
+</code></pre>
+<hr>
+<p><strong>Follow-Up Questions</strong></p>
+<ul>
+<li>Where are static variables stored in Java 8 vs Java 7?</li>
+<li>What happens when Metaspace fills up?</li>
+<li>How does the PC Register handle native methods?</li>
+<li>Can two threads share a stack frame?</li>
+</ul>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li>Saying static variables are in PermGen/Metaspace — static <em>references</em> are in class structures in Metaspace; the actual object is on the heap (Java 8+).</li>
+<li>Confusing Code Cache with Metaspace — bytecode is in Metaspace; compiled native code is in Code Cache.</li>
+<li>Saying stack memory is garbage collected — it is not; frames are automatically reclaimed on method return.</li>
+</ul>
+<hr>
+<p><strong>Interview Traps</strong></p>
+<ul>
+<li>“Where are String literals stored?” — In the String Pool, which is on the heap in Java 7+ (was PermGen in Java 6).</li>
+<li>“Is the heap always contiguous?” — No. G1 divides it into non-contiguous regions.</li>
+<li>“What does the PC Register hold for native methods?” — It is undefined (set to <code>undefined</code>/<code>null</code>) for native method execution.</li>
+</ul>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>Heap = objects (GC-managed, thread-shared). Stack = method frames (thread-local, auto-managed).</li>
+<li>Metaspace = class metadata in native memory; grows dynamically, no fixed max by default.</li>
+<li>Code Cache = JIT native output. PC Register = instruction pointer, thread-local.</li>
+<li>Static variable <em>values</em> are on the heap (Java 8+), not in Metaspace.</li>
+</ul>
+<hr>
+<h3 id="q2-explain-heap-structure--generations-eden-survivor-spaces-and-object-promotion"><a class="header" href="#q2-explain-heap-structure--generations-eden-survivor-spaces-and-object-promotion">Q2. Explain Heap structure — generations, Eden, Survivor spaces, and object promotion.</a></h3>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> Very High<br><strong>Companies:</strong> Amazon, Google, Goldman Sachs, Netflix, Stripe, Uber</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>The JVM heap is split into Young Generation and Old Generation. Young Generation contains Eden space and two Survivor spaces (S0 and S1). New objects are allocated in Eden. When Eden fills, a Minor GC runs — live objects move to a Survivor space. Objects that survive multiple GC cycles are promoted to Old Generation. This design exploits the generational hypothesis: most objects die young, making young-gen collection fast and cheap.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p><strong>Generational Hypothesis:</strong> Empirical observation that the vast majority of objects become unreachable very quickly after allocation (request-scoped objects, temporary strings, iterators). GC can exploit this by collecting the young generation frequently with low overhead instead of scanning the entire heap.</p>
+<p><strong>Heap Regions:</strong></p>
+<pre><code>Young Generation                          Old Generation
++------------------+--------+--------+   +---------------------------+
+|      Eden        |   S0   |   S1   |   |   Tenured / Old Gen       |
+|  (new objects)   |(from)  | (to)   |   |  (long-lived objects)     |
++------------------+--------+--------+   +---------------------------+
+</code></pre>
+<p><strong>Object Lifecycle:</strong></p>
+<ol>
+<li>New objects allocated in <strong>Eden</strong> (fast — just a pointer bump).</li>
+<li>Eden fills → <strong>Minor GC</strong> triggered.</li>
+<li>Live objects (reachable from GC roots) copied to <strong>empty Survivor space</strong> (e.g., S1). Dead objects discarded.</li>
+<li>S0 (previously used) live objects also copied to S1. S0 is now empty.</li>
+<li>Object’s age counter incremented. When age reaches <strong>tenuring threshold</strong> (<code>-XX:MaxTenuringThreshold</code>, default 15), object is promoted to <strong>Old Generation</strong>.</li>
+<li>Old Generation fills → <strong>Major GC</strong> or <strong>Full GC</strong> triggered.</li>
+</ol>
+<p><strong>Why two Survivor spaces?</strong> To avoid fragmentation. After each Minor GC, one Survivor space is always empty (the “to” space). Live objects are compacted into it by copying. This eliminates fragmentation in the young generation entirely — Eden and the active Survivor are always contiguous free space.</p>
+<p><strong>Humongous Allocations (G1 GC):</strong> Objects larger than 50% of a G1 region size bypass Young Generation entirely and go directly to special Humongous regions in Old Generation.</p>
+<hr>
+<p><strong>Real-World Backend Example</strong></p>
+<p>A REST API that processes 5,000 requests/second creates and discards thousands of DTO objects, HttpServletRequest wrappers, Jackson parse trees, and StringBuilder instances per second. These are all short-lived. With proper heap sizing, nearly all of them die in Eden and are collected by frequent, fast Minor GCs (typically 5–50ms), never polluting Old Generation. Poorly tuned applications with large Eden cause infrequent but very long Minor GCs.</p>
+<hr>
+<p><strong>Java 17 Code Example</strong></p>
+<pre><code class="language-java">// JVM flags to observe generation behavior:
+// -Xms512m -Xmx512m -XX:+UseG1GC -Xlog:gc*:stdout:time
+
+public class GenerationDemo {
+
+    public static void main(String[] args) throws InterruptedException {
+        List&lt;byte[]&gt; longLived = new ArrayList&lt;&gt;();
+
+        for (int i = 0; i &lt; 1000; i++) {
+            // Short-lived: dies in Eden/Survivor
+            byte[] shortLived = new byte[1024];
+            processData(shortLived);
+
+            // Long-lived: survives many GC cycles, promoted to Old Gen
+            if (i % 100 == 0) {
+                longLived.add(new byte[10240]);
+            }
+
+            Thread.sleep(1); // allow GC to run
+        }
+    }
+
+    private static void processData(byte[] data) {
+        // data reference goes out of scope here → eligible for GC
+    }
+}
+</code></pre>
+<p><strong>Observation flags:</strong></p>
+<pre><code class="language-bash">-Xms256m -Xmx256m -XX:+UseG1GC -Xlog:gc*:file=gc.log:time,uptime,level,tags
+</code></pre>
+<hr>
+<p><strong>Follow-Up Questions</strong></p>
+<ul>
+<li>What is <code>-XX:NewRatio</code> and <code>-XX:SurvivorRatio</code>?</li>
+<li>What happens when an object is too large to fit in Eden?</li>
+<li>How does G1 GC differ from this classic generational layout?</li>
+<li>What is premature promotion and why is it bad?</li>
+</ul>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li>Saying GC moves objects from Old Gen back to Young Gen — promotion is one-way.</li>
+<li>Confusing S0/S1 roles — they alternate “from” and “to” roles each Minor GC.</li>
+<li>Not knowing that G1 GC still has logical generations but uses a region-based physical layout.</li>
+</ul>
+<hr>
+<p><strong>Interview Traps</strong></p>
+<ul>
+<li>“What is premature promotion?” — When the Survivor space is too small to hold all survivors from a Minor GC, objects are promoted to Old Gen earlier than their age threshold, polluting Old Gen with short-lived objects.</li>
+<li>“What is <code>-XX:MaxTenuringThreshold=0</code> for?” — Forces all objects surviving one Minor GC to immediately be promoted to Old Gen; used when Old Gen is large and young gen is small.</li>
+</ul>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>Eden → Minor GC → Survivor(s) → Old Gen (after tenuring threshold).</li>
+<li>Two Survivor spaces eliminate fragmentation via copy-collection.</li>
+<li>Generational hypothesis: most objects die young.</li>
+<li>Premature promotion = Survivor too small → objects go to Old Gen too early.</li>
+</ul>
+<hr>
+<h3 id="q3-how-does-stack-memory-work-what-causes-stackoverflowerror"><a class="header" href="#q3-how-does-stack-memory-work-what-causes-stackoverflowerror">Q3. How does Stack memory work? What causes StackOverflowError?</a></h3>
+<p><strong>Difficulty:</strong> Easy | <strong>Interview Frequency:</strong> High<br><strong>Companies:</strong> Amazon, Google, Atlassian, Stripe</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>Each thread has its own JVM stack. Every method call pushes a frame containing local variables, the operand stack, and the return address. Frames are popped on method return. <code>StackOverflowError</code> occurs when recursive calls push more frames than the stack can hold. Stack size is configured per thread with <code>-Xss</code>.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p><strong>Stack Frame Contents:</strong></p>
+<pre><code>Stack Frame
++-----------------------+
+| Local Variable Array  |  Index 0 = 'this' (instance methods)
+|   [this, a, b, c...]  |  Primitive values stored directly; objects store references
++-----------------------+
+| Operand Stack         |  Working area for bytecode instructions
+|   [val1, val2...]     |  JVM is a stack machine; ADD pops 2, pushes result
++-----------------------+
+| Frame Data            |  Reference to constant pool, exception table, return address
++-----------------------+
+</code></pre>
+<p><strong>LIFO structure:</strong> The current executing method’s frame is always at the top. When <code>methodA</code> calls <code>methodB</code>, <code>methodB</code>’s frame is pushed on top. When <code>methodB</code> returns, its frame is popped and execution resumes in <code>methodA</code>’s frame.</p>
+<p><strong>StackOverflowError:</strong> Java’s stack size per thread defaults to 512KB–1MB depending on the OS and JVM. Each frame consumes space proportional to the number of local variables. Deep recursion — especially with many local variables — exhausts the stack.</p>
+<p><strong>Why is stack thread-local?</strong> Each thread has an independent execution path. Sharing stacks between threads would require complex synchronization for every local variable access, defeating the purpose of thread isolation.</p>
+<hr>
+<p><strong>Real-World Backend Example</strong></p>
+<p>A recursive JSON parser processing deeply nested payloads (e.g., 500+ nesting levels) can cause <code>StackOverflowError</code> under load. Fix: convert recursion to iteration using an explicit <code>Deque&lt;Node&gt;</code> stack on the heap, or increase <code>-Xss</code> per thread (note: increasing <code>-Xss</code> multiplied by thread count increases total memory consumption).</p>
+<hr>
+<p><strong>Java 17 Code Example</strong></p>
+<pre><code class="language-java">public class StackDemo {
+
+    // Causes StackOverflowError for large n
+    public static int recursiveSum(int n) {
+        if (n == 0) return 0;
+        return n + recursiveSum(n - 1); // each call: new frame with 'n' local var
+    }
+
+    // Iterative equivalent — uses O(1) stack space
+    public static int iterativeSum(int n) {
+        int result = 0;
+        while (n &gt; 0) result += n--;
+        return result;
+    }
+
+    // Tail-recursive (JVM does NOT optimize tail calls unlike Scala/Kotlin)
+    public static int tailRecursive(int n, int acc) {
+        if (n == 0) return acc;
+        return tailRecursive(n - 1, acc + n); // JVM still pushes a new frame here
+    }
+
+    public static void main(String[] args) {
+        try {
+            System.out.println(recursiveSum(100_000)); // StackOverflowError
+        } catch (StackOverflowError e) {
+            System.out.println("Stack exhausted: " + e);
+        }
+        System.out.println(iterativeSum(100_000)); // works fine
+    }
+}
+</code></pre>
+<hr>
+<p><strong>Follow-Up Questions</strong></p>
+<ul>
+<li>Does Java optimize tail recursion?</li>
+<li>How does increasing <code>-Xss</code> affect total memory with 1,000 threads?</li>
+<li>What is the difference between <code>StackOverflowError</code> and <code>OutOfMemoryError: unable to create native thread</code>?</li>
+</ul>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li>Assuming Java performs tail-call optimization — it does not. The JVM spec does not mandate it.</li>
+<li>Forgetting that <code>StackOverflowError</code> is a <code>java.lang.Error</code>, not an <code>Exception</code>, but it can be caught.</li>
+</ul>
+<hr>
+<p><strong>Interview Traps</strong></p>
+<ul>
+<li>“Can you catch <code>StackOverflowError</code>?” — Yes, it is an <code>Error</code> but is <code>Throwable</code> and can be caught with <code>catch (StackOverflowError e)</code>. However, catching it is almost never the right solution.</li>
+<li>“What does <code>-Xss256k</code> with 10,000 threads cost?” — 10,000 × 256KB = ~2.5 GB in stack memory alone.</li>
+</ul>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>Stack = LIFO, thread-local, one frame per method call.</li>
+<li>Frame = local variables + operand stack + frame data.</li>
+<li><code>StackOverflowError</code> = too deep recursion (or <code>-Xss</code> too small).</li>
+<li>Java does NOT optimize tail recursion.</li>
+</ul>
+<hr>
+<h3 id="q4-what-is-metaspace-how-does-it-differ-from-the-heap"><a class="header" href="#q4-what-is-metaspace-how-does-it-differ-from-the-heap">Q4. What is Metaspace? How does it differ from the heap?</a></h3>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> High<br><strong>Companies:</strong> Goldman Sachs, Morgan Stanley, Amazon, Atlassian</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>Metaspace stores class metadata — class structures, method bytecode, and the runtime constant pool — in native memory (outside the JVM heap). It replaced PermGen in Java 8. Unlike PermGen, Metaspace grows dynamically up to the available native memory unless capped with <code>-XX:MaxMetaspaceSize</code>. It is not collected by the heap GC; class metadata is reclaimed only when a classloader is garbage collected.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p><strong>What Metaspace contains:</strong></p>
+<ul>
+<li><code>Klass</code> structures (JVM’s internal class representation)</li>
+<li>Method bytecode and metadata</li>
+<li>Runtime constant pool entries</li>
+<li>Annotations</li>
+<li>Static field <em>references</em> (the <code>Class</code> object itself is on the heap; static values are in the heap-resident <code>Class</code> object’s mirror)</li>
+</ul>
+<p><strong>Key behavior differences from heap:</strong></p>
+<ul>
+<li>Allocated from native memory (OS directly), not the JVM heap.</li>
+<li>Not compacted by GC; reclaimed wholesale when a <code>ClassLoader</code> becomes unreachable.</li>
+<li>Default max = unlimited (bounded only by available native memory).</li>
+<li><code>-XX:MetaspaceSize</code> sets the initial committed size (triggers first GC of dead classloaders when reached, not the cap).</li>
+<li><code>-XX:MaxMetaspaceSize</code> sets the hard cap; exceeding it throws <code>OutOfMemoryError: Metaspace</code>.</li>
+</ul>
+<p><strong>When does Metaspace grow?</strong></p>
+<ul>
+<li>Loading more classes (each loaded class consumes metadata space).</li>
+<li>Dynamic class generation (reflection proxies, CGLIB proxies in Spring, Hibernate enhancement, lambda desugaring creates synthetic classes).</li>
+<li>Each web application classloader in an application server loads its own copy of framework classes.</li>
+</ul>
+<hr>
+<p><strong>Real-World Backend Example</strong></p>
+<p>A Spring Boot application heavily using CGLIB (proxies for <code>@Transactional</code>, <code>@Cacheable</code>, AOP aspects) generates synthetic subclasses at startup. Without <code>-XX:MaxMetaspaceSize</code>, Metaspace can grow to 500MB+ in large enterprise applications. In Kubernetes, this native memory is outside the JVM heap and can push container memory beyond the configured limit, causing OOM kills. Proper tuning requires setting both <code>-Xmx</code> (heap cap) and <code>-XX:MaxMetaspaceSize</code>.</p>
+<hr>
+<p><strong>Follow-Up Questions</strong></p>
+<ul>
+<li>What causes <code>OutOfMemoryError: Metaspace</code> in production?</li>
+<li>How do Spring/Hibernate contribute to Metaspace usage?</li>
+<li>What is <code>-XX:MetaspaceSize</code> vs <code>-XX:MaxMetaspaceSize</code>?</li>
+</ul>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li>Saying <code>-XX:MetaspaceSize</code> is the cap — it is the initial trigger size, not the maximum.</li>
+<li>Forgetting that Metaspace is native memory — not counted in <code>-Xmx</code>.</li>
+</ul>
+<hr>
+<p><strong>Interview Traps</strong></p>
+<ul>
+<li>“Can Metaspace be garbage collected?” — Indirectly, yes: when a classloader becomes unreachable, the GC collects it and then Metaspace reclaims all metadata associated with that classloader.</li>
+<li>“Where does <code>-XX:MaxMetaspaceSize</code> fit in container memory sizing?” — It must be added to <code>-Xmx</code> and other native memory uses (Code Cache, thread stacks) when computing total container memory.</li>
+</ul>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>Metaspace = class metadata in native memory. Not on heap. No fixed default cap.</li>
+<li><code>-XX:MaxMetaspaceSize</code> = hard cap. <code>-XX:MetaspaceSize</code> = initial trigger for first classloader GC.</li>
+<li><code>OutOfMemoryError: Metaspace</code> → too many classes loaded, classloader leaks, excessive proxying.</li>
+<li>CGLIB, ASM, Groovy scripts, and JSPs all generate classes dynamically.</li>
+</ul>
+<hr>
+<h3 id="q5-permgen-vs-metaspace--why-was-permgen-removed"><a class="header" href="#q5-permgen-vs-metaspace--why-was-permgen-removed">Q5. PermGen vs Metaspace — why was PermGen removed?</a></h3>
+<p><strong>Difficulty:</strong> Easy | <strong>Interview Frequency:</strong> Medium<br><strong>Companies:</strong> Goldman Sachs, JPMorgan, legacy enterprise shops</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>PermGen was the pre-Java-8 area for class metadata. It had a fixed maximum size (<code>-XX:MaxPermSize</code>, default 64–256MB), causing <code>OutOfMemoryError: PermGen space</code> in applications with many classes. Java 8 removed it and replaced it with Metaspace in native memory. Metaspace grows dynamically, eliminating the fixed-size problem and simplifying JVM memory management.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p><strong>PermGen limitations:</strong></p>
+<ul>
+<li>Fixed maximum: <code>-XX:MaxPermSize</code> (default 64MB, often tuned to 256MB). Hard to size correctly across environments.</li>
+<li>Collected using full GC — PermGen collection required a full STW pause.</li>
+<li>Storing <code>java.lang.String</code> interned strings in PermGen caused leaks in applications with heavy string interning.</li>
+<li>Classloader leaks in application servers (e.g., Tomcat hot-redeploy) caused <code>OutOfMemoryError: PermGen space</code> over time as old class metadata was not fully reclaimed.</li>
+</ul>
+<p><strong>Metaspace advantages:</strong></p>
+<ul>
+<li>Lives in native memory → OS manages growth dynamically.</li>
+<li>No fixed default cap — eliminates the most common PermGen sizing mistake.</li>
+<li>String interning moved to heap (String Pool on heap since Java 7, completed in Java 8).</li>
+<li>Classloader metadata reclamation more reliable.</li>
+<li>Per-classloader allocation improves reclamation granularity.</li>
+</ul>
+<p><strong>Migration impact:</strong></p>
+<ul>
+<li><code>-XX:MaxPermSize</code> and <code>-XX:PermSize</code> are silently ignored in Java 8+.</li>
+<li><code>-XX:MetaspaceSize</code> and <code>-XX:MaxMetaspaceSize</code> are the replacements.</li>
+<li>Java 8 migration fix for <code>OutOfMemoryError: PermGen</code>: remove <code>-XX:MaxPermSize</code> and optionally add <code>-XX:MaxMetaspaceSize</code>.</li>
+</ul>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>PermGen: fixed max, collected in full GC, removed in Java 8.</li>
+<li>Metaspace: native memory, dynamic growth, no default cap.</li>
+<li><code>-XX:MaxPermSize</code> ignored in Java 8+; use <code>-XX:MaxMetaspaceSize</code> instead.</li>
+<li>String pool moved to heap in Java 7; interned strings no longer in PermGen.</li>
+</ul>
+<hr>
+<h2 id="2-garbage-collection"><a class="header" href="#2-garbage-collection">2. Garbage Collection</a></h2>
+<hr>
+<h3 id="q6-explain-gc-fundamentals--mark-and-sweep-gc-roots-and-stop-the-world-pauses"><a class="header" href="#q6-explain-gc-fundamentals--mark-and-sweep-gc-roots-and-stop-the-world-pauses">Q6. Explain GC fundamentals — mark-and-sweep, GC roots, and Stop-The-World pauses.</a></h3>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> Very High<br><strong>Companies:</strong> Amazon, Google, Goldman Sachs, Netflix, Stripe, Uber, Atlassian</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>Garbage collection identifies unreachable objects and reclaims their memory. The JVM uses reachability: starting from GC roots — thread stack references, static variables, JNI references — it marks all reachable objects. Everything unmarked is garbage. Stop-The-World (STW) pauses halt all application threads to ensure a consistent heap snapshot. Long STW pauses increase latency and are the primary GC tuning concern for latency-sensitive systems.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p><strong>Reachability vs. Reference Counting:</strong>
+Java uses reachability analysis, not reference counting. This correctly handles circular references (two objects referencing each other with no external reference are both unreachable and collectible).</p>
+<p><strong>GC Roots — the starting points of reachability:</strong></p>
+<ol>
+<li>Local variables and method parameters in active thread stacks</li>
+<li>Active Java threads themselves</li>
+<li>Static fields of loaded classes (references in class structures)</li>
+<li>JNI (Java Native Interface) global and local references</li>
+<li>References held by synchronized monitors</li>
+<li>Class objects of loaded classes (held by classloaders)</li>
+<li>Interned String objects</li>
+</ol>
+<p><strong>Mark-and-Sweep phases:</strong></p>
+<ol>
+<li><strong>Mark phase:</strong> Traverse the object graph from all GC roots, marking every reachable object. Requires heap traversal — cost proportional to live object count.</li>
+<li><strong>Sweep phase:</strong> Scan the entire heap; reclaim unmarked (unreachable) objects. Returns memory to free lists.</li>
+<li><strong>Compact phase (optional):</strong> Move live objects together to eliminate fragmentation. Expensive but allows fast bump-pointer allocation.</li>
+</ol>
+<p><strong>Stop-The-World (STW) pause:</strong>
+During marking, the heap graph must remain consistent — no threads can mutate references. STW pauses all application threads until GC completes the critical phase. Even 100ms STW on a 10,000 RPS service can cause 1,000 requests to see elevated latency in that window.</p>
+<p><strong>Why STW matters for latency-sensitive systems:</strong>
+A trading system processing FX orders must respond in &lt;1ms. A 200ms STW GC pause causes order rejections, slippage, and regulatory risk. This drives adoption of ZGC, Shenandoah, or hardware over-provisioning strategies.</p>
+<hr>
+<p><strong>Real-World Backend Example</strong></p>
+<p>A fintech payment gateway running on Parallel GC experienced 2-second full GC pauses during peak load (month-end batch + API traffic). Every pause caused HTTP timeouts visible to upstream callers. Solution: migrate to G1 GC with <code>-XX:MaxGCPauseMillis=200</code>, properly size generations to avoid full GCs, and add <code>-XX:+HeapDumpOnOutOfMemoryError</code> for diagnostics.</p>
+<hr>
+<p><strong>Java 17 Code Example</strong></p>
+<pre><code class="language-java">// Demonstrating strong vs weak references and GC behavior
+import java.lang.ref.*;
+
+public class GCRootsDemo {
+
+    static Object staticRoot = new Object(); // GC root: static field
+
+    public void demonstrate() {
+        Object strongRef = new Object();     // GC root: stack local variable
+        WeakReference&lt;Object&gt; weakRef = new WeakReference&lt;&gt;(new Object());
+        SoftReference&lt;byte[]&gt; cache = new SoftReference&lt;&gt;(new byte[1024 * 1024]);
+
+        // Force GC (for demonstration only — never in production)
+        System.gc();
+
+        // strongRef: still reachable, NOT collected
+        // weakRef.get(): likely null — object has no strong reference, collected
+        // cache.get(): may survive if heap has space (JVM tries to keep soft refs)
+        System.out.println("Weak ref after GC: " + weakRef.get());
+        System.out.println("Soft ref after GC: " + (cache.get() != null ? "alive" : "collected"));
+    }
+}
+</code></pre>
+<hr>
+<p><strong>Follow-Up Questions</strong></p>
+<ul>
+<li>What is the difference between <code>WeakReference</code>, <code>SoftReference</code>, and <code>PhantomReference</code>?</li>
+<li>Can circular references be collected in Java?</li>
+<li>What are write barriers and why do concurrent GCs need them?</li>
+</ul>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li>Saying <code>System.gc()</code> guarantees immediate collection — it is only a hint; the JVM may ignore it.</li>
+<li>Thinking static fields are always GC roots — they are roots only for classes that are currently loaded. If a classloader is unreachable, its static fields become unreachable too.</li>
+</ul>
+<hr>
+<p><strong>Interview Traps</strong></p>
+<ul>
+<li>“What happens to finalizers during GC?” — Objects with <code>finalize()</code> methods are not immediately reclaimed. They are added to the finalizer queue and finalized asynchronously. This delays reclamation and can cause memory pressure. <code>Cleaner</code> (Java 9+) is the modern replacement.</li>
+<li>“What are write barriers?” — Instrumentation inserted by the JVM around reference writes to keep GC data structures (like remembered sets) consistent during concurrent collection without STW.</li>
+</ul>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>Reachability analysis from GC roots (stacks, statics, JNI). Circular refs are collectible.</li>
+<li>Mark → Sweep → (optional) Compact.</li>
+<li>STW: all threads paused during critical GC phases.</li>
+<li>Long STW pauses = high tail latency. Concurrent GCs (G1, ZGC) minimize STW.</li>
+</ul>
+<hr>
+<h3 id="q7-minor-gc-vs-major-gc-vs-full-gc--triggers-affected-regions-stw-implications"><a class="header" href="#q7-minor-gc-vs-major-gc-vs-full-gc--triggers-affected-regions-stw-implications">Q7. Minor GC vs Major GC vs Full GC — triggers, affected regions, STW implications.</a></h3>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> Very High<br><strong>Companies:</strong> Amazon, Goldman Sachs, Netflix, Uber</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>Minor GC collects the Young Generation when Eden fills up. It is fast (milliseconds) but is STW. Major GC collects the Old Generation — slower and longer STW. Full GC collects the entire heap (Young + Old + Metaspace) and is the most disruptive. Full GC is triggered when Old Gen fills up, explicit <code>System.gc()</code> is called, or certain GC failure conditions occur.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>GC Type</th><th>Region Collected</th><th>Typical Trigger</th><th>STW Duration</th><th>Frequency</th></tr>
+</thead>
+<tbody>
+<tr><td>Minor GC</td><td>Young Generation only</td><td>Eden full</td><td>5–50ms</td><td>Very frequent</td></tr>
+<tr><td>Major GC</td><td>Old Generation</td><td>Old Gen filling up</td><td>100ms–several seconds</td><td>Less frequent</td></tr>
+<tr><td>Full GC</td><td>Entire heap + Metaspace</td><td>Old Gen full, <code>System.gc()</code>, promotion failure</td><td>1–10+ seconds</td><td>Should be rare</td></tr>
+<tr><td>Mixed GC (G1)</td><td>Young + some Old regions</td><td>G1 internal triggers</td><td>Configurable</td><td>Moderate</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Minor GC details:</strong></p>
+<ul>
+<li>Triggered when Eden space is exhausted.</li>
+<li>Collects only Young Generation (Eden + Survivor spaces).</li>
+<li>Uses copying algorithm: live objects copied to empty Survivor space.</li>
+<li>Fast because: small region, young objects mostly dead, copying only live objects.</li>
+<li>STW, but brief.</li>
+</ul>
+<p><strong>Major GC details:</strong></p>
+<ul>
+<li>Collects Old Generation.</li>
+<li>Slower because Old Gen is larger, objects mostly live (survived many collections).</li>
+<li>Compaction required to prevent fragmentation (in most collectors).</li>
+<li>May be triggered concurrently (G1, CMS) to reduce pause time.</li>
+</ul>
+<p><strong>Full GC details:</strong></p>
+<ul>
+<li>Collects the entire heap and Metaspace.</li>
+<li>Most disruptive GC event.</li>
+<li>Triggers:
+<ul>
+<li>Old Generation exhausted</li>
+<li>Metaspace exhausted (if capped)</li>
+<li><code>System.gc()</code> or <code>Runtime.gc()</code> called</li>
+<li>Allocation failure after promotion failure</li>
+<li>JVM internal decisions (e.g., CMS concurrent mode failure)</li>
+</ul>
+</li>
+<li>With Parallel GC: single long STW pause.</li>
+<li>With G1: fallback to serial Full GC if concurrent marking falls behind.</li>
+</ul>
+<p><strong>Promotion failure:</strong> If Old Gen has insufficient space to receive objects being promoted from Young Gen, a Full GC is triggered. This is a common cause of unexpected Full GCs in production.</p>
+<hr>
+<p><strong>Real-World Backend Example</strong></p>
+<p>A recommendation engine service had frequent Full GCs (every 2–3 minutes). Investigation with <code>-Xlog:gc*</code> revealed: Minor GC every 100ms promoting large byte array caches to Old Gen (premature promotion due to undersized Survivor spaces). Old Gen filled in 3 minutes, triggering Full GC. Fix: increase <code>-Xmn</code> (Young Gen size), increase <code>-XX:SurvivorRatio</code> to reduce premature promotion, and cache byte arrays in off-heap storage (Chronicle Map or direct ByteBuffer).</p>
+<hr>
+<p><strong>Follow-Up Questions</strong></p>
+<ul>
+<li>What is promotion failure and how do you prevent it?</li>
+<li>Why should you avoid calling <code>System.gc()</code> in production code?</li>
+<li>How does G1’s Mixed GC differ from a traditional Major GC?</li>
+</ul>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>Minor GC = Young Gen, fast, frequent. Major GC = Old Gen, slower. Full GC = everything, most expensive.</li>
+<li>Full GC should be rare in a well-tuned application.</li>
+<li>Promotion failure (Old Gen full during Minor GC) triggers Full GC.</li>
+<li>G1 uses Mixed GC (Young + selected Old regions) to avoid full Old Gen collections.</li>
+</ul>
+<hr>
+<h3 id="q8-serial-gc--what-it-is-and-when-to-use-it"><a class="header" href="#q8-serial-gc--what-it-is-and-when-to-use-it">Q8. Serial GC — what it is and when to use it.</a></h3>
+<p><strong>Difficulty:</strong> Easy | <strong>Interview Frequency:</strong> Low<br><strong>Companies:</strong> Embedded/IoT, CLI tool interviews</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>Serial GC uses a single thread for both Minor and Major GC, fully stop-the-world. Enable with <code>-XX:+UseSerialGC</code>. It is appropriate for small heaps (&lt;1GB), single-CPU environments, or batch processes where throughput matters and pause time does not. Not suitable for interactive or latency-sensitive server applications.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p>Serial GC is the simplest collector. It halts all application threads and runs GC on a single thread. This eliminates synchronization overhead between GC threads, making it efficient for small heaps. On a single-core system, it is actually competitive with parallel collectors because there are no cores to parallelize across.</p>
+<p><strong>Use cases:</strong></p>
+<ul>
+<li>Microservices with very small heaps (e.g., AWS Lambda, CLI utilities)</li>
+<li>Batch processing jobs where throughput &gt; latency</li>
+<li>JVM containers with 1 CPU core allocation (Kubernetes CPU limit = 0.5 cores)</li>
+<li>Java 17+ on small containers (JVM now auto-detects container CPU/memory limits)</li>
+</ul>
+<p><strong>JVM auto-selection:</strong> In Java 17, the JVM selects Serial GC automatically on machines detected as “server” class (2+ CPUs, 2GB+ RAM) using heuristics, but for containers under resource limits it may still select Serial GC.</p>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>Single-threaded, full STW. Enable: <code>-XX:+UseSerialGC</code>.</li>
+<li>Appropriate for small heaps, single-CPU, batch jobs.</li>
+<li>Never use for multi-threaded server applications with latency requirements.</li>
+</ul>
+<hr>
+<h3 id="q9-parallel-gc--throughput-focused-multi-threaded"><a class="header" href="#q9-parallel-gc--throughput-focused-multi-threaded">Q9. Parallel GC — throughput-focused, multi-threaded.</a></h3>
+<p><strong>Difficulty:</strong> Easy | <strong>Interview Frequency:</strong> Medium<br><strong>Companies:</strong> Amazon, batch processing system interviews</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>Parallel GC uses multiple threads for Young and Old Generation collection. It is the default in Java 8. It maximizes throughput (application time / (application time + GC time)) but does not minimize pause time — all collection phases are STW, just done in parallel. Enable with <code>-XX:+UseParallelGC</code>. Best for throughput-oriented workloads (batch ETL, analytics) tolerating longer GC pauses.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p>Parallel GC has two components:</p>
+<ul>
+<li><strong>Parallel Scavenge:</strong> Multi-threaded Minor GC in Young Gen.</li>
+<li><strong>Parallel Old:</strong> Multi-threaded Major GC in Old Gen (Java 7+).</li>
+</ul>
+<p>The number of GC threads defaults to the number of CPU cores (<code>-XX:ParallelGCThreads</code> to tune). Parallel GC can also auto-adjust heap sizes based on throughput/pause goals (<code>-XX:GCTimeRatio</code>, <code>-XX:MaxGCPauseMillis</code>) — this is called <strong>ergonomics</strong>.</p>
+<p><strong>Throughput goal:</strong> <code>-XX:GCTimeRatio=N</code> means the JVM targets GC consuming <code>1/(N+1)</code> of total time. Default N=99 means &lt;1% GC overhead target.</p>
+<p><strong>Limitations:</strong> All GC phases (both Minor and Major/Full) are fully STW. With large heaps (16GB+), Full GC pauses can be many seconds. This makes Parallel GC unsuitable for online, user-facing applications.</p>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>Multi-threaded, fully STW. Default in Java 8.</li>
+<li>Maximizes throughput. Does not minimize individual pause times.</li>
+<li>Use for batch processing. Avoid for latency-sensitive services.</li>
+<li><code>-XX:+UseParallelGC</code>, <code>-XX:ParallelGCThreads=N</code>.</li>
+</ul>
+<hr>
+<h3 id="q10-cms-concurrent-mark-sweep--deprecated-and-removed"><a class="header" href="#q10-cms-concurrent-mark-sweep--deprecated-and-removed">Q10. CMS (Concurrent Mark Sweep) — deprecated and removed.</a></h3>
+<p><strong>Difficulty:</strong> Easy | <strong>Interview Frequency:</strong> Low<br><strong>Companies:</strong> Legacy codebase / migration interviews</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>CMS was a mostly-concurrent collector for Old Generation, designed to reduce pause times by doing most marking work concurrently with application threads. It was deprecated in Java 9 and removed in Java 14. The key problem was heap fragmentation — CMS did not compact memory, leading to fragmentation over time and eventual <code>concurrent mode failure</code> (fallback to full STW compaction). G1 GC replaced CMS as the low-pause-time default.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p><strong>CMS collection phases:</strong></p>
+<ol>
+<li><strong>Initial Mark (STW):</strong> Mark objects directly reachable from GC roots.</li>
+<li><strong>Concurrent Mark:</strong> Traverse object graph concurrently with application threads.</li>
+<li><strong>Concurrent Preclean:</strong> Clean up changes from step 2 (concurrent).</li>
+<li><strong>Remark (STW):</strong> Final marking pass to catch mutations during concurrent mark.</li>
+<li><strong>Concurrent Sweep:</strong> Reclaim dead objects (concurrent, no compaction).</li>
+<li><strong>Concurrent Reset:</strong> Reset data structures.</li>
+</ol>
+<p><strong>Problems:</strong></p>
+<ul>
+<li><strong>No compaction:</strong> Free memory returned to free lists, causing fragmentation over time.</li>
+<li><strong>Concurrent mode failure:</strong> If Old Gen fills up while CMS is running (not keeping up with allocation rate), JVM falls back to Serial Full GC — a very long STW pause.</li>
+<li><strong>Floating garbage:</strong> Objects that become unreachable during concurrent mark are not collected until the next cycle.</li>
+<li><strong>CPU overhead:</strong> Concurrent phases consume CPU, reducing application throughput.</li>
+</ul>
+<p><strong>Modern alternative:</strong> G1 GC or ZGC. Never tune CMS in new systems; it is removed in Java 14.</p>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>CMS: mostly concurrent, no compaction. Deprecated Java 9, removed Java 14.</li>
+<li>Key problem: fragmentation + <code>concurrent mode failure</code> → STW fallback.</li>
+<li>Replaced by G1 GC. Never use in Java 14+.</li>
+</ul>
+<hr>
+<h3 id="q11-g1-gc--the-default-collector-since-java-9"><a class="header" href="#q11-g1-gc--the-default-collector-since-java-9">Q11. G1 GC — the default collector since Java 9.</a></h3>
+<p><strong>Difficulty:</strong> Hard | <strong>Interview Frequency:</strong> Very High<br><strong>Companies:</strong> Amazon, Google, Goldman Sachs, Netflix, Stripe, Uber, Morgan Stanley</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>G1 (Garbage First) GC divides the heap into equal-sized regions rather than contiguous generations. It targets predictable pause times via <code>-XX:MaxGCPauseMillis</code>. G1 uses concurrent marking to identify garbage density across regions, then collects the regions with the most garbage first — hence “Garbage First.” It is the default GC since Java 9 and handles heaps from 6GB to 100GB+ well.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p><strong>Region-based heap:</strong></p>
+<pre><code>Heap (e.g., 8GB, region size = 8MB = 1024 regions)
+[ E ][ E ][ E ][ S ][ O ][ O ][ H ][ H ][ E ][ O ][ E ][ S ]...
+  E=Eden  S=Survivor  O=Old  H=Humongous  (free regions not shown)
+</code></pre>
+<p>Each region is 1–32MB (JVM chooses size based on heap size, targeting ~2048 regions). Regions are dynamically assigned roles: Eden, Survivor, Old, or Humongous.</p>
+<p><strong>G1 Collection Cycle:</strong></p>
+<ol>
+<li>
+<p><strong>Young Collection (Minor GC, STW):</strong></p>
+<ul>
+<li>Evacuates Eden and Survivor regions.</li>
+<li>Promotes objects to Survivor or Old regions based on age.</li>
+<li>Pause time bounded by <code>-XX:MaxGCPauseMillis</code> (default 200ms).</li>
+</ul>
+</li>
+<li>
+<p><strong>Concurrent Marking Cycle:</strong>
+Triggered when heap occupancy exceeds <code>-XX:InitiatingHeapOccupancyPercent</code> (default 45%).</p>
+<ul>
+<li><strong>Initial Mark (STW, piggybacks on Young GC):</strong> Marks GC root direct references.</li>
+<li><strong>Root Region Scan (concurrent):</strong> Scans Survivor regions for references into Old Gen.</li>
+<li><strong>Concurrent Mark (concurrent):</strong> Marks live objects across entire heap using SATB (Snapshot-At-The-Beginning) algorithm.</li>
+<li><strong>Remark (STW):</strong> Finalizes marking with SATB processing.</li>
+<li><strong>Cleanup (STW briefly + concurrent):</strong> Identifies fully dead regions, computes liveness of all regions, sorts regions by GC efficiency.</li>
+</ul>
+</li>
+<li>
+<p><strong>Mixed GC (STW):</strong>
+After concurrent marking, G1 runs “mixed” collections that include all Young regions PLUS selected Old regions (those with most garbage per region). This gradually reclaims Old Gen without a full collection.</p>
+</li>
+<li>
+<p><strong>Full GC (fallback, STW, serial in Java 10-, parallel in Java 10+):</strong>
+If G1 cannot keep up with allocation rate, falls back to Full GC. Should never happen in well-tuned applications.</p>
+</li>
+</ol>
+<p><strong>Remembered Sets (RSet):</strong>
+G1 maintains a per-region RSet tracking which other regions hold references into that region. This allows G1 to collect individual regions without scanning the entire heap for cross-region references.</p>
+<p><strong>SATB (Snapshot-At-The-Beginning):</strong>
+G1 records the object graph snapshot at the start of concurrent marking. Objects that become unreachable during concurrent marking are treated as live (collected next cycle). This ensures no live objects are accidentally collected despite concurrent mutations.</p>
+<p><strong>Humongous Objects:</strong>
+Objects larger than 50% of a region size are “humongous” and allocated across contiguous Humongous regions. They are collected during concurrent marking cleanup and can cause performance issues if frequent.</p>
+<hr>
+<p><strong>Real-World Backend Example</strong></p>
+<p>A Java-based trading system (Goldman Sachs-style) running a 32GB heap with G1 GC:</p>
+<pre><code>-Xms32g -Xmx32g
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=100
+-XX:InitiatingHeapOccupancyPercent=35
+-XX:G1HeapRegionSize=16m
+-XX:G1ReservePercent=20
+-XX:ConcGCThreads=4
+-Xlog:gc*:file=/var/log/app/gc.log:time,uptime,level,tags:filecount=5,filesize=20m
+</code></pre>
+<p><code>-XX:InitiatingHeapOccupancyPercent=35</code> triggers concurrent marking earlier, preventing Old Gen from filling too quickly and forcing Full GC.</p>
+<hr>
+<p><strong>Java 17 Code Example</strong></p>
+<pre><code class="language-java">// JVM flags for G1 GC monitoring
+// Run with: java -XX:+UseG1GC -Xms512m -Xmx512m
+//              -Xlog:gc+heap=debug:stdout:time
+//              -XX:MaxGCPauseMillis=50 GCDemo
+
+public class G1GCDemo {
+    private static final List&lt;byte[]&gt; oldGenObjects = new ArrayList&lt;&gt;();
+
+    public static void main(String[] args) throws InterruptedException {
+        // Simulate mixed short-lived and long-lived allocation
+        for (int i = 0; i &lt; 10_000; i++) {
+            // Short-lived: dies in Young Gen
+            byte[] temp = new byte[8192];
+            processTemp(temp);
+
+            // Long-lived every 100th iteration: promoted to Old Gen
+            if (i % 100 == 0) {
+                oldGenObjects.add(new byte[65536]);
+            }
+
+            if (i % 1000 == 0) {
+                System.out.println("Iteration: " + i +
+                    " | OldGen objects: " + oldGenObjects.size());
+                Thread.sleep(10);
+            }
+        }
+    }
+
+    private static void processTemp(byte[] data) {
+        // data is unreachable after this method returns
+    }
+}
+</code></pre>
+<hr>
+<p><strong>Follow-Up Questions</strong></p>
+<ul>
+<li>How does G1 guarantee pause time targets?</li>
+<li>What is <code>-XX:InitiatingHeapOccupancyPercent</code> and why would you lower it?</li>
+<li>What is a remembered set and why does G1 need one?</li>
+<li>When does G1 fall back to Full GC?</li>
+<li>What is the SATB algorithm?</li>
+</ul>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li>Saying G1 eliminates STW — it reduces STW duration but does not eliminate it.</li>
+<li>Setting <code>-XX:MaxGCPauseMillis</code> too low (e.g., 10ms) — G1 cannot guarantee this and may cause more frequent GCs or increased overhead.</li>
+<li>Forgetting that G1 Full GC is serial in Java 9 and parallel in Java 10+.</li>
+</ul>
+<hr>
+<p><strong>Interview Traps</strong></p>
+<ul>
+<li>“What happens if G1 cannot meet the pause target?” — G1 makes best-effort; it is a soft goal. G1 may exceed the target if there is insufficient garbage to collect within the time budget.</li>
+<li>“How does G1 handle humongous objects?” — Allocated in contiguous Old-like Humongous regions. Frequent large allocations degrade G1 performance. Workaround: increase region size with <code>-XX:G1HeapRegionSize</code>.</li>
+</ul>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>G1: region-based heap, concurrent marking, predictable pauses.</li>
+<li><code>-XX:MaxGCPauseMillis</code> = soft pause target. <code>-XX:InitiatingHeapOccupancyPercent</code> = concurrent marking trigger.</li>
+<li>Remembered Sets track cross-region references. SATB ensures concurrent marking correctness.</li>
+<li>Mixed GC = Young + some Old regions. Avoids full Old Gen collection.</li>
+</ul>
+<hr>
+<h3 id="q12-zgc--sub-millisecond-pauses-for-very-large-heaps"><a class="header" href="#q12-zgc--sub-millisecond-pauses-for-very-large-heaps">Q12. ZGC — sub-millisecond pauses for very large heaps.</a></h3>
+<p><strong>Difficulty:</strong> Hard | <strong>Interview Frequency:</strong> Medium<br><strong>Companies:</strong> Netflix, Goldman Sachs, trading systems, Atlassian, large-scale data platforms</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>ZGC is a concurrent, region-based, compacting GC targeting sub-millisecond STW pauses regardless of heap size. Production-ready since Java 15. It uses colored pointers (extra bits in 64-bit object references) and load barriers to perform relocation concurrently with application threads. ZGC scales from small heaps to 16TB. Use it when pause times must be consistently below 1ms.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p><strong>Core Innovation: Colored Pointers</strong></p>
+<p>ZGC stores GC metadata directly in object reference pointers (the 64-bit address). On 64-bit systems, only 42–48 bits are needed for addresses. ZGC uses the spare high bits:</p>
+<ul>
+<li><code>Marked0</code> / <code>Marked1</code> bits: track mark state</li>
+<li><code>Remapped</code> bit: indicates the pointer has been updated to an object’s new location after relocation</li>
+<li><code>Finalizable</code> bit: marks finalized references</li>
+</ul>
+<p><strong>Load Barriers</strong></p>
+<p>Every time application code loads an object reference from the heap, ZGC’s load barrier checks the colored pointer. If the <code>Remapped</code> bit is not set (object has been relocated but pointer not yet updated), the barrier updates the pointer and fixes the reference in the heap before returning it to the application. This is the mechanism allowing concurrent relocation — applications never see stale pointers.</p>
+<p><strong>ZGC Collection Phases:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Phase</th><th>STW/Concurrent</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>Pause Mark Start</td><td>STW (~1ms)</td><td>Mark GC roots</td></tr>
+<tr><td>Concurrent Mark</td><td>Concurrent</td><td>Traverse object graph</td></tr>
+<tr><td>Pause Mark End</td><td>STW (~1ms)</td><td>Finalize marking</td></tr>
+<tr><td>Concurrent Process References</td><td>Concurrent</td><td>Soft/weak/phantom refs</td></tr>
+<tr><td>Concurrent Select Relocation Set</td><td>Concurrent</td><td>Choose regions to compact</td></tr>
+<tr><td>Pause Relocate Start</td><td>STW (~1ms)</td><td>Root relocation</td></tr>
+<tr><td>Concurrent Relocate</td><td>Concurrent</td><td>Move objects, fix pointers</td></tr>
+</tbody>
+</table>
+</div>
+<p>Three STW pauses, each typically &lt;1ms regardless of heap size. STW duration is proportional to GC root count, not heap size.</p>
+<p><strong>When to use ZGC vs G1:</strong></p>
+<ul>
+<li>ZGC: latency-critical, consistent sub-ms pauses required, large heaps (&gt;16GB), cost of load barriers acceptable</li>
+<li>G1: general purpose, moderate latency requirements (≤200ms pauses), heaps 4–64GB</li>
+</ul>
+<hr>
+<p><strong>Real-World Backend Example</strong></p>
+<p>A low-latency market data distribution system serving 50,000 subscribers with a 64GB cache heap. G1 GC produced occasional 150–300ms pauses during Mixed GC, causing downstream consumers to miss market data events. Migration to ZGC (<code>-XX:+UseZGC -Xms64g -Xmx64g</code>) reduced worst-case pause times from 300ms to &lt;2ms, eliminating data loss events.</p>
+<hr>
+<p><strong>Follow-Up Questions</strong></p>
+<ul>
+<li>What is the performance cost of ZGC load barriers?</li>
+<li>How does ZGC handle the GC root marking pause?</li>
+<li>What is the difference between ZGC and Shenandoah?</li>
+</ul>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>ZGC: colored pointers + load barriers = concurrent relocation = sub-ms STW.</li>
+<li>Three STW pauses per cycle, all &lt;1ms. Scales to 16TB.</li>
+<li>Enable: <code>-XX:+UseZGC</code>. Production since Java 15.</li>
+<li>Load barrier overhead: ~5–15% throughput reduction vs G1. Acceptable for latency-sensitive apps.</li>
+</ul>
+<hr>
+<h3 id="q13-shenandoah-gc--concurrent-compaction-redhat-contribution"><a class="header" href="#q13-shenandoah-gc--concurrent-compaction-redhat-contribution">Q13. Shenandoah GC — concurrent compaction, RedHat contribution.</a></h3>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> Low<br><strong>Companies:</strong> RedHat shops, OpenJDK-heavy environments</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>Shenandoah GC performs concurrent compaction using Brooks forwarding pointers instead of colored pointers. It was contributed by RedHat and is available in OpenJDK. Like ZGC, it targets sub-10ms pauses. Unlike ZGC, it places a forwarding pointer in each object header rather than using spare address bits, making it compatible with 32-bit compressed references.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p><strong>Brooks Pointers:</strong> Each object gets an additional 8-byte header word (forwarding pointer). During normal operation, this points to the object itself. During relocation, it is updated to point to the new copy. All accesses go through this pointer, enabling concurrent relocation. Read and write barriers check the forwarding pointer.</p>
+<p><strong>Comparison with ZGC:</strong></p>
+<ul>
+<li>Shenandoah: Brooks pointers (extra word per object, ~8% memory overhead), read+write barriers</li>
+<li>ZGC: colored pointers (no extra per-object memory), load barriers only</li>
+<li>Shenandoah supports compressed OOPs (CompressedOrdinaryObjectPointers, -XX:+UseCompressedOops); ZGC currently does not (though improving in recent JDK versions)</li>
+</ul>
+<p>Enable: <code>-XX:+UseShenandoahGC</code> (OpenJDK builds, not Oracle JDK)</p>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>Shenandoah: concurrent compaction via Brooks forwarding pointers. RedHat/OpenJDK.</li>
+<li>Sub-10ms pauses. ~8% memory overhead per object for forwarding pointer.</li>
+<li>Supports <code>-XX:+UseCompressedOops</code>. Available in OpenJDK, not Oracle JDK.</li>
+</ul>
+<hr>
+<h3 id="q14-gc-tuning-flags--the-essential-jvm-flags-for-production"><a class="header" href="#q14-gc-tuning-flags--the-essential-jvm-flags-for-production">Q14. GC tuning flags — the essential JVM flags for production.</a></h3>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> High<br><strong>Companies:</strong> Amazon, Goldman Sachs, any company asking about production JVM configuration</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>The most critical GC flags are <code>-Xms</code> and <code>-Xmx</code> for heap size, <code>-XX:+UseG1GC</code> for collector selection, <code>-XX:MaxGCPauseMillis</code> for G1 pause target, <code>-Xlog:gc*</code> for GC logging, and <code>-XX:+HeapDumpOnOutOfMemoryError</code> for OOM diagnostics. Starting <code>-Xms</code> equal to <code>-Xmx</code> prevents heap resize pauses and GC ergonomics fluctuation.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p><strong>Heap Sizing:</strong></p>
+<pre><code class="language-bash">-Xms4g              # Initial heap size (set equal to Xmx in production)
+-Xmx4g              # Maximum heap size
+-Xmn1g              # Young generation size (explicit; alternative: -XX:NewRatio=3)
+-XX:NewRatio=3       # Old:Young ratio = 3:1, so Young = 25% of heap
+-XX:SurvivorRatio=8  # Eden:Survivor ratio; Eden = 8/(8+1+1) = 80% of Young
+</code></pre>
+<p><strong>Collector Selection:</strong></p>
+<pre><code class="language-bash">-XX:+UseG1GC         # G1 GC (default Java 9+)
+-XX:+UseZGC          # ZGC (Java 15+ production-ready)
+-XX:+UseShenandoahGC # Shenandoah (OpenJDK)
+-XX:+UseParallelGC   # Parallel GC (batch workloads)
+-XX:+UseSerialGC     # Serial GC (small heaps, single CPU)
+</code></pre>
+<p><strong>G1-specific:</strong></p>
+<pre><code class="language-bash">-XX:MaxGCPauseMillis=200        # Soft pause target
+-XX:G1HeapRegionSize=16m        # Region size (1–32MB, 2048 regions ideal)
+-XX:InitiatingHeapOccupancyPercent=45  # Trigger concurrent marking
+-XX:G1ReservePercent=10         # Reserve for promotion overflow
+-XX:ConcGCThreads=4             # Concurrent GC thread count
+-XX:ParallelGCThreads=8         # STW GC thread count
+</code></pre>
+<p><strong>GC Logging (Java 9+ unified logging):</strong></p>
+<pre><code class="language-bash">-Xlog:gc:stdout:time                          # Basic GC log to stdout
+-Xlog:gc*:file=/var/log/gc.log:time,uptime,level,tags:filecount=5,filesize=20m
+</code></pre>
+<p><strong>Diagnostics:</strong></p>
+<pre><code class="language-bash">-XX:+HeapDumpOnOutOfMemoryError    # Auto dump on OOM
+-XX:HeapDumpPath=/var/dumps/       # Dump location
+-XX:OnOutOfMemoryError="kill -9 %p" # Restart on OOM (containerized apps)
+</code></pre>
+<p><strong>Metaspace:</strong></p>
+<pre><code class="language-bash">-XX:MetaspaceSize=256m        # Initial Metaspace size (first GC trigger)
+-XX:MaxMetaspaceSize=512m     # Hard cap
+</code></pre>
+<hr>
+<p><strong>Production Template (G1 GC, 8GB heap):</strong></p>
+<pre><code class="language-bash">java \
+  -Xms8g -Xmx8g \
+  -XX:+UseG1GC \
+  -XX:MaxGCPauseMillis=200 \
+  -XX:InitiatingHeapOccupancyPercent=40 \
+  -XX:G1HeapRegionSize=8m \
+  -XX:G1ReservePercent=15 \
+  -XX:ConcGCThreads=2 \
+  -XX:+HeapDumpOnOutOfMemoryError \
+  -XX:HeapDumpPath=/var/dumps/ \
+  -Xlog:gc*:file=/var/log/gc.log:time,uptime,level,tags:filecount=5,filesize=20m \
+  -XX:MetaspaceSize=256m \
+  -XX:MaxMetaspaceSize=512m \
+  -jar application.jar
+</code></pre>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>Set <code>-Xms</code> = <code>-Xmx</code> in production to avoid heap resizing overhead.</li>
+<li><code>-XX:MaxGCPauseMillis</code> is G1’s soft goal, not a hard guarantee.</li>
+<li><code>-Xlog:gc*</code> replaces <code>-verbose:gc</code> and <code>-XX:+PrintGCDetails</code> in Java 9+.</li>
+<li>Always set <code>-XX:+HeapDumpOnOutOfMemoryError</code> in production.</li>
+</ul>
+<hr>
+<h3 id="q15-memory-leaks-in-java--causes-diagnosis-and-prevention"><a class="header" href="#q15-memory-leaks-in-java--causes-diagnosis-and-prevention">Q15. Memory leaks in Java — causes, diagnosis, and prevention.</a></h3>
+<p><strong>Difficulty:</strong> Hard | <strong>Interview Frequency:</strong> Very High<br><strong>Companies:</strong> Amazon, Google, Goldman Sachs, every senior Java interview</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>Memory leaks in Java occur when objects remain reachable through GC roots even though the application no longer needs them. Common causes: static collections that grow without bound, ThreadLocal values not removed after request completion, event listeners and callbacks never deregistered, unclosed streams or database connections, inner classes holding implicit outer class references, and classloader leaks in application servers.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p><strong>1. Static Collections Growing Without Bound</strong></p>
+<pre><code class="language-java">// LEAK: 'cache' is a GC root (static field), objects never removed
+public class LeakyCache {
+    private static final Map&lt;String, byte[]&gt; CACHE = new HashMap&lt;&gt;();
+    
+    public static void store(String key, byte[] data) {
+        CACHE.put(key, data); // grows forever
+    }
+}
+// Fix: Use WeakHashMap, Caffeine/Guava cache with eviction, or explicit remove()
+</code></pre>
+<p><strong>2. ThreadLocal Leaks (critical in servlet containers)</strong></p>
+<pre><code class="language-java">// LEAK: ThreadLocal value not removed, thread is pooled (not destroyed)
+public class RequestContext {
+    private static final ThreadLocal&lt;UserSession&gt; SESSION = new ThreadLocal&lt;&gt;();
+    
+    public static void set(UserSession session) {
+        SESSION.set(session); // set on request start
+    }
+    
+    // MISSING: SESSION.remove() in finally block after request handling
+    // Thread returns to pool with SESSION still set
+    // Next request gets stale (or wrong user's) session
+}
+
+// Fix:
+try {
+    SESSION.set(session);
+    processRequest();
+} finally {
+    SESSION.remove(); // ALWAYS clean up in finally
+}
+</code></pre>
+<p><strong>3. Listeners and Callbacks Not Deregistered</strong></p>
+<pre><code class="language-java">// LEAK: EventBus holds strong reference to listener
+// If listener is a per-request object that is never deregistered:
+eventBus.register(listener);
+// ... request processing ...
+// MISSING: eventBus.unregister(listener)
+// listener object cannot be GC'd — eventBus is a long-lived static object
+
+// Fix: Always unregister in finally/dispose/close
+</code></pre>
+<p><strong>4. Unclosed Streams and Connections</strong></p>
+<pre><code class="language-java">// LEAK: Connection not returned to pool / stream not closed
+public void readData() throws IOException {
+    InputStream is = new FileInputStream("/data/file");
+    // ... if exception thrown before close() ...
+    is.close(); // never reached
+}
+
+// Fix: try-with-resources
+public void readData() throws IOException {
+    try (InputStream is = new FileInputStream("/data/file")) {
+        // auto-closed on exit
+    }
+}
+</code></pre>
+<p><strong>5. Inner Classes Holding Outer Class References</strong></p>
+<pre><code class="language-java">// LEAK: Anonymous Runnable holds implicit reference to outer instance
+public class RequestHandler {
+    private byte[] largeBuffer = new byte[10 * 1024 * 1024]; // 10MB
+    
+    public void submitAsync() {
+        executor.submit(new Runnable() {
+            @Override
+            public void run() {
+                // This anonymous class holds implicit reference to RequestHandler.this
+                // largeBuffer cannot be GC'd as long as this task is queued/running
+            }
+        });
+    }
+}
+
+// Fix: Use static nested class or lambda with explicit parameter capture
+</code></pre>
+<p><strong>6. Classloader Leaks in Application Servers</strong>
+Hot-redeploy in Tomcat/JBoss: The old application’s classloader should be GC’d after redeploy. If any long-lived object in the server (JDBC driver, logging framework static fields, JVM-wide caches) holds a reference to a class loaded by the application’s classloader, the entire classloader (and all its classes) cannot be GC’d. This is the classic PermGen/Metaspace leak in application servers.</p>
+<p>Fix: Use JDBC driver deregistration on shutdown, avoid storing application classloader-loaded objects in container-level statics.</p>
+<hr>
+<p><strong>Diagnosis Workflow:</strong></p>
+<ol>
+<li>Observe <code>java.lang.OutOfMemoryError: Java heap space</code> or steadily rising heap in monitoring.</li>
+<li>Enable GC logging; if full GCs become frequent and heap does not drop, suspect leak.</li>
+<li>Capture heap dump: <code>jmap -dump:format=b,file=heap.hprof &lt;pid&gt;</code> or <code>-XX:+HeapDumpOnOutOfMemoryError</code>.</li>
+<li>Analyze with Eclipse MAT (Memory Analyzer Tool): “Leak Suspects Report” identifies the largest retained object sets and their reference chains.</li>
+<li>Look for: largest retained heap by class, unexpected collections (HashMap, ArrayList) with millions of entries, ThreadLocal instances in retained heap.</li>
+</ol>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>Leaks = reachable but unused objects. GC cannot collect reachable objects.</li>
+<li>Top causes: static collections, ThreadLocal (servlet containers), listeners, unclosed resources, inner classes.</li>
+<li>Diagnosis: GC logs → heap dump → Eclipse MAT / VisualVM.</li>
+<li>Prevention: try-with-resources, ThreadLocal.remove(), listener lifecycle management, weak references for caches.</li>
+</ul>
+<hr>
+<h2 id="3-class-loading"><a class="header" href="#3-class-loading">3. Class Loading</a></h2>
+<hr>
+<h3 id="q16-explain-the-classloader-hierarchy"><a class="header" href="#q16-explain-the-classloader-hierarchy">Q16. Explain the classloader hierarchy.</a></h3>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> High<br><strong>Companies:</strong> Amazon, Goldman Sachs, Atlassian, application server vendors, OSGi/plugin framework interviews</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>Java uses a hierarchical classloader system. The Bootstrap ClassLoader (built into JVM, loads core Java classes from <code>java.base</code>), the Platform ClassLoader (formerly Extension, loads Java SE platform classes in Java 9+ modules), and the Application ClassLoader (loads classes from the application classpath) form the default hierarchy. Each classloader delegates to its parent before attempting to load a class itself.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p><strong>Classloader Hierarchy (Java 9+ with JPMS):</strong></p>
+<pre><code>Bootstrap ClassLoader (native, loads java.base module)
+        |
+Platform ClassLoader (formerly Extension ClassLoader, loads Java SE modules)
+        |
+Application ClassLoader / System ClassLoader (loads app classpath)
+        |
+[Custom ClassLoaders] (e.g., per webapp in Tomcat, OSGi bundles)
+</code></pre>
+<p><strong>Bootstrap ClassLoader:</strong></p>
+<ul>
+<li>Implemented in native code (C++), not a Java class.</li>
+<li>Loads <code>java.lang.*</code>, <code>java.util.*</code>, and all modules in <code>java.base</code>.</li>
+<li>In Java 9+: loads modules listed in the boot layer.</li>
+<li><code>String.class.getClassLoader()</code> returns <code>null</code> — the bootstrap loader has no Java representation.</li>
+</ul>
+<p><strong>Platform ClassLoader (Java 9+, was Extension ClassLoader in Java 8):</strong></p>
+<ul>
+<li>Loads Java SE platform modules not in <code>java.base</code> (e.g., <code>java.sql</code>, <code>java.xml</code>, <code>java.desktop</code>).</li>
+<li>In Java 8: Extension ClassLoader loaded JARs from <code>JAVA_HOME/lib/ext</code>.</li>
+<li>In Java 9+: Java modules replaced the extension mechanism.</li>
+</ul>
+<p><strong>Application ClassLoader:</strong></p>
+<ul>
+<li>Loads classes from <code>-classpath</code> / <code>-cp</code> / <code>CLASSPATH</code> environment variable.</li>
+<li>The default classloader for application code.</li>
+<li><code>MyClass.class.getClassLoader()</code> typically returns this loader.</li>
+</ul>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>Bootstrap (native) → Platform → Application classloader chain.</li>
+<li>Bootstrap loads <code>java.base</code>; Platform loads Java SE modules; App loads classpath.</li>
+<li><code>String.class.getClassLoader() == null</code> (bootstrap has no Java representation).</li>
+<li>Java 9+: Extension ClassLoader renamed to Platform ClassLoader; module system changes extension mechanism.</li>
+</ul>
+<hr>
+<h3 id="q17-explain-the-class-loading-process--loading-linking-initialization"><a class="header" href="#q17-explain-the-class-loading-process--loading-linking-initialization">Q17. Explain the class loading process — Loading, Linking, Initialization.</a></h3>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> High<br><strong>Companies:</strong> Goldman Sachs, Amazon, Morgan Stanley</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>Class loading has three phases: Loading (find and read the <code>.class</code> file, create a <code>Class</code> object), Linking (verify bytecode correctness, prepare static fields, optionally resolve symbolic references), and Initialization (execute static initializer blocks and assign static field values). Initialization is lazy — a class is initialized only when first actively used.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p><strong>1. Loading:</strong></p>
+<ul>
+<li>Find the binary <code>.class</code> file via the classloader hierarchy.</li>
+<li>Read bytecode into memory.</li>
+<li>Create a <code>java.lang.Class</code> object on the heap representing the class.</li>
+<li>The <code>Class</code> object itself lives on the heap; its structural metadata (method bytecode, field descriptors) lives in Metaspace.</li>
+</ul>
+<p><strong>2. Linking — three sub-phases:</strong></p>
+<p><em>Verification:</em></p>
+<ul>
+<li>Bytecode verifier checks the class file for structural correctness.</li>
+<li>Checks: valid magic number (0xCAFEBABE), correct constant pool entries, valid bytecode instructions, type safety.</li>
+<li>Prevents malformed or malicious bytecode from being executed.</li>
+<li>Can be disabled with <code>-Xverify:none</code> (dangerous — never in production).</li>
+</ul>
+<p><em>Preparation:</em></p>
+<ul>
+<li>Allocates memory for class (static) variables.</li>
+<li>Sets them to <strong>default zero values</strong>: <code>0</code>, <code>0.0</code>, <code>false</code>, <code>null</code>.</li>
+<li>Does NOT execute any Java code; just allocates memory with defaults.</li>
+</ul>
+<p><em>Resolution (optional — may be lazy):</em></p>
+<ul>
+<li>Resolves symbolic references in the constant pool to direct memory references.</li>
+<li>Example: replaces the symbolic reference <code>java/util/ArrayList</code> with the actual <code>Class</code> pointer.</li>
+<li>Lazy resolution: the JVM may delay until first use.</li>
+</ul>
+<p><strong>3. Initialization:</strong></p>
+<ul>
+<li>Execute the class’s static initializer blocks (<code>static { ... }</code>) in textual order.</li>
+<li>Assign static field values to their declared initializers (e.g., <code>static int MAX = 100;</code>).</li>
+<li>Triggers (active uses that force initialization):
+<ul>
+<li>Creating an instance (<code>new</code>)</li>
+<li>Accessing/modifying a static field</li>
+<li>Calling a static method</li>
+<li>Reflection: <code>Class.forName("ClassName")</code></li>
+<li>Initializing a subclass (forces parent class initialization)</li>
+<li>JVM main class</li>
+</ul>
+</li>
+<li>Initialization is thread-safe: the JVM uses class-level locking to ensure <code>&lt;clinit&gt;</code> runs exactly once. This is exploited by the Initialization-on-Demand Holder idiom for thread-safe lazy singletons.</li>
+</ul>
+<hr>
+<p><strong>Java 17 Code Example</strong></p>
+<pre><code class="language-java">// Demonstrating initialization order and lazy loading
+public class ClassLoadingDemo {
+
+    // Holder pattern: LazyHolder class not initialized until getInstance() called
+    private static class LazyHolder {
+        // Initialized only when LazyHolder is first accessed
+        private static final ClassLoadingDemo INSTANCE = new ClassLoadingDemo();
+        
+        static {
+            System.out.println("LazyHolder initialized"); // thread-safe, runs once
+        }
+    }
+
+    private ClassLoadingDemo() {
+        System.out.println("ClassLoadingDemo constructed");
+    }
+
+    public static ClassLoadingDemo getInstance() {
+        return LazyHolder.INSTANCE; // triggers LazyHolder initialization
+    }
+
+    static {
+        System.out.println("ClassLoadingDemo static initializer");
+    }
+}
+
+// Output when ClassLoadingDemo.getInstance() is first called:
+// ClassLoadingDemo static initializer
+// LazyHolder initialized
+// ClassLoadingDemo constructed
+</code></pre>
+<hr>
+<p><strong>Follow-Up Questions</strong></p>
+<ul>
+<li>What is the difference between <code>Class.forName()</code> and <code>ClassLoader.loadClass()</code>?</li>
+<li>When does <code>ExceptionInInitializerError</code> occur?</li>
+<li>Is static initialization thread-safe?</li>
+</ul>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li>Confusing Preparation (zero-initialization) with Initialization (declared values) — static field <code>int MAX = 100</code> gets value <code>0</code> after Preparation, <code>100</code> after Initialization.</li>
+<li>Saying <code>Class.forName()</code> and <code>ClassLoader.loadClass()</code> are equivalent — <code>Class.forName()</code> initializes the class (runs static blocks); <code>loadClass()</code> does not trigger initialization.</li>
+</ul>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>Loading → Linking (Verify + Prepare + Resolve) → Initialize.</li>
+<li>Preparation: zero-initialize statics. Initialization: run static blocks, set declared values.</li>
+<li>Initialization is lazy and thread-safe (JVM-level locking on <code>&lt;clinit&gt;</code>).</li>
+<li><code>Class.forName()</code> = load + initialize. <code>ClassLoader.loadClass()</code> = load only.</li>
+</ul>
+<hr>
+<h3 id="q18-parent-delegation-model--why-it-exists-and-when-to-break-it"><a class="header" href="#q18-parent-delegation-model--why-it-exists-and-when-to-break-it">Q18. Parent delegation model — why it exists and when to break it.</a></h3>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> Medium<br><strong>Companies:</strong> Application server / OSGi / plugin framework interviews</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>The parent delegation model means a classloader always asks its parent to load a class first before attempting to load it itself. This ensures core Java classes like <code>java.lang.String</code> are always loaded by the Bootstrap ClassLoader, preventing malicious code from substituting a fake <code>String</code> class. It also ensures class consistency: one class object per classloader hierarchy for a given class name.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p><strong>Delegation algorithm:</strong></p>
+<pre><code>ClassLoader.loadClass(String name):
+1. Check if class already loaded (findLoadedClass)
+2. If not: delegate to parent classloader (parent.loadClass)
+3. If parent returns null / throws ClassNotFoundException: call findClass(name)
+4. Return the loaded class
+</code></pre>
+<p><strong>Why it exists:</strong></p>
+<ul>
+<li><strong>Security:</strong> Prevents application code from overriding <code>java.lang.*</code>. If you put a fake <code>java/lang/String.class</code> on the classpath, the Application ClassLoader delegates to Bootstrap first, which loads the real <code>String</code>. Your fake class is never loaded for <code>java.lang.String</code>.</li>
+<li><strong>Consistency:</strong> All classes in the JVM are identified by (classloader, fully-qualified name). Two classes with the same name loaded by different classloaders are different types. Delegation ensures that library classes shared between components are loaded exactly once.</li>
+</ul>
+<p><strong>When to break parent delegation:</strong></p>
+<ul>
+<li><strong>OSGi (Eclipse plugin system):</strong> Each bundle has its own classloader with its own dependencies. A bundle may need <code>com.example.Foo v1.0</code> while another needs <code>v2.0</code>. The framework must intercept delegation to provide version-specific resolution.</li>
+<li><strong>Application servers (Tomcat, JBoss):</strong> Each web application gets its own classloader that loads its own copies of framework JARs (Spring, Hibernate) to isolate apps. Child-first loading (application classloader tries before parent) is used.</li>
+<li><strong>Hot-reload / dynamic plugin systems:</strong> Load a new version of a class while the old version is still running (different classloader instance = different class identity).</li>
+</ul>
+<p><strong>Breaking delegation — override <code>loadClass()</code>:</strong></p>
+<pre><code class="language-java">@Override
+public Class&lt;?&gt; loadClass(String name) throws ClassNotFoundException {
+    // Child-first: try to load locally before delegating
+    if (isAppClass(name)) {
+        try {
+            return findClass(name); // load from this classloader's source
+        } catch (ClassNotFoundException ignored) {}
+    }
+    return super.loadClass(name); // fall back to parent delegation
+}
+</code></pre>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>Parent delegation: ask parent first, load locally only if parent fails.</li>
+<li>Prevents core class override, ensures class consistency.</li>
+<li>Break it for: OSGi, app server isolation, hot-reload, plugin systems.</li>
+<li>Override <code>loadClass()</code> for child-first loading (not <code>findClass()</code>).</li>
+</ul>
+<hr>
+<h3 id="q19-custom-classloader--use-cases-and-implementation"><a class="header" href="#q19-custom-classloader--use-cases-and-implementation">Q19. Custom ClassLoader — use cases and implementation.</a></h3>
+<p><strong>Difficulty:</strong> Hard | <strong>Interview Frequency:</strong> Medium<br><strong>Companies:</strong> Platform/framework engineers, OSGi/plugin specialists</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>Custom classloaders are written when you need to load classes from non-standard sources: network, database, encrypted JARs, dynamically generated bytecode, or to implement isolation/hot-reload. Override <code>findClass()</code> to provide custom class loading while preserving parent delegation, or override <code>loadClass()</code> to implement child-first delegation for isolation.</p>
+<hr>
+<p><strong>Java 17 Code Example</strong></p>
+<pre><code class="language-java">import java.io.*;
+import java.nio.file.*;
+
+public class FileSystemClassLoader extends ClassLoader {
+
+    private final Path classDir;
+
+    public FileSystemClassLoader(Path classDir, ClassLoader parent) {
+        super(parent);
+        this.classDir = classDir;
+    }
+
+    // Override findClass — called when parent delegation fails
+    // Preserves parent delegation model
+    @Override
+    protected Class&lt;?&gt; findClass(String name) throws ClassNotFoundException {
+        String fileName = name.replace('.', '/') + ".class";
+        Path classFile = classDir.resolve(fileName);
+
+        if (!Files.exists(classFile)) {
+            throw new ClassNotFoundException("Class not found: " + name);
+        }
+
+        try {
+            byte[] classBytes = Files.readAllBytes(classFile);
+            // defineClass: hands bytecode to JVM for Linking + Initialization
+            return defineClass(name, classBytes, 0, classBytes.length);
+        } catch (IOException e) {
+            throw new ClassNotFoundException("Error loading class: " + name, e);
+        }
+    }
+
+    // Hot-reload: create a NEW ClassLoader instance for each reload
+    public static Class&lt;?&gt; hotReload(String className, Path classDir) 
+            throws ClassNotFoundException {
+        // New classloader instance = new class identity = hot reload
+        ClassLoader loader = new FileSystemClassLoader(classDir, 
+            ClassLoader.getSystemClassLoader().getParent());
+        return loader.loadClass(className);
+    }
+}
+</code></pre>
+<p><strong>Usage:</strong></p>
+<pre><code class="language-java">ClassLoader loader = new FileSystemClassLoader(
+    Path.of("/app/plugins"), 
+    ClassLoader.getSystemClassLoader()
+);
+Class&lt;?&gt; pluginClass = loader.loadClass("com.example.MyPlugin");
+Object instance = pluginClass.getDeclaredConstructor().newInstance();
+</code></pre>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>Override <code>findClass()</code> for standard custom loading (preserves delegation).</li>
+<li>Override <code>loadClass()</code> only when you need to break parent delegation (isolation/child-first).</li>
+<li><code>defineClass()</code> converts raw bytecode into a JVM <code>Class</code> object.</li>
+<li>Hot-reload = new ClassLoader instance for each version of the class.</li>
+</ul>
+<hr>
+<h2 id="4-jit-compiler"><a class="header" href="#4-jit-compiler">4. JIT Compiler</a></h2>
+<hr>
+<h3 id="q20-interpretation-vs-jit-compilation--the-performance-model"><a class="header" href="#q20-interpretation-vs-jit-compilation--the-performance-model">Q20. Interpretation vs JIT compilation — the performance model.</a></h3>
+<p><strong>Difficulty:</strong> Easy | <strong>Interview Frequency:</strong> Medium<br><strong>Companies:</strong> Google, Amazon, performance-focused interviews</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>The JVM starts by interpreting bytecode instruction by instruction, which is portable but slow (10–100x slower than native code). As the JVM identifies “hot” methods (executed frequently), the JIT compiler compiles them to optimized native machine code. After JIT compilation, subsequent calls to that method execute native code at near-C performance. The tradeoff: cold start is slow; warmed-up Java is fast.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p><strong>Bytecode vs Machine Code:</strong>
+Java source → <code>javac</code> → bytecode (platform-independent <code>.class</code>) → JVM interpreter → (for hot methods) → JIT compiler → native machine code (CPU-specific)</p>
+<p><strong>JIT compilation trigger:</strong>
+The JVM counts method invocations and loop back-edges. When a method or loop reaches the “compilation threshold” (configurable, default ~10,000 invocations), it is submitted to the JIT compiler. The JIT compiler runs on a background thread; the method continues interpreting until JIT compilation finishes.</p>
+<p><strong>Tiered compilation (Java 8+, default):</strong></p>
+<ul>
+<li><strong>Level 0:</strong> Pure interpreter (all methods start here)</li>
+<li><strong>Level 1:</strong> C1-compiled, no profiling (for trivially simple methods)</li>
+<li><strong>Level 2:</strong> C1-compiled, limited profiling</li>
+<li><strong>Level 3:</strong> C1-compiled, full profiling (counting invocations, branch frequencies, type profiles)</li>
+<li><strong>Level 4:</strong> C2-compiled, maximum optimization (using profiling data from Level 3)</li>
+</ul>
+<p>Most methods cycle through Level 0 → 3 → 4. Short methods may stay at Level 1. Deoptimization returns a method from Level 4 to Level 0 when assumptions (e.g., monomorphic call sites) are invalidated.</p>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>Interpreter: portable, slow. JIT: compiles hot methods to native, fast after warmup.</li>
+<li>Tiered compilation: C1 (fast compile) → C2 (aggressive optimization with profiling).</li>
+<li>JIT threshold: ~10,000 invocations for server compiler.</li>
+<li>Deoptimization: JIT reverts to interpreter when assumptions are violated.</li>
+</ul>
+<hr>
+<h3 id="q21-tiered-compilation--c1-c2-and-the-five-levels"><a class="header" href="#q21-tiered-compilation--c1-c2-and-the-five-levels">Q21. Tiered compilation — C1, C2, and the five levels.</a></h3>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> Medium<br><strong>Companies:</strong> Performance-focused interviews, JVM internals specialists</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>Tiered compilation uses two JIT compilers. C1 (client compiler) compiles quickly with light optimization, useful for methods that need to be compiled fast but don’t justify heavy optimization. C2 (server compiler) applies aggressive optimizations using profiling data gathered at C1 level, producing the fastest possible native code. Most server JVMs use both: C1 for quick initial compilation, C2 for heavily-used methods.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p><strong>C1 (Client Compiler):</strong></p>
+<ul>
+<li>Fast compilation, minimal optimization.</li>
+<li>Instruments code to collect profile data (type profiles for virtual calls, branch frequencies).</li>
+<li>Methods at Level 1–3.</li>
+<li>Startup latency vs C2: minutes faster in large applications.</li>
+</ul>
+<p><strong>C2 (Server Compiler):</strong></p>
+<ul>
+<li>Slow compilation, aggressive optimization.</li>
+<li>Uses profiling data from C1 to make assumptions (e.g., this virtual call only ever dispatches to one implementation).</li>
+<li>Can inline, unroll loops, eliminate allocations, remove dead branches.</li>
+<li>Methods at Level 4.</li>
+<li>Output: highly optimized machine code, often competitive with hand-written C.</li>
+</ul>
+<p><strong>Deoptimization:</strong>
+If a C2 assumption is violated (a second implementation of an interface is loaded), the JVM “deoptimizes” — reverts the method to the interpreter or C1, recompiles with updated profile. This is transparent but causes brief latency spikes. Visible in JVM logs as “uncommon trap” or “deoptimization.”</p>
+<p><strong>GraalVM/JIT in Java 17:</strong>
+Java 17 ships with JVMCI (JVM Compiler Interface), allowing alternative JIT compilers. The Graal JIT (written in Java) is available via GraalVM or JVM flags: <code>-XX:+UseJVMCICompiler</code>.</p>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>C1: fast compile, light optimization, gathers profiling data. Levels 1–3.</li>
+<li>C2: slow compile, aggressive optimization using C1 profiles. Level 4.</li>
+<li>Tiered compilation default since Java 8. Disable with <code>-XX:-TieredCompilation</code>.</li>
+<li>Deoptimization: JIT reverts to interpreter when assumptions fail.</li>
+</ul>
+<hr>
+<h3 id="q22-hotspot-jit-optimizations--inlining-escape-analysis-loop-unrolling"><a class="header" href="#q22-hotspot-jit-optimizations--inlining-escape-analysis-loop-unrolling">Q22. HotSpot JIT optimizations — inlining, escape analysis, loop unrolling.</a></h3>
+<p><strong>Difficulty:</strong> Hard | <strong>Interview Frequency:</strong> Medium<br><strong>Companies:</strong> Google, Goldman Sachs, high-performance Java interviews</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>The JIT compiler applies several key optimizations. Method inlining replaces a method call with the method body directly, eliminating call overhead and enabling further optimization. Escape analysis determines whether an object reference “escapes” the current method — if not, the object can be stack-allocated instead of heap-allocated, eliminating GC pressure. Loop unrolling reduces loop overhead by duplicating the loop body.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p><strong>Method Inlining:</strong></p>
+<pre><code class="language-java">// Before inlining:
+int result = add(a, b);
+
+// After inlining (C2 may inline if method is small and hot):
+int result = a + b; // call overhead eliminated, enables further optimization
+</code></pre>
+<p>Inlining is the most impactful JIT optimization. It enables constant folding, dead code elimination, and better register allocation. The JIT inlines methods up to a certain size (<code>-XX:MaxInlineSize=35</code> bytecodes by default for trivial methods, <code>-XX:FreqInlineSize=325</code> for hot methods).</p>
+<p><strong>Escape Analysis:</strong>
+The JIT analyzes whether an object reference can “escape” the current method or thread:</p>
+<ul>
+<li><strong>No escape (stack allocation):</strong> Object never passed to another method, field, or thread. JIT can allocate it on the stack → no heap allocation, no GC pressure.</li>
+<li><strong>Argument escape:</strong> Object passed to another method but does not escape beyond the call. JIT can still optimize aggressively.</li>
+<li><strong>Global escape:</strong> Object stored in a field, returned, or shared with another thread. Must heap-allocate normally.</li>
+</ul>
+<pre><code class="language-java">// Escape analysis example: Point may be stack-allocated
+public double distance(double x1, double y1, double x2, double y2) {
+    Point delta = new Point(x2 - x1, y2 - y1); // may be stack-allocated
+    return Math.sqrt(delta.x * delta.x + delta.y * delta.y);
+    // delta does not escape this method
+}
+</code></pre>
+<p><strong>Lock Elision (enabled by escape analysis):</strong>
+If a synchronized object does not escape the current thread, JIT removes the synchronization entirely.</p>
+<pre><code class="language-java">public String buildMessage() {
+    // StringBuffer is synchronized, but doesn't escape this method
+    StringBuffer sb = new StringBuffer(); // lock elided by JIT
+    sb.append("Hello").append(" World");
+    return sb.toString();
+}
+</code></pre>
+<p><strong>Loop Unrolling:</strong></p>
+<pre><code class="language-java">// Original loop (4 iterations):
+for (int i = 0; i &lt; 4; i++) sum += array[i];
+
+// After unrolling (eliminates loop overhead: counter increment, branch):
+sum += array[0]; sum += array[1]; sum += array[2]; sum += array[3];
+</code></pre>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>Inlining: replaces method call with body. Most impactful JIT optimization.</li>
+<li>Escape analysis: object not escaping method = stack allocation = no GC.</li>
+<li>Lock elision: synchronized on non-escaping object = locks removed.</li>
+<li>Loop unrolling: eliminates loop overhead by duplicating body.</li>
+</ul>
+<hr>
+<h3 id="q23-jit-warmup--the-cold-start-problem"><a class="header" href="#q23-jit-warmup--the-cold-start-problem">Q23. JIT warmup — the cold start problem.</a></h3>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> High<br><strong>Companies:</strong> Netflix, Amazon (Lambda/serverless), Stripe, any cloud/container discussion</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>JVM applications start in interpreted mode and reach peak performance only after hot methods are identified and JIT-compiled — typically after 30 seconds to 5 minutes for large applications. This “warmup” period means the JVM runs slower than its peak throughput at startup. In serverless and container environments, cold starts cause this warmup problem to repeat frequently, degrading P99 latency.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p><strong>Warmup timeline for a typical Spring Boot microservice:</strong></p>
+<pre><code>T=0s:   JVM starts, classes loaded, interpreter running
+T=5s:   C1 compilation starts for frequently-called methods
+T=30s:  C2 compilation starts for hottest methods
+T=2min: Most critical paths JIT-compiled; near-peak performance
+T=5min: Full peak performance reached for all paths
+</code></pre>
+<p><strong>Cloud-native cold start problem:</strong></p>
+<ul>
+<li>Kubernetes auto-scaling: new pod spins up under load, starts in interpreted mode, receives traffic before warmup completes → elevated latency during warmup.</li>
+<li>Serverless (AWS Lambda, Google Cloud Run): function container recycled after idle period → every invocation after recycling starts cold.</li>
+<li>GraalVM Native Image: compiles Java to ahead-of-time (AOT) native binary → instant startup, no warmup — at the cost of JIT’s runtime profiling optimizations.</li>
+</ul>
+<p><strong>Mitigation strategies:</strong></p>
+<ol>
+<li><strong>GraalVM Native Image:</strong> AOT compilation. Spring Boot 3 / Quarkus / Micronaut support native image. Tradeoffs: longer build time, no dynamic class loading, smaller peak throughput than JIT.</li>
+<li><strong>Class Data Sharing (CDS):</strong> <code>-XX:+UseAppCDS</code> saves loaded class metadata to a shared archive, reducing class loading time on subsequent startups.</li>
+<li><strong>JVM warmup in staging:</strong> Run synthetic load against new pods before routing production traffic (warmup / canary deployment).</li>
+<li><strong>Ahead-of-time compilation (Java 9+ AOT):</strong> Limited AOT via <code>jaotc</code> (deprecated in Java 17; superseded by GraalVM).</li>
+<li><strong>Persistent Code Cache:</strong> JVM can save/restore Code Cache across restarts in some configurations.</li>
+</ol>
+<hr>
+<p><strong>Real-World Backend Example</strong></p>
+<p>Netflix’s edge service (Zuul/Envoy) runs on thousands of JVM instances. Without warmup strategies, rolling deploys caused P99 latency spikes as new instances handled traffic in interpreted mode. Netflix implemented:</p>
+<ul>
+<li>Synthetic “training traffic” replayed to new instances before shifting load.</li>
+<li>CDS archives to reduce class loading time by 30%.</li>
+<li>Monitoring warmup completion via JMX metrics on JIT compilation activity.</li>
+</ul>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>JVM starts slow (interpreter), gets fast (JIT), reaches peak after 1–5 minutes.</li>
+<li>Cold start = restarting this warmup cycle. Critical for serverless/auto-scaling.</li>
+<li>GraalVM Native Image = AOT compilation → instant start, no warmup needed.</li>
+<li>CDS = shared class metadata archive → faster startup (not warmup, just loading).</li>
+</ul>
+<hr>
+<h2 id="5-practical-diagnostics"><a class="header" href="#5-practical-diagnostics">5. Practical Diagnostics</a></h2>
+<hr>
+<h3 id="q24-outofmemoryerror-types--meaning-and-diagnosis"><a class="header" href="#q24-outofmemoryerror-types--meaning-and-diagnosis">Q24. OutOfMemoryError types — meaning and diagnosis.</a></h3>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> Very High<br><strong>Companies:</strong> Amazon, Goldman Sachs, Stripe, Netflix — universal senior-level question</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p><code>OutOfMemoryError</code> has several variants, each indicating a different failure: <code>Java heap space</code> means the heap is exhausted; <code>GC overhead limit exceeded</code> means GC is running constantly with little reclamation; <code>Metaspace</code> means class metadata space is exhausted; <code>unable to create native thread</code> means OS cannot create more threads; <code>Direct buffer memory</code> means off-heap NIO buffer space is exhausted.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p><strong>1. <code>OutOfMemoryError: Java heap space</code></strong></p>
+<ul>
+<li>Cause: Heap exhausted — all GC cycles fail to free sufficient memory.</li>
+<li>Investigation: Heap dump + MAT analysis. Look for large retained object graphs.</li>
+<li>Common causes: memory leaks (static collections, ThreadLocal), cache without eviction, large batch operations loading entire dataset into memory.</li>
+<li>Fix: Increase <code>-Xmx</code> (short term), fix memory leak (long term).</li>
+</ul>
+<p><strong>2. <code>OutOfMemoryError: GC overhead limit exceeded</code></strong></p>
+<ul>
+<li>Cause: JVM is spending &gt;98% of CPU time on GC and recovering &lt;2% of heap per GC cycle.</li>
+<li>Indicates: effective heap exhaustion — there is heap space, but GC cannot reclaim it fast enough.</li>
+<li>Investigation: Same as heap space OOM — likely a memory leak.</li>
+<li>Disable (never in production): <code>-XX:-UseGCOverheadLimit</code>.</li>
+</ul>
+<p><strong>3. <code>OutOfMemoryError: Metaspace</code></strong></p>
+<ul>
+<li>Cause: Class metadata space (Metaspace) exhausted.</li>
+<li>Investigation: Check for excessive class generation (Spring CGLIB, dynamic proxies, Groovy scripts, JSPs, classloader leaks).</li>
+<li>Fix: <code>-XX:MaxMetaspaceSize=512m</code> (increase cap); fix classloader leaks (hot-undeploy classloader not GC’d).</li>
+</ul>
+<p><strong>4. <code>OutOfMemoryError: unable to create native thread</code></strong></p>
+<ul>
+<li>Cause: OS thread limit reached — cannot create more threads.</li>
+<li>Common causes: unbounded thread creation (thread per request without pooling), default thread stack size too large consuming virtual address space.</li>
+<li>Investigation: <code>ulimit -u</code> (Linux per-user process/thread limit), <code>cat /proc/sys/kernel/threads-max</code>.</li>
+<li>Fix: Use thread pools, reduce <code>-Xss</code> (stack per thread size), increase OS thread limit.</li>
+</ul>
+<p><strong>5. <code>OutOfMemoryError: Direct buffer memory</code></strong></p>
+<ul>
+<li>Cause: Direct <code>ByteBuffer</code> allocation (off-heap, outside JVM heap) exceeds limit.</li>
+<li>Common in: Netty, NIO servers, Kafka clients (producer/consumer buffers).</li>
+<li>Default limit: <code>-XX:MaxDirectMemorySize</code> defaults to <code>-Xmx</code> value.</li>
+<li>Fix: Increase <code>-XX:MaxDirectMemorySize</code>, fix buffer leak (DirectBuffer not explicitly freed, reliant on GC finalization which is delayed).</li>
+</ul>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li><code>Java heap space</code>: heap full, leak or undersized heap.</li>
+<li><code>GC overhead limit exceeded</code>: GC running constantly, heap effectively full.</li>
+<li><code>Metaspace</code>: class metadata exhausted, classloader leak or too many dynamic classes.</li>
+<li><code>unable to create native thread</code>: OS thread limit, unbounded thread creation.</li>
+<li><code>Direct buffer memory</code>: NIO direct buffers leak, increase <code>-XX:MaxDirectMemorySize</code>.</li>
+</ul>
+<hr>
+<h3 id="q25-heap-dump-analysis--capturing-and-diagnosing-memory-issues"><a class="header" href="#q25-heap-dump-analysis--capturing-and-diagnosing-memory-issues">Q25. Heap dump analysis — capturing and diagnosing memory issues.</a></h3>
+<p><strong>Difficulty:</strong> Hard | <strong>Interview Frequency:</strong> High<br><strong>Companies:</strong> Goldman Sachs, Amazon, Morgan Stanley, any senior Java role</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>Heap dump analysis captures a snapshot of all live objects in the heap to identify memory leaks. Capture with <code>jmap -dump:format=b,file=heap.hprof &lt;pid&gt;</code> or automatically via <code>-XX:+HeapDumpOnOutOfMemoryError</code>. Analyze with Eclipse MAT: the “Leak Suspects Report” finds the largest retained object graphs and traces the reference chain keeping them alive.</p>
+<hr>
+<p><strong>Deep Explanation</strong></p>
+<p><strong>Capturing heap dumps:</strong></p>
+<pre><code class="language-bash"># Live process (JVM must be running)
+jmap -dump:format=b,file=/tmp/heap.hprof &lt;pid&gt;
+
+# Live objects only (smaller file, triggers GC first)
+jmap -dump:live,format=b,file=/tmp/heap-live.hprof &lt;pid&gt;
+
+# Automatic on OOM (add to JVM startup flags)
+-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/var/dumps/
+
+# Using jcmd (Java 9+, preferred)
+jcmd &lt;pid&gt; GC.heap_dump /tmp/heap.hprof
+</code></pre>
+<p><strong>Analysis with Eclipse MAT:</strong></p>
+<ol>
+<li>Open heap.hprof in MAT.</li>
+<li><strong>Leak Suspects Report:</strong> Automatically identifies objects with unusually large retained heap. The “retained heap” of an object = the total heap freed if that object and its transitive reference graph were collected.</li>
+<li><strong>Dominator Tree:</strong> Shows objects dominating the most retained heap. Sorted by retained heap size.</li>
+<li><strong>OQL (Object Query Language):</strong> SQL-like queries against heap objects. Example: <code>SELECT * FROM java.util.HashMap WHERE size &gt; 10000</code></li>
+<li><strong>Reference Chains:</strong> From a suspected leak object, trace the “shortest path to GC roots” — this shows exactly which root is keeping the object alive.</li>
+</ol>
+<p><strong>What to look for:</strong></p>
+<ul>
+<li><code>java.util.HashMap</code>, <code>ArrayList</code>, <code>ConcurrentHashMap</code> with millions of entries</li>
+<li><code>ThreadLocal</code> instances retained in large thread pool thread stacks</li>
+<li><code>ClassLoader</code> instances with large retained Metaspace</li>
+<li>Framework cache objects (Hibernate L2 cache, Spring application context) larger than expected</li>
+</ul>
+<p><strong>VisualVM:</strong> GUI alternative for local/remote JVM monitoring. Shows heap over time, triggers GC, captures heap dumps, and provides basic heap analysis. Lighter weight than MAT.</p>
+<hr>
+<p><strong>Real-World Backend Example</strong></p>
+<p>A Goldman Sachs-style risk calculation service had a memory leak causing OOM every 48 hours. Analysis:</p>
+<ol>
+<li><code>-XX:+HeapDumpOnOutOfMemoryError</code> captured a 16GB heap dump.</li>
+<li>MAT Leak Suspects: <code>HashMap</code> with 2.3M entries retaining 12GB.</li>
+<li>Reference chain: <code>HashMap</code> → static field <code>RiskCalculationEngine.RESULT_CACHE</code> → <code>Thread</code> (GC root: main thread stack).</li>
+<li>Root cause: risk results cached in a static HashMap by trade ID, never evicted. Month-end processing added 2.3M trade results. Fix: replace with Caffeine cache with <code>maximumSize(10000)</code> and <code>expireAfterWrite(1, TimeUnit.HOURS)</code>.</li>
+</ol>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>Capture: <code>jmap -dump</code> or <code>-XX:+HeapDumpOnOutOfMemoryError</code>.</li>
+<li>Analyze: Eclipse MAT (Leak Suspects Report, Dominator Tree, OQL).</li>
+<li>Key metric: retained heap = heap freed if this object were GC’d.</li>
+<li>Look for: large collections, ThreadLocal values, classloader leaks.</li>
+</ul>
+<hr>
+<h3 id="q26-jvm-flags-important-for-production-and-interviews"><a class="header" href="#q26-jvm-flags-important-for-production-and-interviews">Q26. JVM flags important for production and interviews.</a></h3>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> High<br><strong>Companies:</strong> Amazon (asks about deployment configs), Goldman Sachs, any DevOps/platform interview</p>
+<hr>
+<p><strong>Short Answer (30–60 seconds)</strong></p>
+<p>The critical production JVM flags are: <code>-Xms</code>/<code>-Xmx</code> for heap sizing, <code>-XX:+UseG1GC</code> for GC selection, <code>-XX:MaxGCPauseMillis</code> for G1 pause target, <code>-Xlog:gc*</code> for GC logging, <code>-XX:+HeapDumpOnOutOfMemoryError</code> for automatic diagnostics, and <code>-XX:MaxMetaspaceSize</code> to prevent unbounded Metaspace growth.</p>
+<hr>
+<p><strong>Comprehensive Flag Reference:</strong></p>
+<pre><code class="language-bash"># === HEAP SIZING ===
+-Xms4g                          # Initial heap (set = Xmx in production)
+-Xmx4g                          # Max heap
+-Xmn1g                          # Young gen size
+-XX:NewRatio=2                   # Old:Young = 2:1 (Young = 33% of heap)
+-XX:SurvivorRatio=8              # Eden:Survivor = 8:1:1
+
+# === GC SELECTION ===
+-XX:+UseG1GC                    # G1 (default Java 9+, recommended)
+-XX:+UseZGC                     # ZGC (Java 15+, sub-ms pauses)
+-XX:+UseParallelGC              # Parallel (batch workloads)
+-XX:+UseSerialGC                # Serial (small heaps, single CPU)
+
+# === G1 TUNING ===
+-XX:MaxGCPauseMillis=200         # G1 soft pause target
+-XX:InitiatingHeapOccupancyPercent=45  # Trigger concurrent marking
+-XX:G1HeapRegionSize=8m         # Region size
+-XX:G1ReservePercent=10          # Emergency reserve
+-XX:ConcGCThreads=2              # Concurrent GC threads
+-XX:ParallelGCThreads=4          # STW GC threads
+
+# === GC LOGGING (Java 9+) ===
+-Xlog:gc:stdout:time                                    # Basic to stdout
+-Xlog:gc*:file=gc.log:time,uptime,level,tags:filecount=5,filesize=20m  # Production
+
+# === DIAGNOSTICS ===
+-XX:+HeapDumpOnOutOfMemoryError  # Auto-dump on OOM
+-XX:HeapDumpPath=/var/dumps/     # Dump file path
+-XX:OnOutOfMemoryError="kill -9 %p"  # Restart on OOM (container restart policy)
+-XX:ErrorFile=/var/logs/hs_err_%p.log  # JVM crash log
+
+# === METASPACE ===
+-XX:MetaspaceSize=256m           # Initial trigger size
+-XX:MaxMetaspaceSize=512m        # Hard cap
+
+# === DIRECT MEMORY ===
+-XX:MaxDirectMemorySize=1g       # NIO direct buffer cap
+
+# === JIT ===
+-XX:-TieredCompilation           # Disable tiered (use C2 only — slower warmup)
+-XX:CompileThreshold=10000       # JIT compilation invocation threshold
+-XX:+PrintCompilation            # Log JIT compilations (debugging only)
+
+# === STARTUP PERFORMANCE ===
+-XX:+UseAppCDS                  # Application Class Data Sharing
+-XX:SharedArchiveFile=app.jsa    # CDS archive
+
+# === THREAD ===
+-Xss512k                        # Stack size per thread (default 512k-1m)
+</code></pre>
+<hr>
+<p><strong>Quick Revision Notes</strong></p>
+<ul>
+<li>Always: <code>-Xms</code>=<code>-Xmx</code>, <code>-XX:+UseG1GC</code>, <code>-XX:MaxGCPauseMillis</code>, <code>-XX:+HeapDumpOnOutOfMemoryError</code>, <code>-Xlog:gc*</code>.</li>
+<li>Metaspace: cap with <code>-XX:MaxMetaspaceSize</code> to prevent native OOM.</li>
+<li><code>-Xlog:gc*</code> replaces <code>-verbose:gc</code> and <code>-XX:+PrintGCDetails</code> in Java 9+.</li>
+<li><code>-Xss</code> × thread count = total stack memory (factor in container memory budgets).</li>
+</ul>
+<hr>
+<h2 id="6-jvm-memory-cheat-sheet"><a class="header" href="#6-jvm-memory-cheat-sheet">6. JVM Memory Cheat Sheet</a></h2>
+<pre><code>JVM MEMORY LAYOUT
+=================================================================================
+
+HEAP (managed by GC, -Xms / -Xmx)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  YOUNG GENERATION (-Xmn or -XX:NewRatio)                                    │
+│  ┌──────────────────────────┬──────────────┬──────────────┐                 │
+│  │         EDEN             │  SURVIVOR S0 │  SURVIVOR S1 │                 │
+│  │   (new allocations here) │   (from)     │    (to)      │                 │
+│  │   bump-pointer alloc     │  age 1-14    │  empty       │                 │
+│  └──────────────────────────┴──────────────┴──────────────┘                 │
+│         │ Minor GC                │                                          │
+│         │ (STW, ~5-50ms)          │ promoted when age &gt;= MaxTenuringThreshold│
+│         ▼                         ▼                                          │
+│  OLD GENERATION / TENURED                                                    │
+│  ┌──────────────────────────────────────────────────────────────────────┐    │
+│  │  Long-lived objects (survived N Minor GCs)                           │    │
+│  │  Large objects (humongous in G1)                                     │    │
+│  │  Major GC / Mixed GC / Full GC when filling up                       │    │
+│  └──────────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+NATIVE MEMORY (outside JVM heap, not counted in -Xmx)
+┌─────────────────┐  ┌──────────────┐  ┌─────────────────┐  ┌─────────────┐
+│   METASPACE      │  │  CODE CACHE  │  │  THREAD STACKS  │  │DIRECT BUFS  │
+│  (-XX:MaxMeta-   │  │  (JIT native │  │  (-Xss per      │  │(-XX:MaxDirect│
+│   SpaceSize)     │  │   code)      │  │   thread)       │  │ MemorySize) │
+│                  │  │              │  │                 │  │             │
+│  Class metadata  │  │ JIT-compiled │  │ Method frames   │  │ NIO bufs    │
+│  Bytecode        │  │ native instr │  │ Local variables │  │ Netty bufs  │
+│  Constant pool   │  │              │  │ Operand stack   │  │             │
+│  Static refs     │  │              │  │                 │  │             │
+└─────────────────┘  └──────────────┘  └─────────────────┘  └─────────────┘
+
+OBJECT LIFECYCLE (Generational GC)
+=================================================================================
+
+ new MyObject()
+       │
+       ▼
+   ┌───────┐          Minor GC          ┌────────────┐
+   │ EDEN  │ ──────────────────────────► │ SURVIVOR   │
+   │       │  copy live objects          │ (age++)    │
+   │ ~80%  │                             │            │
+   │ young │                             │ age &lt; 15   │
+   └───────┘                             └─────┬──────┘
+                                               │
+                                               │ age &gt;= MaxTenuringThreshold
+                                               │ OR Survivor overflow
+                                               ▼
+                                         ┌──────────┐
+                                         │  OLD GEN │
+                                         │ (Tenured)│
+                                         └──────────┘
+                                               │
+                                               │ Major GC / Mixed GC / Full GC
+                                               ▼
+                                         Object Collected
+
+GC COLLECTOR COMPARISON
+=================================================================================
+
+Collector    | STW Pauses     | Throughput | Latency | Heap Size  | Default
+-------------|----------------|------------|---------|------------|----------
+Serial       | Full (single)  | Low        | High    | &lt;1GB       | No
+Parallel     | Full (multi)   | High       | Medium  | Any        | Java 8
+CMS*         | Initial+Remark | Medium     | Low     | Medium     | No (removed)
+G1           | Initial+Remark | Medium     | Low-Med | 4GB-100GB  | Java 9+
+ZGC          | ~1ms (3 pauses)| Med-High   | Sub-ms  | Up to 16TB | No
+Shenandoah   | ~10ms          | Medium     | Sub-10ms| Any        | No (OpenJDK)
+
+*CMS deprecated Java 9, removed Java 14
+
+CONTAINER MEMORY BUDGET
+=================================================================================
+
+Total container memory = 
+    Heap (-Xmx)
+  + Metaspace (-XX:MaxMetaspaceSize)
+  + Code Cache (default ~240MB; tune with -XX:ReservedCodeCacheSize)
+  + Thread stacks (-Xss × thread count)
+  + Direct buffers (-XX:MaxDirectMemorySize)
+  + JVM internal overhead (~100-300MB)
+  ─────────────────────────────────────────────────────
+  = Container memory limit
+
+Example (4-core, 4GB container, G1 GC, 200 threads):
+  -Xmx2g          →  2048 MB
+  MaxMetaspace    →   512 MB
+  Code Cache      →   256 MB
+  Thread stacks   →   200 × 512KB = 100 MB
+  Direct buffers  →   256 MB
+  JVM overhead    →   200 MB
+  ─────────────────────────────────────────────────────
+  Total           ≈  3372 MB  (safe under 4096 MB limit)
+
+=================================================================================
+QUICK REFERENCE: JVM FLAGS FOR PRODUCTION (G1 GC)
+
+-Xms4g -Xmx4g                          # Heap (set equal)
+-XX:+UseG1GC                           # GC collector
+-XX:MaxGCPauseMillis=200                # Pause target
+-XX:InitiatingHeapOccupancyPercent=40  # Concurrent mark trigger
+-XX:MaxMetaspaceSize=512m              # Metaspace cap
+-XX:+HeapDumpOnOutOfMemoryError        # Auto-dump
+-XX:HeapDumpPath=/var/dumps/           # Dump path
+-Xlog:gc*:file=gc.log:time,uptime,level,tags:filecount=5,filesize=20m
+=================================================================================
+</code></pre>
+<hr>
+<h2 id="summary-high-frequency-interview-topics"><a class="header" href="#summary-high-frequency-interview-topics">Summary: High-Frequency Interview Topics</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Topic</th><th>Frequency</th><th>Key Points</th></tr>
+</thead>
+<tbody>
+<tr><td>JVM Memory Areas</td><td>Very High</td><td>Heap, Stack, Metaspace, Code Cache. Thread-local vs shared.</td></tr>
+<tr><td>Heap Generations</td><td>Very High</td><td>Eden → Survivor → Old Gen. Generational hypothesis.</td></tr>
+<tr><td>G1 GC internals</td><td>Very High</td><td>Region-based, concurrent marking, Mixed GC, RSets.</td></tr>
+<tr><td>Memory leaks</td><td>Very High</td><td>Static collections, ThreadLocal, listeners, classloader.</td></tr>
+<tr><td>GC types comparison</td><td>Very High</td><td>Serial/Parallel/G1/ZGC. STW pauses, use cases.</td></tr>
+<tr><td>OOM types</td><td>Very High</td><td>Heap space, GC overhead, Metaspace, native thread.</td></tr>
+<tr><td>Class loading</td><td>High</td><td>Bootstrap/Platform/App hierarchy, parent delegation.</td></tr>
+<tr><td>JIT compilation</td><td>High</td><td>Tiered: C1 → C2. Inlining, escape analysis.</td></tr>
+<tr><td>GC tuning flags</td><td>High</td><td>-Xms/Xmx, G1 flags, GC logging, HeapDump.</td></tr>
+<tr><td>PermGen vs Metaspace</td><td>Medium</td><td>PermGen fixed, removed Java 8. Metaspace in native memory.</td></tr>
+<tr><td>ZGC / Shenandoah</td><td>Medium</td><td>Colored pointers, load barriers, sub-ms pauses.</td></tr>
+<tr><td>Custom ClassLoader</td><td>Medium</td><td>findClass() override, parent delegation, hot-reload.</td></tr>
+<tr><td>Cold start / JIT warmup</td><td>Medium</td><td>Interpreter → C1 → C2 pipeline. Cloud-native impact.</td></tr>
+<tr><td>Heap dump analysis</td><td>High</td><td>jmap, HeapDumpOnOOM, Eclipse MAT, retained heap.</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<p><em>End of Chapter 5: JVM Internals</em></p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../Volume1_CoreJava/Chapter4_Java8Plus.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../Volume1_CoreJava/Chapter6_Multithreading_Concurrency.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../Volume1_CoreJava/Chapter4_Java8Plus.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../Volume1_CoreJava/Chapter6_Multithreading_Concurrency.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-c22b7243.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../custom-877a7a53.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

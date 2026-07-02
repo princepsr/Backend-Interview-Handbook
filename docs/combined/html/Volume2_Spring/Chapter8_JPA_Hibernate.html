@@ -1,0 +1,3348 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Chapter 8 — Spring Data JPA &amp; Hibernate - Java Backend Interview Handbook</title>
+
+
+        <!-- Custom HTML head -->
+        <script>
+        (function() {
+            var RULES = [
+                { re: /^interview trap/i,     cls: "callout-trap" },
+                { re: /^common mistake/i,     cls: "callout-mistake" },
+                { re: /^quick tip|^pro tip/i, cls: "callout-tip" },
+                { re: /^quick revision/i,     cls: "callout-revision" },
+                { re: /^real.world example/i, cls: "callout-example" },
+                { re: /^follow.up question/i, cls: "callout-tip" },
+            ];
+        
+            function run() {
+                document.querySelectorAll(".content p").forEach(function(p) {
+                    var first = p.querySelector("strong");
+                    if (!first) return;
+                    var txt = first.textContent.trim();
+                    for (var i = 0; i < RULES.length; i++) {
+                        if (RULES[i].re.test(txt)) {
+                            p.classList.add(RULES[i].cls);
+                            var next = p.nextElementSibling;
+                            if (next && (next.tagName === "UL" || next.tagName === "OL")) {
+                                next.classList.add(RULES[i].cls);
+                                next.style.marginTop = "0";
+                                p.style.marginBottom = "0";
+                            }
+                            break;
+                        }
+                    }
+                });
+            }
+        
+            window.applyEnhancements = run;
+        
+            function tryRun() { setTimeout(run, 200); }
+        
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", tryRun);
+            } else {
+                tryRun();
+            }
+        
+            window.addEventListener("hashchange", tryRun);
+            window.addEventListener("popstate", tryRun);
+        
+            // Watch for mdBook replacing the content div
+            var observer = new MutationObserver(function(muts) {
+                for (var i = 0; i < muts.length; i++) {
+                    if (muts[i].addedNodes.length > 0) {
+                        tryRun();
+                        return;
+                    }
+                }
+            });
+        
+            function attachObserver() {
+                var el = document.querySelector(".content");
+                if (el) { observer.observe(el, { childList: true }); }
+            }
+        
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", attachObserver);
+            } else {
+                attachObserver();
+            }
+        })();
+        </script>
+
+        <meta name="description" content="Complete SDE2 interview preparation guide for Java Backend — FAANG+, FinTech &amp; SaaS. Java 17 / Spring Boot 3.x. 27 chapters, 400+ questions.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-0392ca55.css">
+        <link rel="stylesheet" href="../css/chrome-fc474251.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../custom-aab4aca2.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-ff4d3bcd.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-cca10391.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Java Backend Interview Handbook</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="volume-2-spring-ecosystem"><a class="header" href="#volume-2-spring-ecosystem">Volume 2: Spring Ecosystem</a></h1>
+<h1 id="chapter-8-spring-data-jpa--hibernate"><a class="header" href="#chapter-8-spring-data-jpa--hibernate">Chapter 8: Spring Data JPA &amp; Hibernate</a></h1>
+<hr>
+<h1 id="chapter-8-spring-data-jpa--hibernate--part-a"><a class="header" href="#chapter-8-spring-data-jpa--hibernate--part-a">Chapter 8: Spring Data JPA &amp; Hibernate “” Part A</a></h1>
+<blockquote>
+<p>Spring Boot 3 / Java 17 / Hibernate 6 / Jakarta Persistence 3.x</p>
+</blockquote>
+<hr>
+<h2 id="q1-jpa-vs-hibernate"><a class="header" href="#q1-jpa-vs-hibernate">Q1: JPA vs Hibernate</a></h2>
+<p><strong>Difficulty:</strong> Easy | <strong>Interview Frequency:</strong> Very High
+<strong>Companies:</strong> Amazon, Google, Microsoft, Flipkart, Paytm, TCS, Infosys, Wipro, Capgemini</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+JPA (Jakarta Persistence API) is a specification defined under <code>jakarta.persistence</code> that describes how Java objects should be mapped to relational databases. Hibernate is the most popular implementation of that specification. JPA defines the contracts “” annotations like <code>@Entity</code>, <code>@Id</code>, the <code>EntityManager</code> interface, JPQL. Hibernate implements all of that and adds its own extras: HQL (Hibernate Query Language, a superset of JPQL), the <code>Session</code> API, second-level caching, batch processing, and advanced mapping features.</p>
+<p><strong>Deep Explanation:</strong></p>
+<ul>
+<li><strong>JPA (specification):</strong> Defined as part of Jakarta EE. Key packages: <code>jakarta.persistence.*</code>. Defines <code>EntityManager</code>, <code>EntityManagerFactory</code>, <code>Persistence</code>, JPQL, standard annotations, and transaction semantics. Any compliant ORM (Hibernate, EclipseLink, OpenJPA) can be swapped in.</li>
+<li><strong>Hibernate (implementation):</strong> Ships <code>hibernate-core</code>. Implements <code>EntityManager</code> via its <code>Session</code> interface. Adds:
+<ul>
+<li><strong>HQL</strong> “” superset of JPQL with Hibernate-specific functions</li>
+<li><strong>Session / SessionFactory</strong> “” native Hibernate API (more powerful than <code>EntityManager</code>)</li>
+<li><strong>First-level cache</strong> “” per <code>Session</code>, automatic</li>
+<li><strong>Second-level cache</strong> “” shared across sessions, pluggable (EhCache, Redis, Caffeine)</li>
+<li><strong>Batch processing</strong> “” <code>hibernate.jdbc.batch_size</code>, <code>@BatchSize</code></li>
+<li><strong>Filters, interceptors, events</strong></li>
+<li><strong>Envers</strong> “” entity auditing</li>
+</ul>
+</li>
+<li>Spring Data JPA sits on top of JPA and provides repository abstractions, further simplifying data access.</li>
+</ul>
+<p><strong>Real-World Example:</strong>
+In a payment processing system, the team uses JPA annotations (<code>@Entity</code>, <code>@OneToMany</code>) for portability. But for high-throughput batch inserts of 10,000 payment records, they configure <code>hibernate.jdbc.batch_size=50</code> and use Hibernate’s second-level cache for frequently read <code>PaymentStatus</code> lookup tables “” features that go beyond what the JPA spec mandates.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">// JPA-only code "” works with any JPA provider
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "orders")
+public class Order {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "order_seq")
+    @SequenceGenerator(name = "order_seq", sequenceName = "order_seq", allocationSize = 50)
+    private Long id;
+
+    @Column(nullable = false)
+    private String customerId;
+
+    @Column(nullable = false)
+    private java.math.BigDecimal totalAmount;
+
+    // getters / setters omitted for brevity
+}
+
+// Hibernate-specific: accessing Session for batch flush
+import org.hibernate.Session;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import jakarta.persistence.EntityManager;
+
+@Service
+public class OrderBatchService {
+
+    private final EntityManager em;
+
+    public OrderBatchService(EntityManager em) {
+        this.em = em;
+    }
+
+    @Transactional
+    public void bulkInsert(List&lt;Order&gt; orders) {
+        Session session = em.unwrap(Session.class); // Hibernate-specific
+        for (int i = 0; i &lt; orders.size(); i++) {
+            session.persist(orders.get(i));
+            if (i % 50 == 0) {
+                session.flush();
+                session.clear(); // free first-level cache
+            }
+        }
+    }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ol>
+<li>Can you replace Hibernate with EclipseLink in a Spring Boot app? What changes?</li>
+<li>What is the difference between JPA’s <code>EntityManager</code> and Hibernate’s <code>Session</code>?</li>
+<li>Why does Spring Boot auto-configure Hibernate as the JPA provider?</li>
+</ol>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Mixing <code>jakarta.persistence</code> and <code>javax.persistence</code> imports (Spring Boot 3 requires <code>jakarta.*</code>)</li>
+<li>Treating HQL and JPQL as identical “” HQL has additional Hibernate-specific syntax</li>
+<li>Forgetting that <code>SessionFactory</code> is the Hibernate equivalent of <code>EntityManagerFactory</code></li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“Hibernate IS JPA” “” Wrong. Hibernate implements JPA but also provides features outside the JPA specification. You can use Hibernate directly (via <code>Session</code>) without any JPA annotations.</p>
+<p><strong>Quick Revision:</strong></p>
+<ul>
+<li>JPA = specification (<code>jakarta.persistence</code>) | Hibernate = implementation</li>
+<li>Hibernate extras: HQL, Session, L2 cache, batch, Envers</li>
+<li>Spring Boot 3 uses <code>jakarta.*</code> (not <code>javax.*</code>)</li>
+</ul>
+<hr>
+<h2 id="q2-entity-lifecycle-states"><a class="header" href="#q2-entity-lifecycle-states">Q2: Entity Lifecycle States</a></h2>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> Very High
+<strong>Companies:</strong> Amazon, Uber, Swiggy, PhonePe, Oracle, SAP, Thoughtworks</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+A JPA entity goes through four lifecycle states: <strong>Transient</strong> (new object, not known to persistence context), <strong>Persistent</strong> (managed by <code>EntityManager</code>, changes are tracked), <strong>Detached</strong> (was managed, session closed or explicitly detached), and <strong>Removed</strong> (marked for deletion). State transitions happen via <code>persist()</code>, <code>merge()</code>, <code>remove()</code>, <code>detach()</code>, and <code>refresh()</code>. The key trap: <code>merge()</code> returns a NEW managed instance “” the original object passed in remains detached.</p>
+<p><strong>Deep Explanation:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>State</th><th>Description</th><th>DB row exists</th><th>Tracked by EM</th></tr>
+</thead>
+<tbody>
+<tr><td>Transient</td><td><code>new Entity()</code>, no ID, not persisted</td><td>No</td><td>No</td></tr>
+<tr><td>Persistent</td><td>After <code>persist()</code> or loaded from DB</td><td>Yes (or pending flush)</td><td>Yes</td></tr>
+<tr><td>Detached</td><td>After session close / <code>detach()</code> / <code>clear()</code></td><td>Yes</td><td>No</td></tr>
+<tr><td>Removed</td><td>After <code>remove()</code> called</td><td>Will be deleted on flush</td><td>Yes (for deletion)</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>State Transitions:</strong></p>
+<ul>
+<li><code>persist(entity)</code> â†’ Transient â†’ Persistent</li>
+<li><code>remove(entity)</code> â†’ Persistent â†’ Removed</li>
+<li><code>detach(entity)</code> â†’ Persistent â†’ Detached</li>
+<li><code>merge(detached)</code> â†’ Detached â†’ returns new Persistent instance (original stays Detached)</li>
+<li><code>refresh(entity)</code> â†’ reloads persistent entity from DB (discards in-memory changes)</li>
+<li>Session close â†’ all Persistent â†’ Detached</li>
+</ul>
+<p><strong>Critical merge() behavior:</strong> <code>merge()</code> copies the state of the detached object into a managed entity (or creates a new one) and returns the managed copy. The caller MUST use the returned reference.</p>
+<p><strong>Real-World Example:</strong>
+In an e-commerce checkout flow, an <code>Order</code> entity is loaded in one HTTP request (session closes, entity becomes detached). The user updates the shipping address and sends a PUT request. The controller receives a detached <code>Order</code>. Wrong: calling <code>entityManager.persist(detachedOrder)</code> throws <code>EntityExistsException</code>. Correct: <code>Order managed = entityManager.merge(detachedOrder)</code> “” use <code>managed</code> from that point.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">import jakarta.persistence.*;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class OrderLifecycleService {
+
+    @PersistenceContext
+    private EntityManager em;
+
+    @Transactional
+    public void demonstrateLifecycle() {
+        // 1. TRANSIENT "” not known to persistence context
+        Order order = new Order();
+        order.setCustomerId("CUST-001");
+        order.setTotalAmount(new java.math.BigDecimal("499.99"));
+
+        // 2. PERSISTENT "” tracked; INSERT will happen on flush
+        em.persist(order);
+        System.out.println("State: Persistent, id=" + order.getId());
+
+        // 3. DETACHED "” no longer tracked
+        em.detach(order);
+        order.setTotalAmount(new java.math.BigDecimal("599.99")); // change ignored
+
+        // 4. MERGE "” returns NEW managed instance; original stays detached
+        Order managedOrder = em.merge(order);
+        // managedOrder.getTotalAmount() == 599.99, tracked for UPDATE
+        // order (original) is still detached
+
+        // 5. REMOVED "” will be deleted on flush/commit
+        em.remove(managedOrder);
+        // managedOrder is now in Removed state
+    }
+
+    @Transactional
+    public void refreshExample(Long orderId) {
+        Order order = em.find(Order.class, orderId);
+        order.setTotalAmount(new java.math.BigDecimal("999.99")); // in-memory change
+
+        // Discard in-memory change, reload from DB
+        em.refresh(order);
+        // order.getTotalAmount() now reflects DB value
+    }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ol>
+<li>What happens if you call <code>persist()</code> on a detached entity?</li>
+<li>What does <code>merge()</code> do if the entity does not exist in the DB?</li>
+<li>What is the difference between <code>detach()</code> and <code>clear()</code>?</li>
+</ol>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Using the original object after <code>merge()</code> instead of the returned managed instance</li>
+<li>Calling <code>persist()</code> on a detached entity (throws <code>EntityExistsException</code> or <code>DetachedObjectException</code>)</li>
+<li>Not understanding that <code>clear()</code> detaches ALL entities in the persistence context</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“merge() updates the original object and makes it managed” “” Wrong. <code>merge()</code> copies state to a new (or existing) managed instance and returns it. The passed-in detached object stays detached.</p>
+<p><strong>Quick Revision:</strong></p>
+<ul>
+<li>4 states: Transient â†’ Persistent â†’ Detached / Removed</li>
+<li><code>merge()</code> returns a new managed copy; original stays detached “” always use the return value</li>
+<li><code>refresh()</code> discards in-memory changes and reloads from DB</li>
+</ul>
+<hr>
+<h2 id="q3-entitymanager-vs-session"><a class="header" href="#q3-entitymanager-vs-session">Q3: EntityManager vs Session</a></h2>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> High
+<strong>Companies:</strong> Goldman Sachs, Morgan Stanley, Thoughtworks, Razorpay, Zomato</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+<code>EntityManager</code> is the JPA standard API; Hibernate’s <code>Session</code> extends it with additional capabilities. Key differences: <code>save()</code> (Hibernate, always inserts, returns generated ID immediately) vs <code>persist()</code> (JPA, void return); <code>get()</code> (returns null if not found) vs <code>load()</code> (returns a proxy, throws <code>ObjectNotFoundException</code> on access if not found). You access <code>Session</code> from <code>EntityManager</code> via <code>em.unwrap(Session.class)</code>.</p>
+<p><strong>Deep Explanation:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operation</th><th>JPA EntityManager</th><th>Hibernate Session</th></tr>
+</thead>
+<tbody>
+<tr><td>Save new entity</td><td><code>persist(entity)</code> “” void</td><td><code>save(entity)</code> “” returns Serializable ID</td></tr>
+<tr><td>Save or update</td><td><code>merge(entity)</code> “” returns managed copy</td><td><code>saveOrUpdate(entity)</code> “” void, mutates original</td></tr>
+<tr><td>Find by ID</td><td><code>find(Class, id)</code> “” returns null if absent</td><td><code>get(Class, id)</code> “” returns null if absent</td></tr>
+<tr><td>Proxy by ID</td><td>No direct equivalent</td><td><code>load(Class, id)</code> “” returns proxy; throws if accessed and absent</td></tr>
+<tr><td>Flush</td><td><code>flush()</code></td><td><code>flush()</code></td></tr>
+<tr><td>Clear context</td><td><code>clear()</code></td><td><code>clear()</code></td></tr>
+<tr><td>Execute HQL</td><td><code>createQuery(jpql)</code></td><td><code>createQuery(hql)</code> + additional methods</td></tr>
+<tr><td>Batch scroll</td><td>Not in spec</td><td><code>scroll()</code> “” server-side cursor</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong><code>load()</code> vs <code>get()</code> detail:</strong></p>
+<ul>
+<li><code>get()</code> hits the DB immediately, returns null if not found.</li>
+<li><code>load()</code> returns a Hibernate proxy without hitting the DB. The proxy initializes on first field access. If the row doesn’t exist, accessing any field throws <code>org.hibernate.ObjectNotFoundException</code>.</li>
+<li>Use <code>load()</code> when you need a reference for a foreign key association and you know the row exists (avoids an unnecessary SELECT).</li>
+</ul>
+<p><strong>Real-World Example:</strong>
+In a payment service, when creating a <code>Payment</code> that must reference an existing <code>Order</code>, using <code>session.load(Order.class, orderId)</code> avoids a SELECT “” you just need the proxy for the FK. If you use <code>em.find()</code>, an extra SELECT fires even though you only need the ID for the FK column.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">import jakarta.persistence.*;
+import org.hibernate.Session;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class PaymentService {
+
+    @PersistenceContext
+    private EntityManager em;
+
+    @Transactional
+    public Payment createPayment(Long orderId, java.math.BigDecimal amount) {
+        // load() returns proxy "” no SELECT fired yet
+        // Use when you know the Order exists and only need the FK reference
+        Session session = em.unwrap(Session.class);
+        Order orderRef = session.load(Order.class, orderId); // no DB hit
+
+        Payment payment = new Payment();
+        payment.setOrder(orderRef); // sets FK, still no SELECT
+        payment.setAmount(amount);
+        payment.setStatus("PENDING");
+
+        em.persist(payment); // INSERT payment with order_id FK
+        return payment;
+    }
+
+    @Transactional(readOnly = true)
+    public Order findOrderSafely(Long orderId) {
+        // find() hits DB immediately "” returns null if row absent
+        return em.find(Order.class, orderId); // null-safe
+    }
+
+    @Transactional
+    public void updateOrderAmount(Long orderId, java.math.BigDecimal newAmount) {
+        Order order = em.find(Order.class, orderId);
+        if (order == null) throw new RuntimeException("Order not found: " + orderId);
+
+        order.setTotalAmount(newAmount);
+        // No explicit save needed "” dirty checking fires UPDATE on flush
+    }
+
+    @Transactional
+    public Order mergeDetachedOrder(Order detachedOrder) {
+        // merge() vs saveOrUpdate():
+        // merge() returns new managed instance (JPA standard)
+        // saveOrUpdate() modifies the passed-in object in place (Hibernate)
+        return em.merge(detachedOrder); // use returned instance
+    }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ol>
+<li>When would you prefer <code>load()</code> over <code>find()</code>?</li>
+<li>What exception does <code>load()</code> throw and when?</li>
+<li>Why is <code>save()</code> potentially dangerous in a merge scenario?</li>
+</ol>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Using <code>load()</code> when the row might not exist “” triggers <code>ObjectNotFoundException</code> on proxy access</li>
+<li>Not using the return value of <code>merge()</code> (the original detached object is not managed)</li>
+<li>Calling <code>flush()</code> without an active transaction</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“<code>load()</code> is faster than <code>find()</code> so always use it” “” Wrong. <code>load()</code> defers the DB hit to proxy access; if you immediately access a field, it hits the DB anyway. The benefit is only when you need the reference solely for FK association without reading fields.</p>
+<p><strong>Quick Revision:</strong></p>
+<ul>
+<li><code>find()</code> â†’ null if absent | <code>load()</code> â†’ proxy, throws <code>ObjectNotFoundException</code> on access if absent</li>
+<li><code>persist()</code> â†’ void | <code>save()</code> â†’ returns ID</li>
+<li><code>merge()</code> â†’ returns new managed copy | <code>saveOrUpdate()</code> â†’ mutates original</li>
+</ul>
+<hr>
+<h2 id="q4-entity-table-id-generatedvalue"><a class="header" href="#q4-entity-table-id-generatedvalue">Q4: @Entity, @Table, @Id, @GeneratedValue</a></h2>
+<p><strong>Difficulty:</strong> Easy | <strong>Interview Frequency:</strong> Very High
+<strong>Companies:</strong> Infosys, Wipro, Accenture, TCS, HCL, Cognizant, Capgemini</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+<code>@Entity</code> marks a class as a JPA entity; <code>@Table</code> overrides the default table name. <code>@Id</code> marks the primary key; <code>@GeneratedValue</code> controls how IDs are generated. There are four strategies: <code>IDENTITY</code> (DB auto-increment, breaks batch inserts), <code>SEQUENCE</code> (DB sequence, best for batches “” pre-allocates IDs), <code>TABLE</code> (a dedicated table, worst performance), and <code>AUTO</code> (provider chooses). For high-throughput systems, always prefer <code>SEQUENCE</code> with a meaningful <code>allocationSize</code>.</p>
+<p><strong>Deep Explanation:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Strategy</th><th>Mechanism</th><th>Batch-friendly</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td><code>IDENTITY</code></td><td>DB auto-increment (<code>AUTO_INCREMENT</code>, <code>SERIAL</code>)</td><td>No</td><td>Each INSERT needs a DB roundtrip to get the generated ID; disables JDBC batch</td></tr>
+<tr><td><code>SEQUENCE</code></td><td>DB sequence object</td><td>Yes</td><td>Hibernate pre-allocates IDs in blocks (<code>allocationSize</code>); no extra roundtrip per row</td></tr>
+<tr><td><code>TABLE</code></td><td>Simulates sequence in a table</td><td>No</td><td>Pessimistic locks on the ID table; worst for concurrency</td></tr>
+<tr><td><code>AUTO</code></td><td>Provider decides</td><td>Depends</td><td>Hibernate 6 defaults to <code>SEQUENCE</code>; may create <code>hibernate_sequence</code></td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Why IDENTITY breaks batch inserts:</strong>
+JDBC batching works by buffering multiple statements and sending them in one round trip. With <code>IDENTITY</code>, Hibernate must execute each INSERT immediately and call <code>getGeneratedKeys()</code> to obtain the ID (needed to populate the entity’s <code>@Id</code> field and manage the first-level cache). This forces Hibernate to flush each statement individually, defeating the batch.</p>
+<p><strong>Why SEQUENCE is preferred:</strong>
+Hibernate calls <code>nextval</code> on the sequence in advance (or in bulk via <code>allocationSize</code>), assigns IDs to entities before INSERT, then batches all INSERTs in one JDBC batch. With <code>allocationSize=50</code>, 50 IDs are reserved per sequence call “” only 1 sequence call per 50 inserts.</p>
+<p><strong>Real-World Example:</strong>
+An order management system processes 5,000 orders per minute during a flash sale. Using <code>IDENTITY</code> strategy: 5,000 individual INSERTs, each requiring a roundtrip. Switching to <code>SEQUENCE</code> with <code>allocationSize=50</code>: 100 sequence calls + 1 batched JDBC call for all 5,000 rows “” throughput improves by ~10x.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
+
+// WRONG for high-throughput "” IDENTITY breaks batch inserts
+@Entity
+@Table(name = "orders_bad")
+public class OrderWithIdentity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY) // disables JDBC batch
+    private Long id;
+}
+
+// CORRECT for high-throughput "” SEQUENCE with pre-allocation
+@Entity
+@Table(
+    name = "orders",
+    indexes = {
+        @Index(name = "idx_orders_customer_id", columnList = "customer_id"),
+        @Index(name = "idx_orders_status", columnList = "status")
+    },
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_orders_reference", columnNames = "order_reference")
+    }
+)
+public class Order {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "order_seq_gen")
+    @SequenceGenerator(
+        name = "order_seq_gen",
+        sequenceName = "order_id_seq",   // DB sequence name
+        allocationSize = 50              // reserve 50 IDs per sequence call
+    )
+    private Long id;
+
+    @Column(name = "customer_id", nullable = false, length = 50)
+    private String customerId;
+
+    @Column(name = "order_reference", nullable = false, unique = true, length = 36)
+    private String orderReference;
+
+    @Column(name = "total_amount", nullable = false, precision = 19, scale = 4)
+    private java.math.BigDecimal totalAmount;
+
+    @Column(name = "status", nullable = false, length = 20)
+    private String status;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private java.time.Instant createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = java.time.Instant.now();
+        if (this.orderReference == null) {
+            this.orderReference = java.util.UUID.randomUUID().toString();
+        }
+    }
+
+    // getters and setters
+    public Long getId() { return id; }
+    public String getCustomerId() { return customerId; }
+    public void setCustomerId(String customerId) { this.customerId = customerId; }
+    public String getOrderReference() { return orderReference; }
+    public void setOrderReference(String orderReference) { this.orderReference = orderReference; }
+    public java.math.BigDecimal getTotalAmount() { return totalAmount; }
+    public void setTotalAmount(java.math.BigDecimal totalAmount) { this.totalAmount = totalAmount; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public java.time.Instant getCreatedAt() { return createdAt; }
+}
+</code></pre>
+<p><strong>application.properties for batch inserts:</strong></p>
+<pre><code class="language-properties">spring.jpa.properties.hibernate.jdbc.batch_size=50
+spring.jpa.properties.hibernate.order_inserts=true
+spring.jpa.properties.hibernate.order_updates=true
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ol>
+<li>What is <code>allocationSize</code> in <code>@SequenceGenerator</code> and what happens if two app instances run concurrently with the same sequence?</li>
+<li>Why does MySQL not have native sequences before 8.0 and how do you handle it?</li>
+<li>When would you use <code>GenerationType.TABLE</code>?</li>
+</ol>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Using <code>IDENTITY</code> then wondering why batch inserts are slow</li>
+<li>Setting <code>allocationSize=1</code> (defeats the purpose of pre-allocation “” same as IDENTITY in terms of roundtrips)</li>
+<li>Not specifying <code>sequenceName</code> “” Hibernate may share a default sequence across entities</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“AUTO is the safest default” “” In Hibernate 6, <code>AUTO</code> generates a table-based sequence (<code>hibernate_sequence</code>) if no dialect-specific default is found. Always specify the strategy and sequence name explicitly for production.</p>
+<p><strong>Quick Revision:</strong></p>
+<ul>
+<li><code>IDENTITY</code> = DB auto-increment = NO batch inserts</li>
+<li><code>SEQUENCE</code> = pre-allocated IDs = YES batch inserts (set <code>allocationSize</code> to batch size)</li>
+<li><code>TABLE</code> = worst performance, avoid</li>
+<li><code>AUTO</code> = Hibernate decides, unpredictable “” be explicit in production</li>
+</ul>
+<hr>
+<h2 id="q5-column-transient-lob-enumerated-embeddedembeddable"><a class="header" href="#q5-column-transient-lob-enumerated-embeddedembeddable">Q5: @Column, @Transient, @Lob, @Enumerated, @Embedded/@Embeddable</a></h2>
+<p><strong>Difficulty:</strong> Easy | <strong>Interview Frequency:</strong> High
+<strong>Companies:</strong> TCS, Infosys, Wipro, HCL, Persistent Systems</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+These annotations control column mapping. <code>@Column</code> maps a field to a DB column with constraints. <code>@Transient</code> excludes a field from persistence. <code>@Lob</code> maps large objects (CLOB/BLOB). <code>@Enumerated</code> maps Java enums “” always use <code>EnumType.STRING</code>, never <code>ORDINAL</code>: adding a new enum constant in the middle breaks all existing <code>ORDINAL</code> data. <code>@Embeddable</code> marks a class as a value type embedded inside an entity; <code>@Embedded</code> uses it.</p>
+<p><strong>Deep Explanation:</strong></p>
+<p><strong>@Enumerated Danger:</strong></p>
+<pre><code>// Enum: PENDING=0, PROCESSING=1, COMPLETED=2  (ORDINAL positions)
+// DB stores: 0, 1, 2
+// New requirement: add CANCELLED before COMPLETED
+// New enum: PENDING=0, PROCESSING=1, CANCELLED=2, COMPLETED=3
+// DB row with value=2 now maps to CANCELLED, not COMPLETED "” silent data corruption!
+</code></pre>
+<p>Always use <code>@Enumerated(EnumType.STRING)</code>. The storage cost is negligible; the data integrity benefit is enormous.</p>
+<p><strong>@Embedded / @Embeddable:</strong>
+Allows splitting a flat table into logical value objects. The embedded object has no identity of its own “” it shares the entity’s identity. Useful for <code>Address</code>, <code>MoneyAmount</code>, <code>AuditInfo</code>.</p>
+<p><strong>@Lob:</strong>
+Maps to <code>CLOB</code> (for <code>String</code>) or <code>BLOB</code> (for <code>byte[]</code>). Hibernate may fetch LOBs lazily by default depending on the driver. For large documents, prefer storing files in object storage (S3) and saving the URL.</p>
+<p><strong>Real-World Example:</strong>
+A product catalog stores a payment method enum. Initially only <code>CREDIT_CARD</code> and <code>DEBIT_CARD</code> exist. Six months later, <code>UPI</code> is added between them in alphabetical order. With <code>ORDINAL</code>, every existing <code>DEBIT_CARD</code> record (stored as <code>1</code>) now reads as <code>UPI</code> “” a production disaster.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.Instant;
+
+// Embeddable value object "” no @Id, no identity
+@Embeddable
+public class Money {
+
+    @Column(name = "amount", nullable = false, precision = 19, scale = 4)
+    private BigDecimal value;
+
+    @Column(name = "currency", nullable = false, length = 3)
+    private String currency;
+
+    protected Money() {}
+
+    public Money(BigDecimal value, String currency) {
+        this.value = value;
+        this.currency = currency;
+    }
+
+    public BigDecimal getValue() { return value; }
+    public String getCurrency() { return currency; }
+}
+
+// Enum "” always STRING
+public enum PaymentStatus {
+    PENDING, PROCESSING, COMPLETED, FAILED, REFUNDED
+}
+
+@Entity
+@Table(name = "payments")
+public class Payment {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "payment_seq")
+    @SequenceGenerator(name = "payment_seq", sequenceName = "payment_id_seq", allocationSize = 50)
+    private Long id;
+
+    // @Embedded "” columns (amount, currency) go into payments table
+    @Embedded
+    private Money totalAmount;
+
+    // CORRECT "” stores "PENDING", "COMPLETED", etc.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private PaymentStatus status;
+
+    // WRONG "” stores 0, 1, 2 "” brittle!
+    // @Enumerated(EnumType.ORDINAL)
+    // private PaymentStatus status;
+
+    // Large text "” maps to CLOB
+    @Lob
+    @Column(name = "payment_notes")
+    private String paymentNotes;
+
+    // Not persisted "” computed field
+    @Transient
+    private boolean isHighValue;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @PostLoad
+    @PrePersist
+    private void computeTransientFields() {
+        this.isHighValue = totalAmount != null
+            &amp;&amp; totalAmount.getValue().compareTo(new BigDecimal("100000")) &gt; 0;
+    }
+
+    // getters and setters
+    public Long getId() { return id; }
+    public Money getTotalAmount() { return totalAmount; }
+    public void setTotalAmount(Money totalAmount) { this.totalAmount = totalAmount; }
+    public PaymentStatus getStatus() { return status; }
+    public void setStatus(PaymentStatus status) { this.status = status; }
+    public String getPaymentNotes() { return paymentNotes; }
+    public void setPaymentNotes(String paymentNotes) { this.paymentNotes = paymentNotes; }
+    public boolean isHighValue() { return isHighValue; }
+    public Instant getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ol>
+<li>What is the difference between <code>@Embedded</code> and <code>@OneToOne</code>?</li>
+<li>How do you override column names when the same <code>@Embeddable</code> is used twice in one entity?</li>
+<li>Can an <code>@Embeddable</code> class contain another <code>@Embeddable</code>?</li>
+</ol>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Using <code>@Enumerated(EnumType.ORDINAL)</code> in production</li>
+<li>Forgetting <code>@Transient</code> on computed fields “” Hibernate tries to map them and may throw an exception</li>
+<li>Using <code>@Lob</code> for small strings “” incurs overhead; use <code>@Column(length=...)</code> for short strings</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“ORDINAL is more efficient because it stores integers” “” The storage saving is trivial; the risk of silent data corruption from enum reordering is not worth it. Always use STRING.</p>
+<p><strong>Quick Revision:</strong></p>
+<ul>
+<li><code>@Enumerated(EnumType.STRING)</code> “” always, never ORDINAL</li>
+<li><code>@Transient</code> “” excluded from persistence</li>
+<li><code>@Embedded</code> + <code>@Embeddable</code> “” flat table, logical grouping, no separate table</li>
+<li><code>@Lob</code> “” CLOB (String) / BLOB (byte[])</li>
+</ul>
+<hr>
+<h2 id="q6-onetoone-onetomany-manytoone-manytomany"><a class="header" href="#q6-onetoone-onetomany-manytoone-manytomany">Q6: @OneToOne, @OneToMany, @ManyToOne, @ManyToMany</a></h2>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> Very High
+<strong>Companies:</strong> Amazon, Flipkart, Ola, Swiggy, Uber, Paytm, Goldman Sachs</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+JPA associations are mapped with cardinality annotations. The <strong>owning side</strong> has <code>@JoinColumn</code> and controls the FK column; the <strong>inverse side</strong> uses <code>mappedBy</code>. In bidirectional associations you must set both sides in Java. <code>CascadeType.REMOVE</code> on <code>@ManyToMany</code> is dangerous “” deleting one entity deletes all associated entities. Use <code>orphanRemoval=true</code> on <code>@OneToMany</code> to automatically delete child records when removed from the parent collection.</p>
+<p><strong>Deep Explanation:</strong></p>
+<p><strong>Owning vs Inverse Side:</strong></p>
+<ul>
+<li>The owning side holds the <code>@JoinColumn</code> (FK) and its state is what Hibernate persists.</li>
+<li>The inverse side has <code>mappedBy="fieldNameOnOwner"</code> “” it’s a mirror, purely for navigation.</li>
+<li>Mistake: only setting the <code>mappedBy</code> side “” Hibernate ignores it for persistence.</li>
+</ul>
+<p><strong>Cascade Types:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Type</th><th>Effect</th></tr>
+</thead>
+<tbody>
+<tr><td><code>PERSIST</code></td><td>Persist child when parent is persisted</td></tr>
+<tr><td><code>MERGE</code></td><td>Merge child when parent is merged</td></tr>
+<tr><td><code>REMOVE</code></td><td>Delete child when parent is deleted</td></tr>
+<tr><td><code>REFRESH</code></td><td>Refresh child when parent is refreshed</td></tr>
+<tr><td><code>DETACH</code></td><td>Detach child when parent is detached</td></tr>
+<tr><td><code>ALL</code></td><td>All of the above</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>CascadeType.REMOVE danger on @ManyToMany:</strong>
+If <code>Order</code> has <code>@ManyToMany(cascade = CascadeType.REMOVE)</code> to <code>Product</code>, deleting one <code>Order</code> would delete all its associated <code>Products</code> from the DB “” including products used by other orders. Never use <code>CascadeType.REMOVE</code> (or <code>ALL</code>) on <code>@ManyToMany</code>.</p>
+<p><strong>orphanRemoval:</strong>
+When <code>true</code> on <code>@OneToMany</code>, removing a child from the parent’s collection automatically issues a DELETE for that child. This is stronger than <code>CascadeType.REMOVE</code> (which only cascades the <code>remove()</code> call).</p>
+<p><strong>Real-World Example:</strong>
+In an e-commerce system: <code>Order</code> has a <code>@OneToOne</code> to <code>ShippingAddress</code>, <code>@OneToMany</code> to <code>OrderItem</code>, and <code>@ManyToMany</code> to <code>Coupon</code>. The <code>OrderItem</code> has <code>@ManyToOne</code> back to <code>Order</code> (owning side with <code>@JoinColumn</code>). <code>orphanRemoval=true</code> on <code>@OneToMany(mappedBy="order")</code> ensures removed items are deleted.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+@Entity
+@Table(name = "shipping_addresses")
+public class ShippingAddress {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "addr_seq")
+    @SequenceGenerator(name = "addr_seq", sequenceName = "address_id_seq", allocationSize = 10)
+    private Long id;
+
+    @Column(nullable = false)
+    private String street;
+
+    @Column(nullable = false, length = 100)
+    private String city;
+
+    @Column(nullable = false, length = 10)
+    private String postalCode;
+
+    // Inverse side of @OneToOne "” mappedBy points to Order.shippingAddress
+    @OneToOne(mappedBy = "shippingAddress")
+    private Order order;
+
+    public Long getId() { return id; }
+    public String getStreet() { return street; }
+    public void setStreet(String street) { this.street = street; }
+    public String getCity() { return city; }
+    public void setCity(String city) { this.city = city; }
+    public String getPostalCode() { return postalCode; }
+    public void setPostalCode(String postalCode) { this.postalCode = postalCode; }
+}
+
+@Entity
+@Table(name = "order_items")
+public class OrderItem {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "item_seq")
+    @SequenceGenerator(name = "item_seq", sequenceName = "order_item_id_seq", allocationSize = 50)
+    private Long id;
+
+    // OWNING SIDE "” has @JoinColumn, controls the FK
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "order_id", nullable = false)
+    private Order order;
+
+    @Column(name = "product_id", nullable = false)
+    private Long productId;
+
+    @Column(nullable = false)
+    private int quantity;
+
+    @Column(name = "unit_price", nullable = false, precision = 19, scale = 4)
+    private BigDecimal unitPrice;
+
+    public Long getId() { return id; }
+    public Order getOrder() { return order; }
+    public void setOrder(Order order) { this.order = order; }
+    public Long getProductId() { return productId; }
+    public void setProductId(Long productId) { this.productId = productId; }
+    public int getQuantity() { return quantity; }
+    public void setQuantity(int quantity) { this.quantity = quantity; }
+    public BigDecimal getUnitPrice() { return unitPrice; }
+    public void setUnitPrice(BigDecimal unitPrice) { this.unitPrice = unitPrice; }
+}
+
+@Entity
+@Table(name = "coupons")
+public class Coupon {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "coupon_seq")
+    @SequenceGenerator(name = "coupon_seq", sequenceName = "coupon_id_seq", allocationSize = 10)
+    private Long id;
+
+    @Column(nullable = false, unique = true, length = 20)
+    private String code;
+
+    // Inverse side of @ManyToMany "” NO cascade REMOVE here!
+    @ManyToMany(mappedBy = "coupons")
+    private Set&lt;Order&gt; orders = new HashSet&lt;&gt;();
+
+    public Long getId() { return id; }
+    public String getCode() { return code; }
+    public void setCode(String code) { this.code = code; }
+    public Set&lt;Order&gt; getOrders() { return orders; }
+}
+
+@Entity
+@Table(name = "orders")
+public class Order {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "order_seq2")
+    @SequenceGenerator(name = "order_seq2", sequenceName = "order_id_seq", allocationSize = 50)
+    private Long id;
+
+    @Column(name = "customer_id", nullable = false)
+    private String customerId;
+
+    // @OneToOne "” owning side (has @JoinColumn)
+    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JoinColumn(name = "shipping_address_id", unique = true)
+    private ShippingAddress shippingAddress;
+
+    // @OneToMany "” inverse side (mappedBy), orphanRemoval ensures child cleanup
+    @OneToMany(
+        mappedBy = "order",
+        cascade = CascadeType.ALL,
+        orphanRemoval = true,
+        fetch = FetchType.LAZY
+    )
+    private List&lt;OrderItem&gt; items = new ArrayList&lt;&gt;();
+
+    // @ManyToMany "” owning side, NO CascadeType.REMOVE
+    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinTable(
+        name = "order_coupons",
+        joinColumns = @JoinColumn(name = "order_id"),
+        inverseJoinColumns = @JoinColumn(name = "coupon_id")
+    )
+    private Set&lt;Coupon&gt; coupons = new HashSet&lt;&gt;();
+
+    // Helper methods "” MUST set both sides of bidirectional association
+    public void addItem(OrderItem item) {
+        items.add(item);
+        item.setOrder(this); // set owning side
+    }
+
+    public void removeItem(OrderItem item) {
+        items.remove(item);
+        item.setOrder(null); // orphanRemoval will delete it
+    }
+
+    public void addCoupon(Coupon coupon) {
+        coupons.add(coupon);
+        coupon.getOrders().add(this); // set both sides
+    }
+
+    public Long getId() { return id; }
+    public String getCustomerId() { return customerId; }
+    public void setCustomerId(String customerId) { this.customerId = customerId; }
+    public ShippingAddress getShippingAddress() { return shippingAddress; }
+    public void setShippingAddress(ShippingAddress addr) { this.shippingAddress = addr; }
+    public List&lt;OrderItem&gt; getItems() { return items; }
+    public Set&lt;Coupon&gt; getCoupons() { return coupons; }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ol>
+<li>What happens if you only set the <code>mappedBy</code> side of a bidirectional <code>@OneToMany</code>?</li>
+<li>What is the difference between <code>CascadeType.REMOVE</code> and <code>orphanRemoval=true</code>?</li>
+<li>Why should <code>@ManyToMany</code> owning side not have <code>CascadeType.REMOVE</code>?</li>
+</ol>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Not setting both sides of a bidirectional relationship in Java “” one side is ignored by Hibernate</li>
+<li>Using <code>CascadeType.ALL</code> (which includes REMOVE) on <code>@ManyToMany</code></li>
+<li>Mixing up owning and inverse sides “” always <code>@JoinColumn</code> on owning, <code>mappedBy</code> on inverse</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“The <code>mappedBy</code> side controls the FK” “” Wrong. The owning side (with <code>@JoinColumn</code>) controls the FK. Changes made only to the <code>mappedBy</code> side are ignored by Hibernate.</p>
+<p><strong>Quick Revision:</strong></p>
+<ul>
+<li>Owning side = <code>@JoinColumn</code> | Inverse side = <code>mappedBy</code></li>
+<li>Always set both sides in Java helper methods</li>
+<li><code>CascadeType.REMOVE</code> on <code>@ManyToMany</code> = data disaster</li>
+<li><code>orphanRemoval=true</code> automatically deletes children removed from collection</li>
+</ul>
+<hr>
+<h2 id="q7-fetchtypelazy-vs-eager"><a class="header" href="#q7-fetchtypelazy-vs-eager">Q7: FetchType.LAZY vs EAGER</a></h2>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> Very High
+<strong>Companies:</strong> Amazon, Uber, Zomato, Paytm, Razorpay, Thoughtworks, Goldman Sachs</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+<code>LAZY</code> loading defers loading associated data until it is accessed; <code>EAGER</code> loads it immediately with the parent. JPA defaults: <code>@OneToMany</code> and <code>@ManyToMany</code> are <code>LAZY</code>; <code>@ManyToOne</code> and <code>@OneToOne</code> are <code>EAGER</code>. The most common mistake is accessing a <code>LAZY</code> association after the session closes, causing <code>LazyInitializationException</code>. Fixes: JOIN FETCH in JPQL, <code>@EntityGraph</code>, DTO projections, or <code>@Transactional</code> on the calling method.</p>
+<p><strong>Deep Explanation:</strong></p>
+<p><strong>JPA Default Fetch Types:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Association</th><th>JPA Default</th><th>Recommended</th></tr>
+</thead>
+<tbody>
+<tr><td><code>@OneToMany</code></td><td>LAZY</td><td>LAZY</td></tr>
+<tr><td><code>@ManyToMany</code></td><td>LAZY</td><td>LAZY</td></tr>
+<tr><td><code>@ManyToOne</code></td><td>EAGER</td><td>LAZY (override!)</td></tr>
+<tr><td><code>@OneToOne</code></td><td>EAGER</td><td>LAZY (override!)</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Why override <code>@ManyToOne</code> to LAZY?</strong>
+If <code>OrderItem</code> has <code>@ManyToOne</code> to <code>Order</code> as EAGER, loading 100 <code>OrderItem</code> records fires 100 additional SELECTs for the orders “” a classic N+1 scenario built into the mapping.</p>
+<p><strong>LazyInitializationException:</strong>
+Occurs when you access a lazy collection/proxy after the <code>EntityManager</code> / <code>Session</code> has been closed. Common in REST controllers that return entities directly.</p>
+<p><strong>Fixes:</strong></p>
+<ol>
+<li><strong>JOIN FETCH</strong> “” <code>SELECT o FROM Order o JOIN FETCH o.items WHERE o.id = :id</code></li>
+<li><strong>@EntityGraph</strong> “” declarative JOIN FETCH on repository method</li>
+<li><strong>DTO projection</strong> “” fetch only needed data, no lazy association problem</li>
+<li><strong><code>@Transactional</code> on service method</strong> “” keeps session open during access (careful: keeps transaction open longer)</li>
+<li><strong><code>spring.jpa.open-in-view=true</code></strong> “” NOT recommended for production (keeps session open for entire HTTP request, hides N+1 problems)</li>
+</ol>
+<p><strong>Real-World Example:</strong>
+An order summary API loads an <code>Order</code> and then in the controller accesses <code>order.getItems()</code> to calculate the total. The session is closed by the time the controller runs. <code>LazyInitializationException</code> is thrown. Fix: use a JOIN FETCH query or DTO projection in the service layer.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">import jakarta.persistence.*;
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
+import java.util.Optional;
+
+// Repository with multiple fetch strategies
+public interface OrderRepository extends JpaRepository&lt;Order, Long&gt; {
+
+    // Fix 1: JOIN FETCH in JPQL "” loads items in single SQL JOIN
+    @Query("SELECT DISTINCT o FROM Order o JOIN FETCH o.items WHERE o.id = :id")
+    Optional&lt;Order&gt; findByIdWithItems(@Param("id") Long id);
+
+    // Fix 2: @EntityGraph "” declarative, generates LEFT JOIN FETCH
+    @EntityGraph(attributePaths = {"items", "shippingAddress"})
+    @Query("SELECT o FROM Order o WHERE o.id = :id")
+    Optional&lt;Order&gt; findByIdWithGraph(@Param("id") Long id);
+
+    // Fix 3: DTO projection "” constructor expression, no entity, no LazyInitializationException
+    @Query("""
+        SELECT new com.example.dto.OrderSummaryDto(
+            o.id, o.customerId, o.totalAmount, COUNT(i)
+        )
+        FROM Order o LEFT JOIN o.items i
+        WHERE o.customerId = :customerId
+        GROUP BY o.id, o.customerId, o.totalAmount
+        """)
+    List&lt;OrderSummaryDto&gt; findOrderSummariesByCustomer(@Param("customerId") String customerId);
+}
+
+// DTO for projection
+package com.example.dto;
+
+import java.math.BigDecimal;
+
+public record OrderSummaryDto(Long orderId, String customerId, BigDecimal totalAmount, Long itemCount) {}
+
+// Service "” @Transactional keeps session open
+@Service
+public class OrderService {
+
+    private final OrderRepository orderRepository;
+
+    public OrderService(OrderRepository orderRepository) {
+        this.orderRepository = orderRepository;
+    }
+
+    // @Transactional keeps session open "” items can be accessed within this method
+    @Transactional(readOnly = true)
+    public Order getOrderWithItems(Long orderId) {
+        // Session is open for the duration of this method
+        Order order = orderRepository.findByIdWithItems(orderId)
+            .orElseThrow(() -&gt; new RuntimeException("Order not found: " + orderId));
+        // safe: items already JOIN FETCHed
+        order.getItems().size(); // no LazyInitializationException
+        return order;
+    }
+
+    // Best practice for read-only APIs: DTO projection
+    @Transactional(readOnly = true)
+    public List&lt;OrderSummaryDto&gt; getOrderSummaries(String customerId) {
+        return orderRepository.findOrderSummariesByCustomer(customerId);
+    }
+}
+</code></pre>
+<p><strong>application.properties:</strong></p>
+<pre><code class="language-properties"># Disable open-in-view (recommended for production)
+spring.jpa.open-in-view=false
+# See SQL to diagnose LazyInitializationException sources
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ol>
+<li>What is <code>open-in-view</code> and why should it be disabled in production?</li>
+<li>What is the difference between <code>@EntityGraph</code> and <code>JOIN FETCH</code>?</li>
+<li>Can you have a <code>LAZY</code> <code>@OneToOne</code>? What is special about it?</li>
+</ol>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Leaving <code>@ManyToOne</code> as the default EAGER, causing unwanted SELECTs</li>
+<li>Enabling <code>open-in-view=true</code> to “fix” <code>LazyInitializationException</code> “” hides N+1 problems</li>
+<li>Using <code>@Transactional</code> on controller methods to keep session open “” wrong layer for transaction boundary</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“EAGER is safer because you avoid LazyInitializationException” “” EAGER causes N+1 queries and loads data you may not need. Always default to LAZY and fetch eagerly only when required using JOIN FETCH or <code>@EntityGraph</code>.</p>
+<p><strong>Quick Revision:</strong></p>
+<ul>
+<li><code>@OneToMany</code>/<code>@ManyToMany</code> default = LAZY | <code>@ManyToOne</code>/<code>@OneToOne</code> default = EAGER (override to LAZY)</li>
+<li><code>LazyInitializationException</code> = accessing lazy association after session close</li>
+<li>Fixes: JOIN FETCH, <code>@EntityGraph</code>, DTO projection</li>
+<li>Disable <code>open-in-view</code> in production</li>
+</ul>
+<hr>
+<h2 id="q8-n1-query-problem"><a class="header" href="#q8-n1-query-problem">Q8: N+1 Query Problem</a></h2>
+<p><strong>Difficulty:</strong> Hard | <strong>Interview Frequency:</strong> Very High
+<strong>Companies:</strong> Amazon, Google, Uber, Flipkart, Paytm, Goldman Sachs, Razorpay, Swiggy, Zomato, Thoughtworks</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+The N+1 problem occurs when loading N parent entities fires one SELECT per parent to load their children “” 1 query for the parents + N queries for the children = N+1 total queries. For 1,000 orders, that is 1,001 queries instead of 1. This is the most impactful performance problem in Hibernate. Four solutions: JOIN FETCH (JPQL), <code>@EntityGraph</code> (declarative), batch fetching (<code>hibernate.default_batch_fetch_size</code>), and DTO projection (avoids the problem entirely).</p>
+<p><strong>Deep Explanation:</strong></p>
+<p><strong>How N+1 Happens:</strong></p>
+<pre><code>SELECT * FROM orders;                    -- 1 query, returns 1000 rows
+SELECT * FROM order_items WHERE order_id = 1;  -- N queries (one per order)
+SELECT * FROM order_items WHERE order_id = 2;
+...
+SELECT * FROM order_items WHERE order_id = 1000;
+-- Total: 1001 queries
+</code></pre>
+<p><strong>Detection:</strong></p>
+<ul>
+<li><code>spring.jpa.show-sql=true</code> + <code>spring.jpa.properties.hibernate.format_sql=true</code> “” see all queries in logs</li>
+<li><strong>p6spy</strong> “” logs queries with timing</li>
+<li><strong>Hibernate Statistics</strong> “” <code>hibernate.generate_statistics=true</code></li>
+<li><strong>Datadog / New Relic APM</strong> “” detect slow transactions with many queries</li>
+</ul>
+<p><strong>Four Solutions Compared:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Solution</th><th>SQL</th><th>Type-safe</th><th>Dynamic</th><th>Cons</th></tr>
+</thead>
+<tbody>
+<tr><td>JOIN FETCH (JPQL)</td><td>1 JOIN query</td><td>No</td><td>No</td><td>Cartesian product risk with multiple collections</td></tr>
+<tr><td><code>@EntityGraph</code></td><td>1 JOIN query</td><td>Partial</td><td>Partial</td><td>Same cartesian risk; verbose for deep graphs</td></tr>
+<tr><td>Batch Fetching</td><td><code>IN (id1,id2,...)</code></td><td>N/A</td><td>Yes</td><td>Multiple queries still, but batched</td></tr>
+<tr><td>DTO Projection</td><td>Minimal SELECT</td><td>No</td><td>Yes</td><td>No entity, no dirty checking</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Cartesian Product Warning:</strong>
+If you JOIN FETCH two collections simultaneously (<code>ORDER JOIN FETCH items JOIN FETCH coupons</code>), SQL produces <code>items.size Ã— coupons.size</code> rows per order “” Hibernate deduplicates but it wastes network/DB resources. Solution: fetch one collection per query or use <code>@BatchSize</code>.</p>
+<p><strong>Real-World Example:</strong>
+An order history page loads all orders for a customer and displays item counts and totals. Without fix: 1 + N queries (N = number of orders). With DTO projection: 1 aggregating query. Response time drops from 800ms to 12ms for a customer with 500 orders.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.math.BigDecimal;
+import java.util.List;
+
+// SOLUTION A: JOIN FETCH in JPQL
+// SOLUTION B: @EntityGraph
+// SOLUTION C: Batch fetching via @BatchSize
+// SOLUTION D: DTO projection
+
+// Entity with @BatchSize for Solution C
+@Entity
+@Table(name = "orders")
+public class OrderV2 {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "orderv2_seq")
+    @SequenceGenerator(name = "orderv2_seq", sequenceName = "order_id_seq", allocationSize = 50)
+    private Long id;
+
+    @Column(name = "customer_id", nullable = false)
+    private String customerId;
+
+    @Column(name = "total_amount", precision = 19, scale = 4)
+    private BigDecimal totalAmount;
+
+    // @BatchSize: when loading items, Hibernate will batch them: IN (id1, id2, ..., id50)
+    @BatchSize(size = 50)
+    @OneToMany(mappedBy = "order", fetch = FetchType.LAZY)
+    private List&lt;OrderItem&gt; items;
+
+    public Long getId() { return id; }
+    public String getCustomerId() { return customerId; }
+    public void setCustomerId(String customerId) { this.customerId = customerId; }
+    public BigDecimal getTotalAmount() { return totalAmount; }
+    public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
+    public List&lt;OrderItem&gt; getItems() { return items; }
+}
+
+// DTO for Solution D
+record OrderWithItemsDto(Long orderId, String customerId, Long productId, int quantity, BigDecimal unitPrice) {}
+
+public interface OrderRepositoryV2 extends JpaRepository&lt;OrderV2, Long&gt; {
+
+    // Solution A: JOIN FETCH "” single SQL JOIN
+    @Query("SELECT DISTINCT o FROM OrderV2 o JOIN FETCH o.items WHERE o.customerId = :customerId")
+    List&lt;OrderV2&gt; findByCustomerIdWithItemsJoinFetch(@Param("customerId") String customerId);
+
+    // Solution B: @EntityGraph "” declarative JOIN FETCH
+    @EntityGraph(attributePaths = {"items"})
+    List&lt;OrderV2&gt; findByCustomerId(String customerId);
+
+    // Solution D: DTO projection "” no entity loaded, no N+1 possible
+    @Query("""
+        SELECT new com.example.dto.OrderWithItemsDto(
+            o.id, o.customerId, i.productId, i.quantity, i.unitPrice
+        )
+        FROM OrderV2 o JOIN o.items i
+        WHERE o.customerId = :customerId
+        ORDER BY o.id, i.productId
+        """)
+    List&lt;OrderWithItemsDto&gt; findOrderItemDtosByCustomer(@Param("customerId") String customerId);
+}
+
+@Service
+public class OrderQueryService {
+
+    private final OrderRepositoryV2 orderRepository;
+
+    public OrderQueryService(OrderRepositoryV2 orderRepository) {
+        this.orderRepository = orderRepository;
+    }
+
+    // Solution A "” JOIN FETCH
+    @Transactional(readOnly = true)
+    public List&lt;OrderV2&gt; getOrdersWithItemsJoinFetch(String customerId) {
+        // Generates: SELECT DISTINCT o.*, i.* FROM orders o JOIN order_items i ON ...
+        return orderRepository.findByCustomerIdWithItemsJoinFetch(customerId);
+    }
+
+    // Solution B "” @EntityGraph
+    @Transactional(readOnly = true)
+    public List&lt;OrderV2&gt; getOrdersWithItemsEntityGraph(String customerId) {
+        // @EntityGraph generates LEFT OUTER JOIN "” includes orders with no items
+        return orderRepository.findByCustomerId(customerId);
+    }
+
+    // Solution C "” Batch fetching (configure globally in application.properties)
+    // spring.jpa.properties.hibernate.default_batch_fetch_size=50
+    // Hibernate changes: SELECT * FROM order_items WHERE order_id IN (1,2,...,50)
+    // instead of 50 individual queries
+    @Transactional(readOnly = true)
+    public List&lt;OrderV2&gt; getOrdersWithBatchFetch(String customerId) {
+        List&lt;OrderV2&gt; orders = orderRepository.findByCustomerId(customerId);
+        // Accessing items here triggers batch load due to @BatchSize(50) or global setting
+        orders.forEach(o -&gt; o.getItems().size());
+        return orders;
+    }
+
+    // Solution D "” DTO projection (best for read-heavy APIs)
+    @Transactional(readOnly = true)
+    public List&lt;OrderWithItemsDto&gt; getOrderItemDtos(String customerId) {
+        return orderRepository.findOrderItemDtosByCustomer(customerId);
+    }
+}
+</code></pre>
+<p><strong>application.properties for Solution C:</strong></p>
+<pre><code class="language-properties">spring.jpa.properties.hibernate.default_batch_fetch_size=50
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+spring.jpa.properties.hibernate.generate_statistics=true
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ol>
+<li>How do you detect N+1 in production without <code>show-sql</code>?</li>
+<li>What is the cartesian product problem with JOIN FETCH on multiple collections?</li>
+<li>When would you choose batch fetching over JOIN FETCH?</li>
+<li>What is the difference between <code>@EntityGraph</code> (type=FETCH) and (type=LOAD)?</li>
+</ol>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Using <code>FetchType.EAGER</code> to “fix” N+1 “” just makes N+1 happen at load time instead of access time</li>
+<li>JOIN FETCHing two collections simultaneously “” cartesian product</li>
+<li>Not adding <code>DISTINCT</code> to JOIN FETCH queries “” duplicate parent entities in results</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“Setting all associations to EAGER solves N+1” “” EAGER causes N+1 to happen immediately at load time and loads data you may not need on every query. The problem is not eliminated; it is just made invisible. JOIN FETCH is explicit and query-specific.</p>
+<p><strong>Quick Revision:</strong></p>
+<ul>
+<li>N+1 = 1 query for N parents + N queries for children = N+1 total</li>
+<li>Detection: <code>show-sql</code>, p6spy, Hibernate statistics</li>
+<li>Fix A: <code>JOIN FETCH</code> in JPQL | Fix B: <code>@EntityGraph</code> | Fix C: <code>batch_fetch_size</code> | Fix D: DTO projection</li>
+<li>JOIN FETCH + multiple collections = cartesian product “” avoid</li>
+<li>DTO projection = best for read-only APIs, zero N+1 risk</li>
+</ul>
+<hr>
+<h2 id="q9-jpql-vs-native-queries-vs-criteria-api"><a class="header" href="#q9-jpql-vs-native-queries-vs-criteria-api">Q9: JPQL vs Native Queries vs Criteria API</a></h2>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> High
+<strong>Companies:</strong> Oracle, SAP, IBM, Thoughtworks, Persistent Systems, Mphasis</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+JPQL uses entity class and field names (not table/column names), is portable across databases, and is checked by Hibernate at startup. Native queries use raw SQL “” useful for DB-specific features like window functions, JSONB queries, or stored procedures. Criteria API is type-safe and programmatic, best for dynamic queries where conditions are built at runtime. Named queries (<code>@NamedQuery</code>) are compiled at startup, catching syntax errors early.</p>
+<p><strong>Deep Explanation:</strong></p>
+<p><strong>JPQL:</strong></p>
+<ul>
+<li>Operates on the entity model, not the database schema</li>
+<li><code>FROM Order o</code> not <code>FROM orders o</code> (entity class name)</li>
+<li><code>o.customerId</code> not <code>o.customer_id</code> (field name)</li>
+<li>Database-agnostic “” works with any JPA-compatible DB</li>
+<li>Validated at <code>EntityManagerFactory</code> creation time (startup)</li>
+</ul>
+<p><strong>Native Queries:</strong></p>
+<ul>
+<li>Use actual table and column names</li>
+<li>Access DB-specific features: window functions (<code>ROW_NUMBER() OVER</code>), CTEs, <code>JSONB</code>, full-text search</li>
+<li>Bypass JPA’s entity model “” no automatic dirty checking on results</li>
+<li>Can return entities (mapped via <code>@SqlResultSetMapping</code>) or scalars</li>
+</ul>
+<p><strong>Criteria API:</strong></p>
+<ul>
+<li>Fully programmatic query construction in Java</li>
+<li>Type-safe via metamodel (<code>Order_.customerId</code>)</li>
+<li>Verbose but refactoring-safe “” a renamed field breaks compilation, not runtime</li>
+<li>Best for complex dynamic filtering (e.g., search APIs with optional parameters)</li>
+</ul>
+<p><strong>Named Queries:</strong></p>
+<ul>
+<li><code>@NamedQuery</code> and <code>@NamedNativeQuery</code> on entity class</li>
+<li>Compiled and validated at startup “” syntax errors caught before deployment</li>
+<li>Cached by Hibernate for reuse</li>
+</ul>
+<p><strong>Real-World Example:</strong>
+An order search API has 10 optional filters (customer, date range, status, amount range, etc.). Using JPQL string concatenation is messy and error-prone. Criteria API builds the predicate list dynamically based on which filters are provided.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">import jakarta.persistence.*;
+import jakarta.persistence.criteria.*;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+
+// Named queries on entity (validated at startup)
+@NamedQuery(
+    name = "Order.findByCustomerAndStatus",
+    query = "SELECT o FROM Order o WHERE o.customerId = :customerId AND o.status = :status"
+)
+@NamedNativeQuery(
+    name = "Order.findTopSpendersByNative",
+    query = """
+        SELECT customer_id, SUM(total_amount) as total_spent
+        FROM orders
+        WHERE created_at &gt;= :since
+        GROUP BY customer_id
+        ORDER BY total_spent DESC
+        LIMIT :limit
+        """,
+    resultSetMapping = "CustomerSpendMapping"
+)
+@SqlResultSetMapping(
+    name = "CustomerSpendMapping",
+    classes = @ConstructorResult(
+        targetClass = CustomerSpendDto.class,
+        columns = {
+            @ColumnResult(name = "customer_id", type = String.class),
+            @ColumnResult(name = "total_spent", type = BigDecimal.class)
+        }
+    )
+)
+@Entity
+@Table(name = "orders")
+class OrderForQuery {
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "orderq_seq")
+    @SequenceGenerator(name = "orderq_seq", sequenceName = "order_id_seq", allocationSize = 50)
+    private Long id;
+
+    @Column(name = "customer_id")
+    private String customerId;
+
+    @Column(name = "status")
+    private String status;
+
+    @Column(name = "total_amount", precision = 19, scale = 4)
+    private BigDecimal totalAmount;
+
+    @Column(name = "created_at")
+    private Instant createdAt;
+
+    public Long getId() { return id; }
+    public String getCustomerId() { return customerId; }
+    public void setCustomerId(String c) { this.customerId = c; }
+    public String getStatus() { return status; }
+    public void setStatus(String s) { this.status = s; }
+    public BigDecimal getTotalAmount() { return totalAmount; }
+    public void setTotalAmount(BigDecimal a) { this.totalAmount = a; }
+    public Instant getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Instant t) { this.createdAt = t; }
+}
+
+record CustomerSpendDto(String customerId, BigDecimal totalSpent) {}
+
+// Repository with JPQL and native
+interface OrderQueryRepository extends JpaRepository&lt;OrderForQuery, Long&gt;,
+        JpaSpecificationExecutor&lt;OrderForQuery&gt; {
+
+    // JPQL "” entity/field names, DB portable
+    @Query("SELECT o FROM OrderForQuery o WHERE o.customerId = :customerId AND o.status = :status")
+    List&lt;OrderForQuery&gt; findByCustomerAndStatus(
+        @Param("customerId") String customerId,
+        @Param("status") String status
+    );
+
+    // Native "” table/column names, DB-specific syntax
+    @Query(
+        value = "SELECT * FROM orders WHERE customer_id = :customerId ORDER BY created_at DESC LIMIT :limit",
+        nativeQuery = true
+    )
+    List&lt;OrderForQuery&gt; findRecentOrdersNative(
+        @Param("customerId") String customerId,
+        @Param("limit") int limit
+    );
+}
+
+// Dynamic query using Criteria API + Specification
+@Service
+public class OrderSearchService {
+
+    private final OrderQueryRepository repo;
+
+    public OrderSearchService(OrderQueryRepository repo) {
+        this.repo = repo;
+    }
+
+    @Transactional(readOnly = true)
+    public List&lt;OrderForQuery&gt; searchOrders(
+            String customerId,
+            String status,
+            BigDecimal minAmount,
+            BigDecimal maxAmount,
+            Instant from,
+            Instant to) {
+
+        // Criteria API "” build predicates dynamically
+        return repo.findAll((Root&lt;OrderForQuery&gt; root, CriteriaQuery&lt;?&gt; query, CriteriaBuilder cb) -&gt; {
+            List&lt;Predicate&gt; predicates = new ArrayList&lt;&gt;();
+
+            if (customerId != null &amp;&amp; !customerId.isBlank()) {
+                predicates.add(cb.equal(root.get("customerId"), customerId));
+            }
+            if (status != null &amp;&amp; !status.isBlank()) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            if (minAmount != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("totalAmount"), minAmount));
+            }
+            if (maxAmount != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("totalAmount"), maxAmount));
+            }
+            if (from != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), from));
+            }
+            if (to != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), to));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        });
+    }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ol>
+<li>When would you use native queries over JPQL?</li>
+<li>What are the drawbacks of native queries?</li>
+<li>How do you make Criteria API type-safe using the JPA metamodel?</li>
+</ol>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Using native queries when JPQL suffices “” harder to maintain, DB-specific</li>
+<li>Mixing entity field names and DB column names in JPQL</li>
+<li>Building dynamic JPQL by string concatenation “” use Criteria API or Specifications instead</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“Criteria API is just the programmatic way to write JPQL” “” Criteria API generates JPQL internally, but its value is type-safety and composability. With JPA metamodel, a renamed field is a compile error, not a runtime error.</p>
+<p><strong>Quick Revision:</strong></p>
+<ul>
+<li>JPQL = entity/field names, DB portable, startup validation</li>
+<li>Native = table/column names, DB-specific, use for window functions/JSONB/CTEs</li>
+<li>Criteria API = programmatic, type-safe, best for dynamic queries</li>
+<li><code>@NamedQuery</code> = validated at startup, cached</li>
+</ul>
+<hr>
+<h2 id="q10-spring-data-jpa-repository-hierarchy"><a class="header" href="#q10-spring-data-jpa-repository-hierarchy">Q10: Spring Data JPA Repository Hierarchy</a></h2>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> Very High
+<strong>Companies:</strong> Amazon, Flipkart, TCS, Infosys, Wipro, Accenture, HCL, Cognizant</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+Spring Data JPA provides a hierarchy: <code>Repository</code> (marker) â†’ <code>CrudRepository</code> (basic CRUD) â†’ <code>PagingAndSortingRepository</code> (pagination/sorting) â†’ <code>JpaRepository</code> (JPA-specific, batch operations, flush). Derived query methods generate JPQL from method names. <code>@Query</code> supports JPQL and native SQL. <code>@Modifying</code> + <code>@Transactional</code> are required for UPDATE/DELETE statements.</p>
+<p><strong>Deep Explanation:</strong></p>
+<p><strong>Repository Hierarchy:</strong></p>
+<pre><code>Repository&lt;T, ID&gt;                          // marker interface
+  â””â”€â”€ CrudRepository&lt;T, ID&gt;               // save, findById, findAll, delete, count
+        â””â”€â”€ PagingAndSortingRepository     // findAll(Pageable), findAll(Sort)
+              â””â”€â”€ JpaRepository&lt;T, ID&gt;     // saveAll, flush, saveAndFlush, deleteAllInBatch
+</code></pre>
+<p><strong>Derived Query Methods:</strong>
+Spring Data parses the method name and generates JPQL:</p>
+<ul>
+<li><code>findByStatus</code> â†’ <code>WHERE o.status = ?1</code></li>
+<li><code>findByCustomerIdAndStatus</code> â†’ <code>WHERE o.customerId = ?1 AND o.status = ?2</code></li>
+<li><code>findByTotalAmountGreaterThan</code> â†’ <code>WHERE o.totalAmount &gt; ?1</code></li>
+<li><code>findByCreatedAtBetween</code> â†’ <code>WHERE o.createdAt BETWEEN ?1 AND ?2</code></li>
+<li><code>findTop10ByStatusOrderByCreatedAtDesc</code> â†’ top 10 rows with ORDER BY</li>
+<li><code>countByStatus</code> â†’ <code>SELECT COUNT(*) WHERE status = ?1</code></li>
+<li><code>existsByOrderReference</code> â†’ <code>SELECT CASE WHEN COUNT(*)&gt;0...</code></li>
+</ul>
+<p><strong>@Modifying + @Transactional:</strong>
+Required for JPQL UPDATE/DELETE. Without <code>@Modifying</code>, Spring Data throws an exception. Without <code>@Transactional</code>, the operation has no transaction context. By default, <code>@Modifying</code> clears the persistence context after the operation (<code>clearAutomatically=true</code> in Spring Data 2.x/3.x).</p>
+<p><strong>Real-World Example:</strong>
+A payment reconciliation job updates all <code>PENDING</code> payments older than 24 hours to <code>TIMEOUT</code> status. A bulk JPQL UPDATE is far more efficient than loading all entities and updating one by one.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">import org.springframework.data.domain.*;
+import org.springframework.data.jpa.repository.*;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+
+public interface PaymentRepository extends JpaRepository&lt;Payment, Long&gt; {
+
+    // --- Derived query methods ---
+    List&lt;Payment&gt; findByStatus(String status);
+
+    Optional&lt;Payment&gt; findByOrderId(Long orderId);
+
+    // COUNT query
+    long countByStatus(String status);
+
+    // EXISTS check
+    boolean existsByOrderId(Long orderId);
+
+    // Top N with sorting
+    List&lt;Payment&gt; findTop10ByStatusOrderByCreatedAtDesc(String status);
+
+    // Range query
+    List&lt;Payment&gt; findByCreatedAtBetween(Instant from, Instant to);
+
+    // Amount comparison
+    List&lt;Payment&gt; findByAmountGreaterThanEqual(BigDecimal minAmount);
+
+    // --- @Query with JPQL ---
+    @Query("SELECT p FROM Payment p WHERE p.status = :status AND p.createdAt &lt; :cutoff")
+    List&lt;Payment&gt; findStalePayments(
+        @Param("status") String status,
+        @Param("cutoff") Instant cutoff
+    );
+
+    // --- @Query with native SQL ---
+    @Query(
+        value = """
+            SELECT DATE_TRUNC('day', created_at) AS day,
+                   COUNT(*) AS count,
+                   SUM(amount) AS total
+            FROM payments
+            WHERE status = 'COMPLETED'
+            GROUP BY DATE_TRUNC('day', created_at)
+            ORDER BY day DESC
+            LIMIT 30
+            """,
+        nativeQuery = true
+    )
+    List&lt;Object[]&gt; findDailyPaymentStats();
+
+    // --- @Modifying + @Transactional for bulk UPDATE ---
+    @Modifying
+    @Transactional
+    @Query("UPDATE Payment p SET p.status = 'TIMEOUT' WHERE p.status = 'PENDING' AND p.createdAt &lt; :cutoff")
+    int timeoutStalePayments(@Param("cutoff") Instant cutoff);
+
+    // --- @Modifying for bulk DELETE ---
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM Payment p WHERE p.status = 'FAILED' AND p.createdAt &lt; :before")
+    int deleteOldFailedPayments(@Param("before") Instant before);
+}
+
+@Service
+public class PaymentReconciliationService {
+
+    private final PaymentRepository paymentRepository;
+
+    public PaymentReconciliationService(PaymentRepository paymentRepository) {
+        this.paymentRepository = paymentRepository;
+    }
+
+    @Transactional
+    public void reconcileStalePayments() {
+        Instant cutoff = Instant.now().minusSeconds(86_400); // 24 hours ago
+        int updated = paymentRepository.timeoutStalePayments(cutoff);
+        System.out.println("Timed out " + updated + " stale payments");
+    }
+
+    @Transactional
+    public void purgeOldFailedPayments(int daysOld) {
+        Instant before = Instant.now().minusSeconds((long) daysOld * 86_400);
+        int deleted = paymentRepository.deleteOldFailedPayments(before);
+        System.out.println("Deleted " + deleted + " old failed payments");
+    }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ol>
+<li>What is the difference between <code>JpaRepository.deleteAll()</code> and <code>deleteAllInBatch()</code>?</li>
+<li>What does <code>@Modifying(clearAutomatically = true)</code> do and why is it the default?</li>
+<li>Can you have a <code>@Transactional</code> annotation on the repository interface itself?</li>
+</ol>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Forgetting <code>@Transactional</code> on <code>@Modifying</code> queries “” <code>InvalidDataAccessApiUsageException</code></li>
+<li>Forgetting <code>@Modifying</code> on UPDATE/DELETE <code>@Query</code> “” Spring Data throws exception</li>
+<li>Using <code>deleteAll()</code> instead of <code>deleteAllInBatch()</code> for large datasets “” <code>deleteAll()</code> loads entities first</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“<code>JpaRepository</code> extends <code>CrudRepository</code> directly” “” Wrong. The hierarchy is <code>CrudRepository</code> â†’ <code>PagingAndSortingRepository</code> â†’ <code>JpaRepository</code>. Knowing the intermediate level (<code>PagingAndSortingRepository</code>) shows depth.</p>
+<p><strong>Quick Revision:</strong></p>
+<ul>
+<li><code>CrudRepository</code> â†’ <code>PagingAndSortingRepository</code> â†’ <code>JpaRepository</code></li>
+<li>Derived methods: <code>findByXxxAndYyy</code>, <code>countByXxx</code>, <code>existsByXxx</code>, <code>findTop10ByXxx</code></li>
+<li><code>@Query</code> for JPQL or native</li>
+<li><code>@Modifying</code> + <code>@Transactional</code> required for UPDATE/DELETE</li>
+</ul>
+<hr>
+<h2 id="q11-projections"><a class="header" href="#q11-projections">Q11: Projections</a></h2>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> High
+<strong>Companies:</strong> Thoughtworks, Razorpay, Atlassian, Zomato, Swiggy</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+JPA projections let you fetch a subset of data instead of full entities. Three types: <strong>interface projection</strong> (Spring Data generates a proxy), <strong>DTO projection</strong> (constructor expression in JPQL), and <strong><code>@Value</code> projection</strong> (SpEL expressions on interface). For read-only APIs, DTO projection is best: it avoids dirty checking overhead, loads fewer columns, and prevents accidental entity modification. Interface projections are convenient but generate proxies with reflection overhead.</p>
+<p><strong>Deep Explanation:</strong></p>
+<p><strong>Interface Projection:</strong>
+Declare an interface with getters matching entity fields. Spring Data generates a proxy that wraps the result. Supports nested projections (related entities). Spring resolves field names from getter names.</p>
+<p><strong>DTO Projection (Constructor Expression):</strong>
+JPQL <code>new com.example.Dto(field1, field2)</code> “” creates actual DTO instances. No proxy, no entity, no dirty checking. The class must have a matching constructor. Works with <code>record</code> types.</p>
+<p><strong><code>@Value</code> Projection:</strong>
+Interface projection with SpEL: <code>@Value("#{target.firstName + ' ' + target.lastName}")</code>. Lets you compute derived fields. BUT: loads the full entity into <code>target</code>, defeating the purpose of projection.</p>
+<p><strong>When to Use DTO Projection:</strong></p>
+<ul>
+<li>Read-only APIs (no need to track changes)</li>
+<li>Aggregations and computed fields</li>
+<li>Avoiding lazy loading issues</li>
+<li>High-throughput endpoints where entity overhead matters</li>
+<li>Returning data that spans multiple entities</li>
+</ul>
+<p><strong>Real-World Example:</strong>
+An order list API returns thousands of orders. Loading full entities with all associations wastes memory and fires unnecessary queries. A DTO projection with just <code>id</code>, <code>status</code>, <code>totalAmount</code>, <code>createdAt</code> is 90% smaller and has no dirty checking overhead.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+
+// --- Interface Projection ---
+public interface OrderSummaryProjection {
+    Long getId();
+    String getCustomerId();
+    String getStatus();
+    BigDecimal getTotalAmount();
+    Instant getCreatedAt();
+    // Nested projection "” resolves to ShippingAddress fields
+    AddressProjection getShippingAddress();
+
+    interface AddressProjection {
+        String getCity();
+        String getPostalCode();
+    }
+}
+
+// --- @Value Projection (SpEL) ---
+public interface OrderLabelProjection {
+    Long getId();
+
+    // SpEL expression "” computes derived field; BUT loads full entity
+    @Value("#{target.customerId + '-' + target.id}")
+    String getOrderLabel();
+}
+
+// --- DTO Projection (Constructor Expression) "” preferred for read-only APIs ---
+public record OrderListItemDto(
+    Long id,
+    String customerId,
+    String status,
+    BigDecimal totalAmount,
+    Instant createdAt
+) {}
+
+// --- Aggregation DTO ---
+public record CustomerOrderStatsDto(
+    String customerId,
+    long orderCount,
+    BigDecimal totalSpent,
+    BigDecimal averageOrderValue
+) {}
+
+public interface ProjectionOrderRepository extends JpaRepository&lt;Order, Long&gt; {
+
+    // Interface projection "” Spring generates proxy
+    List&lt;OrderSummaryProjection&gt; findByCustomerId(String customerId);
+
+    // DTO projection via constructor expression "” no entity, no proxy
+    @Query("""
+        SELECT new com.example.dto.OrderListItemDto(
+            o.id, o.customerId, o.status, o.totalAmount, o.createdAt
+        )
+        FROM Order o
+        WHERE o.customerId = :customerId
+        ORDER BY o.createdAt DESC
+        """)
+    List&lt;OrderListItemDto&gt; findOrderDtosByCustomer(@Param("customerId") String customerId);
+
+    // Aggregation DTO projection
+    @Query("""
+        SELECT new com.example.dto.CustomerOrderStatsDto(
+            o.customerId,
+            COUNT(o),
+            SUM(o.totalAmount),
+            AVG(o.totalAmount)
+        )
+        FROM Order o
+        WHERE o.createdAt &gt;= :since
+        GROUP BY o.customerId
+        ORDER BY SUM(o.totalAmount) DESC
+        """)
+    List&lt;CustomerOrderStatsDto&gt; findCustomerOrderStats(@Param("since") Instant since);
+
+    // Dynamic projection "” Spring Data selects projection type at runtime
+    &lt;T&gt; List&lt;T&gt; findByStatus(String status, Class&lt;T&gt; type);
+}
+</code></pre>
+<p><strong>Using Dynamic Projection:</strong></p>
+<pre><code class="language-java">// In service:
+List&lt;OrderSummaryProjection&gt; summaries = repo.findByStatus("PENDING", OrderSummaryProjection.class);
+List&lt;OrderListItemDto&gt; dtos = repo.findByStatus("PENDING", OrderListItemDto.class);
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ol>
+<li>What is the performance difference between interface projection and DTO projection?</li>
+<li>When does <code>@Value</code> projection actually load the full entity?</li>
+<li>Can you use projections with <code>Pageable</code>?</li>
+</ol>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Using <code>@Value</code> projection expecting it to load fewer columns “” it loads the full entity</li>
+<li>Not providing a constructor matching the <code>new</code> expression in JPQL “” <code>QueryException</code> at startup</li>
+<li>Forgetting that interface projections return proxies “” they do not work with <code>instanceof</code> checks</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“Interface projections fetch fewer columns” “” Sometimes. Spring Data may optimize to fetch only the projected columns (for flat projections), but this is not guaranteed. For predictable column reduction, use DTO projection with an explicit constructor expression.</p>
+<p><strong>Quick Revision:</strong></p>
+<ul>
+<li>Interface projection = proxy, Spring-generated, supports nested</li>
+<li>DTO projection = <code>new Dto(fields)</code> in JPQL, best for read-only APIs</li>
+<li><code>@Value</code> projection = SpEL on interface, loads full entity (avoid for performance)</li>
+<li>Dynamic projection: <code>&lt;T&gt; List&lt;T&gt; findByX(val, Class&lt;T&gt; type)</code></li>
+</ul>
+<hr>
+<h2 id="q12-pagination-and-sorting"><a class="header" href="#q12-pagination-and-sorting">Q12: Pagination and Sorting</a></h2>
+<p><strong>Difficulty:</strong> Easy | <strong>Interview Frequency:</strong> High
+<strong>Companies:</strong> Flipkart, Amazon, Swiggy, Zomato, Paytm, Ola</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+Spring Data JPA pagination uses <code>Pageable</code> (interface) and <code>PageRequest</code> (implementation). <code>Page&lt;T&gt;</code> fires a count query in addition to the data query “” use for paginated UIs showing total pages. <code>Slice&lt;T&gt;</code> skips the count query “” use for infinite scroll or mobile feeds. For very large datasets, keyset pagination (cursor-based) outperforms offset pagination because it does not degrade with deep pages.</p>
+<p><strong>Deep Explanation:</strong></p>
+<p><strong><code>Page&lt;T&gt;</code> vs <code>Slice&lt;T&gt;</code>:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Feature</th><th><code>Page&lt;T&gt;</code></th><th><code>Slice&lt;T&gt;</code></th></tr>
+</thead>
+<tbody>
+<tr><td>Count query</td><td>Yes (extra <code>COUNT(*)</code> query)</td><td>No</td></tr>
+<tr><td>Total pages/elements</td><td>Yes</td><td>No</td></tr>
+<tr><td>Use case</td><td>Paginated UI (page numbers)</td><td>Infinite scroll, mobile</td></tr>
+<tr><td>Performance on deep pages</td><td>Worse (count + offset)</td><td>Better (no count)</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Offset Pagination Problem:</strong>
+<code>OFFSET 10000 LIMIT 20</code> causes the DB to scan and discard 10,000 rows. The deeper the page, the slower the query “” even with an index. For large datasets, this is a serious performance problem.</p>
+<p><strong>Keyset Pagination (Cursor-based):</strong>
+Instead of <code>OFFSET</code>, use a WHERE clause on the last seen value:</p>
+<pre><code class="language-sql">SELECT * FROM orders WHERE created_at &lt; :lastSeen ORDER BY created_at DESC LIMIT 20;
+</code></pre>
+<p>This uses an index efficiently regardless of page depth. The “cursor” is the <code>created_at</code> (and <code>id</code> for tie-breaking) of the last item seen.</p>
+<p><strong>Sorting:</strong>
+<code>Sort.by(Sort.Direction.DESC, "createdAt")</code> or <code>Sort.by("createdAt").descending()</code>.
+<code>PageRequest.of(page, size, sort)</code> combines pagination and sorting.</p>
+<p><strong>Real-World Example:</strong>
+A product search page uses <code>Page&lt;T&gt;</code> with page numbers at the bottom. A social feed (notifications, order history) uses <code>Slice&lt;T&gt;</code> “” “Load more” button, no total count needed. A reporting export over 10M rows uses keyset pagination to avoid memory issues.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">import org.springframework.data.domain.*;
+import org.springframework.data.jpa.repository.*;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.time.Instant;
+import java.util.List;
+
+public interface PaginatedOrderRepository extends JpaRepository&lt;Order, Long&gt; {
+
+    // Page&lt;T&gt; "” fires data query + count query
+    Page&lt;Order&gt; findByCustomerId(String customerId, Pageable pageable);
+
+    // Slice&lt;T&gt; "” fires only data query (no count)
+    Slice&lt;Order&gt; findByStatus(String status, Pageable pageable);
+
+    // Custom JPQL with Pageable
+    @Query("SELECT o FROM Order o WHERE o.customerId = :customerId AND o.status = :status")
+    Page&lt;Order&gt; findByCustomerAndStatus(
+        @Param("customerId") String customerId,
+        @Param("status") String status,
+        Pageable pageable
+    );
+
+    // Keyset pagination "” cursor on (createdAt, id) for stable ordering
+    @Query("""
+        SELECT o FROM Order o
+        WHERE o.customerId = :customerId
+          AND (o.createdAt &lt; :lastCreatedAt
+               OR (o.createdAt = :lastCreatedAt AND o.id &lt; :lastId))
+        ORDER BY o.createdAt DESC, o.id DESC
+        """)
+    List&lt;Order&gt; findNextPage(
+        @Param("customerId") String customerId,
+        @Param("lastCreatedAt") Instant lastCreatedAt,
+        @Param("lastId") Long lastId,
+        Pageable pageable
+    );
+
+    // Count query "” separate for complex queries where Spring cannot auto-derive it
+    @Query(
+        value = "SELECT o FROM Order o WHERE o.customerId = :customerId AND o.status = :status",
+        countQuery = "SELECT COUNT(o) FROM Order o WHERE o.customerId = :customerId AND o.status = :status"
+    )
+    Page&lt;Order&gt; findWithExplicitCountQuery(
+        @Param("customerId") String customerId,
+        @Param("status") String status,
+        Pageable pageable
+    );
+}
+
+@Service
+public class OrderPaginationService {
+
+    private final PaginatedOrderRepository repo;
+
+    public OrderPaginationService(PaginatedOrderRepository repo) {
+        this.repo = repo;
+    }
+
+    // Offset pagination with Page&lt;T&gt;
+    @Transactional(readOnly = true)
+    public Page&lt;Order&gt; getOrdersPage(String customerId, int page, int size) {
+        Pageable pageable = PageRequest.of(
+            page, size,
+            Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+        Page&lt;Order&gt; result = repo.findByCustomerId(customerId, pageable);
+        System.out.println("Total pages: " + result.getTotalPages());
+        System.out.println("Total elements: " + result.getTotalElements());
+        System.out.println("Current page: " + result.getNumber());
+        System.out.println("Is last page: " + result.isLast());
+        return result;
+    }
+
+    // Infinite scroll with Slice&lt;T&gt; "” no count query
+    @Transactional(readOnly = true)
+    public Slice&lt;Order&gt; getOrdersFeed(String status, int page, int size) {
+        Pageable pageable = PageRequest.of(
+            page, size,
+            Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+        Slice&lt;Order&gt; slice = repo.findByStatus(status, pageable);
+        System.out.println("Has next: " + slice.hasNext()); // for "Load More" button
+        return slice;
+    }
+
+    // Keyset pagination "” efficient for deep pages
+    @Transactional(readOnly = true)
+    public List&lt;Order&gt; getNextOrderPage(
+            String customerId,
+            Instant lastCreatedAt,
+            Long lastId,
+            int size) {
+        // No OFFSET "” uses WHERE clause on index columns
+        return repo.findNextPage(
+            customerId,
+            lastCreatedAt,
+            lastId,
+            PageRequest.of(0, size) // always page 0 "” keyset handles the cursor
+        );
+    }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ol>
+<li>Why does <code>Page&lt;T&gt;</code> fire two queries and can you disable the count query?</li>
+<li>What is the risk of using offset pagination on a table with frequent inserts?</li>
+<li>What columns should you index for keyset pagination?</li>
+</ol>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Using <code>Page&lt;T&gt;</code> for infinite scroll “” count query on every swipe is wasteful</li>
+<li>Not providing a <code>countQuery</code> in <code>@Query</code> when the main query has complex JOINs “” Spring may generate an incorrect count query</li>
+<li>Keyset pagination without a composite index on <code>(customerId, createdAt, id)</code> “” query degrades to full scan</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“<code>Slice&lt;T&gt;</code> is always better than <code>Page&lt;T&gt;</code>” “” Wrong. <code>Slice&lt;T&gt;</code> cannot tell you the total number of pages or elements. For paginated UIs where users need to jump to page N or see “Showing 1-20 of 5,432 results”, <code>Page&lt;T&gt;</code> is required.</p>
+<p><strong>Quick Revision:</strong></p>
+<ul>
+<li><code>Page&lt;T&gt;</code> = data query + count query = use for numbered page UIs</li>
+<li><code>Slice&lt;T&gt;</code> = data query only = use for infinite scroll</li>
+<li><code>PageRequest.of(page, size, sort)</code> constructs <code>Pageable</code></li>
+<li>Keyset pagination = cursor-based, no OFFSET degradation, best for large datasets</li>
+</ul>
+<hr>
+<p>— END OF PART A —</p>
+<hr>
+<h1 id="chapter-8--spring-data-jpa--hibernate-part-b"><a class="header" href="#chapter-8--spring-data-jpa--hibernate-part-b">Chapter 8 “” Spring Data JPA &amp; Hibernate (Part B)</a></h1>
+<hr>
+<h2 id="q13-first-level-cache-persistence-context-cache"><a class="header" href="#q13-first-level-cache-persistence-context-cache">Q13: First-Level Cache (Persistence Context Cache)</a></h2>
+<p><strong>Difficulty:</strong> Easy | <strong>Interview Frequency:</strong> High
+<strong>Companies:</strong> Infosys, Wipro, TCS, Capgemini, mid-size product companies</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+The first-level cache is the persistence context itself “” Hibernate’s <code>EntityManager</code> (or <code>Session</code>). It is automatic, always enabled, and scoped to a single transaction. When you call <code>find()</code> twice for the same entity ID within the same transaction, only one SQL query hits the database. The second call returns the cached instance from memory. You cannot disable it; you can only clear it.</p>
+<p><strong>Deep Explanation:</strong>
+Every <code>EntityManager</code> maintains an identity map keyed by <code>(EntityClass, primaryKey)</code>. When Hibernate loads an entity, it stores a copy (snapshot) and the live instance in this map. Subsequent lookups by the same PK within the same <code>EntityManager</code> bypass the database entirely.</p>
+<p>Key behaviors:</p>
+<ul>
+<li><code>entityManager.find(User.class, 1L)</code> called twice â†’ one <code>SELECT</code>, one cache hit</li>
+<li><code>entityManager.clear()</code> “” evicts everything; next access re-queries</li>
+<li><code>entityManager.evict(user)</code> “” evicts a single entity (Hibernate <code>Session</code> API)</li>
+<li>JPQL queries (<code>createQuery(...)</code>) always hit the DB and then merge results into the cache</li>
+<li>The cache is destroyed when the <code>EntityManager</code> closes (end of transaction by default)</li>
+</ul>
+<p>The snapshot stored at load time is used by dirty checking at flush time to detect changes.</p>
+<p><strong>Real-World Example:</strong>
+An order processing service loads <code>Order</code> twice in one transaction “” once to validate stock, once to apply discount. Without the L1 cache this would be two identical <code>SELECT</code> statements. With it, the second call is free.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">@Service
+@RequiredArgsConstructor
+public class OrderService {
+
+    private final EntityManager em;
+
+    @Transactional
+    public void processOrder(Long orderId) {
+        // First call "” hits DB, result cached in persistence context
+        Order order = em.find(Order.class, orderId);
+        validateStock(order);
+
+        // Second call "” SAME EntityManager, same transaction â†’ cache hit, no SQL
+        Order sameOrder = em.find(Order.class, orderId);
+        applyDiscount(sameOrder);
+
+        // sameOrder == order: identical Java object reference
+        assert order == sameOrder; // true
+
+        // Clearing the persistence context forces next find() to re-query
+        em.clear();
+        Order freshOrder = em.find(Order.class, orderId); // hits DB again
+    }
+
+    private void validateStock(Order o) { /* ... */ }
+    private void applyDiscount(Order o) { /* ... */ }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ul>
+<li>What happens if you call a JPQL query for the same entity “” does the L1 cache get used?</li>
+<li>Does <code>@Transactional(readOnly=true)</code> affect the L1 cache?</li>
+<li>What is the relationship between the L1 cache and dirty checking?</li>
+</ul>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Confusing L1 (per-EntityManager) with L2 (shared across EntityManagers)</li>
+<li>Thinking <code>@Transactional(readOnly=true)</code> disables the L1 cache “” it does not</li>
+<li>Assuming JPQL queries use the L1 cache for lookup (they do not; they query and then merge)</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“Can you disable the first-level cache?” “” No. It is a fundamental Hibernate design. The only option is <code>clear()</code> or <code>evict()</code>, which removes entries rather than disabling the mechanism.</p>
+<p><strong>Quick Revision:</strong>
+L1 cache = persistence context identity map. Automatic, per-transaction, cannot be disabled. <code>find()</code> twice = 1 DB hit. <code>clear()</code> evicts all. JPQL bypasses it on lookup but merges results into it afterward.</p>
+<hr>
+<h2 id="q14-second-level-cache-l2"><a class="header" href="#q14-second-level-cache-l2">Q14: Second-Level Cache (L2)</a></h2>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> High
+<strong>Companies:</strong> Amazon, Flipkart, Razorpay, Thoughtworks, Oracle</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+The second-level cache (L2) is an optional, session-factory-scoped cache shared across all <code>EntityManager</code> instances. It must be explicitly enabled and configured with a provider such as EHCache, Caffeine, or Redis. Entities annotated with <code>@Cache</code> are stored there after first load, so subsequent requests in different transactions avoid a DB round trip.</p>
+<p><strong>Deep Explanation:</strong>
+<strong>Configuration:</strong></p>
+<pre><code class="language-properties">spring.jpa.properties.hibernate.cache.use_second_level_cache=true
+spring.jpa.properties.hibernate.cache.region.factory_class=\
+  org.hibernate.cache.jcache.JCacheCacheProvider
+spring.jpa.properties.javax.cache.provider=\
+  org.ehcache.jsr107.EhcacheCachingProvider
+</code></pre>
+<p><strong>Cache strategies:</strong></p>
+<ul>
+<li><code>READ_ONLY</code> “” immutable entities (reference data). Fastest.</li>
+<li><code>NONSTRICT_READ_WRITE</code> “” rarely updated; brief inconsistency window acceptable.</li>
+<li><code>READ_WRITE</code> “” transactional consistency with soft locks.</li>
+<li><code>TRANSACTIONAL</code> “” JTA environments only; full transactional guarantees.</li>
+</ul>
+<p><strong>When NOT to use L2:</strong></p>
+<ul>
+<li>Frequently updated entities (shopping cart, live inventory count) “” cache churns, overhead exceeds benefit</li>
+<li>Entities read uniquely per user “” poor hit rate</li>
+<li>Highly clustered environments without distributed cache provider “” stale data across nodes</li>
+</ul>
+<p><strong>Difference from Spring <code>@Cacheable</code>:</strong> (detailed in Q15)</p>
+<p><strong>Real-World Example:</strong>
+A product catalog service: <code>Category</code> and <code>Country</code> entities are loaded thousands of times per minute but rarely change. L2 cache with <code>READ_ONLY</code> strategy cuts DB reads by 95%.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">// pom.xml dependency: spring-boot-starter-cache + hibernate-jcache + ehcache
+@Entity
+@Table(name = "categories")
+@Cache(usage = CacheConcurrencyStrategy.READ_ONLY, region = "categories")
+public class Category {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
+    private Long id;
+
+    private String name;
+    private String code;
+
+    // getters/setters
+}
+</code></pre>
+<pre><code class="language-java">// application.yml
+spring:
+  jpa:
+    properties:
+      hibernate:
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheCacheProvider
+        javax:
+          cache:
+            provider: org.ehcache.jsr107.EhcacheCachingProvider
+</code></pre>
+<pre><code class="language-java">@Service
+@RequiredArgsConstructor
+public class CategoryService {
+
+    private final CategoryRepository repo;
+
+    // First call: SELECT from DB, stored in L2 cache
+    // Subsequent calls (different transactions): served from cache
+    public Category getById(Long id) {
+        return repo.findById(id).orElseThrow();
+    }
+
+    // Evict L2 cache entry on update
+    @CacheEvict(cacheNames = "categories", key = "#category.id")
+    @Transactional
+    public Category update(Category category) {
+        return repo.save(category);
+    }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ul>
+<li>How does L2 cache invalidation work in a clustered deployment?</li>
+<li>What is query cache and what are its pitfalls?</li>
+<li>How does Hibernate’s <code>READ_WRITE</code> strategy prevent dirty reads during updates?</li>
+</ul>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Enabling L2 on mutable, high-write entities “” degrades performance</li>
+<li>Not configuring a distributed cache in multi-node deployments “” stale reads</li>
+<li>Forgetting <code>@Cache</code> annotation “” the config alone does nothing</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“Does enabling L2 cache mean you never hit the database?” “” No. L2 cache is bypassed for JPQL queries unless query cache is also enabled. Writes always go to the DB; the cache is then invalidated/updated.</p>
+<p><strong>Quick Revision:</strong>
+L2 = session-factory-scoped, opt-in, shared cache. Annotate entities with <code>@Cache</code>. Enable via properties. Avoid for frequently updated data. Requires distributed provider (Redis/EHCache) in clustered apps.</p>
+<hr>
+<h2 id="q15-spring-cacheable-vs-hibernate-l2-cache"><a class="header" href="#q15-spring-cacheable-vs-hibernate-l2-cache">Q15: Spring <code>@Cacheable</code> vs Hibernate L2 Cache</a></h2>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> Medium
+<strong>Companies:</strong> Thoughtworks, Atlassian, Zomato, mid-size SaaS companies</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+<code>@Cacheable</code> caches the return value of any Spring-managed method at the service layer “” it is provider-agnostic and can cache anything. Hibernate L2 caches entity state at the persistence layer. They operate at different architectural layers and can coexist. Use L2 for entity-centric access patterns; use <code>@Cacheable</code> for computed results, DTOs, or non-entity data.</p>
+<p><strong>Deep Explanation:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Dimension</th><th>Spring <code>@Cacheable</code></th><th>Hibernate L2 Cache</th></tr>
+</thead>
+<tbody>
+<tr><td>Layer</td><td>Service / application layer</td><td>Persistence layer (inside Hibernate)</td></tr>
+<tr><td>What is cached</td><td>Method return value (any type)</td><td>Entity state (raw field values)</td></tr>
+<tr><td>Granularity</td><td>Method call + arguments</td><td>Entity by primary key</td></tr>
+<tr><td>Provider</td><td>Redis, Caffeine, EHCache, etc.</td><td>EHCache, Caffeine, Redis (via JCache)</td></tr>
+<tr><td>Invalidation</td><td>Manual (<code>@CacheEvict</code>) or TTL</td><td>Automatic on entity write within Hibernate</td></tr>
+<tr><td>Scope</td><td>Any Spring bean</td><td>JPA entities only</td></tr>
+<tr><td>Transactions</td><td>Unaware of JPA transactions</td><td>Coordinated with Hibernate flush/commit</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>When to use <code>@Cacheable</code>:</strong></p>
+<ul>
+<li>Caching aggregated results (top products, dashboard metrics)</li>
+<li>Caching DTOs or projections not tied to a single entity</li>
+<li>Caching external API responses</li>
+<li>When you need explicit control over cache key, TTL, and eviction</li>
+</ul>
+<p><strong>When to use Hibernate L2:</strong></p>
+<ul>
+<li>Entity-by-ID access patterns are dominant</li>
+<li>Reference data (countries, categories, currencies) loaded repeatedly</li>
+<li>You want zero application code change “” just annotate the entity</li>
+</ul>
+<p><strong>Real-World Example:</strong>
+An e-commerce app uses L2 for <code>ProductCategory</code> (pure reference data, loaded by ID). It uses <code>@Cacheable</code> on <code>ProductSearchService.search(filters)</code> because that result depends on complex query logic and is not a single entity.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">// Hibernate L2 "” entity-layer caching
+@Entity
+@Cache(usage = CacheConcurrencyStrategy.READ_ONLY)
+public class Currency {
+    @Id private String code; // USD, EUR
+    private String symbol;
+}
+
+// Spring @Cacheable "” service-layer caching of any return type
+@Service
+@RequiredArgsConstructor
+public class DashboardService {
+
+    private final OrderRepository orderRepo;
+
+    // Caches the List&lt;OrderSummaryDto&gt; "” not a single entity
+    @Cacheable(cacheNames = "dashboard-stats", key = "#userId")
+    public List&lt;OrderSummaryDto&gt; getOrderStats(Long userId) {
+        return orderRepo.findSummaryByUser(userId); // expensive aggregation
+    }
+
+    @CacheEvict(cacheNames = "dashboard-stats", key = "#userId")
+    public void invalidateStats(Long userId) { /* called on order update */ }
+}
+
+record OrderSummaryDto(Long orderId, String status, BigDecimal amount) {}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ul>
+<li>Can you use both <code>@Cacheable</code> and L2 on the same entity?</li>
+<li>How do you synchronize <code>@Cacheable</code> invalidation with database transactions?</li>
+<li>What is <code>@CachePut</code> and when is it preferred over <code>@Cacheable</code>?</li>
+</ul>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Believing <code>@Cacheable</code> and L2 are mutually exclusive “” they are not</li>
+<li>Caching mutable entity collections with <code>@Cacheable</code> without eviction “” stale data</li>
+<li>Thinking <code>@Cacheable</code> is aware of Hibernate entity lifecycle events “” it is not</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“If I annotate a repository method with <code>@Cacheable</code>, does that also populate the Hibernate L2 cache?” “” No. They are independent. <code>@Cacheable</code> on a repo method caches the Java object returned; Hibernate L2 is populated only through the Hibernate loading mechanism.</p>
+<p><strong>Quick Revision:</strong>
+<code>@Cacheable</code> = service layer, any method, any return type, manual eviction. L2 = persistence layer, entity state by PK, auto-invalidated by Hibernate on write. Both can coexist. Use <code>@Cacheable</code> for computed/DTO results; L2 for entity-by-ID reference data.</p>
+<hr>
+<h2 id="q16-transactional-propagation--all-7-types"><a class="header" href="#q16-transactional-propagation--all-7-types">Q16: <code>@Transactional</code> Propagation “” All 7 Types</a></h2>
+<p><strong>Difficulty:</strong> Hard | <strong>Interview Frequency:</strong> Very High
+<strong>Companies:</strong> Amazon, Google, Goldman Sachs, Uber, Flipkart, PayPal</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+Propagation controls what Hibernate does when a transactional method is called while a transaction may or may not already exist. <code>REQUIRED</code> (default) joins an existing one or creates a new one. <code>REQUIRES_NEW</code> always starts a fresh transaction, suspending the current one “” useful for audit logs that must persist even if the outer transaction rolls back.</p>
+<p><strong>Deep Explanation:</strong></p>
+<h3 id="required-default"><a class="header" href="#required-default">REQUIRED (default)</a></h3>
+<ul>
+<li>Existing tx: joins it. No existing tx: creates one.</li>
+<li>Most service methods use this.</li>
+<li>Rollback of inner method rolls back the entire outer transaction.</li>
+</ul>
+<h3 id="requires_new"><a class="header" href="#requires_new">REQUIRES_NEW</a></h3>
+<ul>
+<li>Always creates a new transaction. Suspends the current one until the inner completes.</li>
+<li>Inner commits/rolls back independently.</li>
+<li><strong>Use case:</strong> Audit logging “” even if the business operation rolls back, the audit record must be saved.</li>
+</ul>
+<h3 id="nested"><a class="header" href="#nested">NESTED</a></h3>
+<ul>
+<li>Creates a savepoint within the current transaction (JDBC only “” not JTA/XA).</li>
+<li>Inner rollback goes back to savepoint; outer transaction continues.</li>
+<li>If no existing tx, behaves like <code>REQUIRED</code>.</li>
+<li><strong>Use case:</strong> Partial rollback “” process 10 items, rollback failed ones, commit successful ones.</li>
+</ul>
+<h3 id="supports"><a class="header" href="#supports">SUPPORTS</a></h3>
+<ul>
+<li>Existing tx: participates. No existing tx: runs without a transaction.</li>
+<li><strong>Use case:</strong> Read operations that can work with or without a transaction (e.g., cache-backed reads).</li>
+</ul>
+<h3 id="not_supported"><a class="header" href="#not_supported">NOT_SUPPORTED</a></h3>
+<ul>
+<li>Existing tx: suspends it, runs without transaction. No existing tx: runs without transaction.</li>
+<li><strong>Use case:</strong> Long-running non-transactional operations (file I/O, external API calls) that should not hold a DB connection.</li>
+</ul>
+<h3 id="mandatory"><a class="header" href="#mandatory">MANDATORY</a></h3>
+<ul>
+<li>Existing tx: joins it. No existing tx: throws <code>IllegalTransactionStateException</code>.</li>
+<li><strong>Use case:</strong> Helper methods that must always be called within a transaction to enforce correctness contracts.</li>
+</ul>
+<h3 id="never"><a class="header" href="#never">NEVER</a></h3>
+<ul>
+<li>Existing tx: throws <code>IllegalTransactionStateException</code>. No existing tx: runs fine.</li>
+<li><strong>Use case:</strong> Operations that are explicitly prohibited from running inside a transaction (e.g., long streaming operations).</li>
+</ul>
+<p><strong>Real-World Example:</strong>
+E-commerce checkout: <code>placeOrder()</code> runs in <code>REQUIRED</code>. Inside it, <code>sendAuditLog()</code> uses <code>REQUIRES_NEW</code> “” if payment fails and order rolls back, the audit log still records the attempt.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">@Service
+@RequiredArgsConstructor
+public class OrderService {
+
+    private final OrderRepository orderRepo;
+    private final AuditService auditService;
+    private final InventoryService inventoryService;
+
+    // REQUIRED (default) "” joins existing or creates new
+    @Transactional
+    public Order placeOrder(OrderRequest request) {
+        Order order = orderRepo.save(new Order(request));
+
+        try {
+            inventoryService.reserve(request.items()); // MANDATORY example inside
+        } catch (Exception e) {
+            // audit log persists even though we're about to throw
+            auditService.logFailure(order.getId(), e.getMessage()); // REQUIRES_NEW
+            throw e; // outer tx rolls back, audit already committed
+        }
+        return order;
+    }
+}
+
+@Service
+@RequiredArgsConstructor
+public class AuditService {
+
+    private final AuditLogRepository auditRepo;
+
+    // REQUIRES_NEW "” suspends outer tx, commits independently
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void logFailure(Long orderId, String reason) {
+        auditRepo.save(new AuditLog(orderId, reason, Instant.now()));
+        // commits here regardless of outer transaction outcome
+    }
+}
+
+@Service
+@RequiredArgsConstructor
+public class InventoryService {
+
+    // MANDATORY "” must be called within an existing transaction
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void reserve(List&lt;OrderItem&gt; items) {
+        // if called without a transaction, throws IllegalTransactionStateException
+        items.forEach(item -&gt; deductStock(item.productId(), item.quantity()));
+    }
+
+    private void deductStock(Long productId, int qty) { /* ... */ }
+}
+
+@Service
+public class ReportingService {
+
+    // NOT_SUPPORTED "” suspends any tx, runs without one (avoids holding connection)
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public byte[] generateLargeReport() {
+        // long-running; should not hold DB connection/tx for its duration
+        return new byte[0]; // placeholder
+    }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ul>
+<li>What is the difference between <code>NESTED</code> and <code>REQUIRES_NEW</code>?</li>
+<li>Does <code>REQUIRES_NEW</code> actually create a separate DB connection?</li>
+<li>Why does <code>NESTED</code> not work with JTA?</li>
+</ul>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Calling a <code>REQUIRES_NEW</code> method on <code>this</code> (same class) “” proxy not invoked, propagation ignored</li>
+<li>Assuming <code>NESTED</code> is available with JTA “” it requires JDBC savepoints</li>
+<li>Using <code>REQUIRES_NEW</code> for all helper methods “” creates connection pool pressure</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“<code>NESTED</code> and <code>REQUIRES_NEW</code> both create a new transaction “” what’s the difference?” “” <code>REQUIRES_NEW</code> fully commits independently; a rollback of the inner does not affect the outer. <code>NESTED</code> creates a savepoint inside the same outer transaction; if the outer rolls back, the nested work is also lost.</p>
+<p><strong>Quick Revision:</strong>
+7 propagation types: REQUIRED (join/create), REQUIRES_NEW (new tx, suspends outer), NESTED (savepoint, JDBC only), SUPPORTS (join or no-tx), NOT_SUPPORTED (no tx, suspends), MANDATORY (must have tx), NEVER (must not have tx). Most common in interviews: REQUIRED, REQUIRES_NEW, NESTED.</p>
+<hr>
+<h2 id="q17-isolation-levels"><a class="header" href="#q17-isolation-levels">Q17: Isolation Levels</a></h2>
+<p><strong>Difficulty:</strong> Hard | <strong>Interview Frequency:</strong> Very High
+<strong>Companies:</strong> Goldman Sachs, JP Morgan, PayPal, Stripe, Amazon, Google</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+Isolation levels control which concurrency anomalies are allowed between simultaneous transactions. Higher isolation = fewer anomalies = more locking = lower throughput. The four levels are READ_UNCOMMITTED, READ_COMMITTED (default in most DBs), REPEATABLE_READ, and SERIALIZABLE. The choice is a direct trade-off between data correctness and system throughput.</p>
+<p><strong>Deep Explanation:</strong></p>
+<h3 id="anomalies-defined"><a class="header" href="#anomalies-defined">Anomalies defined:</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Anomaly</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>Dirty Read</td><td>Reading uncommitted data from another transaction</td></tr>
+<tr><td>Non-repeatable Read</td><td>Same row returns different values in same transaction</td></tr>
+<tr><td>Phantom Read</td><td>Same query returns different rows in same transaction</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="isolation-levels-and-what-they-prevent"><a class="header" href="#isolation-levels-and-what-they-prevent">Isolation levels and what they prevent:</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Level</th><th>Dirty Read</th><th>Non-repeatable Read</th><th>Phantom Read</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td>READ_UNCOMMITTED</td><td>Possible</td><td>Possible</td><td>Possible</td><td>Almost never used</td></tr>
+<tr><td>READ_COMMITTED</td><td>Prevented</td><td>Possible</td><td>Possible</td><td>Default: PostgreSQL, Oracle, SQL Server</td></tr>
+<tr><td>REPEATABLE_READ</td><td>Prevented</td><td>Prevented</td><td>Possible</td><td>Default: MySQL InnoDB</td></tr>
+<tr><td>SERIALIZABLE</td><td>Prevented</td><td>Prevented</td><td>Prevented</td><td>Highest isolation, lowest concurrency</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="how-they-work-under-the-hood"><a class="header" href="#how-they-work-under-the-hood">How they work under the hood:</a></h3>
+<ul>
+<li><code>READ_COMMITTED</code>: Read locks released immediately after read; write locks held until commit.</li>
+<li><code>REPEATABLE_READ</code>: Read locks held until end of transaction.</li>
+<li><code>SERIALIZABLE</code>: Range locks added; no new rows can appear in a scanned range.</li>
+</ul>
+<p><strong>Real trade-off:</strong> A financial system processing transfers between accounts may need <code>SERIALIZABLE</code> for balance calculations. A news feed can safely use <code>READ_COMMITTED</code> because stale reads are acceptable.</p>
+<p><strong>Real-World Example:</strong>
+A bank account service reads balance, performs a check, then deducts. Under <code>READ_COMMITTED</code>, another transaction can change the balance between the read and the deduct “” the non-repeatable read anomaly. Setting <code>REPEATABLE_READ</code> prevents this by holding the read lock.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">@Service
+public class BankTransferService {
+
+    // READ_COMMITTED (default) "” acceptable for most reads
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public BigDecimal getBalance(Long accountId) {
+        return accountRepository.findBalanceById(accountId);
+    }
+
+    // REPEATABLE_READ "” prevents non-repeatable read during transfer
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
+    public void transfer(Long fromId, Long toId, BigDecimal amount) {
+        Account from = accountRepository.findById(fromId).orElseThrow();
+        Account to = accountRepository.findById(toId).orElseThrow();
+
+        if (from.getBalance().compareTo(amount) &lt; 0) {
+            throw new InsufficientFundsException("Insufficient balance");
+        }
+
+        // Without REPEATABLE_READ, balance could change here before deduction
+        from.setBalance(from.getBalance().subtract(amount));
+        to.setBalance(to.getBalance().add(amount));
+    }
+
+    // SERIALIZABLE "” highest correctness for critical financial reconciliation
+    @Transactional(isolation = Isolation.SERIALIZABLE)
+    public void dailyReconciliation(Long accountId) {
+        // No other transaction can insert/update matching rows
+        List&lt;Transaction&gt; txns = transactionRepository.findAllByAccountId(accountId);
+        BigDecimal sum = txns.stream()
+            .map(Transaction::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // assert sum matches stored balance...
+    }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ul>
+<li>How does PostgreSQL implement <code>REPEATABLE_READ</code> differently from MySQL?</li>
+<li>What is MVCC and how does it relate to isolation levels?</li>
+<li>Why is <code>SERIALIZABLE</code> often avoided in practice?</li>
+</ul>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Assuming <code>SERIALIZABLE</code> uses only locking “” PostgreSQL uses SSI (Serializable Snapshot Isolation)</li>
+<li>Using high isolation levels globally “to be safe” “” causes deadlocks and throughput collapse</li>
+<li>Confusing isolation (concurrent transaction behavior) with atomicity (single transaction all-or-nothing)</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“MySQL’s default is <code>REPEATABLE_READ</code> “” does it prevent phantom reads?” “” MySQL InnoDB prevents phantom reads with gap locking even at <code>REPEATABLE_READ</code> level, which is beyond the SQL standard requirement. PostgreSQL at <code>REPEATABLE_READ</code> can still have phantom reads per the standard.</p>
+<p><strong>Quick Revision:</strong>
+4 levels: READ_UNCOMMITTED (all anomalies possible) â†’ READ_COMMITTED (prevents dirty reads, default most DBs) â†’ REPEATABLE_READ (prevents non-repeatable reads) â†’ SERIALIZABLE (prevents all anomalies). Higher isolation = more locking = lower throughput.</p>
+<hr>
+<h2 id="q18-transactional-rollback-rules"><a class="header" href="#q18-transactional-rollback-rules">Q18: <code>@Transactional</code> Rollback Rules</a></h2>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> High
+<strong>Companies:</strong> Infosys, Cognizant, Wipro, Razorpay, Paytm</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+By default, Spring rolls back a transaction only for unchecked exceptions (<code>RuntimeException</code> and <code>Error</code>). Checked exceptions do NOT trigger a rollback unless explicitly configured. The rationale is Spring’s convention: checked exceptions represent recoverable business conditions; unchecked exceptions represent programming errors or unexpected failures.</p>
+<p><strong>Deep Explanation:</strong>
+Spring’s <code>@Transactional</code> uses a <code>RollbackRuleAttribute</code> list internally. The defaults are:</p>
+<ul>
+<li>Rollback on: <code>RuntimeException</code>, <code>Error</code></li>
+<li>No rollback on: <code>Exception</code>, <code>Throwable</code>, checked exceptions</li>
+</ul>
+<p><strong>Customization attributes:</strong></p>
+<ul>
+<li><code>rollbackFor = IOException.class</code> “” add checked exception to rollback list</li>
+<li><code>rollbackFor = {IOException.class, SQLException.class}</code> “” multiple</li>
+<li><code>noRollbackFor = OptimisticLockException.class</code> “” exclude a runtime exception</li>
+<li><code>rollbackForClassName = "com.example.MyException"</code> “” string-based (avoid; fragile)</li>
+</ul>
+<p><strong>Why the default excludes checked exceptions:</strong>
+In EJB tradition (which Spring inherits), checked exceptions are “application exceptions” “” expected, recoverable. A <code>FileNotFoundException</code> thrown during an order import might mean “retry later,” not “abort the transaction.” Unchecked exceptions are “system exceptions” “” unexpected bugs, corrupted state.</p>
+<p><strong>Important subtlety:</strong> If a method catches the exception and does not rethrow, the transaction is NOT rolled back even for <code>RuntimeException</code>. Spring only sees the exception if it propagates out of the <code>@Transactional</code> proxy boundary.</p>
+<p><strong>Real-World Example:</strong>
+A payment service throws a custom <code>PaymentGatewayException extends Exception</code> (checked) when the gateway is unreachable. Without <code>rollbackFor</code>, the transaction commits even though payment failed “” a critical bug. Solution: <code>rollbackFor = PaymentGatewayException.class</code>.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">// Custom checked exception
+public class PaymentGatewayException extends Exception {
+    public PaymentGatewayException(String message) { super(message); }
+}
+
+@Service
+@RequiredArgsConstructor
+public class PaymentService {
+
+    private final OrderRepository orderRepo;
+    private final PaymentGateway gateway;
+
+    // BUG: checked exception does NOT rollback by default
+    @Transactional
+    public void processPayment_BUG(Long orderId) throws PaymentGatewayException {
+        Order order = orderRepo.findById(orderId).orElseThrow();
+        order.setStatus(OrderStatus.PROCESSING);
+        orderRepo.save(order); // saved to DB
+        gateway.charge(order); // throws PaymentGatewayException
+        // order is COMMITTED as PROCESSING even though payment failed!
+    }
+
+    // CORRECT: rollbackFor ensures checked exception triggers rollback
+    @Transactional(rollbackFor = PaymentGatewayException.class)
+    public void processPayment(Long orderId) throws PaymentGatewayException {
+        Order order = orderRepo.findById(orderId).orElseThrow();
+        order.setStatus(OrderStatus.PROCESSING);
+        orderRepo.save(order);
+        gateway.charge(order); // exception triggers rollback, order not saved
+    }
+
+    // noRollbackFor "” don't rollback on optimistic lock conflicts (retry instead)
+    @Transactional(noRollbackFor = ObjectOptimisticLockingFailureException.class)
+    public void updateWithRetry(Long orderId) {
+        try {
+            Order order = orderRepo.findById(orderId).orElseThrow();
+            order.incrementVersion();
+            orderRepo.save(order);
+        } catch (ObjectOptimisticLockingFailureException e) {
+            // handle retry without rolling back any preceding work
+        }
+    }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ul>
+<li>What happens if an inner <code>@Transactional</code> method marks the transaction for rollback but the outer method catches the exception?</li>
+<li>What is “transaction marked for rollback” (<code>RollbackRequiredException</code>)?</li>
+<li>How does <code>TransactionSystemException</code> differ from <code>RollbackException</code>?</li>
+</ul>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Swallowing exceptions inside a <code>@Transactional</code> method expecting rollback “” rollback never fires</li>
+<li>Throwing checked exceptions expecting rollback without <code>rollbackFor</code></li>
+<li>Marking inner method with <code>REQUIRES_NEW</code> expecting its rollback to be isolated “” it is, but the outer transaction may still commit its dirty work</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“If I catch a <code>RuntimeException</code> inside a <code>@Transactional</code> method and do not rethrow, does the transaction roll back?” “” No. The exception never reaches the proxy. The transaction commits normally.</p>
+<p><strong>Quick Revision:</strong>
+Default rollback: <code>RuntimeException</code> + <code>Error</code> only. Checked exceptions: add <code>rollbackFor</code>. Override with <code>noRollbackFor</code>. Catching exceptions before they exit the proxy prevents rollback. Rationale: checked = recoverable, unchecked = system failure.</p>
+<hr>
+<h2 id="q19-optimistic-vs-pessimistic-locking"><a class="header" href="#q19-optimistic-vs-pessimistic-locking">Q19: Optimistic vs Pessimistic Locking</a></h2>
+<p><strong>Difficulty:</strong> Hard | <strong>Interview Frequency:</strong> Very High
+<strong>Companies:</strong> Amazon, Flipkart, PayPal, Stripe, Booking.com, Goldman Sachs</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+Optimistic locking assumes conflicts are rare “” it adds a <code>@Version</code> field; Hibernate appends <code>WHERE version = ?</code> to every UPDATE. If another transaction changed the row, the version mismatch causes <code>OptimisticLockException</code>. Pessimistic locking locks the row at read time using <code>SELECT FOR UPDATE</code>, blocking other transactions. Use optimistic for low-contention web apps; use pessimistic for high-contention scenarios like inventory management or seat booking.</p>
+<p><strong>Deep Explanation:</strong></p>
+<h3 id="optimistic-locking-version"><a class="header" href="#optimistic-locking-version">Optimistic Locking (<code>@Version</code>)</a></h3>
+<p>Hibernate adds <code>WHERE id = ? AND version = ?</code> to UPDATE statements. If the row was modified concurrently, the update affects 0 rows, and Hibernate throws <code>StaleObjectStateException</code> (wrapped as <code>ObjectOptimisticLockingFailureException</code> in Spring).</p>
+<p>Supported version field types: <code>int</code>, <code>Integer</code>, <code>long</code>, <code>Long</code>, <code>short</code>, <code>Short</code>, <code>Timestamp</code>, <code>Instant</code>.</p>
+<h3 id="pessimistic-locking-lockmodetype"><a class="header" href="#pessimistic-locking-lockmodetype">Pessimistic Locking (<code>LockModeType</code>)</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Mode</th><th>SQL</th><th>Behavior</th></tr>
+</thead>
+<tbody>
+<tr><td><code>PESSIMISTIC_WRITE</code></td><td><code>SELECT ... FOR UPDATE</code></td><td>Blocks other writers and readers (depending on DB)</td></tr>
+<tr><td><code>PESSIMISTIC_READ</code></td><td><code>SELECT ... FOR SHARE</code></td><td>Allows other readers; blocks writers</td></tr>
+<tr><td><code>PESSIMISTIC_FORCE_INCREMENT</code></td><td><code>SELECT ... FOR UPDATE</code> + version++</td><td>Combines pessimistic lock with version increment</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="when-to-use-each"><a class="header" href="#when-to-use-each">When to use each:</a></h3>
+<ul>
+<li><strong>Optimistic:</strong> Read-heavy, low update frequency, web apps with short transactions. User profile updates, content management.</li>
+<li><strong>Pessimistic:</strong> High-contention, must-win semantics. Inventory reservation, airline seat booking, financial account debits.</li>
+</ul>
+<p><strong>Real-World Example:</strong>
+Flight booking: two users try to book the last seat simultaneously. Without locking, both read <code>available = 1</code>, both decrement, both write <code>available = 0</code> “” double booking. Pessimistic locking with <code>SELECT FOR UPDATE</code> ensures only one transaction proceeds.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">// Optimistic locking entity
+@Entity
+public class Product {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
+    private Long id;
+
+    private String name;
+    private int stockCount;
+
+    @Version
+    private Long version; // Hibernate adds AND version=? to UPDATE
+
+    // getters/setters
+}
+
+@Repository
+public interface ProductRepository extends JpaRepository&lt;Product, Long&gt; {
+
+    // Pessimistic write lock "” blocks concurrent updates
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM Product p WHERE p.id = :id")
+    Optional&lt;Product&gt; findByIdForUpdate(@Param("id") Long id);
+}
+
+@Service
+@RequiredArgsConstructor
+public class InventoryService {
+
+    private final ProductRepository productRepo;
+
+    // Optimistic locking "” suitable for low-contention product updates
+    @Transactional
+    public void updateProductName(Long productId, String newName) {
+        Product product = productRepo.findById(productId).orElseThrow();
+        product.setName(newName);
+        // Hibernate: UPDATE product SET name=?, version=2 WHERE id=? AND version=1
+        // If version changed â†’ StaleObjectStateException
+    }
+
+    // Pessimistic locking "” for high-contention inventory reservation
+    @Transactional
+    public void reserveStock(Long productId, int quantity) {
+        // SELECT ... FOR UPDATE "” row locked until transaction commits
+        Product product = productRepo.findByIdForUpdate(productId)
+            .orElseThrow(() -&gt; new ProductNotFoundException(productId));
+
+        if (product.getStockCount() &lt; quantity) {
+            throw new InsufficientStockException(
+                "Not enough stock: available=" + product.getStockCount()
+            );
+        }
+        product.setStockCount(product.getStockCount() - quantity);
+    }
+
+    // Handling optimistic lock failure with retry
+    @Retryable(retryFor = ObjectOptimisticLockingFailureException.class, maxAttempts = 3)
+    @Transactional
+    public void safeUpdateStock(Long productId, int delta) {
+        Product product = productRepo.findById(productId).orElseThrow();
+        product.setStockCount(product.getStockCount() + delta);
+    }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ul>
+<li>What happens if <code>@Version</code> is not on an entity and two transactions update it simultaneously?</li>
+<li>Can optimistic locking prevent phantom reads?</li>
+<li>What is <code>PESSIMISTIC_FORCE_INCREMENT</code> and when is it needed?</li>
+</ul>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Forgetting <code>@Version</code> and expecting Hibernate to detect conflicts “” it will silently overwrite (last-write-wins)</li>
+<li>Using pessimistic locking everywhere “” causes deadlocks and serializes throughput</li>
+<li>Not retrying on <code>OptimisticLockException</code> “” users see spurious errors</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“Optimistic locking prevents lost updates “” is that the same as preventing dirty reads?” “” No. They address different problems. Dirty reads are an isolation level concern (read another transaction’s uncommitted data). Lost updates are a concurrency concern (two transactions overwrite each other’s committed changes). <code>@Version</code> addresses lost updates, not dirty reads.</p>
+<p><strong>Quick Revision:</strong>
+Optimistic (<code>@Version</code>): no DB lock, conflict detected at update time via <code>WHERE version=?</code>. Pessimistic (<code>FOR UPDATE</code>/<code>FOR SHARE</code>): row locked at read time. Optimistic = low contention, pessimistic = high contention. Always handle <code>OptimisticLockException</code> with retry.</p>
+<hr>
+<h2 id="q20-hibernate-dirty-checking"><a class="header" href="#q20-hibernate-dirty-checking">Q20: Hibernate Dirty Checking</a></h2>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> High
+<strong>Companies:</strong> Thoughtworks, Infosys, Oracle, SAP, mid-size product companies</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+Dirty checking is Hibernate’s mechanism to detect which managed entities have changed since they were loaded. At flush time, Hibernate compares the current state of each managed entity against the snapshot taken at load time. Changed fields generate UPDATE statements automatically “” you never call <code>save()</code> explicitly for managed entities.</p>
+<p><strong>Deep Explanation:</strong>
+<strong>Mechanism:</strong></p>
+<ol>
+<li>Entity loaded via <code>find()</code> or JPQL â†’ snapshot stored alongside live instance in L1 cache</li>
+<li>Application modifies the entity’s fields</li>
+<li>At flush (before commit, before query execution), Hibernate iterates all managed entities</li>
+<li>For each entity, it compares field-by-field against the snapshot</li>
+<li>Differences generate <code>UPDATE</code> SQL</li>
+</ol>
+<p><strong>Overhead:</strong>
+Every managed entity participates in dirty checking. A session with 1,000 managed entities checks all 1,000 at flush “” even if only 1 changed. With wide entities (many columns), this is CPU-intensive.</p>
+<p><strong>Mitigation strategies:</strong></p>
+<ul>
+<li><code>@Transactional(readOnly=true)</code> “” Spring hints Hibernate to skip dirty checking on flush (Hibernate 6 sets <code>FlushMode.MANUAL</code>)</li>
+<li>Use DTOs/projections for read-only queries “” entities never enter the session</li>
+<li>Explicitly set <code>FlushMode.COMMIT</code> or <code>FlushMode.MANUAL</code> for long sessions</li>
+<li>Avoid loading more entities than needed (pagination, limit clause)</li>
+</ul>
+<p><strong><code>readOnly=true</code> effects:</strong></p>
+<ul>
+<li>Hibernate sets <code>FlushMode.MANUAL</code> (no auto-flush)</li>
+<li>Snapshot not stored at load (saves memory)</li>
+<li>Spring passes <code>readOnly=true</code> hint to JDBC connection (driver optimization)</li>
+<li>Does NOT affect isolation level; does NOT prevent writes (you can still call <code>save()</code>)</li>
+</ul>
+<p><strong>Real-World Example:</strong>
+A reporting job loads 50,000 <code>Order</code> entities to generate CSV. Without <code>readOnly=true</code>, Hibernate stores snapshots for all 50,000 and checks dirty state at flush “” wasting significant memory and CPU.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">@Entity
+public class Order {
+    @Id @GeneratedValue(strategy = GenerationType.SEQUENCE)
+    private Long id;
+    private OrderStatus status;
+    private BigDecimal total;
+    // ... 15 more fields
+}
+
+@Service
+@RequiredArgsConstructor
+public class OrderReportService {
+
+    private final OrderRepository orderRepo;
+    private final EntityManager em;
+
+    // BAD: loads all entities as managed â†’ dirty checking overhead for read-only job
+    @Transactional
+    public List&lt;Order&gt; getAllOrdersBad() {
+        return orderRepo.findAll(); // 50,000 entities with snapshots
+    }
+
+    // GOOD: readOnly skips snapshot + dirty checking
+    @Transactional(readOnly = true)
+    public List&lt;Order&gt; getAllOrdersGood() {
+        return orderRepo.findAll();
+    }
+
+    // BETTER for read-only: use DTO projection "” entities never managed
+    @Transactional(readOnly = true)
+    public List&lt;OrderReportDto&gt; getOrderReport() {
+        return em.createQuery(
+            "SELECT new com.example.OrderReportDto(o.id, o.status, o.total) FROM Order o",
+            OrderReportDto.class
+        ).getResultList();
+    }
+
+    // Dirty checking in action "” no explicit save() needed
+    @Transactional
+    public void approveOrder(Long orderId) {
+        Order order = orderRepo.findById(orderId).orElseThrow();
+        order.setStatus(OrderStatus.APPROVED); // entity is managed
+        // At commit: Hibernate detects status changed â†’ UPDATE order SET status=? WHERE id=?
+        // No orderRepo.save(order) needed!
+    }
+}
+
+record OrderReportDto(Long id, OrderStatus status, BigDecimal total) {}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ul>
+<li>What is <code>FlushMode</code> and what are the different modes?</li>
+<li>Does <code>@Transactional(readOnly=true)</code> prevent you from calling <code>save()</code>?</li>
+<li>How does Hibernate’s bytecode enhancement change dirty checking behavior?</li>
+</ul>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Calling <code>save()</code> on a managed entity unnecessarily “” works but generates redundant snapshot update</li>
+<li>Assuming <code>readOnly=true</code> prevents writes “” it does not; it only skips automatic flush/dirty check</li>
+<li>Not using <code>readOnly=true</code> on heavy read transactions “” unnecessary CPU and memory overhead</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“<code>@Transactional(readOnly=true)</code> “” does Hibernate skip dirty checking completely?” “” Hibernate sets <code>FlushMode.MANUAL</code>, meaning it will not automatically flush dirty entities. However, if you explicitly call <code>entityManager.flush()</code>, dirty checking still runs. The automatic flush on commit and before queries is what is skipped.</p>
+<p><strong>Quick Revision:</strong>
+Dirty checking = Hibernate compares managed entity state vs. snapshot at flush. Automatic UPDATE for changed fields “” no explicit <code>save()</code> needed. Overhead with many managed entities. Mitigate: <code>readOnly=true</code> (skips auto-flush/snapshot), DTOs for reads.</p>
+<hr>
+<h2 id="q21-batch-inserts-and-updates"><a class="header" href="#q21-batch-inserts-and-updates">Q21: Batch Inserts and Updates</a></h2>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> High
+<strong>Companies:</strong> Amazon, Flipkart, Zomato, logistics and fintech companies</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+By default Hibernate sends one SQL statement per entity insert/update. Batch processing groups multiple statements into a single DB round trip, dramatically reducing latency for bulk operations. The critical gotcha: <code>IDENTITY</code> generation strategy forces Hibernate to execute each INSERT immediately to get the generated ID, breaking batching. Use <code>SEQUENCE</code> instead.</p>
+<p><strong>Deep Explanation:</strong>
+<strong>Why IDENTITY breaks batching:</strong>
+With <code>IDENTITY</code>, the DB assigns the PK after INSERT (via auto-increment). Hibernate needs the PK immediately to populate the entity’s <code>@Id</code> field and place it in the L1 cache. This forces an immediate round trip per insert “” batching cannot accumulate statements.</p>
+<p><strong>Configuration:</strong></p>
+<pre><code class="language-properties">spring.jpa.properties.hibernate.jdbc.batch_size=50
+spring.jpa.properties.hibernate.order_inserts=true
+spring.jpa.properties.hibernate.order_updates=true
+spring.jpa.properties.hibernate.jdbc.batch_versioned_data=true
+</code></pre>
+<ul>
+<li><code>batch_size</code>: number of statements per batch</li>
+<li><code>order_inserts/order_updates</code>: groups same-entity statements together (required for batching to work with multiple entity types)</li>
+<li><code>batch_versioned_data</code>: include versioned entities in batching</li>
+</ul>
+<p><strong><code>saveAll()</code> and batching:</strong>
+Spring Data’s <code>saveAll()</code> calls <code>save()</code> per entity. Batching works only if <code>batch_size</code> is configured and SEQUENCE is used. Without configuration, <code>saveAll(1000 entities)</code> = 1000 round trips.</p>
+<p><strong>Optimal batch size:</strong> 20““50. Larger batches consume more memory and can cause network packet fragmentation.</p>
+<p><strong>Real-World Example:</strong>
+An ETL job importing 100,000 product records. Without batching: 100,000 round trips. With batch size 50: 2,000 round trips “” 50x fewer.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">// Entity using SEQUENCE "” required for batching
+@Entity
+public class Product {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "product_seq")
+    @SequenceGenerator(name = "product_seq", sequenceName = "product_seq",
+                       allocationSize = 50) // pre-allocate 50 IDs
+    private Long id;
+
+    private String name;
+    private BigDecimal price;
+}
+
+// application.properties
+// spring.jpa.properties.hibernate.jdbc.batch_size=50
+// spring.jpa.properties.hibernate.order_inserts=true
+// spring.jpa.properties.hibernate.order_updates=true
+
+@Service
+@RequiredArgsConstructor
+public class ProductImportService {
+
+    private final ProductRepository productRepo;
+    private final EntityManager em;
+
+    // saveAll with Spring Data "” batches if configured with SEQUENCE
+    @Transactional
+    public void importProducts(List&lt;ProductDto&gt; dtos) {
+        List&lt;Product&gt; products = dtos.stream()
+            .map(dto -&gt; new Product(dto.name(), dto.price()))
+            .toList();
+        productRepo.saveAll(products); // ~2000 batches of 50 vs 100,000 single inserts
+    }
+
+    // Manual batching with periodic flush+clear to control memory
+    @Transactional
+    public void importLargeDataset(List&lt;ProductDto&gt; dtos) {
+        int batchSize = 50;
+        for (int i = 0; i &lt; dtos.size(); i++) {
+            ProductDto dto = dtos.get(i);
+            em.persist(new Product(dto.name(), dto.price()));
+
+            if (i % batchSize == 0 &amp;&amp; i &gt; 0) {
+                em.flush();  // execute batch
+                em.clear();  // free memory "” evict managed entities
+            }
+        }
+    }
+
+    // Using JDBC template for ultra-high throughput (bypasses Hibernate entirely)
+    @Autowired
+    private JdbcTemplate jdbc;
+
+    @Transactional
+    public void bulkInsertJdbc(List&lt;ProductDto&gt; dtos) {
+        String sql = "INSERT INTO product (name, price) VALUES (?, ?)";
+        List&lt;Object[]&gt; args = dtos.stream()
+            .map(d -&gt; new Object[]{d.name(), d.price()})
+            .toList();
+        jdbc.batchUpdate(sql, args);
+    }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ul>
+<li>Why does <code>allocationSize</code> on <code>@SequenceGenerator</code> matter for performance?</li>
+<li>When would you bypass Hibernate entirely and use <code>JdbcTemplate.batchUpdate()</code>?</li>
+<li>How do you verify batching is actually occurring? (Enable SQL logging, count round trips)</li>
+</ul>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Using <code>IDENTITY</code> strategy expecting batching to work “” it silently falls back to individual inserts</li>
+<li>Not calling <code>flush()</code> and <code>clear()</code> in loops “” OutOfMemoryError with large datasets</li>
+<li>Setting batch size too high (e.g., 1000) “” network overhead, memory spikes</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“I set <code>hibernate.jdbc.batch_size=50</code> but my import is still slow “” what’s wrong?” “” Most likely using <code>GenerationType.IDENTITY</code>. Switch to <code>SEQUENCE</code>. Also check <code>order_inserts=true</code> and ensure no <code>@GeneratedValue</code> annotation is missing.</p>
+<p><strong>Quick Revision:</strong>
+Batching groups SQL statements into fewer round trips. Requires: <code>batch_size</code> config, <code>SEQUENCE</code> generation (not <code>IDENTITY</code>), <code>order_inserts=true</code>. <code>saveAll()</code> batches if configured correctly. Flush+clear in loops to control memory.</p>
+<hr>
+<h2 id="q22-open-session-in-view-osiv"><a class="header" href="#q22-open-session-in-view-osiv">Q22: Open Session in View (OSIV)</a></h2>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> High
+<strong>Companies:</strong> Thoughtworks, mid-size Spring MVC companies, fintech startups</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+Open Session in View keeps the <code>EntityManager</code> open for the entire HTTP request, including the view rendering layer. This allows lazy-loaded associations to be fetched in controllers and view templates without <code>LazyInitializationException</code>. It is enabled by default in Spring Boot “” and it is considered an anti-pattern because it holds a database connection for the entire request duration and hides N+1 problems.</p>
+<p><strong>Deep Explanation:</strong>
+<strong>Default behavior:</strong>
+Spring Boot’s <code>OpenEntityManagerInViewInterceptor</code> opens an <code>EntityManager</code> at the start of each HTTP request and closes it at the end (after the response is written). This is OSIV = true (default).</p>
+<p><strong>Problems with OSIV:</strong></p>
+<ol>
+<li><strong>DB connection held for the entire HTTP request lifecycle</strong> “” including time spent in view rendering, JSON serialization, and network I/O. With a 10-connection pool and slow clients, this exhausts the pool.</li>
+<li><strong>Silent N+1 queries</strong> “” lazy loading works “automatically” in controllers and views, hiding expensive per-object queries that should have been JOIN FETCHed.</li>
+<li><strong>Reasoning difficulty</strong> “” lazy loading anywhere in the call stack makes it hard to reason about when DB queries occur.</li>
+<li><strong>Spring Boot warning</strong> “” since Spring Boot 2.0, a WARN log is printed at startup when OSIV is enabled with a connection pool.</li>
+</ol>
+<p><strong>Fix:</strong></p>
+<pre><code class="language-properties">spring.jpa.open-in-view=false
+</code></pre>
+<p>Initialize all data in the service layer. Use DTOs or <code>@EntityGraph</code> to eagerly fetch needed associations. Let the service layer be the only place that touches the DB.</p>
+<p><strong>Real-World Example:</strong>
+A REST API serving a product list with category names. With OSIV, the controller serializes <code>product.getCategory().getName()</code> “” triggering a lazy load for each product. 50 products = 51 queries. Without OSIV, this fails fast with <code>LazyInitializationException</code>, forcing the developer to fix the query properly.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">// application.properties
+// spring.jpa.open-in-view=false  â† disable OSIV
+
+@Entity
+public class Product {
+    @Id @GeneratedValue(strategy = GenerationType.SEQUENCE)
+    private Long id;
+    private String name;
+
+    @ManyToOne(fetch = FetchType.LAZY) // lazy "” requires OSIV or explicit loading
+    private Category category;
+}
+
+// DTO for complete data "” no lazy loading needed outside transaction
+record ProductDto(Long id, String name, String categoryName) {}
+
+@Service
+@RequiredArgsConstructor
+public class ProductService {
+
+    private final EntityManager em;
+
+    // CORRECT: load all needed data inside @Transactional service method
+    @Transactional(readOnly = true)
+    public List&lt;ProductDto&gt; getAllProducts() {
+        return em.createQuery(
+            "SELECT new com.example.ProductDto(p.id, p.name, p.category.name) " +
+            "FROM Product p JOIN p.category c",
+            ProductDto.class
+        ).getResultList();
+        // No lazy loading after transaction boundary "” safe with OSIV=false
+    }
+
+    // Alternative: use @EntityGraph to eagerly load category
+    @Transactional(readOnly = true)
+    public List&lt;Product&gt; getAllProductsWithCategory() {
+        return em.createQuery(
+            "SELECT p FROM Product p JOIN FETCH p.category", Product.class
+        ).getResultList();
+    }
+}
+
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/products")
+public class ProductController {
+
+    private final ProductService productService;
+
+    @GetMapping
+    public List&lt;ProductDto&gt; list() {
+        // With OSIV=false, lazy loading here would throw LazyInitializationException
+        // Correct: service already returned fully-initialized DTOs
+        return productService.getAllProducts();
+    }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ul>
+<li>What is the alternative to OSIV for GraphQL or async request handling?</li>
+<li>How does OSIV interact with Spring’s <code>@Async</code> methods?</li>
+<li>What happens to OSIV with WebFlux (reactive stack)?</li>
+</ul>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Leaving OSIV enabled “for convenience” in production “” causes connection pool exhaustion under load</li>
+<li>Disabling OSIV without updating service methods “” <code>LazyInitializationException</code> flood</li>
+<li>Thinking OSIV is required “” it is not; proper data initialization in the service layer is the correct approach</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“OSIV makes lazy loading work everywhere “” isn’t that a good thing?” “” No. It masks N+1 problems, holds DB connections during view rendering, and makes the data access layer invisible to the developer. The benefit (convenience) does not outweigh the production risks.</p>
+<p><strong>Quick Revision:</strong>
+OSIV = EntityManager open for full HTTP request. Default: TRUE in Spring Boot. Problems: connection held whole request, silent N+1, hard to reason. Fix: <code>spring.jpa.open-in-view=false</code> + initialize all data in service layer with JOINs or DTOs.</p>
+<hr>
+<h2 id="q23-hikaricp-connection-pool"><a class="header" href="#q23-hikaricp-connection-pool">Q23: HikariCP Connection Pool</a></h2>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> High
+<strong>Companies:</strong> Amazon, Google, Uber, Razorpay, any high-traffic backend role</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+HikariCP is Spring Boot’s default JDBC connection pool since 2.0. It is the fastest connection pool available for the JVM. Key properties: <code>maximum-pool-size</code> (default 10), <code>connection-timeout</code> (30s), <code>max-lifetime</code>. Pool exhaustion “” all connections in use “” manifests as <code>HikariPool-1 - Connection is not available, request timed out after 30000ms</code>. Right-sizing the pool is critical for throughput.</p>
+<p><strong>Deep Explanation:</strong>
+<strong>Key properties:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Property</th><th>Default</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>maximum-pool-size</code></td><td>10</td><td>Max connections in pool</td></tr>
+<tr><td><code>minimum-idle</code></td><td>= maximum-pool-size</td><td>Min idle connections maintained</td></tr>
+<tr><td><code>connection-timeout</code></td><td>30,000ms</td><td>Wait time before throwing timeout</td></tr>
+<tr><td><code>idle-timeout</code></td><td>600,000ms</td><td>Time before idle connection is closed</td></tr>
+<tr><td><code>max-lifetime</code></td><td>1,800,000ms</td><td>Max connection lifetime (before forced close)</td></tr>
+<tr><td><code>keepalive-time</code></td><td>0 (disabled)</td><td>Ping interval for idle connections</td></tr>
+<tr><td><code>validation-timeout</code></td><td>5,000ms</td><td>Timeout for connection test query</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Pool sizing formula:</strong>
+Hikari’s author (brettwooldridge) recommends:</p>
+<pre><code>pool_size = (core_count * 2) + effective_spindle_count
+</code></pre>
+<p>For a 4-core server with SSD (spindle count â‰ˆ 1): <code>(4*2) + 1 = 9</code>. Default of 10 is often correct for SSD-backed databases.</p>
+<p><strong>Pool exhaustion causes:</strong></p>
+<ul>
+<li>Transactions held open too long (slow queries, external API calls inside <code>@Transactional</code>)</li>
+<li>OSIV enabled “” connections held for full HTTP request</li>
+<li>Connection leak “” <code>@Transactional</code> not closing session, or manual <code>getConnection()</code> not closed</li>
+<li><code>maximum-pool-size</code> too small for workload</li>
+</ul>
+<p><strong>Diagnosing exhaustion:</strong></p>
+<ul>
+<li>Log: <code>HikariPool-1 - Connection is not available, request timed out after 30000ms</code></li>
+<li>Metric: <code>hikaricp.connections.pending</code> &gt; 0 consistently</li>
+<li>Enable leak detection: <code>spring.datasource.hikari.leak-detection-threshold=60000</code></li>
+</ul>
+<p><strong>Real-World Example:</strong>
+A microservice starts failing under load. Investigation reveals <code>@Transactional</code> methods calling an external payment API “” holding DB connections while waiting for HTTP responses. Fix: move the external call outside the transaction.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-yaml"># application.yml
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 20          # scale for your workload
+      minimum-idle: 5                # keep 5 warm connections
+      connection-timeout: 20000      # fail fast at 20s not 30s
+      idle-timeout: 300000           # close idle connections after 5 min
+      max-lifetime: 1200000          # replace connections every 20 min
+      pool-name: "OrderServicePool"  # identifiable in metrics
+      leak-detection-threshold: 60000 # warn on connections held &gt;60s
+</code></pre>
+<pre><code class="language-java">@Configuration
+public class DataSourceConfig {
+
+    // Programmatic configuration for environment-specific pool sizing
+    @Bean
+    @ConfigurationProperties("spring.datasource.hikari")
+    public HikariDataSource dataSource() {
+        HikariConfig config = new HikariConfig();
+        config.setMaximumPoolSize(
+            Runtime.getRuntime().availableProcessors() * 2 + 1
+        );
+        config.setPoolName("AppPool");
+        config.setLeakDetectionThreshold(60_000);
+        return new HikariDataSource(config);
+    }
+}
+
+@Service
+@RequiredArgsConstructor
+public class PaymentProcessingService {
+
+    private final OrderRepository orderRepo;
+    private final PaymentGatewayClient gatewayClient; // external HTTP call
+
+    // BAD: DB connection held during external HTTP call
+    @Transactional
+    public void processPayment_BAD(Long orderId) {
+        Order order = orderRepo.findById(orderId).orElseThrow();
+        order.setStatus(OrderStatus.PROCESSING);
+        orderRepo.save(order);
+        gatewayClient.charge(order); // external call "” connection held!
+        order.setStatus(OrderStatus.PAID);
+        orderRepo.save(order);
+    }
+
+    // GOOD: minimize time holding connection
+    @Transactional
+    public void markProcessing(Long orderId) {
+        Order order = orderRepo.findById(orderId).orElseThrow();
+        order.setStatus(OrderStatus.PROCESSING);
+    }
+
+    // External call OUTSIDE transaction "” no connection held
+    public PaymentResult chargeGateway(Long orderId) {
+        Order order = orderRepo.findById(orderId).orElseThrow();
+        return gatewayClient.charge(order);
+    }
+
+    @Transactional
+    public void markPaid(Long orderId) {
+        Order order = orderRepo.findById(orderId).orElseThrow();
+        order.setStatus(OrderStatus.PAID);
+    }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ul>
+<li>How do you monitor HikariCP pool metrics in production?</li>
+<li>What is <code>max-lifetime</code> and why should it be less than the database’s <code>wait_timeout</code>?</li>
+<li>How does HikariCP differ from DBCP2 or C3P0?</li>
+</ul>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Setting <code>maximum-pool-size</code> very high (100+) “” creates DB-side connection pressure and context-switch overhead</li>
+<li>Ignoring <code>max-lifetime</code> “” stale connections from DB firewall timeouts cause errors</li>
+<li>Not setting <code>pool-name</code> “” makes it impossible to distinguish pools in metrics/logs</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“More connections = better throughput, so I set pool size to 200.” “” No. Beyond a point, more connections increase context-switching on the DB server and degrade throughput. Empirical benchmarks show optimal pool sizes are often 10”“20 for most workloads, not hundreds.</p>
+<p><strong>Quick Revision:</strong>
+HikariCP = Spring Boot default pool. Key settings: <code>maximum-pool-size</code> (default 10), <code>connection-timeout</code> (30s), <code>max-lifetime</code>. Size = <code>(cores*2)+spindles</code>. Pool exhaustion = timeout errors. Minimize transaction duration to reduce pressure. Enable <code>leak-detection-threshold</code> in production.</p>
+<hr>
+<h2 id="q24-common-hibernate-pitfalls"><a class="header" href="#q24-common-hibernate-pitfalls">Q24: Common Hibernate Pitfalls</a></h2>
+<p><strong>Difficulty:</strong> Medium | <strong>Interview Frequency:</strong> High
+<strong>Companies:</strong> All companies using Spring Data JPA “” very broad</p>
+<p><strong>Short Answer (30-60 seconds):</strong>
+The most dangerous Hibernate pitfalls in production are: <code>@Enumerated(EnumType.ORDINAL)</code> breaking silently when enum order changes, incorrect <code>equals()</code>/<code>hashCode()</code> on entities causing Set membership bugs and duplicate rows, <code>toString()</code> triggering lazy loading, and bidirectional associations where only one side is set causing <code>NullPointerException</code> or missing data.</p>
+<p><strong>Deep Explanation:</strong></p>
+<h3 id="1-enumeratedenumtypeordinal-danger"><a class="header" href="#1-enumeratedenumtypeordinal-danger">1. <code>@Enumerated(EnumType.ORDINAL)</code> danger</a></h3>
+<p>Stores enum by position (0, 1, 2…). If a new enum constant is inserted in the middle, all subsequent values in the DB become incorrect “” silently, with no error.</p>
+<p><strong>Fix:</strong> Always use <code>EnumType.STRING</code>. The slight storage overhead is irrelevant compared to data corruption risk.</p>
+<h3 id="2-equalshashcode-on-entities"><a class="header" href="#2-equalshashcode-on-entities">2. <code>equals()</code>/<code>hashCode()</code> on entities</a></h3>
+<ul>
+<li>Using Lombok <code>@Data</code> or <code>@EqualsAndHashCode</code> on JPA entities is dangerous “” it generates hash based on all fields including collections (triggers lazy loading) and may use <code>id</code> (null for transient entities, same for all new entities before persist).</li>
+<li>Transient entity: <code>id = null</code> â†’ all new entities are equal â†’ <code>HashSet&lt;User&gt;</code> of new users contains only one entry.</li>
+<li><strong>Best practices:</strong>
+<ul>
+<li>Use a natural business key (<code>email</code>, <code>username</code>, <code>code</code>) for equals/hashCode</li>
+<li>Or use surrogate ID but handle the transient-null case</li>
+<li>Hibernate recommends: if using surrogate ID, implement equals/hashCode on it only, and return consistent hashCode even when id is null</li>
+</ul>
+</li>
+</ul>
+<h3 id="3-tostring-causing-lazy-loading"><a class="header" href="#3-tostring-causing-lazy-loading">3. <code>toString()</code> causing lazy loading</a></h3>
+<p>Lombok <code>@ToString</code> on an entity with lazy collections will trigger a DB query when the object is logged. This can produce N+1 during debug logging, or <code>LazyInitializationException</code> if called outside a session.</p>
+<p><strong>Fix:</strong> Exclude lazy fields from <code>toString()</code>. Use <code>@ToString(exclude = "orders")</code>.</p>
+<h3 id="4-bidirectional-not-setting-both-sides"><a class="header" href="#4-bidirectional-not-setting-both-sides">4. Bidirectional not setting both sides</a></h3>
+<p>In a bidirectional <code>@OneToMany</code> / <code>@ManyToOne</code>, only setting the <code>@ManyToOne</code> side may leave the <code>@OneToMany</code> collection stale in the L1 cache. Subsequent access within the same session returns incomplete data.</p>
+<p><strong>Fix:</strong> Use convenience methods on the owning entity to set both sides atomically.</p>
+<h3 id="5-passing-detached-entity-to-persist"><a class="header" href="#5-passing-detached-entity-to-persist">5. Passing detached entity to <code>persist()</code></a></h3>
+<p>Calling <code>entityManager.persist(detachedEntity)</code> throws <code>EntityExistsException</code>. Use <code>merge()</code> for detached entities.</p>
+<p><strong>Real-World Example:</strong>
+<code>OrderStatus</code> enum had <code>PENDING=0, APPROVED=1, SHIPPED=2</code>. A new <code>FRAUD_REVIEW</code> was inserted at position 1, shifting <code>APPROVED</code> to 2 and <code>SHIPPED</code> to 3. The DB still had old ordinal values “” all <code>APPROVED</code> orders were read back as <code>FRAUD_REVIEW</code> silently.</p>
+<p><strong>Java Code Example:</strong></p>
+<pre><code class="language-java">// PITFALL 1: EnumType.ORDINAL "” dangerous
+@Enumerated(EnumType.ORDINAL) // BAD: breaks if enum reordered
+private OrderStatus status;
+
+// CORRECT
+@Enumerated(EnumType.STRING) // GOOD: stores "PENDING", "APPROVED"
+private OrderStatus status;
+
+// PITFALL 2: equals/hashCode using surrogate ID
+@Entity
+// @Data  â† DO NOT USE on entities
+public class User {
+    @Id @GeneratedValue(strategy = GenerationType.SEQUENCE)
+    private Long id;
+
+    @NaturalId // Hibernate annotation for business key
+    private String email;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof User other)) return false;
+        return email != null &amp;&amp; email.equals(other.email); // business key
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(email); // stable, even when id is null
+    }
+}
+
+// PITFALL 3: toString causing lazy loading "” use exclude
+@Entity
+@ToString(exclude = {"orders", "addresses"}) // exclude lazy collections
+public class Customer {
+    @Id @GeneratedValue(strategy = GenerationType.SEQUENCE)
+    private Long id;
+    private String name;
+
+    @OneToMany(mappedBy = "customer", fetch = FetchType.LAZY)
+    private List&lt;Order&gt; orders = new ArrayList&lt;&gt;(); // excluded from toString
+
+    // PITFALL 4: bidirectional "” convenience method sets BOTH sides
+    public void addOrder(Order order) {
+        orders.add(order);        // set collection side
+        order.setCustomer(this);  // set owning side "” both must be set
+    }
+}
+
+// PITFALL 5: persist() on detached entity
+@Service
+@RequiredArgsConstructor
+public class UserService {
+
+    private final EntityManager em;
+
+    public void updateUser(User detachedUser) {
+        // em.persist(detachedUser); // WRONG: EntityExistsException
+        em.merge(detachedUser);      // CORRECT: merge detached entity
+    }
+}
+</code></pre>
+<p><strong>Follow-up Questions:</strong></p>
+<ul>
+<li>Why does Lombok <code>@Data</code> on a JPA entity cause problems beyond just <code>equals()</code>/<code>hashCode()</code>?</li>
+<li>What is the “transient entity in a Set” problem?</li>
+<li>How does <code>@NaturalId</code> work in Hibernate?</li>
+</ul>
+<p><strong>Common Mistakes:</strong></p>
+<ul>
+<li>Using <code>@EqualsAndHashCode(callSuper=false)</code> on entity subclasses “” violates Liskov substitution in collections</li>
+<li>Not initializing collections (<code>= new ArrayList&lt;&gt;()</code>) “” <code>NullPointerException</code> when adding to uninitialized collection</li>
+<li>Using <code>@Data</code> on entities “” also generates <code>hashCode</code> using all fields, triggers lazy loading</li>
+</ul>
+<p><strong>Interview Trap:</strong>
+“I put <code>@Enumerated(EnumType.ORDINAL)</code> on my status field for storage efficiency. Is there any risk?” “” Yes “” catastrophic. Adding or reordering enum constants silently corrupts existing DB data. The few bytes saved are never worth it. Always use <code>EnumType.STRING</code>.</p>
+<p><strong>Quick Revision:</strong>
+Top pitfalls: (1) <code>ORDINAL</code> enum â†’ use <code>STRING</code>. (2) <code>equals</code>/<code>hashCode</code> on surrogate ID “” use business key. (3) <code>toString</code> on lazy collections “” exclude them. (4) Bidirectional “” set both sides. (5) <code>persist()</code> on detached “” use <code>merge()</code>.</p>
+<hr>
+<h2 id="reference-entity-lifecycle-state-diagram"><a class="header" href="#reference-entity-lifecycle-state-diagram">Reference: Entity Lifecycle State Diagram</a></h2>
+<pre><code>                    new MyEntity()
+                         â”‚
+                         â–¼
+              â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+              â”‚      TRANSIENT       â”‚
+              â”‚  (no ID, not tracked)â”‚
+              â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                    â”‚           â–²
+         persist()  â”‚           â”‚  delete (GC)
+                    â–¼           â”‚
+              â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+              â”‚      MANAGED         â”‚â—„â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+              â”‚  (tracked, has ID)   â”‚                   â”‚
+              â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜                   â”‚
+                    â”‚           â”‚                   merge(detached)
+          close() / â”‚           â”‚ remove()               â”‚
+          evict()   â”‚           â”‚                        â”‚
+                    â–¼           â–¼                        â”‚
+              â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”  â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”   â”‚
+              â”‚ DETACHED  â”‚  â”‚      REMOVED         â”‚   â”‚
+              â”‚(stale ref)â”‚  â”‚ (scheduled for DELETE)â”‚   â”‚
+              â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜  â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜   â”‚
+                    â”‚                   â”‚                â”‚
+              merge()â”‚           commit/flush            â”‚
+                    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                                        â”‚
+                                        â–¼
+                               Row deleted from DB
+                               (entity becomes TRANSIENT)
+
+Methods summary:
+  TRANSIENT  â†’ MANAGED    : persist(), merge() (also detachedâ†’managed)
+  MANAGED    â†’ DETACHED   : close(), evict(), clear(), session ends
+  MANAGED    â†’ REMOVED    : remove()
+  REMOVED    â†’ MANAGED    : persist() (cancels removal)
+  DETACHED   â†’ MANAGED    : merge()
+  Flush/commit: MANAGED entities synchronized to DB
+</code></pre>
+<hr>
+<h2 id="reference-transactional-propagation-quick-reference"><a class="header" href="#reference-transactional-propagation-quick-reference">Reference: <code>@Transactional</code> Propagation Quick Reference</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Propagation</th><th>Behavior when TX exists</th><th>Behavior when no TX</th><th>Primary Use Case</th></tr>
+</thead>
+<tbody>
+<tr><td><code>REQUIRED</code></td><td>Joins existing transaction</td><td>Creates new transaction</td><td>Default for service methods</td></tr>
+<tr><td><code>REQUIRES_NEW</code></td><td>Suspends existing, creates new</td><td>Creates new transaction</td><td>Audit logging, independent records</td></tr>
+<tr><td><code>NESTED</code></td><td>Creates savepoint within existing</td><td>Creates new transaction</td><td>Partial rollback in batch processing (JDBC only)</td></tr>
+<tr><td><code>SUPPORTS</code></td><td>Joins existing transaction</td><td>Runs without transaction</td><td>Read operations, cache-backed reads</td></tr>
+<tr><td><code>NOT_SUPPORTED</code></td><td>Suspends existing, runs without TX</td><td>Runs without transaction</td><td>Long I/O, external API calls</td></tr>
+<tr><td><code>MANDATORY</code></td><td>Joins existing transaction</td><td>Throws <code>IllegalTransactionStateException</code></td><td>Helper methods that enforce tx requirement</td></tr>
+<tr><td><code>NEVER</code></td><td>Throws <code>IllegalTransactionStateException</code></td><td>Runs without transaction</td><td>Operations explicitly forbidden from tx context</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Key distinction “” REQUIRES_NEW vs NESTED:</strong></p>
+<ul>
+<li><code>REQUIRES_NEW</code>: Inner transaction fully independent. Outer rollback does NOT affect already-committed inner work.</li>
+<li><code>NESTED</code>: Savepoint inside outer transaction. Outer rollback DOES roll back nested work too.</li>
+</ul>
+<hr>
+<h2 id="reference-n1-solutions-comparison"><a class="header" href="#reference-n1-solutions-comparison">Reference: N+1 Solutions Comparison</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Approach</th><th>Mechanism</th><th>Pros</th><th>Cons</th><th>When to Use</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>JOIN FETCH</strong> (JPQL)</td><td><code>SELECT p FROM Post p JOIN FETCH p.comments</code></td><td>Simple, JPQL standard, full control</td><td>Cartesian product with multiple collections; pagination issues</td><td>Single association, moderate result size</td></tr>
+<tr><td><strong><code>@EntityGraph</code></strong></td><td><code>@EntityGraph(attributePaths = {"comments", "tags"})</code> on repo method</td><td>Declarative, reusable, no JPQL</td><td>Cartesian product with multiple eager paths; can be verbose</td><td>Spring Data repos, clear graph definition</td></tr>
+<tr><td><strong>Batch Fetch</strong></td><td><code>@BatchSize(size=25)</code> on association</td><td>Separate queries but batched; safe with pagination</td><td>Two round trips minimum; slightly more complex</td><td>Large result sets with pagination; multiple associations</td></tr>
+<tr><td><strong>DTO Projection</strong></td><td>JPQL <code>new Dto(...)</code> or interface projection</td><td>Minimal data transfer; avoids entity management overhead; fastest reads</td><td>No entity lifecycle; manual mapping; not updatable via JPA</td><td>Read-only endpoints, reporting, aggregations</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Pagination caveat:</strong> JOIN FETCH with <code>@OneToMany</code> causes Hibernate to load all rows in memory and paginate in-app (<code>HHH90003004</code> warning). Use Batch Fetch or DTO projection with pagination.</p>
+<hr>
+<h2 id="reference-hikaricp-key-properties-cheat-sheet"><a class="header" href="#reference-hikaricp-key-properties-cheat-sheet">Reference: HikariCP Key Properties Cheat Sheet</a></h2>
+<pre><code>â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                    HikariCP Properties Cheat Sheet                  â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Property                   â”‚ Default   â”‚ Notes                      â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ maximum-pool-size          â”‚ 10        â”‚ (coresÃ—2)+spindles formula  â”‚
+â”‚ minimum-idle               â”‚ =max-pool â”‚ Set lower to save resources â”‚
+â”‚ connection-timeout         â”‚ 30,000ms  â”‚ Lower in prod (10-20s)      â”‚
+â”‚ idle-timeout               â”‚ 600,000ms â”‚ 0 = never expire idle       â”‚
+â”‚ max-lifetime               â”‚ 1,800,000 â”‚ &lt; DB wait_timeout           â”‚
+â”‚ keepalive-time             â”‚ 0         â”‚ Ping idle connections        â”‚
+â”‚ validation-timeout         â”‚ 5,000ms   â”‚ Max for alive check         â”‚
+â”‚ leak-detection-threshold   â”‚ 0         â”‚ Set 60000 in prod           â”‚
+â”‚ pool-name                  â”‚ HikariPoolâ”‚ Set unique name per service â”‚
+â”‚ connection-test-query      â”‚ (auto)    â”‚ JDBC4 auto-test preferred   â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”´â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Sizing formula:  pool_size = (cpu_cores Ã— 2) + effective_spindles   â”‚
+â”‚ SSD (spindleâ‰ˆ1): 4-core â†’ (4Ã—2)+1 = 9 connections                  â”‚
+â”‚ HDD (spindle=N): add actual spindle count                           â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Pool Exhaustion Symptoms:                                           â”‚
+â”‚  "¢ HikariPool-N - Connection is not available, request timed out   â”‚
+â”‚  "¢ hikaricp.connections.pending &gt; 0 in Micrometer metrics          â”‚
+â”‚  "¢ Requests queuing in thread pool                                 â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Root Causes of Exhaustion:                                          â”‚
+â”‚  "¢ @Transactional holding connection during external API calls      â”‚
+â”‚  "¢ OSIV=true (connection held entire HTTP request)                 â”‚
+â”‚  "¢ Connection leak (getConnection() not closed)                    â”‚
+â”‚  "¢ Pool too small for actual workload                              â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚ Diagnostic:                                                         â”‚
+â”‚  spring.datasource.hikari.leak-detection-threshold=60000           â”‚
+â”‚  logging.level.com.zaxxer.hikari=DEBUG                             â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+</code></pre>
+<hr>
+<p><em>End of Chapter 8 “” Spring Data JPA &amp; Hibernate</em></p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../Volume2_Spring/Chapter7_Spring_Core_Boot.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../Volume3_BackendSystems/Chapter9_REST_APIs.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../Volume2_Spring/Chapter7_Spring_Core_Boot.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../Volume3_BackendSystems/Chapter9_REST_APIs.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-c22b7243.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../custom-877a7a53.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

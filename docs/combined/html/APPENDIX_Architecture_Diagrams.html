@@ -1,0 +1,1236 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Appendix A — Architecture Diagrams - Java Backend Interview Handbook</title>
+
+
+        <!-- Custom HTML head -->
+        <script>
+        (function() {
+            var RULES = [
+                { re: /^interview trap/i,     cls: "callout-trap" },
+                { re: /^common mistake/i,     cls: "callout-mistake" },
+                { re: /^quick tip|^pro tip/i, cls: "callout-tip" },
+                { re: /^quick revision/i,     cls: "callout-revision" },
+                { re: /^real.world example/i, cls: "callout-example" },
+                { re: /^follow.up question/i, cls: "callout-tip" },
+            ];
+        
+            function run() {
+                document.querySelectorAll(".content p").forEach(function(p) {
+                    var first = p.querySelector("strong");
+                    if (!first) return;
+                    var txt = first.textContent.trim();
+                    for (var i = 0; i < RULES.length; i++) {
+                        if (RULES[i].re.test(txt)) {
+                            p.classList.add(RULES[i].cls);
+                            var next = p.nextElementSibling;
+                            if (next && (next.tagName === "UL" || next.tagName === "OL")) {
+                                next.classList.add(RULES[i].cls);
+                                next.style.marginTop = "0";
+                                p.style.marginBottom = "0";
+                            }
+                            break;
+                        }
+                    }
+                });
+            }
+        
+            window.applyEnhancements = run;
+        
+            function tryRun() { setTimeout(run, 200); }
+        
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", tryRun);
+            } else {
+                tryRun();
+            }
+        
+            window.addEventListener("hashchange", tryRun);
+            window.addEventListener("popstate", tryRun);
+        
+            // Watch for mdBook replacing the content div
+            var observer = new MutationObserver(function(muts) {
+                for (var i = 0; i < muts.length; i++) {
+                    if (muts[i].addedNodes.length > 0) {
+                        tryRun();
+                        return;
+                    }
+                }
+            });
+        
+            function attachObserver() {
+                var el = document.querySelector(".content");
+                if (el) { observer.observe(el, { childList: true }); }
+            }
+        
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", attachObserver);
+            } else {
+                attachObserver();
+            }
+        })();
+        </script>
+
+        <meta name="description" content="Complete SDE2 interview preparation guide for Java Backend — FAANG+, FinTech &amp; SaaS. Java 17 / Spring Boot 3.x. 27 chapters, 400+ questions.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-0392ca55.css">
+        <link rel="stylesheet" href="css/chrome-fc474251.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="custom-aab4aca2.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-ff4d3bcd.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-cca10391.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Java Backend Interview Handbook</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="appendix-a-architecture-diagrams"><a class="header" href="#appendix-a-architecture-diagrams">Appendix A: Architecture Diagrams</a></h1>
+<p><em>Cross-referenced with handbook chapters. Best viewed in monospace font.</em></p>
+<hr>
+<h2 id="diagram-1-jvm-memory-architecture"><a class="header" href="#diagram-1-jvm-memory-architecture">Diagram 1: JVM Memory Architecture</a></h2>
+<p><em>(Supplements Chapter 5 — JVM Internals)</em></p>
+<p>The JVM divides memory into several runtime data areas. The heap holds all object instances and is managed by the garbage collector. The method area (Metaspace in Java 8+) holds class metadata. Each thread gets its own stack, PC register, and native method stack. The G1 GC view on the right shows how the heap is divided into equal-sized regions that can be dynamically assigned roles.</p>
+<pre><code>+--------------------------------------------------+     +----------------------------------+
+|              JVM RUNTIME DATA AREAS              |     |        G1 GC REGION VIEW          |
++--------------------------------------------------+     |  (each square = 1-32 MB region)  |
+|                                                  |     +----------------------------------+
+|  +--------------------------------------------+ |     |                                  |
+|  |              HEAP  (~256MB default)         | |     |  +---+---+---+---+---+---+---+  |
+|  |                                            | |     |  | E | O | S | E | H | H | O |  |
+|  |  +--------------------------------------+  | |     |  +---+---+---+---+---+---+---+  |
+|  |  |      YOUNG GENERATION (~85MB)        |  | |     |  | S | E | O | O | E | S | E |  |
+|  |  |                                      |  | |     |  +---+---+---+---+---+---+---+  |
+|  |  |  +---------+ +-------+ +-------+    |  | |     |  | O | E | E | S | O | E | O |  |
+|  |  |  |  EDEN   | |  S0   | |  S1   |    |  | |     |  +---+---+---+---+---+---+---+  |
+|  |  |  | (~68MB) | |(~8MB) | |(~8MB) |    |  | |     |  | E | H | O | E | S | O | E |  |
+|  |  |  +---------+ +-------+ +-------+    |  | |     |  +---+---+---+---+---+---+---+  |
+|  |  |       |           |                  |  | |     |                                  |
+|  |  +-------|-----------|------------------+  | |     |  LEGEND:                         |
+|  |          |   Minor GC promotions            | |     |  E = Eden region                 |
+|  |          v           v                      | |     |  S = Survivor region             |
+|  |  +--------------------------------------+  | |     |  O = Old region                  |
+|  |  |       OLD GENERATION (~170MB)        |  | |     |  H = Humongous region            |
+|  |  |    (long-lived objects survive here) |  | |     |  (large objects &gt; 50% region)    |
+|  |  +--------------------------------------+  | |     +----------------------------------+
+|  +--------------------------------------------+ |
+|                                                  |     OBJECT PROMOTION PATH:
+|  +--------------------------------------------+ |
+|  |   METASPACE (off-heap, ~unlimited default) | |     Eden ----&gt; Survivor ----&gt; Old Gen
+|  |   Class metadata, method bytecode,        | |       |   Minor GC    |   after N GCs
+|  |   runtime constant pool, field/method info| |       +---------------+
+|  +--------------------------------------------+ |          (age threshold, default 15)
+|                                                  |
+|  Per-Thread Areas (one set per thread):          |
+|  +-------------+ +------------+ +-----------+   |
+|  |   JVM STACK | | PC REGISTER| |  NATIVE   |   |
+|  |             | |            | |  METHOD   |   |
+|  | +frame----+ | | current    | |  STACK    |   |
+|  | |local vars| | | instr ptr  | |           |   |
+|  | |operand   | | |            | | (for JNI  |   |
+|  | |stack     | | |            | |  methods) |   |
+|  | |frame data| | |            | |           |   |
+|  | +---------+ | |            | |           |   |
+|  +-------------+ +------------+ +-----------+   |
++--------------------------------------------------+
+</code></pre>
+<hr>
+<h2 id="diagram-2-spring-bean-lifecycle"><a class="header" href="#diagram-2-spring-bean-lifecycle">Diagram 2: Spring Bean Lifecycle</a></h2>
+<p><em>(Supplements Chapter 7 — Spring Core &amp; Boot)</em></p>
+<p>Spring manages beans through a well-defined lifecycle. Understanding each phase is critical for initializing resources, injecting dependencies, and cleaning up correctly. Custom hook points let you execute logic at specific phases without modifying core Spring code.</p>
+<pre><code>                    SPRING BEAN LIFECYCLE
+    ================================================
+
+         +--------------------------------------+
+         |  Spring ApplicationContext starts    |
+         +--------------------------------------+
+                          |
+                          v
+    +----------------------------------------------------+
+    |  1. INSTANTIATION                                  |
+    |     Bean class instantiated via constructor        |
+    |     new MyBean() or factory method                 |
+    +----------------------------------------------------+
+                          |
+                          v
+    +----------------------------------------------------+
+    |  2. POPULATE PROPERTIES                            |&lt;-- custom hook
+    |     @Autowired, @Value, @Resource injected         |    (use constructor
+    |     Setter injection applied                       |     injection instead)
+    +----------------------------------------------------+
+                          |
+                          v
+    +----------------------------------------------------+
+    |  3. BeanNameAware.setBeanName(String name)         |&lt;-- Aware interfaces
+    |     Bean receives its own bean name                |    (optional)
+    +----------------------------------------------------+
+                          |
+                          v
+    +----------------------------------------------------+
+    |  4. BeanFactoryAware.setBeanFactory(factory)       |
+    |     Bean receives reference to BeanFactory         |
+    +----------------------------------------------------+
+                          |
+                          v
+    +----------------------------------------------------+
+    |  5. ApplicationContextAware                        |
+    |     .setApplicationContext(ctx)                    |
+    |     Bean receives full ApplicationContext ref      |
+    +----------------------------------------------------+
+                          |
+                          v
+    +====================================================+
+    |  6. BeanPostProcessor                              |&lt;== CUSTOM HOOK POINT
+    |     .postProcessBeforeInitialization()             |    (AOP proxies,
+    |     Applied to ALL beans in context                |     validation, etc.)
+    +====================================================+
+                          |
+                          v
+    +====================================================+
+    |  7. INITIALIZATION                                 |&lt;== CUSTOM HOOK POINT
+    |     a) @PostConstruct method called                |
+    |     b) InitializingBean.afterPropertiesSet()       |
+    |     c) init-method="..." (XML config)              |
+    +====================================================+
+                          |
+                          v
+    +====================================================+
+    |  8. BeanPostProcessor                              |&lt;== CUSTOM HOOK POINT
+    |     .postProcessAfterInitialization()              |    (most AOP proxies
+    |     Applied to ALL beans in context                |     happen HERE)
+    +====================================================+
+                          |
+                          v
+    +----------------------------------------------------+
+    |  9. BEAN READY FOR USE                             |
+    |     Bean lives in ApplicationContext               |
+    |     Injected into other beans, handles requests    |
+    +----------------------------------------------------+
+                          |
+          (on context.close() or app shutdown)
+                          |
+                          v
+    +====================================================+
+    | 10. DESTRUCTION                                    |&lt;== CUSTOM HOOK POINT
+    |     a) @PreDestroy method called                   |
+    |     b) DisposableBean.destroy()                    |
+    |     c) destroy-method="..." (XML config)           |
+    |     Release resources, close connections           |
+    +====================================================+
+                          |
+                          v
+         +--------------------------------------+
+         |        Bean garbage collected        |
+         +--------------------------------------+
+</code></pre>
+<hr>
+<h2 id="diagram-3-jpa-entity-lifecycle"><a class="header" href="#diagram-3-jpa-entity-lifecycle">Diagram 3: JPA Entity Lifecycle</a></h2>
+<p><em>(Supplements Chapter 8 — Spring Data JPA &amp; Hibernate)</em></p>
+<p>A JPA entity can be in one of four states. Understanding state transitions is essential for avoiding common bugs like the “detached entity passed to persist” exception and for understanding when database synchronization actually occurs.</p>
+<pre><code>    JPA ENTITY LIFECYCLE STATE MACHINE
+    ====================================
+
+                     new MyEntity()
+    +------------+   no id, no context
+    |            |
+    |  TRANSIENT |
+    |            |
+    +------------+
+          |                                    ^
+          | em.persist(entity)                 | (entity goes out of scope
+          |                                    |  or em.close() called)
+          v                                    |
+    +----------------------------------+       |
+    |                                  |-------+
+    |           MANAGED                |  em.detach(entity)
+    |  (Persistence Context tracks it) |  em.clear()
+    |                                  |  em.close()
+    +----------------------------------+
+          |         ^         |
+          |         |         |
+          | em.     | em.     | em.remove(entity)
+          | detach()| merge() |
+          |         | (copy   v
+          v         |  state) +----------------------------------+
+    +----------------------------------+  |                                  |
+    |                                  |  |           REMOVED                |
+    |          DETACHED                |  |  (scheduled for DELETE on flush) |
+    |  (snapshot exists, not tracked)  |  |                                  |
+    |  modifications NOT persisted     |  +----------------------------------+
+    |  automatically                   |             |
+    +----------------------------------+             | em.persist(entity)  &lt;-- re-persists
+          |                                          | (rare, but valid)
+          | em.merge(detached)                       |
+          +------------------------------------------+
+          | returns NEW managed copy
+
+    -----------------------------------------------------------------------
+    ENTITY MANAGER CONTEXT BOUNDARY:
+    +---------------------------------------------------------+
+    |  Persistence Context (1st Level Cache)                  |
+    |  +---------+  +---------+  +---------+                  |
+    |  | Entity A|  | Entity B|  | Entity C|  &lt;- MANAGED      |
+    |  +---------+  +---------+  +---------+                  |
+    |                                                          |
+    |  Dirty checking runs on:                                 |
+    |    - em.flush()  -&gt; SQL sent to DB (still in txn)       |
+    |    - transaction commit -&gt; auto-flush then commit        |
+    +---------------------------------------------------------+
+                          |
+                          | JDBC
+                          v
+    +---------------------------------------------------------+
+    |                      DATABASE                           |
+    +---------------------------------------------------------+
+
+    KEY METHODS:
+      em.find(MyEntity.class, id)  -&gt; MANAGED (from DB or 1L cache)
+      em.getReference(...)         -&gt; MANAGED (lazy proxy)
+      em.flush()                   -&gt; sync PC state to DB (no commit)
+      em.refresh(entity)           -&gt; overwrite PC state from DB
+</code></pre>
+<hr>
+<h2 id="diagram-4-kafka-architecture"><a class="header" href="#diagram-4-kafka-architecture">Diagram 4: Kafka Architecture</a></h2>
+<p><em>(Supplements Chapter 11 — Apache Kafka)</em></p>
+<p>Kafka distributes partitions across brokers for parallelism and replicates them for fault tolerance. Each partition has one leader (handles reads/writes) and N-1 followers (replicate from leader). Consumer groups enable parallel consumption while guaranteeing each partition is consumed by exactly one member per group.</p>
+<pre><code>    KAFKA CLUSTER ARCHITECTURE
+    ============================
+
+    PRODUCER                    BROKERS                          CONSUMER GROUPS
+    --------                    -------                          ---------------
+
+               Topic: "orders" (3 partitions, replication-factor=2)
+
+    +--------+   +-----------------------------------------------+
+    |        |--&gt;| BROKER 1                                      |   GROUP A (3 consumers)
+    |Producer|   | +------------------+  +------------------+   |   +--------------------+
+    |        |   | | P0 [LEADER]      |  | P1 [FOLLOWER]    |   |   | Consumer A1        |
+    | key=   |   | | offset: 0..1052  |  | offset: 0..1052  |   |--&gt;| reads P0           |
+    | "order |   | +------------------+  +------------------+   |   +--------------------+
+    |  _id"  |   +-----------------------------------------------+   | Consumer A2        |
+    |        |                                                    |--&gt;| reads P1           |
+    | hash   |   +-----------------------------------------------+   +--------------------+
+    | % 3    |   | BROKER 2                                      |   | Consumer A3        |
+    |  = P#  |--&gt;| +------------------+  +------------------+   |--&gt;| reads P2           |
+    |        |   | | P1 [LEADER]      |  | P2 [FOLLOWER]    |   |   +--------------------+
+    |        |   | | offset: 0..987   |  | offset: 0..987   |   |
+    +--------+   | +------------------+  +------------------+   |   GROUP B (2 consumers)
+                 +-----------------------------------------------+   +--------------------+
+                                                                  |   | Consumer B1        |
+                 +-----------------------------------------------+   | reads P0 + P1      |
+                 | BROKER 3                                      |--&gt;| (2 partitions)     |
+                 | +------------------+  +------------------+   |   +--------------------+
+                 | | P2 [LEADER]      |  | P0 [FOLLOWER]    |   |   | Consumer B2        |
+                 | | offset: 0..1103  |  | offset: 0..1103  |   |--&gt;| reads P2           |
+                 | +------------------+  +------------------+   |   +--------------------+
+                 +-----------------------------------------------+
+                                   |
+                                   |  cluster metadata,
+                                   |  leader election,
+                                   |  consumer group offsets
+                                   v
+              +------------------------------------------------+
+              |        ZooKeeper / KRaft (Kafka 3.x+)          |
+              |                                                  |
+              |  - Controller election (one broker = controller)|
+              |  - ISR (In-Sync Replica) tracking               |
+              |  - Consumer group offset storage (__offsets)    |
+              |  KRaft: metadata log replicated internally,     |
+              |         no external ZK dependency               |
+              +------------------------------------------------+
+
+    PARTITION ASSIGNMENT RULES:
+      Group A: 3 consumers, 3 partitions -&gt; 1 partition each  (ideal)
+      Group B: 2 consumers, 3 partitions -&gt; B1 gets 2, B2 gets 1 (uneven)
+      Rule: a partition is assigned to exactly ONE consumer per group
+      If consumers &gt; partitions: some consumers idle
+</code></pre>
+<hr>
+<h2 id="diagram-5-oauth2-authorization-code--pkce-flow"><a class="header" href="#diagram-5-oauth2-authorization-code--pkce-flow">Diagram 5: OAuth2 Authorization Code + PKCE Flow</a></h2>
+<p><em>(Supplements Chapter 13 — Security)</em></p>
+<p>PKCE (Proof Key for Code Exchange) prevents authorization code interception attacks. The client generates a random secret (code_verifier), hashes it (code_challenge), and sends the hash upfront. When exchanging the code for a token, it sends the original secret — the server verifies they match, proving the requester is the original initiator.</p>
+<pre><code>    OAUTH2 AUTHORIZATION CODE + PKCE FLOW
+    =======================================
+
+    BROWSER/CLIENT          AUTH SERVER            RESOURCE SERVER
+    --------------          -----------            ---------------
+         |                       |                       |
+         | 1. Generate locally:  |                       |
+         |    code_verifier =    |                       |
+         |    random 43-128 char |                       |
+         |    code_challenge =   |                       |
+         |    BASE64URL(         |                       |
+         |     SHA256(verifier)) |                       |
+         |                       |                       |
+         |----(2) GET /authorize?----------------------------------&gt;|
+         |    client_id=...      |                       |
+         |    redirect_uri=...   |                       |
+         |    code_challenge=... |                       |
+         |    code_challenge_    |                       |
+         |    method=S256        |                       |
+         |    scope=openid       |                       |
+         |                       |                       |
+         |    (3) User sees login page, enters credentials         |
+         |        User grants consent to requested scopes          |
+         |                       |                       |
+         |&lt;---(4) HTTP 302 redirect to redirect_uri?code=AUTH_CODE |
+         |        (short-lived, single-use code, ~10 min)          |
+         |                       |                       |
+         |----(5) POST /token---&gt;|                       |
+         |    grant_type=        |                       |
+         |     authorization_code|                       |
+         |    code=AUTH_CODE     |                       |
+         |    code_verifier=     |                       |
+         |    &lt;original secret&gt;  |                       |
+         |    redirect_uri=...   |                       |
+         |                       |                       |
+         |    (6) Auth Server:   |                       |
+         |    verifies code valid|                       |
+         |    computes SHA256(   |                       |
+         |     code_verifier)    |                       |
+         |    compares to stored |                       |
+         |    code_challenge     |                       |
+         |    if match -&gt; issue  |                       |
+         |&lt;--- tokens -----------|                       |
+         |    access_token (JWT) |                       |
+         |    refresh_token      |                       |
+         |    id_token (OIDC)    |                       |
+         |    expires_in=3600    |                       |
+         |                       |                       |
+         |----(7) GET /api/data (Authorization: Bearer &lt;access_token&gt;)--&gt;|
+         |                       |                       |
+         |                       |    (8) Validate JWT:  |
+         |                       |    check signature    |
+         |                       |    check exp claim    |
+         |                       |    check iss/aud      |
+         |                       |    check scopes       |
+         |&lt;---(8) 200 OK + data----------------------------         |
+         |    (or 401 Unauthorized if token invalid)                |
+         |    (or 403 Forbidden if valid but insufficient scope)    |
+
+    KEY PKCE PROTECTION:
+      Attacker intercepts AUTH_CODE but does NOT have code_verifier
+      -&gt; POST /token fails (cannot compute matching hash)
+      -&gt; Code is worthless without the verifier
+</code></pre>
+<hr>
+<h2 id="diagram-6-b-tree-index-structure"><a class="header" href="#diagram-6-b-tree-index-structure">Diagram 6: B-tree Index Structure</a></h2>
+<p><em>(Supplements Chapter 15 — Indexing &amp; Query Optimization)</em></p>
+<p>B-tree is the default index type in PostgreSQL and MySQL/InnoDB. It supports equality lookups, range scans, ORDER BY, and prefix matching. The balanced tree structure guarantees O(log n) lookup. Leaf nodes form a doubly-linked list enabling efficient range scans without returning to the root.</p>
+<pre><code>    B-TREE INDEX STRUCTURE (index on "age" column)
+    ================================================
+
+    POINT LOOKUP: WHERE age = 35
+    Path: Root -&gt; Internal Node -&gt; Leaf -&gt; Heap Page
+
+                         +------------------+
+                         |   ROOT NODE      |   &lt;-- always in memory (buffer pool)
+                         |   [25 | 50 | 75] |
+                         +------------------+
+                        /        |         \
+                       /         |          \
+            +-----------+  +-----------+  +-----------+
+            | INTERNAL  |  | INTERNAL  |  | INTERNAL  |
+            | [10|18|25]|  | [30|35|42]|  | [55|63|70]|
+            +-----------+  +-----------+  +-----------+
+            /   |   |  \       |   |           |   \
+           v    v   v   v      v   v           v    v
+        +----+----+----+----+----+----+    +----+----+
+        |LEAF|LEAF|LEAF|LEAF|LEAF|LEAF|&lt;--&gt;|LEAF|LEAF|
+        | 5  | 12 | 20 | 28 | 33 | 38 |   | 56 | 67 |
+        | 7  | 15 | 22 | 30 | 35 | 40 |   | 60 | 70 |
+        | 9  | 17 | 24 | 32 | 36 | 45 |   | 63 | 72 |
+        +-+--+-+--+-+--+-+--+-+--+-+--+   +-+--+-+--+
+          |    |    |    |    |    |          |    |
+          v    v    v    v    v    v          v    v
+         [*]  [*]  [*]  [*]  [*]  [*]       [*]  [*]
+          |              (row pointer = heap page + slot)
+          v
+    +------------------+
+    | HEAP PAGE        |   &lt;-- actual row data (not in index)
+    | (ctid in PG,     |
+    |  RID in SQL Srv) |
+    +------------------+
+
+    &lt;--&gt; = doubly-linked list between leaf nodes
+
+    RANGE SCAN: WHERE age BETWEEN 30 AND 40
+    1. Descend tree to leaf containing 30  (root-&gt;internal-&gt;leaf)
+    2. Scan leaf forwards via linked list: 30, 32, 33, 35, 36, 38, 40
+    3. For each key, follow row pointer to heap page
+    4. Stop when key &gt; 40
+
+    +------------------------------------------------------+
+    |  HASH INDEX COMPARISON                               |
+    |                                                      |
+    |  Hash Index:   age -&gt; bucket via hash(age)           |
+    |                                                      |
+    |  +------+    +---------+                             |
+    |  | hash | -&gt; | bucket  | -&gt; [row ptr, row ptr, ...]  |
+    |  | fn   |    | 0x3F2A  |                             |
+    |  +------+    +---------+                             |
+    |                                                      |
+    |  Point lookup:  O(1)  &lt;-- FASTER than B-tree         |
+    |  Range scan:    NOT SUPPORTED (hash destroys order)  |
+    |  ORDER BY:      NOT SUPPORTED                        |
+    |  Prefix match:  NOT SUPPORTED                        |
+    |                                                      |
+    |  Use case: equality-only (=), high-cardinality cols  |
+    +------------------------------------------------------+
+</code></pre>
+<hr>
+<h2 id="diagram-7-consistent-hashing-ring"><a class="header" href="#diagram-7-consistent-hashing-ring">Diagram 7: Consistent Hashing Ring</a></h2>
+<p><em>(Supplements Chapter 17 — Distributed Databases &amp; Sharding)</em></p>
+<p>Consistent hashing minimizes key remapping when nodes join or leave. Without it, adding a node requires remapping ~N/new_count keys. With consistent hashing, only ~N/new_count keys move. Virtual nodes (vnodes) distribute load more evenly and improve rebalancing granularity, solving the problem of uneven arcs in the physical node layout.</p>
+<pre><code>    CONSISTENT HASHING RING
+    ========================
+
+    HASH SPACE: 0 to 2^32 (shown as circle, clockwise)
+
+                         0 / 2^32
+                            |
+                     A1(0)  |  C3(2^32-1)
+                       \    |    /
+              B3(3.8B)  \   |   / A3(150M)
+                    \    *--+--*    /
+             C2(3.3B)*  /       \  *B1(600M)
+                   /  */         \*  \
+                  /  / NodeB(2.9B)\   \
+       NodeC(2.8B)* /               \  * A2(1.2B)
+                 / *C1(2.5B)         \
+                |                     * B2(1.8B)
+       A1(0) --+                     |
+               |    NodeA(2.1B)      |
+                \        *          /
+                 \      / \        / NodeB(1.8B)
+                  \    /   \      /
+                   *--+     +--*
+                 B3       NodeC(1.6B)
+                (3.8B)
+
+    SIMPLIFIED RING VIEW (unwrapped):
+    ================================================
+    0         500M       1B        1.5B       2B        2.5B       3B        3.5B      2^32
+    |----A1----|--B1-----|---A2----|---B2----|--A3-----|---C1----|---C2----|---B3----|--C3--|
+         ^          ^         ^         ^         ^         ^         ^         ^
+         |          |         |         |         |         |         |         |
+        NodeA     NodeB     NodeA     NodeB     NodeA     NodeC     NodeC     NodeB     NodeC
+
+    VIRTUAL NODE DISTRIBUTION:
+      NodeA: A1(0), A2(1.2B), A3(150M)    -&gt; owns ~33% of ring
+      NodeB: B1(600M), B2(1.8B), B3(3.8B) -&gt; owns ~33% of ring
+      NodeC: C1(2.5B), C2(3.3B), C3(2^32) -&gt; owns ~33% of ring
+
+    DATA KEY PLACEMENT (clockwise to next vnode):
+      hash("user:123") = 800M   -&gt; goes CLOCKWISE -&gt; hits A2(1.2B) -&gt; NodeA
+      hash("order:456") = 2.0B  -&gt; goes CLOCKWISE -&gt; hits A3(150M)?
+                                    No, wraps: -&gt; hits C1(2.5B) -&gt; NodeC
+      hash("item:789") = 1.6B   -&gt; goes CLOCKWISE -&gt; hits B2(1.8B) -&gt; NodeB
+      hash("cart:321") = 3.0B   -&gt; goes CLOCKWISE -&gt; hits C2(3.3B) -&gt; NodeC
+
+    NODE REMOVAL - NodeB goes down:
+    Before:  ... A2 --[B2 owns this range]--&gt; B2 ... A3 --[B1 owns]--&gt; B1 ...
+    After:   ... A2 --[NOW NodeA owns]--&gt; A3 ... (only B-range keys move to next node)
+             B1's keys go to A3 (next clockwise vnode)
+             B2's keys go to A3 (next clockwise vnode)
+             B3's keys go to C3 (next clockwise vnode)
+
+    +----------------------------------------------------------+
+    | WITHOUT VIRTUAL NODES (3 physical nodes on ring):        |
+    |                                                          |
+    |  0%        33%         66%        100%                   |
+    |  |---NodeA--|---NodeB---|---NodeC---|                     |
+    |                                                          |
+    |  Problem: if NodeA is placed at 33% but NodeB at 70%    |
+    |  NodeA owns 33%, NodeB owns 37%, NodeC owns 30%         |
+    |  Uneven load! NodeB gets 23% more requests than NodeC   |
+    |                                                          |
+    | WITH VIRTUAL NODES (9 vnodes, 3 per physical):           |
+    |                                                          |
+    |  Each physical node has 3 positions spread evenly        |
+    |  -&gt; much more uniform load distribution                  |
+    |  -&gt; smaller rebalancing chunks on add/remove             |
+    |  -&gt; typical production: 100-200 vnodes per physical node |
+    +----------------------------------------------------------+
+</code></pre>
+<hr>
+<h2 id="diagram-8-mvcc-version-chain-postgresql"><a class="header" href="#diagram-8-mvcc-version-chain-postgresql">Diagram 8: MVCC Version Chain (PostgreSQL)</a></h2>
+<p><em>(Supplements Chapter 16 — ACID, Transactions &amp; Normalization)</em></p>
+<p>MVCC (Multi-Version Concurrency Control) allows readers to never block writers and vice versa. Each row modification creates a new tuple version rather than overwriting in place. Transaction IDs (xmin/xmax) on each tuple determine visibility for each transaction’s snapshot. Old versions accumulate until VACUUM reclaims them.</p>
+<pre><code>    MVCC VERSION CHAIN (PostgreSQL)
+    =================================
+
+    HEAP PAGE (table "accounts", row for account_id=42)
+
+    +=========================================================+
+    |                     HEAP PAGE                           |
+    |                                                         |
+    |  TUPLE v1 (DEAD - awaiting VACUUM)                      |
+    |  +--------------------------------------------------+   |
+    |  | xmin=100  | xmax=200  | id=42 | balance=1000   |   |
+    |  +--------------------------------------------------+   |
+    |     ^              ^                                     |
+    |     |              |                                     |
+    |  INSERT by       DELETED/UPDATED                        |
+    |  txn xid=100     by txn xid=200                        |
+    |                                                         |
+    |  TUPLE v2 (LIVE for recent transactions)                |
+    |  +--------------------------------------------------+   |
+    |  | xmin=200  | xmax=300  | id=42 | balance=1500   |   |
+    |  +--------------------------------------------------+   |
+    |     ^              ^                                     |
+    |     |              |                                     |
+    |  INSERT by       DELETED/UPDATED                        |
+    |  txn xid=200     by txn xid=300                        |
+    |                                                         |
+    |  TUPLE v3 (CURRENT live tuple)                          |
+    |  +--------------------------------------------------+   |
+    |  | xmin=300  | xmax=0    | id=42 | balance=2000   |   |
+    |  +--------------------------------------------------+   |
+    |     ^              ^                                     |
+    |     |              |                                     |
+    |  INSERT by       0 = still live                         |
+    |  txn xid=300     (not deleted)                         |
+    +=========================================================+
+
+    TRANSACTION VISIBILITY (snapshot isolation):
+
+    T1 (xid=100, started before 200) -&gt; sees: Tuple v1 (xmin=100, xmax=200)
+                                         balance=1000
+                                         (xmax=200 &gt; snapshot -&gt; ignore)
+
+    T2 (xid=200, started before 300) -&gt; sees: Tuple v2 (xmin=200, xmax=300)
+                                         balance=1500
+                                         (xmax=300 &gt; snapshot -&gt; ignore v2?)
+                                         No: xmin=200 = self -&gt; sees v2
+                                         balance=1500
+
+    T3 (xid=300, started after 200)  -&gt; sees: Tuple v3 (xmin=300, xmax=0)
+                                         balance=2000
+                                         Tuple v1: xmax=200 &lt; 300 -&gt; dead, skip
+                                         Tuple v2: xmax=300 = self's txn -&gt; skip
+
+    VACUUM runs:
+      - identifies tuples where xmax &lt; oldest_active_xid
+      - marks space as reusable
+      - does NOT shrink table (use VACUUM FULL for that)
+
+    +----------------------------------------------------------+
+    |  INNODB (MySQL) COMPARISON - UNDO LOG CHAIN             |
+    |                                                          |
+    |  InnoDB stores only ONE current version in the page.    |
+    |  Old versions live in the UNDO LOG (rollback segment).   |
+    |                                                          |
+    |  Clustered Index Page:                                   |
+    |  +------------------------------------------------+      |
+    |  | DB_TRX_ID=300 | DB_ROLL_PTR=--+  | bal=2000  |      |
+    |  +------------------------------------------------+      |
+    |                                  |                        |
+    |                                  v                        |
+    |                         UNDO LOG SEGMENT                  |
+    |                         +--------------------------+      |
+    |                         | old: bal=1500, trx=200   |      |
+    |                         | roll_ptr ----+           |      |
+    |                         +--------------------------+      |
+    |                                        |                  |
+    |                                        v                  |
+    |                         +--------------------------+      |
+    |                         | old: bal=1000, trx=100   |      |
+    |                         | roll_ptr = NULL          |      |
+    |                         +--------------------------+      |
+    |                                                          |
+    |  Reader walks back the chain until finding a version    |
+    |  with DB_TRX_ID &lt;= its read_view snapshot low_limit.    |
+    |  InnoDB purge thread cleans undo log (like PG VACUUM).  |
+    +----------------------------------------------------------+
+</code></pre>
+<hr>
+<h2 id="diagram-9-microservices-request-flow"><a class="header" href="#diagram-9-microservices-request-flow">Diagram 9: Microservices Request Flow</a></h2>
+<p><em>(Supplements Chapter 10 — Microservices Architecture)</em></p>
+<p>A typical microservices request passes through multiple services. The API Gateway acts as the single entry point handling cross-cutting concerns. Distributed tracing correlates logs across service boundaries using trace IDs propagated in headers (e.g., W3C Trace Context or Zipkin B3 headers).</p>
+<pre><code>    MICROSERVICES REQUEST FLOW (Place Order)
+    ==========================================
+
+    CLIENT                                              INFRASTRUCTURE
+    ------                                              --------------
+
+    +--------+
+    | Mobile |
+    | /Web   |
+    | Client |
+    +--------+
+         |
+         | HTTPS POST /orders
+         | TraceID: abc-123 (generated here or at gateway)
+         v
+    +------------------------------------------+
+    |           API GATEWAY                     |   &lt;-- Kong, AWS API GW, etc.
+    |  - JWT validation / OAuth2 token check    |
+    |  - Rate limiting (e.g. 100 req/sec/user)  |
+    |  - Request routing by path/host           |
+    |  - SSL termination                        |
+    |  - Inject TraceID header                  |
+    +------------------------------------------+
+         |              |
+         | lookup       | route to
+         | service URL  | Order Service
+         v              v
+    +----------+   +-------------------------------------------------+
+    | SERVICE  |   |              ORDER SERVICE                      |
+    | REGISTRY |   |  span: abc-123/order-svc                        |
+    | (Consul/ |   +-------------------------------------------------+
+    | Eureka)  |          |              |              |
+    +----------+          |              |              |
+                          |              |              |
+                   sync call      async publish    cache check
+                 (REST/gRPC)      (Kafka event)   (Redis FIRST)
+                    with CB            |                |
+                          v            |                v
+              +--------------+         |         +------------+
+              | INVENTORY    |         |         |   REDIS    |
+              | SERVICE      |         |         | Cache      |
+              | span:        |         |         |            |
+              | abc-123/     |         |         | GET order  |
+              | inv-svc      |         |         | cache miss |
+              |              |         |         | -&gt; DB call |
+              | circuit      |         |         +------------+
+              | breaker:     |         |                |
+              | CLOSED=ok    |         |                v
+              | OPEN=fallback|         |         +------------+
+              +--------------+         |         | PostgreSQL |
+                                       |         | (primary)  |
+                                       |         | INSERT     |
+                                       |         | orders tbl |
+                                       |         +------------+
+                                       v
+                              +------------------+
+                              |     KAFKA        |
+                              | Topic: orders    |
+                              | Partition: P1    |
+                              | offset: 10042    |
+                              +------------------+
+                                       |
+                                       | consumer group
+                                       v
+                              +---------------------+
+                              | NOTIFICATION SVC    |
+                              | span: abc-123/notif |
+                              |                     |
+                              | send email/SMS      |
+                              | to customer         |
+                              +---------------------+
+
+    DISTRIBUTED TRACE (Jaeger / Zipkin view):
+
+    |&lt;-----------  abc-123 total: 245ms  -----------------------&gt;|
+    |                                                              |
+    | [API Gateway          12ms  ]                               |
+    |    [Order Service              180ms              ]         |
+    |       [Redis lookup  3ms]                                   |
+    |       [Inventory Service (sync)   45ms      ]               |
+    |       [PostgreSQL INSERT  28ms  ]                           |
+    |       [Kafka publish  8ms]                                  |
+    |    [Notification Svc (async)  -- not on critical path]      |
+
+    CIRCUIT BREAKER STATES (Inventory Service call):
+      CLOSED -&gt; requests pass through, failure counted
+      OPEN   -&gt; requests fail fast (fallback: assume in-stock)
+      HALF-OPEN -&gt; test request allowed; if ok -&gt; CLOSED
+</code></pre>
+<hr>
+<h2 id="diagram-10-redis-cluster-architecture"><a class="header" href="#diagram-10-redis-cluster-architecture">Diagram 10: Redis Cluster Architecture</a></h2>
+<p><em>(Supplements Chapter 12 — Redis &amp; Caching)</em></p>
+<p>Redis Cluster shards data across masters using 16384 hash slots. Each key maps to a slot via CRC16(key) mod 16384. Hash tags allow co-locating related keys on the same slot by using curly braces. When a client sends a command to the wrong node, it receives a MOVED redirect with the correct node address.</p>
+<pre><code>    REDIS CLUSTER ARCHITECTURE
+    ============================
+
+    HASH SLOT RANGES:
+      Master M1: slots    0 -  5460  (~1/3 of keyspace)
+      Master M2: slots 5461 - 10922  (~1/3 of keyspace)
+      Master M3: slots 10923 - 16383 (~1/3 of keyspace)
+
+    CLUSTER TOPOLOGY:
+
+    +--------------------+          +--------------------+
+    |   MASTER M1        |&lt;--------&gt;|   MASTER M2        |
+    |   slots: 0-5460    |  gossip  |   slots: 5461-10922|
+    |   192.168.1.1:6379 |  protocol|   192.168.1.3:6379 |
+    +--------------------+          +--------------------+
+           |    ^                          |    ^
+     async |    | failover            async|    | failover
+     repl  |    | promotion           repl |    | promotion
+           v    |                          v    |
+    +--------------------+          +--------------------+
+    |   REPLICA R1       |          |   REPLICA R2       |
+    |   (hot standby)    |          |   (hot standby)    |
+    |   192.168.1.2:6379 |          |   192.168.1.4:6379 |
+    +--------------------+          +--------------------+
+
+    +--------------------+
+    |   MASTER M3        |&lt;-------&gt; (gossips with M1, M2)
+    |   slots: 10923-    |
+    |          16383     |
+    |   192.168.1.5:6379 |
+    +--------------------+
+           |    ^
+     async |    | failover
+     repl  |    | promotion
+           v    |
+    +--------------------+
+    |   REPLICA R3       |
+    |   192.168.1.6:6379 |
+    +--------------------+
+
+    CLIENT INTERACTION (MOVED redirect):
+
+    Client                M1                  M2
+      |                   |                   |
+      |--SET user:42 "x"-&gt;|                   |
+      |                   |                   |
+      |                   | slot(user:42) =   |
+      |                   | CRC16("user:42")  |
+      |                   | % 16384 = 5649    |
+      |                   | 5649 NOT in 0-5460|
+      |                   | -&gt; MOVED redirect |
+      |&lt;--MOVED 5649      |                   |
+      |   192.168.1.3:6379|                   |
+      |                   |                   |
+      |---SET user:42 "x"-----------------&gt;   |
+      |                   |    slot 5649      |
+      |&lt;---OK---------------------------------|
+      |                   |                   |
+      (client caches slot map to avoid future redirects)
+
+    HASH TAG EXAMPLE (co-locate related keys):
+
+      Key: {user}.profile   -&gt; hash("{user}") not hash("{user}.profile")
+      Key: {user}.session   -&gt; hash("{user}") same result
+      Key: {user}.settings  -&gt; hash("{user}") same result
+
+      CRC16("user") % 16384 = 5474  -&gt; all go to M2 (5461-10922)
+      -&gt; enables MULTI/EXEC and Lua scripts across these keys
+
+    SLOT CALCULATION:
+      CRC16(key) mod 16384
+      If key contains {...}: hash only the content inside braces
+      If key has no {}: hash entire key
+
+    FAILURE DETECTION &amp; FAILOVER:
+      - Nodes gossip every 100ms
+      - Node marked PFAIL (probable fail) after timeout
+      - Node marked FAIL when majority of masters agree
+      - Replica with most up-to-date replication offset wins election
+      - Failover completes in typically 1-3 seconds
+</code></pre>
+<hr>
+<h2 id="diagram-11-thread-states--lifecycle"><a class="header" href="#diagram-11-thread-states--lifecycle">Diagram 11: Thread States &amp; Lifecycle</a></h2>
+<p><em>(Supplements Chapter 6 — Multithreading &amp; Concurrency)</em></p>
+<p>Java threads have six states defined in <code>Thread.State</code>. The OS scheduler moves threads between READY and RUNNING within the RUNNABLE state — Java cannot distinguish these. Knowing valid state transitions helps diagnose deadlocks (BLOCKED threads waiting for each other) and thread leaks (threads stuck in WAITING indefinitely).</p>
+<pre><code>    JAVA THREAD STATE MACHINE
+    ==========================
+
+                         Thread t = new Thread(r);
+                                    |
+                                    v
+                            +-------------+
+                            |     NEW     |
+                            |  (created,  |
+                            |  not started|
+                            +-------------+
+                                    |
+                                    | t.start()
+                                    |
+                                    v
+                    +-------------------------------+
+                    |          RUNNABLE             |
+                    |  +-----------+ +-----------+  |
+                    |  |  READY    | | RUNNING   |  |
+                    |  | (in run   | | (on CPU)  |  |
+                    |  |  queue)   | |           |  |
+                    |  +-----------+ +-----------+  |
+                    |    OS scheduler moves          |
+                    |    between READY &lt;-&gt; RUNNING   |
+                    +-------------------------------+
+                      /          |           \
+                     /           |            \
+                    /            |             \
+                   v             |              v
+    +-----------------+          |      +------------------+
+    |    BLOCKED      |          |      |  TIMED_WAITING   |
+    |                 |          |      |                  |
+    | waiting for     |          |      | Thread.sleep(n)  |
+    | intrinsic lock  |          |      | wait(n)          |
+    | (synchronized   |          |      | join(n)          |
+    |  block/method)  |          |      | LockSupport      |
+    |                 |          |      |  .parkNanos(n)   |
+    | lock released   |          |      |                  |
+    | -&gt; RUNNABLE     |          |      | timeout expires  |
+    +-----------------+          |      | or notify/unpark |
+           ^                     |      | -&gt; RUNNABLE      |
+           |                     |      +------------------+
+    synchronized             object.wait()     ^
+    block contended          LockSupport.park()    |
+                             thread.join()         |
+                                  |            sleep(n)/
+                                  v            wait(n)/
+                         +-----------------+   join(n)
+                         |    WAITING      |
+                         |                 |
+                         | Object.wait()   |
+                         | Thread.join()   |
+                         | LockSupport     |
+                         |  .park()        |
+                         |                 |
+                         | notify()        |
+                         | notifyAll()     |
+                         | LockSupport     |
+                         |  .unpark()      |
+                         | -&gt; RUNNABLE     |
+                         +-----------------+
+
+    All states (except NEW) -&gt; TERMINATED when run() completes
+    or unhandled exception thrown:
+
+                         +------------------+
+                         |   TERMINATED     |
+                         |  run() returned  |
+                         |  or exception    |
+                         |  uncaught        |
+                         +------------------+
+
+    COMMON CONCURRENCY BUGS:
+    -------------------------
+    DEADLOCK:
+      T1 holds Lock A, waits for Lock B
+      T2 holds Lock B, waits for Lock A
+      Both in BLOCKED state forever
+      Detect: jstack shows BLOCKED with "waiting to lock &lt;...&gt; held by thread..."
+
+    LIVELOCK:
+      Threads keep changing state responding to each other
+      but no progress (e.g., each backs off and retries simultaneously)
+
+    STARVATION:
+      Low-priority thread perpetually blocked by high-priority threads
+      Thread stays BLOCKED/WAITING indefinitely
+
+    STATE CHECK:
+      thread.getState()  // returns Thread.State enum
+      jstack &lt;pid&gt;       // dump all thread states
+      VisualVM / JMC     // GUI thread dump analysis
+</code></pre>
+<hr>
+<h2 id="diagram-12-spring-security-filter-chain"><a class="header" href="#diagram-12-spring-security-filter-chain">Diagram 12: Spring Security Filter Chain</a></h2>
+<p><em>(Supplements Chapter 13 — Security)</em></p>
+<p>Spring Security implements security as a chain of servlet filters. Every HTTP request passes through this chain before reaching the controller. Authentication failures return 401 (unauthenticated), while authorization failures return 403 (authenticated but lacks permission). Understanding the filter order is essential for customizing security behavior.</p>
+<pre><code>    SPRING SECURITY FILTER CHAIN
+    ==============================
+
+    INCOMING HTTP REQUEST
+           |
+           v
+    +--------------------------------------------------+
+    | DelegatingFilterProxy                            |
+    | (bridges servlet container to Spring context)    |
+    +--------------------------------------------------+
+           |
+           v
+    +==================================================+
+    ||           SecurityFilterChain                  ||
+    ||                                                ||
+    ||  +-----------------------------------------+  ||
+    ||  | SecurityContextPersistenceFilter         |  ||
+    ||  | Load SecurityContext from HttpSession     |  ||
+    ||  | (or from JWT/token for stateless)        |  ||
+    ||  +-----------------------------------------+  ||
+    ||                    |                           ||
+    ||                    v                           ||
+    ||  +-----------------------------------------+  ||
+    ||  | UsernamePasswordAuthenticationFilter     |  ||
+    ||  | (or JwtAuthenticationFilter - custom)    |  ||    +---------------------------+
+    ||  | Checks for credentials in request        |--||--&gt;| AuthenticationManager     |
+    ||  | Creates UsernamePasswordAuthToken        |  ||    | (ProviderManager)         |
+    ||  +-----------------------------------------+  ||    +---------------------------+
+    ||                    |                           ||              |
+    ||                    v                           ||              v
+    ||  +-----------------------------------------+  ||    +---------------------------+
+    ||  | BasicAuthenticationFilter                |  ||    | AuthenticationProvider    |
+    ||  | Checks Authorization: Basic header       |  ||    | (DaoAuthenticationProvider|
+    ||  | Base64 decode -&gt; authenticate            |  ||    | or JwtAuthProvider)       |
+    ||  +-----------------------------------------+  ||    +---------------------------+
+    ||                    |                           ||              |
+    ||                    v                           ||              v
+    ||  +-----------------------------------------+  ||    +---------------------------+
+    ||  | RememberMeAuthenticationFilter           |  ||    | UserDetailsService        |
+    ||  | Check remember-me cookie/token           |  ||    | loadUserByUsername()      |
+    ||  +-----------------------------------------+  ||    | -&gt; UserDetails object     |
+    ||                    |                           ||    +---------------------------+
+    ||                    v                           ||              |
+    ||  +-----------------------------------------+  ||              | if authenticated
+    ||  | AnonymousAuthenticationFilter            |  ||              v
+    ||  | Set ROLE_ANONYMOUS if no auth yet        |  ||    +---------------------------+
+    ||  +-----------------------------------------+  ||    | SecurityContextHolder     |
+    ||                    |                           ||    | .getContext()             |
+    ||                    v                           ||    | .setAuthentication(auth)  |
+    ||  +-----------------------------------------+  ||    +---------------------------+
+    ||  | ExceptionTranslationFilter               |--||--+
+    ||  | Catches AuthenticationException:         |  ||  |  401 UNAUTHORIZED
+    ||  |   -&gt; 401 + WWW-Authenticate header        |  ||  |  (no/invalid credentials)
+    ||  | Catches AccessDeniedException:            |  ||  |
+    ||  |   if anon -&gt; redirect to login            |  ||  |  403 FORBIDDEN
+    ||  |   if auth -&gt; 403 Forbidden                |  ||  |  (authenticated but no
+    ||  +-----------------------------------------+  ||  |   permission for resource)
+    ||                    |                           ||  |
+    ||                    v                           ||  |
+    ||  +-----------------------------------------+  ||  |
+    ||  | FilterSecurityInterceptor                |  ||  |
+    ||  | (or AuthorizationFilter in Spring 6)     |  ||  |
+    ||  | Checks SecurityMetadataSource            |  ||  |
+    ||  | @PreAuthorize, hasRole(), etc.            |  ||  |
+    ||  | Calls AccessDecisionManager              |  ||  |
+    ||  +-----------------------------------------+  ||  |
+    ||                    |                           ||  |
+    +==================================================+  |
+                          |                              |
+                          v  (if all checks pass)        |
+    +--------------------------------------------------+  |
+    |            YOUR CONTROLLER                       |  |
+    |  @GetMapping("/admin/data")                      |  |
+    |  @PreAuthorize("hasRole('ADMIN')")               |  |
+    +--------------------------------------------------+  |
+                          |                              |
+                          v                              |
+                   HTTP RESPONSE               &lt;---------+
+                   (200 OK + data)              (or 401/403)
+
+    SECURITY CONTEXT FLOW:
+      Request arrives -&gt; load SecurityContext from session
+      Authentication happens -&gt; store in SecurityContextHolder (ThreadLocal)
+      Request completes -&gt; save SecurityContext back to session
+      SecurityContextHolder.clearContext() -&gt; after response sent
+
+    JWT STATELESS FLOW (no session):
+      JwtAuthenticationFilter extracts + validates JWT
+      Sets Authentication in SecurityContextHolder
+      Never stores in HttpSession (SESSION=STATELESS)
+      Each request must carry valid JWT
+</code></pre>
+<hr>
+<p><em>End of Appendix A</em></p>
+<hr>
+<p><em>For the most up-to-date diagrams and interactive versions, refer to the companion repository.</em></p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="Volume6_Revision_Pack/Chapter27_SystemDesign_LLD_Revision.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="APPENDIX_Tables.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="Volume6_Revision_Pack/Chapter27_SystemDesign_LLD_Revision.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="APPENDIX_Tables.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-09f2665d.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-c22b7243.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="custom-877a7a53.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

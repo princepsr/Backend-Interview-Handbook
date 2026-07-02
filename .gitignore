@@ -1,0 +1,5 @@
+# Temporary build staging directories used by build.ps1
+_build/
+
+# Generated PDFs (large binary files, regenerate with build.ps1)
+docs/**/*.pdf
