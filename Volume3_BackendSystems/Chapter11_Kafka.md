@@ -40,13 +40,11 @@
     <style>
       /* ── Fonts &amp; base ── */
       text { font-family: 'Courier New', monospace; fill: #e2e8f0; }
-
       /* ── Producer pulse ── */
       @keyframes producerPulse {
         0%, 100% { opacity: 1; }
         50%       { opacity: 0.7; }
       }
-
       /* ── Message block: P0 ── */
       @keyframes msgP0 {
         0%         { transform: translateX(-60px); opacity: 0; }
@@ -71,7 +69,6 @@
         80%        { transform: translateX(0);     opacity: 0; }
         100%       { transform: translateX(0);     opacity: 0; }
       }
-
       /* ── Offset counter flash ── */
       @keyframes offsetP0 {
         0%,  7%   { opacity: 0; }
@@ -88,7 +85,6 @@
         42%, 79%  { opacity: 1; }
         80%, 100% { opacity: 0; }
       }
-
       /* ── Consumer pull arrows ── */
       @keyframes arrowP0 {
         0%,  44%  { stroke-dashoffset: 80; opacity: 0; }
@@ -111,7 +107,6 @@
         97%        { opacity: 0; }
         100%       { stroke-dashoffset: 80; opacity: 0; }
       }
-
       /* ── Consumer green flash ── */
       @keyframes consumerFlashC0 {
         0%,  54%  { fill: #10b981; }
@@ -128,43 +123,33 @@
         90%,  97% { fill: #34d399; }
         98%, 100% { fill: #10b981; }
       }
-
       /* ── Group label blink ── */
       @keyframes groupLabel {
         0%,  10%  { opacity: 0; }
         15%,  85% { opacity: 1; }
         90%, 100% { opacity: 0; }
       }
-
       /* ── Producer line dash flow ── */
       @keyframes dashFlow {
         0%   { stroke-dashoffset: 20; }
         100% { stroke-dashoffset: 0; }
       }
-
       .producer-box   { animation: producerPulse 6s infinite; }
-
       .msg-p0  { animation: msgP0 6s infinite; }
       .msg-p1  { animation: msgP1 6s infinite; }
       .msg-p2  { animation: msgP2 6s infinite; }
-
       .off-p0  { animation: offsetP0 6s infinite; }
       .off-p1  { animation: offsetP1 6s infinite; }
       .off-p2  { animation: offsetP2 6s infinite; }
-
       .arrow-p0 { animation: arrowP0 6s infinite; }
       .arrow-p1 { animation: arrowP1 6s infinite; }
       .arrow-p2 { animation: arrowP2 6s infinite; }
-
       .consumer-c0 { animation: consumerFlashC0 6s infinite; }
       .consumer-c1 { animation: consumerFlashC1 6s infinite; }
       .consumer-c2 { animation: consumerFlashC2 6s infinite; }
-
       .group-label { animation: groupLabel 6s infinite; }
-
       .prod-line { animation: dashFlow 0.6s linear infinite; }
     </style>
-
     <!-- arrowhead markers -->
     <marker id="arrowAmber" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
       <path d="M0,0 L0,6 L8,3 z" fill="#f59e0b"/>
@@ -173,17 +158,14 @@
       <path d="M0,0 L0,6 L8,3 z" fill="#10b981"/>
     </marker>
   </defs>
-
   <!-- ══════════════════════════════════════════════════
        BACKGROUND
   ══════════════════════════════════════════════════ -->
   <rect width="760" height="340" fill="#f8fafc" rx="10"/>
-
   <!-- ══════════════════════════════════════════════════
        TITLE
   ══════════════════════════════════════════════════ -->
   <text x="380" y="26" text-anchor="middle" font-size="14" font-weight="bold" fill="#64748b">Kafka Producer-Consumer Flow</text>
-
   <!-- ══════════════════════════════════════════════════
        PRODUCER  (left, x=30..130, vertically centered)
   ══════════════════════════════════════════════════ -->
@@ -194,21 +176,18 @@
     <!-- animated dashes representing activity -->
     <line x1="48" y1="200" x2="112" y2="200" stroke="#bfdbfe" stroke-width="1" stroke-dasharray="4 3" opacity="0.5" class="prod-line"/>
   </g>
-
   <!-- ══════════════════════════════════════════════════
        PRODUCER → TOPIC connector line
   ══════════════════════════════════════════════════ -->
   <line x1="130" y1="170" x2="218" y2="170"
         stroke="#f59e0b" stroke-width="2" stroke-dasharray="6 3"
         marker-end="url(#arrowAmber)" class="prod-line"/>
-
   <!-- ══════════════════════════════════════════════════
        TOPIC BOX  (center, x=220..530)
   ══════════════════════════════════════════════════ -->
   <!-- outer topic container -->
   <rect x="218" y="50" width="316" height="240" rx="10" fill="#f1f5f9" stroke="#475569" stroke-width="1.5"/>
   <text x="376" y="74" text-anchor="middle" font-size="12" font-weight="bold" fill="#64748b">Topic: orders</text>
-
   <!-- ── Partition 0 (y=85..135) ── -->
   <rect x="230" y="82" width="294" height="46" rx="5" fill="#1e293b" stroke="#475569" stroke-width="1"/>
   <text x="246" y="110" font-size="10" fill="#334155">Partition 0</text>
@@ -227,7 +206,6 @@
   <g class="off-p0">
     <text x="454" y="110" font-size="9" fill="#92400e">offset: 43</text>
   </g>
-
   <!-- ── Partition 1 (y=145..195) ── -->
   <rect x="230" y="143" width="294" height="46" rx="5" fill="#1e293b" stroke="#475569" stroke-width="1"/>
   <text x="246" y="171" font-size="10" fill="#334155">Partition 1</text>
@@ -243,7 +221,6 @@
   <g class="off-p1">
     <text x="454" y="171" font-size="9" fill="#92400e">offset: 18</text>
   </g>
-
   <!-- ── Partition 2 (y=205..255) ── -->
   <rect x="230" y="204" width="294" height="46" rx="5" fill="#1e293b" stroke="#475569" stroke-width="1"/>
   <text x="246" y="232" font-size="10" fill="#334155">Partition 2</text>
@@ -259,7 +236,6 @@
   <g class="off-p2">
     <text x="454" y="232" font-size="9" fill="#92400e">offset: 10</text>
   </g>
-
   <!-- ══════════════════════════════════════════════════
        PULL ARROWS  (partition right edge → consumer left edge)
        Partition right edge x=524, Consumer left edge x=548
@@ -282,33 +258,27 @@
         stroke-dasharray="10 4" stroke-dashoffset="80"
         marker-end="url(#arrowGreen)"
         class="arrow-p2"/>
-
   <!-- ══════════════════════════════════════════════════
        CONSUMER GROUP BOX  (right, x=546..730)
   ══════════════════════════════════════════════════ -->
   <rect x="546" y="50" width="190" height="240" rx="10" fill="#f1f5f9" stroke="#059669" stroke-width="1.5"/>
-
   <!-- Consumer Group label (flashing) -->
   <g class="group-label">
     <rect x="556" y="56" width="170" height="22" rx="4" fill="#d1fae5"/>
     <text x="641" y="71" text-anchor="middle" font-size="9" fill="#065f46">Consumer Group: my-group</text>
   </g>
-
   <!-- ── Consumer 0 ── -->
   <rect x="562" y="84" width="158" height="46" rx="6" class="consumer-c0" fill="#10b981"/>
   <text x="641" y="108" text-anchor="middle" font-size="10" font-weight="bold" fill="#022c22">Consumer-0</text>
   <text x="641" y="122" text-anchor="middle" font-size="8" fill="#d1fae5">← P0 assigned</text>
-
   <!-- ── Consumer 1 ── -->
   <rect x="562" y="143" width="158" height="46" rx="6" class="consumer-c1" fill="#10b981"/>
   <text x="641" y="167" text-anchor="middle" font-size="10" font-weight="bold" fill="#022c22">Consumer-1</text>
   <text x="641" y="181" text-anchor="middle" font-size="8" fill="#d1fae5">← P1 assigned</text>
-
   <!-- ── Consumer 2 ── -->
   <rect x="562" y="204" width="158" height="46" rx="6" class="consumer-c2" fill="#10b981"/>
   <text x="641" y="228" text-anchor="middle" font-size="10" font-weight="bold" fill="#022c22">Consumer-2</text>
   <text x="641" y="242" text-anchor="middle" font-size="8" fill="#d1fae5">← P2 assigned</text>
-
   <!-- ══════════════════════════════════════════════════
        LEGEND  (bottom)
   ══════════════════════════════════════════════════ -->

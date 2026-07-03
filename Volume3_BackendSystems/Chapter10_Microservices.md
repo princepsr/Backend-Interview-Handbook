@@ -570,7 +570,6 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
     <style>
       /* ── Fonts ── */
       text { font-family: 'Segoe UI', system-ui, sans-serif; }
-
       /* ══════════════════════════════════════════
          TIMING MAP  (total loop = 40s @ 0.2x speed, presented as ~8s visually)
          0–8s   CLOSED  (normal flow)
@@ -581,7 +580,6 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
          28–32s SUCCESS → back CLOSED
          32–40s CLOSED  (loop tail, sync with 0)
          ══════════════════════════════════════════ */
-
       /* ── Background panel for state box ── */
       #state-panel {
         animation: stateColor 40s linear infinite;
@@ -594,7 +592,6 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
         70%, 80%   { fill: #10b98133; stroke: #10b981; }   /* CLOSED again */
         80%, 100%  { fill: #10b98133; stroke: #10b981; }
       }
-
       /* ── State label text ── */
       #state-label {
         animation: stateLabel 40s linear infinite;
@@ -606,13 +603,11 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
         60%, 70%   { fill: #f59e0b; }
         70%, 100%  { fill: #10b981; }
       }
-
       /* ── Sub-state description ── */
       #state-desc {
         animation: descAnim 40s linear infinite;
         fill: #94a3b8;
       }
-
       /* ── Wire / path line colors ── */
       #wire {
         animation: wireColor 40s linear infinite;
@@ -623,7 +618,6 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
         60%, 70%   { stroke: #f59e0b; opacity: 0.8; }
         70%, 100%  { stroke: #10b981; opacity: 1; }
       }
-
       /* ════════════════════
          REQUEST DOTS – CLOSED (flow left→right)
          ════════════════════ */
@@ -632,7 +626,6 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
         fill: #10b981;
         opacity: 0;
       }
-
       /* dot 1 */
       #d1 { animation: dotFlow1 40s linear infinite; }
       @keyframes dotFlow1 {
@@ -680,7 +673,6 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
         94%       { opacity:0; cx:630; cy:170; }
         100%      { opacity:0; cx:130; cy:170; }
       }
-
       /* ════════════════════
          FAILURE DOTS (red, bounce back)
          ════════════════════ */
@@ -716,7 +708,6 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
         60%       { opacity:0; cx:130; cy:170; fill:#ef4444; }
         100%      { opacity:0; cx:130; cy:170; fill:#ef4444; }
       }
-
       /* ════════════════════
          HALF-OPEN probe dot (amber)
          ════════════════════ */
@@ -729,7 +720,6 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
         70%       { opacity:0; cx:130; cy:170; }
         100%      { opacity:0; cx:130; cy:170; }
       }
-
       /* ════════════════════
          BREAKER SYMBOL (switch icon in center)
          ════════════════════ */
@@ -759,7 +749,6 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
         70.1%      { transform: rotate(0deg); }      /* CLOSED again */
         70%, 100%  { transform: rotate(0deg); }
       }
-
       /* ════════════════════
          FAILURE COUNTER
          ════════════════════ */
@@ -809,7 +798,6 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
         36%     { opacity:0; }
         100%    { opacity:0; }
       }
-
       /* ════════════════════
          COUNTDOWN TIMER
          ════════════════════ */
@@ -831,7 +819,6 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
         60%     { width:0; }
         100%    { width:100; }
       }
-
       /* ════════════════════
          TRANSITION LABELS (arrows + text)
          ════════════════════ */
@@ -857,7 +844,6 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
         71%     { opacity:0; }
         100%    { opacity:0; }
       }
-
       /* ════════════════════
          "REJECTED" badge
          ════════════════════ */
@@ -877,7 +863,6 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
         32%     { opacity:0; }
         100%    { opacity:0; }
       }
-
       /* ════════════════════
          SUCCESS badge (HALF-OPEN)
          ════════════════════ */
@@ -892,7 +877,6 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
         71%     { opacity:0; }
         100%    { opacity:0; }
       }
-
       /* ── Glow pulse on state box ── */
       #state-glow {
         animation: glowPulse 2s ease-in-out infinite, glowColor 40s linear infinite;
@@ -909,7 +893,6 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
         70%,100%{ fill:#10b981; }
       }
     </style>
-
     <!-- Arrow marker -->
     <marker id="arrowGreen" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
       <path d="M0,0 L0,6 L8,3 z" fill="#10b981"/>
@@ -920,7 +903,6 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
     <marker id="arrowAmber" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
       <path d="M0,0 L0,6 L8,3 z" fill="#f59e0b"/>
     </marker>
-
     <!-- Filter: glow -->
     <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
       <feGaussianBlur stdDeviation="4" result="blur"/>
@@ -931,10 +913,8 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
       <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
-
   <!-- ══ BACKGROUND ══ -->
   <rect width="760" height="340" fill="#f8fafc"/>
-
   <!-- Grid lines (subtle) -->
   <g stroke="#e2e8f0" stroke-width="1" opacity="0.6">
     <line x1="0" y1="85" x2="760" y2="85"/>
@@ -944,7 +924,6 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
     <line x1="380" y1="0" x2="380" y2="340"/>
     <line x1="570" y1="0" x2="570" y2="340"/>
   </g>
-
   <!-- ══ TITLE ══ -->
   <text x="380" y="28" text-anchor="middle" fill="#1e293b" font-size="16" font-weight="700" letter-spacing="1">
     Circuit Breaker Pattern
@@ -952,20 +931,17 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
   <text x="380" y="46" text-anchor="middle" fill="#64748b" font-size="10">
     Microservices Resilience Pattern — 3-State Lifecycle
   </text>
-
   <!-- ══ SERVICE A BOX ══ -->
   <rect x="20" y="140" width="110" height="60" rx="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
   <text x="75" y="166" text-anchor="middle" fill="#64748b" font-size="11" font-weight="600">Service A</text>
   <text x="75" y="182" text-anchor="middle" fill="#64748b" font-size="9">(caller)</text>
   <!-- Service A icon: simple server lines -->
   <rect x="55" y="188" width="40" height="5" rx="2" fill="#1e293b"/>
-
   <!-- ══ SERVICE B BOX ══ -->
   <rect x="630" y="140" width="110" height="60" rx="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
   <text x="685" y="166" text-anchor="middle" fill="#64748b" font-size="11" font-weight="600">Service B</text>
   <text x="685" y="182" text-anchor="middle" fill="#64748b" font-size="9">(dependency)</text>
   <rect x="665" y="188" width="40" height="5" rx="2" fill="#1e293b"/>
-
   <!-- ══ WIRE / PATH ══ -->
   <line id="wire" x1="130" y1="170" x2="350" y2="170" stroke="#10b981" stroke-width="2" stroke-dasharray="6 3"/>
   <line id="wire2" x1="410" y1="170" x2="630" y2="170" stroke="#10b981" stroke-width="2" stroke-dasharray="6 3">
@@ -976,7 +952,6 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
              keyTimes="0;0.2;0.2001;0.6;0.6001;0.7;0.7001;0.8;0.8001;1"
              dur="40s" repeatCount="indefinite"/>
   </line>
-
   <!-- ══ CIRCUIT BREAKER SYMBOL ══ -->
   <!-- Outer ring -->
   <circle cx="380" cy="170" r="32" fill="#f8fafc" stroke-width="2">
@@ -986,11 +961,9 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
   </circle>
   <!-- Glow circle -->
   <circle id="state-glow" cx="380" cy="170" r="38" fill="#10b981" filter="url(#softGlow)"/>
-
   <!-- Breaker contacts -->
   <circle cx="354" cy="170" r="3" fill="#64748b"/>
   <circle cx="406" cy="170" r="3" fill="#64748b"/>
-
   <!-- Breaker arm (animated rotation) -->
   <g id="breaker-arm">
     <line x1="354" y1="170" x2="406" y2="170" stroke="#10b981" stroke-width="3" stroke-linecap="round">
@@ -1009,11 +982,9 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
                dur="40s" repeatCount="indefinite"/>
     </line>
   </g>
-
   <!-- ══ STATE PANEL (center top) ══ -->
   <rect id="state-panel" x="295" y="65" width="170" height="55" rx="10"
         fill="#10b98133" stroke="#10b981" stroke-width="2"/>
-
   <!-- State name -->
   <text id="state-label" x="380" y="89" text-anchor="middle"
         font-size="18" font-weight="800" letter-spacing="2">
@@ -1023,7 +994,6 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
              keyTimes="0;0.199;0.2;0.599;0.6;0.699;0.7;1"
              dur="40s" repeatCount="indefinite"/>
   </text>
-
   <!-- State sub-description -->
   <text x="380" y="108" text-anchor="middle" fill="#64748b" font-size="10">
     <animate attributeName="textContent"
@@ -1031,20 +1001,16 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
              keyTimes="0;0.199;0.2;0.599;0.6;0.699;0.7;1"
              dur="40s" repeatCount="indefinite"/>
   </text>
-
   <!-- ══ ANIMATED REQUEST DOTS ══ -->
   <circle id="d1" class="dot-closed" cx="130" cy="170" r="5" fill="#10b981" filter="url(#glow)"/>
   <circle id="d2" class="dot-closed" cx="130" cy="170" r="5" fill="#10b981" filter="url(#glow)"/>
   <circle id="d3" class="dot-closed" cx="130" cy="170" r="5" fill="#10b981" filter="url(#glow)"/>
-
   <!-- Failure dots (bounce back) -->
   <circle id="f1" cx="130" cy="170" r="5" fill="#ef4444" opacity="0" filter="url(#glow)"/>
   <circle id="f2" cx="130" cy="170" r="5" fill="#ef4444" opacity="0" filter="url(#glow)"/>
   <circle id="f3" cx="130" cy="170" r="5" fill="#ef4444" opacity="0" filter="url(#glow)"/>
-
   <!-- Probe dot (amber, HALF-OPEN) -->
   <circle id="probe" cx="130" cy="170" r="5" fill="#f59e0b" opacity="0" filter="url(#glow)"/>
-
   <!-- ══ FAILURE COUNTER ══ -->
   <g transform="translate(280,225)">
     <rect x="-5" y="-18" width="80" height="24" rx="4" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1" opacity="0">
@@ -1060,7 +1026,6 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
     <text id="fc4" class="fail-count" x="52" y="0">4/5</text>
     <text id="fc5" class="fail-count" x="52" y="0">5/5 !</text>
   </g>
-
   <!-- ══ COUNTDOWN TIMER ══ -->
   <g id="timer-group" transform="translate(280,265)">
     <text fill="#64748b" font-size="11" y="0">Retry after:</text>
@@ -1077,19 +1042,16 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
                dur="40s" repeatCount="indefinite"/>
     </text>
   </g>
-
   <!-- ══ "REJECTED" BADGE ══ -->
   <g id="rejected-badge" transform="translate(225,155)">
     <rect x="-2" y="-14" width="60" height="20" rx="4" fill="#ef444422" stroke="#ef4444" stroke-width="1"/>
     <text fill="#ef4444" font-size="11" font-weight="700" text-anchor="middle" x="28" y="0">✕ BLOCKED</text>
   </g>
-
   <!-- ══ SUCCESS BADGE ══ -->
   <g id="success-badge" transform="translate(560,145)">
     <rect x="-2" y="-14" width="68" height="20" rx="4" fill="#10b98122" stroke="#10b981" stroke-width="1"/>
     <text fill="#10b981" font-size="11" font-weight="700" text-anchor="middle" x="32" y="0">✓ SUCCESS</text>
   </g>
-
   <!-- ══ TRANSITION ARROWS & LABELS ══ -->
   <!-- CLOSED → OPEN (arc over top) -->
   <g id="lbl-open">
@@ -1099,21 +1061,18 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
       Failure threshold reached
     </text>
   </g>
-
   <!-- OPEN → HALF-OPEN (right arc) -->
   <g id="lbl-halfopen">
     <path d="M 450,65 Q 540,20 500,110" fill="none" stroke="#f59e0b" stroke-width="1.5"
           stroke-dasharray="4 2" marker-end="url(#arrowAmber)"/>
     <text x="545" y="38" text-anchor="start" fill="#f59e0b" font-size="9" font-weight="600">Timeout expired</text>
   </g>
-
   <!-- HALF-OPEN → CLOSED (bottom arc) -->
   <g id="lbl-closed">
     <path d="M 310,120 Q 240,160 310,200" fill="none" stroke="#10b981" stroke-width="1.5"
           stroke-dasharray="4 2" marker-end="url(#arrowGreen)"/>
     <text x="200" y="165" text-anchor="middle" fill="#10b981" font-size="9" font-weight="600">Probe success</text>
   </g>
-
   <!-- ══ LEGEND (bottom) ══ -->
   <g transform="translate(60,305)">
     <circle cx="8" cy="0" r="5" fill="#10b981"/>
@@ -1131,7 +1090,6 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
     <circle cx="8" cy="0" r="5" fill="#ef4444" opacity="0.5"/>
     <text x="18" y="4" fill="#64748b" font-size="10">FAIL → back to OPEN</text>
   </g>
-
   <!-- ══ BOTTOM DIVIDER ══ -->
   <line x1="40" y1="295" x2="720" y2="295" stroke="#e2e8f0" stroke-width="1"/>
 </svg>

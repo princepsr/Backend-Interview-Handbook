@@ -33,7 +33,6 @@
 
 <svg viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', Arial, sans-serif" style="width:100%; max-width:760px; display:block; margin:16px 0;">
   <defs>
-
     <!-- Arrow marker -->
     <marker id="arrow-dim" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
       <polygon points="0 0, 8 3, 0 6" fill="#1e293b"/>
@@ -41,7 +40,6 @@
     <marker id="arrow-active" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
       <polygon points="0 0, 8 3, 0 6" fill="#38bdf8"/>
     </marker>
-
     <!-- Animation timing:
          Total loop = 8s
          NEW active:         0-1s
@@ -58,16 +56,12 @@
          RUNNABLE→TERMINATED:7.2-7.6s
          TERMINATED active:  7.6-8s
     -->
-
     <!-- Clip paths not needed; using animate elements -->
   </defs>
-
   <!-- Background -->
   <rect width="760" height="360" fill="#f8fafc"/>
-
   <!-- Title -->
   <text x="380" y="28" text-anchor="middle" fill="#64748b" font-size="14" font-weight="600" letter-spacing="1.5">JAVA THREAD LIFECYCLE</text>
-
   <!-- ══════════════════════════════════════════════
        STATE NODES
        Layout (cx, cy):
@@ -78,7 +72,6 @@
          TIMED_WAIT  (440, 270)
          TERMINATED  (640, 180)
        ══════════════════════════════════════════════ -->
-
   <!-- ── NEW ── -->
   <g id="state-new">
     <!-- Dim ring (always visible) -->
@@ -102,7 +95,6 @@
     </text>
     <text x="80" y="190" text-anchor="middle" fill="#64748b" font-size="8">Thread()</text>
   </g>
-
   <!-- ── RUNNABLE ── -->
   <g id="state-runnable">
     <circle cx="270" cy="180" r="36" fill="none" stroke="#10b981" stroke-width="2" opacity="0.3"/>
@@ -128,7 +120,6 @@
     </text>
     <text x="270" y="190" text-anchor="middle" fill="#065f46" font-size="8">Running/Ready</text>
   </g>
-
   <!-- ── BLOCKED ── -->
   <g id="state-blocked">
     <circle cx="460" cy="90" r="36" fill="none" stroke="#ef4444" stroke-width="2" opacity="0.3"/>
@@ -153,7 +144,6 @@
     </text>
     <text x="460" y="100" text-anchor="middle" fill="#7f1d1d" font-size="8">Waiting lock</text>
   </g>
-
   <!-- ── WAITING ── -->
   <g id="state-waiting">
     <circle cx="460" cy="180" r="36" fill="none" stroke="#f59e0b" stroke-width="2" opacity="0.3"/>
@@ -178,7 +168,6 @@
     </text>
     <text x="460" y="190" text-anchor="middle" fill="#78350f" font-size="8">Indefinite</text>
   </g>
-
   <!-- ── TIMED_WAITING ── -->
   <g id="state-timed">
     <circle cx="460" cy="270" r="36" fill="none" stroke="#8b5cf6" stroke-width="2" opacity="0.25"/>
@@ -187,7 +176,6 @@
     <text x="460" y="277" text-anchor="middle" fill="#8b5cf6" font-size="9" font-weight="700" opacity="0.5">WAITING</text>
     <text x="460" y="290" text-anchor="middle" fill="#4c1d95" font-size="7" opacity="0.5">sleep(ms)</text>
   </g>
-
   <!-- ── TERMINATED ── -->
   <g id="state-terminated">
     <circle cx="650" cy="180" r="36" fill="none" stroke="#374151" stroke-width="2" opacity="0.3"/>
@@ -209,11 +197,9 @@
     </text>
     <text x="650" y="190" text-anchor="middle" fill="#1f2937" font-size="8">Dead</text>
   </g>
-
   <!-- ══════════════════════════════════════════════
        ARROWS (static paths, active ones fade in/out)
        ══════════════════════════════════════════════ -->
-
   <!-- NEW → RUNNABLE (straight, below center) -->
   <g id="arrow-new-runnable">
     <!-- Dim static line -->
@@ -229,7 +215,6 @@
     </line>
     <text x="175" y="172" text-anchor="middle" fill="#64748b" font-size="8.5">start()</text>
   </g>
-
   <!-- RUNNABLE → BLOCKED (curve up) -->
   <g id="arrow-runnable-blocked">
     <path d="M 285 152 Q 340 100 424 90" fill="none" stroke="#cbd5e1" stroke-width="1.5"
@@ -243,7 +228,6 @@
     </path>
     <text x="342" y="105" text-anchor="middle" fill="#64748b" font-size="8">synchronized</text>
   </g>
-
   <!-- BLOCKED → RUNNABLE (curve down back) -->
   <g id="arrow-blocked-runnable">
     <path d="M 424 106 Q 360 140 305 162" fill="none" stroke="#cbd5e1" stroke-width="1.5"
@@ -257,7 +241,6 @@
     </path>
     <text x="348" y="155" text-anchor="middle" fill="#64748b" font-size="8">lock released</text>
   </g>
-
   <!-- RUNNABLE → WAITING (straight right, slight offset) -->
   <g id="arrow-runnable-waiting">
     <path d="M 302 180 L 424 180" fill="none" stroke="#cbd5e1" stroke-width="1.5"
@@ -271,7 +254,6 @@
     </path>
     <text x="362" y="170" text-anchor="middle" fill="#64748b" font-size="8">wait()</text>
   </g>
-
   <!-- WAITING → RUNNABLE (curve below) -->
   <g id="arrow-waiting-runnable">
     <path d="M 424 195 Q 360 230 305 200" fill="none" stroke="#cbd5e1" stroke-width="1.5"
@@ -285,7 +267,6 @@
     </path>
     <text x="360" y="242" text-anchor="middle" fill="#64748b" font-size="8">notify()</text>
   </g>
-
   <!-- RUNNABLE → TERMINATED -->
   <g id="arrow-runnable-terminated">
     <line x1="308" y1="180" x2="612" y2="180" stroke="#cbd5e1" stroke-width="1.5"
@@ -299,7 +280,6 @@
     </line>
     <text x="460" y="170" text-anchor="middle" fill="#64748b" font-size="8">run() completes</text>
   </g>
-
   <!-- RUNNABLE ↔ TIMED_WAITING (dim only, not animated in main path) -->
   <path d="M 288 212 Q 340 270 424 264" fill="none" stroke="#cbd5e1" stroke-width="1"
         marker-end="url(#arrow-dim)" stroke-dasharray="3 4" opacity="0.25"/>
@@ -307,13 +287,11 @@
         marker-end="url(#arrow-dim)" stroke-dasharray="3 4" opacity="0.25"/>
   <text x="348" y="288" text-anchor="middle" fill="#374151" font-size="7.5" opacity="0.5">sleep(ms)</text>
   <text x="316" y="304" text-anchor="middle" fill="#374151" font-size="7.5" opacity="0.5">timeout</text>
-
   <!-- ══════════════════════════════════════════════
        PROGRESS / STEP INDICATOR
        ══════════════════════════════════════════════ -->
   <!-- Step label at bottom -->
   <rect x="200" y="330" width="360" height="22" rx="4" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
-
   <!-- Step labels that appear at right times -->
   <text x="380" y="345" text-anchor="middle" font-size="10" fill="#38bdf8" opacity="0">
     <animate attributeName="opacity" dur="8s" repeatCount="indefinite"
@@ -350,7 +328,6 @@
              keyTimes="0;0.88;0.89;1" values="0;0;1"/>
     Step 7: run() completes → TERMINATED
   </text>
-
   <!-- ══════════════════════════════════════════════
        LEGEND
        ══════════════════════════════════════════════ -->
