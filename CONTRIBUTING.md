@@ -91,10 +91,78 @@ Backend Interview Handbook/
 
 ---
 
-## Building & Serving
+## Installation & Setup
 
-**Prerequisites:** mdBook installed and on PATH.
-Install: `winget install rust-lang.mdbook`
+### 1. Install Rust (required for cargo-based installs)
+
+mdBook and mdbook-pdf are Rust tools. If you don't have Rust:
+
+```powershell
+# Windows — installs rustup + cargo
+winget install Rustlang.Rustup
+# Then restart your terminal, or run:
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+```
+
+Verify:
+```powershell
+rustc --version   # e.g. rustc 1.78.0
+cargo --version   # e.g. cargo 1.78.0
+```
+
+---
+
+### 2. Install mdBook
+
+**Option A — winget (fastest, Windows only):**
+```powershell
+winget install rust-lang.mdbook
+```
+
+**Option B — cargo (cross-platform, builds from source):**
+```powershell
+cargo install mdbook
+```
+
+**Option C — pre-built binary (no Rust needed):**
+1. Go to https://github.com/rust-lang/mdBook/releases/latest
+2. Download `mdbook-v*-x86_64-pc-windows-msvc.zip`
+3. Extract `mdbook.exe` and place it anywhere on your `PATH` (e.g. `C:\Tools\`)
+
+Verify:
+```powershell
+mdbook --version   # e.g. mdbook v0.4.40
+```
+
+---
+
+### 3. Install mdbook-pdf
+
+mdbook-pdf generates a PDF directly from mdBook via a headless Chromium backend.
+
+```powershell
+cargo install mdbook-pdf
+```
+
+> **Note:** `mdbook-pdf` downloads a bundled Chromium on first run (~150 MB). Ensure you have internet access the first time.
+
+After install, add the preprocessor to `book.toml`:
+```toml
+[preprocessor.pdf]
+
+[output.html]
+
+[output.pdf]
+```
+
+Verify the plugin is registered:
+```powershell
+mdbook-pdf --version
+```
+
+---
+
+### 4. Building & Serving
 
 ```powershell
 # Serve locally with live reload (development)
@@ -102,15 +170,42 @@ cd "C:\Users\PrinceSingh\Sciforma\Backend Interview Handbook"
 mdbook serve --port 3000
 # Open: http://localhost:3000
 
-# Build static output (for PDF export or deployment)
+# Build static HTML output
 mdbook build
 # Output: book_output/
 ```
 
-**Export to PDF:**
+---
+
+### 5. Export to PDF
+
+**Option A — mdbook-pdf (recommended, automated):**
+```powershell
+mdbook build   # output includes a generated PDF in book_output/
+```
+The PDF is written to `book_output/output.pdf` (path may vary by config).
+
+**Option B — Chrome print (manual, no extra install):**
 1. Run `mdbook build`
 2. Open `book_output/print.html` in Chrome
-3. `Ctrl+P` → Save as PDF → enable Background graphics → A4 paper
+3. `Ctrl+P` → **Save as PDF**
+4. Settings: Paper = A4, Margins = Default, enable **Background graphics**
+5. Click Save
+
+**Option B produces better typography control; Option A is faster for automation.**
+
+---
+
+### Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `mdbook: command not found` | Add install dir to PATH; restart terminal |
+| `cargo: command not found` | Install Rust via winget or rustup.rs |
+| `mdbook-pdf` hangs on first run | It's downloading Chromium (~150 MB) — wait |
+| Chromium sandbox error on CI | Set env var `MDBOOK_PDF__browser__no_sandbox = "true"` |
+| PDF missing styles / blank pages | Use Option B (Chrome print) instead |
+| Build errors on `mdbook build` | Check SUMMARY.md — every listed `.md` file must exist |
 
 ---
 
