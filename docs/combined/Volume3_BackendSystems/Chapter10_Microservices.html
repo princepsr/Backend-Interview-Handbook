@@ -102,7 +102,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-586974fd.js";
+            window.path_to_searchindex_js = "../searchindex-8f01b192.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-e254c042.js"></script>
@@ -720,367 +720,349 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
     <style>
       /* ── Fonts ── */
       text { font-family: 'Segoe UI', system-ui, sans-serif; }
-<pre><code>  /* ══════════════════════════════════════════
-     TIMING MAP  (total loop = 40s @ 0.2x speed, presented as ~8s visually)
-     0–8s   CLOSED  (normal flow)
-     8–14s  FAILURES accumulate
-     14–18s OPEN    (blocked)
-     18–24s OPEN    (countdown)
-     24–28s HALF-OPEN (probe)
-     28–32s SUCCESS → back CLOSED
-     32–40s CLOSED  (loop tail, sync with 0)
-     ══════════════════════════════════════════ */
-
-  /* ── Background panel for state box ── */
-  #state-panel {
-    animation: stateColor 40s linear infinite;
-  }
-  @keyframes stateColor {
-    0%,  20%   { fill: #10b98133; stroke: #10b981; }   /* CLOSED  */
-    20%, 35%   { fill: #ef444433; stroke: #ef4444; }   /* OPEN    */
-    35%, 60%   { fill: #ef444433; stroke: #ef4444; }   /* OPEN    */
-    60%, 70%   { fill: #f59e0b33; stroke: #f59e0b; }   /* HALF-OPEN */
-    70%, 80%   { fill: #10b98133; stroke: #10b981; }   /* CLOSED again */
-    80%, 100%  { fill: #10b98133; stroke: #10b981; }
-  }
-
-  /* ── State label text ── */
-  #state-label {
-    animation: stateLabel 40s linear infinite;
-    fill: #10b981;
-  }
-  @keyframes stateLabel {
-    0%,  20%   { fill: #10b981; }
-    20%, 60%   { fill: #ef4444; }
-    60%, 70%   { fill: #f59e0b; }
-    70%, 100%  { fill: #10b981; }
-  }
-
-  /* ── Sub-state description ── */
-  #state-desc {
-    animation: descAnim 40s linear infinite;
-    fill: #94a3b8;
-  }
-
-  /* ── Wire / path line colors ── */
-  #wire {
-    animation: wireColor 40s linear infinite;
-  }
-  @keyframes wireColor {
-    0%,  20%   { stroke: #10b981; opacity: 1; }
-    20%, 60%   { stroke: #ef4444; opacity: 0.4; }
-    60%, 70%   { stroke: #f59e0b; opacity: 0.8; }
-    70%, 100%  { stroke: #10b981; opacity: 1; }
-  }
-
-  /* ════════════════════
-     REQUEST DOTS – CLOSED (flow left→right)
-     ════════════════════ */
-  .dot-closed {
-    r: 5;
-    fill: #10b981;
-    opacity: 0;
-  }
-
-  /* dot 1 */
-  #d1 { animation: dotFlow1 40s linear infinite; }
-  @keyframes dotFlow1 {
-    0%        { opacity:0; cx:130; cy:170; }
-    1%        { opacity:1; cx:130; cy:170; }
-    7%        { opacity:1; cx:630; cy:170; }
-    7.5%      { opacity:0; cx:630; cy:170; }
-    20%       { opacity:0; cx:130; cy:170; }
-    /* OPEN – off */
-    60%       { opacity:0; cx:130; cy:170; }
-    /* CLOSED again */
-    71%       { opacity:0; cx:130; cy:170; }
-    72%       { opacity:1; cx:130; cy:170; }
-    78%       { opacity:1; cx:630; cy:170; }
-    79%       { opacity:0; cx:630; cy:170; }
-    100%      { opacity:0; cx:130; cy:170; }
-  }
-  /* dot 2 (offset) */
-  #d2 { animation: dotFlow2 40s linear infinite; }
-  @keyframes dotFlow2 {
-    0%        { opacity:0; cx:130; cy:170; }
-    3%        { opacity:0; cx:130; cy:170; }
-    4%        { opacity:1; cx:130; cy:170; }
-    10%       { opacity:1; cx:630; cy:170; }
-    10.5%     { opacity:0; cx:630; cy:170; }
-    20%       { opacity:0; cx:130; cy:170; }
-    60%       { opacity:0; cx:130; cy:170; }
-    74%       { opacity:0; cx:130; cy:170; }
-    75%       { opacity:1; cx:130; cy:170; }
-    81%       { opacity:1; cx:630; cy:170; }
-    81.5%     { opacity:0; cx:630; cy:170; }
-    100%      { opacity:0; cx:130; cy:170; }
-  }
-  /* dot 3 */
-  #d3 { animation: dotFlow3 40s linear infinite; }
-  @keyframes dotFlow3 {
-    0%        { opacity:0; cx:130; cy:170; }
-    13%       { opacity:0; cx:130; cy:170; }
-    14%       { opacity:1; cx:130; cy:170; }
-    20%       { opacity:0; cx:130; cy:170; }  /* cut off at OPEN */
-    60%       { opacity:0; cx:130; cy:170; }
-    86%       { opacity:0; cx:130; cy:170; }
-    87%       { opacity:1; cx:130; cy:170; }
-    93%       { opacity:1; cx:630; cy:170; }
-    94%       { opacity:0; cx:630; cy:170; }
-    100%      { opacity:0; cx:130; cy:170; }
-  }
-
-  /* ════════════════════
-     FAILURE DOTS (red, bounce back)
-     ════════════════════ */
-  /* Failure dot 1 – crosses then bounces at breaker */
-  #f1 { animation: failDot1 40s linear infinite; }
-  @keyframes failDot1 {
-    0%        { opacity:0; cx:130; cy:170; fill:#ef4444; }
-    20%       { opacity:0; cx:130; cy:170; fill:#ef4444; }
-    20.5%     { opacity:1; cx:130; cy:170; fill:#ef4444; }
-    22%       { opacity:1; cx:380; cy:170; fill:#ef4444; } /* hits breaker */
-    23%       { opacity:1; cx:300; cy:170; fill:#ef4444; } /* bounce */
-    23.5%     { opacity:0; cx:250; cy:170; fill:#ef4444; }
-    60%       { opacity:0; cx:130; cy:170; fill:#ef4444; }
-    100%      { opacity:0; cx:130; cy:170; fill:#ef4444; }
-  }
-  #f2 { animation: failDot2 40s linear infinite; }
-  @keyframes failDot2 {
-    0%,25%    { opacity:0; cx:130; cy:170; fill:#ef4444; }
-    25.5%     { opacity:1; cx:130; cy:170; fill:#ef4444; }
-    27%       { opacity:1; cx:380; cy:170; fill:#ef4444; }
-    28%       { opacity:1; cx:300; cy:170; fill:#ef4444; }
-    28.5%     { opacity:0; cx:250; cy:170; fill:#ef4444; }
-    60%       { opacity:0; cx:130; cy:170; fill:#ef4444; }
-    100%      { opacity:0; cx:130; cy:170; fill:#ef4444; }
-  }
-  #f3 { animation: failDot3 40s linear infinite; }
-  @keyframes failDot3 {
-    0%,30%    { opacity:0; cx:130; cy:170; fill:#ef4444; }
-    30.5%     { opacity:1; cx:130; cy:170; fill:#ef4444; }
-    32%       { opacity:1; cx:380; cy:170; fill:#ef4444; }
-    33%       { opacity:1; cx:300; cy:170; fill:#ef4444; }
-    33.5%     { opacity:0; cx:250; cy:170; fill:#ef4444; }
-    60%       { opacity:0; cx:130; cy:170; fill:#ef4444; }
-    100%      { opacity:0; cx:130; cy:170; fill:#ef4444; }
-  }
-
-  /* ════════════════════
-     HALF-OPEN probe dot (amber)
-     ════════════════════ */
-  #probe { animation: probeDot 40s linear infinite; fill:#f59e0b; }
-  @keyframes probeDot {
-    0%,60%    { opacity:0; cx:130; cy:170; }
-    60.5%     { opacity:1; cx:130; cy:170; }
-    64%       { opacity:1; cx:630; cy:170; }
-    64.5%     { opacity:0; cx:630; cy:170; }
-    70%       { opacity:0; cx:130; cy:170; }
-    100%      { opacity:0; cx:130; cy:170; }
-  }
-
-  /* ════════════════════
-     BREAKER SYMBOL (switch icon in center)
-     ════════════════════ */
-  #breaker-line {
-    animation: breakerSwitch 40s linear infinite;
-    stroke-width: 3;
-    stroke-linecap: round;
-  }
-  @keyframes breakerSwitch {
-    /* CLOSED: line goes straight across (connected) */
-    0%,  19.9% { stroke: #10b981; }
-    20%, 59.9% { stroke: #ef4444; }
-    60%, 69.9% { stroke: #f59e0b; }
-    70%, 100%  { stroke: #10b981; }
-  }
-  /* The breaker "arm" angle */
-  #breaker-arm {
-    transform-origin: 370px 170px;
-    animation: breakerArm 40s linear infinite;
-  }
-  @keyframes breakerArm {
-    0%,  20%   { transform: rotate(0deg); }     /* CLOSED – flat */
-    20.1%      { transform: rotate(-45deg); }    /* OPEN – kicked up */
-    20%, 60%   { transform: rotate(-45deg); }
-    60.1%      { transform: rotate(-20deg); }    /* HALF-OPEN – partial */
-    60%, 70%   { transform: rotate(-20deg); }
-    70.1%      { transform: rotate(0deg); }      /* CLOSED again */
-    70%, 100%  { transform: rotate(0deg); }
-  }
-
-  /* ════════════════════
-     FAILURE COUNTER
-     ════════════════════ */
-  .fail-count {
-    fill: #ef4444;
-    font-size: 13px;
-    font-weight: 700;
-    opacity: 0;
-  }
-  #fc1 { animation: showFc1 40s linear infinite; }
-  @keyframes showFc1 {
-    0%,19%  { opacity:0; }
-    19.5%   { opacity:1; }
-    21%     { opacity:1; }
-    22%     { opacity:0; }
-    100%    { opacity:0; }
-  }
-  #fc2 { animation: showFc2 40s linear infinite; }
-  @keyframes showFc2 {
-    0%,22%  { opacity:0; }
-    22.5%   { opacity:1; }
-    24%     { opacity:1; }
-    25%     { opacity:0; }
-    100%    { opacity:0; }
-  }
-  #fc3 { animation: showFc3 40s linear infinite; }
-  @keyframes showFc3 {
-    0%,25%  { opacity:0; }
-    25.5%   { opacity:1; }
-    27%     { opacity:1; }
-    28%     { opacity:0; }
-    100%    { opacity:0; }
-  }
-  #fc4 { animation: showFc4 40s linear infinite; }
-  @keyframes showFc4 {
-    0%,28%  { opacity:0; }
-    28.5%   { opacity:1; }
-    30%     { opacity:1; }
-    31%     { opacity:0; }
-    100%    { opacity:0; }
-  }
-  #fc5 { animation: showFc5 40s linear infinite; }
-  @keyframes showFc5 {
-    0%,31%  { opacity:0; }
-    31.5%   { opacity:1; }
-    35%     { opacity:1; }
-    36%     { opacity:0; }
-    100%    { opacity:0; }
-  }
-
-  /* ════════════════════
-     COUNTDOWN TIMER
-     ════════════════════ */
-  .countdown { fill: #94a3b8; font-size: 12px; }
-  #timer-group { animation: timerVis 40s linear infinite; opacity: 0; }
-  @keyframes timerVis {
-    0%,35%   { opacity:0; }
-    35.5%    { opacity:1; }
-    60%      { opacity:1; }
-    61%      { opacity:0; }
-    100%     { opacity:0; }
-  }
-  #timer-bar-fg {
-    animation: timerBar 40s linear infinite;
-    fill: #ef4444;
-  }
-  @keyframes timerBar {
-    0%,35%  { width:100; }
-    60%     { width:0; }
-    100%    { width:100; }
-  }
-
-  /* ════════════════════
-     TRANSITION LABELS (arrows + text)
-     ════════════════════ */
-  .trans-label { font-size: 10px; fill: #64748b; }
-  #lbl-open  { animation: lblOpen 40s linear infinite; opacity:0; }
-  @keyframes lblOpen {
-    0%,19%  { opacity:0; }
-    20%     { opacity:1; }
-    21%     { opacity:0; }
-    100%    { opacity:0; }
-  }
-  #lbl-halfopen { animation: lblHalf 40s linear infinite; opacity:0; }
-  @keyframes lblHalf {
-    0%,59%  { opacity:0; }
-    60%     { opacity:1; }
-    61%     { opacity:0; }
-    100%    { opacity:0; }
-  }
-  #lbl-closed { animation: lblClosed 40s linear infinite; opacity:0; }
-  @keyframes lblClosed {
-    0%,69%  { opacity:0; }
-    70%     { opacity:1; }
-    71%     { opacity:0; }
-    100%    { opacity:0; }
-  }
-
-  /* ════════════════════
-     "REJECTED" badge
-     ════════════════════ */
-  #rejected-badge {
-    animation: rejectedVis 40s linear infinite;
-    opacity: 0;
-  }
-  @keyframes rejectedVis {
-    0%,20%  { opacity:0; }
-    22%     { opacity:1; }
-    23%     { opacity:0; }
-    25%     { opacity:1; }
-    26%     { opacity:0; }
-    28%     { opacity:1; }
-    29%     { opacity:0; }
-    31%     { opacity:1; }
-    32%     { opacity:0; }
-    100%    { opacity:0; }
-  }
-
-  /* ════════════════════
-     SUCCESS badge (HALF-OPEN)
-     ════════════════════ */
-  #success-badge {
-    animation: successVis 40s linear infinite;
-    opacity: 0;
-  }
-  @keyframes successVis {
-    0%,64%  { opacity:0; }
-    65%     { opacity:1; }
-    70%     { opacity:1; }
-    71%     { opacity:0; }
-    100%    { opacity:0; }
-  }
-
-  /* ── Glow pulse on state box ── */
-  #state-glow {
-    animation: glowPulse 2s ease-in-out infinite, glowColor 40s linear infinite;
-    opacity: 0.3;
-  }
-  @keyframes glowPulse {
-    0%,100% { opacity:0.15; }
-    50%     { opacity:0.35; }
-  }
-  @keyframes glowColor {
-    0%,20%  { fill:#10b981; }
-    20%,60% { fill:#ef4444; }
-    60%,70% { fill:#f59e0b; }
-    70%,100%{ fill:#10b981; }
-  }
-&lt;/style&gt;
-
-&lt;!-- Arrow marker --&gt;
-&lt;marker id="arrowGreen" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"&gt;
-  &lt;path d="M0,0 L0,6 L8,3 z" fill="#10b981"/&gt;
-&lt;/marker&gt;
-&lt;marker id="arrowGray" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"&gt;
-  &lt;path d="M0,0 L0,6 L8,3 z" fill="#64748b"/&gt;
-&lt;/marker&gt;
-&lt;marker id="arrowAmber" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"&gt;
-  &lt;path d="M0,0 L0,6 L8,3 z" fill="#f59e0b"/&gt;
-&lt;/marker&gt;
-
-&lt;!-- Filter: glow --&gt;
-&lt;filter id="glow" x="-30%" y="-30%" width="160%" height="160%"&gt;
-  &lt;feGaussianBlur stdDeviation="4" result="blur"/&gt;
-  &lt;feMerge&gt;&lt;feMergeNode in="blur"/&gt;&lt;feMergeNode in="SourceGraphic"/&gt;&lt;/feMerge&gt;
-&lt;/filter&gt;
-&lt;filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%"&gt;
-  &lt;feGaussianBlur stdDeviation="8" result="blur"/&gt;
-  &lt;feMerge&gt;&lt;feMergeNode in="blur"/&gt;&lt;feMergeNode in="SourceGraphic"/&gt;&lt;/feMerge&gt;
-&lt;/filter&gt;
-</code></pre>
-  
+      /* ══════════════════════════════════════════
+         TIMING MAP  (total loop = 40s @ 0.2x speed, presented as ~8s visually)
+         0–8s   CLOSED  (normal flow)
+         8–14s  FAILURES accumulate
+         14–18s OPEN    (blocked)
+         18–24s OPEN    (countdown)
+         24–28s HALF-OPEN (probe)
+         28–32s SUCCESS → back CLOSED
+         32–40s CLOSED  (loop tail, sync with 0)
+         ══════════════════════════════════════════ */
+      /* ── Background panel for state box ── */
+      #state-panel {
+        animation: stateColor 40s linear infinite;
+      }
+      @keyframes stateColor {
+        0%,  20%   { fill: #10b98133; stroke: #10b981; }   /* CLOSED  */
+        20%, 35%   { fill: #ef444433; stroke: #ef4444; }   /* OPEN    */
+        35%, 60%   { fill: #ef444433; stroke: #ef4444; }   /* OPEN    */
+        60%, 70%   { fill: #f59e0b33; stroke: #f59e0b; }   /* HALF-OPEN */
+        70%, 80%   { fill: #10b98133; stroke: #10b981; }   /* CLOSED again */
+        80%, 100%  { fill: #10b98133; stroke: #10b981; }
+      }
+      /* ── State label text ── */
+      #state-label {
+        animation: stateLabel 40s linear infinite;
+        fill: #10b981;
+      }
+      @keyframes stateLabel {
+        0%,  20%   { fill: #10b981; }
+        20%, 60%   { fill: #ef4444; }
+        60%, 70%   { fill: #f59e0b; }
+        70%, 100%  { fill: #10b981; }
+      }
+      /* ── Sub-state description ── */
+      #state-desc {
+        animation: descAnim 40s linear infinite;
+        fill: #94a3b8;
+      }
+      /* ── Wire / path line colors ── */
+      #wire {
+        animation: wireColor 40s linear infinite;
+      }
+      @keyframes wireColor {
+        0%,  20%   { stroke: #10b981; opacity: 1; }
+        20%, 60%   { stroke: #ef4444; opacity: 0.4; }
+        60%, 70%   { stroke: #f59e0b; opacity: 0.8; }
+        70%, 100%  { stroke: #10b981; opacity: 1; }
+      }
+      /* ════════════════════
+         REQUEST DOTS – CLOSED (flow left→right)
+         ════════════════════ */
+      .dot-closed {
+        r: 5;
+        fill: #10b981;
+        opacity: 0;
+      }
+      /* dot 1 */
+      #d1 { animation: dotFlow1 40s linear infinite; }
+      @keyframes dotFlow1 {
+        0%        { opacity:0; cx:130; cy:170; }
+        1%        { opacity:1; cx:130; cy:170; }
+        7%        { opacity:1; cx:630; cy:170; }
+        7.5%      { opacity:0; cx:630; cy:170; }
+        20%       { opacity:0; cx:130; cy:170; }
+        /* OPEN – off */
+        60%       { opacity:0; cx:130; cy:170; }
+        /* CLOSED again */
+        71%       { opacity:0; cx:130; cy:170; }
+        72%       { opacity:1; cx:130; cy:170; }
+        78%       { opacity:1; cx:630; cy:170; }
+        79%       { opacity:0; cx:630; cy:170; }
+        100%      { opacity:0; cx:130; cy:170; }
+      }
+      /* dot 2 (offset) */
+      #d2 { animation: dotFlow2 40s linear infinite; }
+      @keyframes dotFlow2 {
+        0%        { opacity:0; cx:130; cy:170; }
+        3%        { opacity:0; cx:130; cy:170; }
+        4%        { opacity:1; cx:130; cy:170; }
+        10%       { opacity:1; cx:630; cy:170; }
+        10.5%     { opacity:0; cx:630; cy:170; }
+        20%       { opacity:0; cx:130; cy:170; }
+        60%       { opacity:0; cx:130; cy:170; }
+        74%       { opacity:0; cx:130; cy:170; }
+        75%       { opacity:1; cx:130; cy:170; }
+        81%       { opacity:1; cx:630; cy:170; }
+        81.5%     { opacity:0; cx:630; cy:170; }
+        100%      { opacity:0; cx:130; cy:170; }
+      }
+      /* dot 3 */
+      #d3 { animation: dotFlow3 40s linear infinite; }
+      @keyframes dotFlow3 {
+        0%        { opacity:0; cx:130; cy:170; }
+        13%       { opacity:0; cx:130; cy:170; }
+        14%       { opacity:1; cx:130; cy:170; }
+        20%       { opacity:0; cx:130; cy:170; }  /* cut off at OPEN */
+        60%       { opacity:0; cx:130; cy:170; }
+        86%       { opacity:0; cx:130; cy:170; }
+        87%       { opacity:1; cx:130; cy:170; }
+        93%       { opacity:1; cx:630; cy:170; }
+        94%       { opacity:0; cx:630; cy:170; }
+        100%      { opacity:0; cx:130; cy:170; }
+      }
+      /* ════════════════════
+         FAILURE DOTS (red, bounce back)
+         ════════════════════ */
+      /* Failure dot 1 – crosses then bounces at breaker */
+      #f1 { animation: failDot1 40s linear infinite; }
+      @keyframes failDot1 {
+        0%        { opacity:0; cx:130; cy:170; fill:#ef4444; }
+        20%       { opacity:0; cx:130; cy:170; fill:#ef4444; }
+        20.5%     { opacity:1; cx:130; cy:170; fill:#ef4444; }
+        22%       { opacity:1; cx:380; cy:170; fill:#ef4444; } /* hits breaker */
+        23%       { opacity:1; cx:300; cy:170; fill:#ef4444; } /* bounce */
+        23.5%     { opacity:0; cx:250; cy:170; fill:#ef4444; }
+        60%       { opacity:0; cx:130; cy:170; fill:#ef4444; }
+        100%      { opacity:0; cx:130; cy:170; fill:#ef4444; }
+      }
+      #f2 { animation: failDot2 40s linear infinite; }
+      @keyframes failDot2 {
+        0%,25%    { opacity:0; cx:130; cy:170; fill:#ef4444; }
+        25.5%     { opacity:1; cx:130; cy:170; fill:#ef4444; }
+        27%       { opacity:1; cx:380; cy:170; fill:#ef4444; }
+        28%       { opacity:1; cx:300; cy:170; fill:#ef4444; }
+        28.5%     { opacity:0; cx:250; cy:170; fill:#ef4444; }
+        60%       { opacity:0; cx:130; cy:170; fill:#ef4444; }
+        100%      { opacity:0; cx:130; cy:170; fill:#ef4444; }
+      }
+      #f3 { animation: failDot3 40s linear infinite; }
+      @keyframes failDot3 {
+        0%,30%    { opacity:0; cx:130; cy:170; fill:#ef4444; }
+        30.5%     { opacity:1; cx:130; cy:170; fill:#ef4444; }
+        32%       { opacity:1; cx:380; cy:170; fill:#ef4444; }
+        33%       { opacity:1; cx:300; cy:170; fill:#ef4444; }
+        33.5%     { opacity:0; cx:250; cy:170; fill:#ef4444; }
+        60%       { opacity:0; cx:130; cy:170; fill:#ef4444; }
+        100%      { opacity:0; cx:130; cy:170; fill:#ef4444; }
+      }
+      /* ════════════════════
+         HALF-OPEN probe dot (amber)
+         ════════════════════ */
+      #probe { animation: probeDot 40s linear infinite; fill:#f59e0b; }
+      @keyframes probeDot {
+        0%,60%    { opacity:0; cx:130; cy:170; }
+        60.5%     { opacity:1; cx:130; cy:170; }
+        64%       { opacity:1; cx:630; cy:170; }
+        64.5%     { opacity:0; cx:630; cy:170; }
+        70%       { opacity:0; cx:130; cy:170; }
+        100%      { opacity:0; cx:130; cy:170; }
+      }
+      /* ════════════════════
+         BREAKER SYMBOL (switch icon in center)
+         ════════════════════ */
+      #breaker-line {
+        animation: breakerSwitch 40s linear infinite;
+        stroke-width: 3;
+        stroke-linecap: round;
+      }
+      @keyframes breakerSwitch {
+        /* CLOSED: line goes straight across (connected) */
+        0%,  19.9% { stroke: #10b981; }
+        20%, 59.9% { stroke: #ef4444; }
+        60%, 69.9% { stroke: #f59e0b; }
+        70%, 100%  { stroke: #10b981; }
+      }
+      /* The breaker "arm" angle */
+      #breaker-arm {
+        transform-origin: 370px 170px;
+        animation: breakerArm 40s linear infinite;
+      }
+      @keyframes breakerArm {
+        0%,  20%   { transform: rotate(0deg); }     /* CLOSED – flat */
+        20.1%      { transform: rotate(-45deg); }    /* OPEN – kicked up */
+        20%, 60%   { transform: rotate(-45deg); }
+        60.1%      { transform: rotate(-20deg); }    /* HALF-OPEN – partial */
+        60%, 70%   { transform: rotate(-20deg); }
+        70.1%      { transform: rotate(0deg); }      /* CLOSED again */
+        70%, 100%  { transform: rotate(0deg); }
+      }
+      /* ════════════════════
+         FAILURE COUNTER
+         ════════════════════ */
+      .fail-count {
+        fill: #ef4444;
+        font-size: 13px;
+        font-weight: 700;
+        opacity: 0;
+      }
+      #fc1 { animation: showFc1 40s linear infinite; }
+      @keyframes showFc1 {
+        0%,19%  { opacity:0; }
+        19.5%   { opacity:1; }
+        21%     { opacity:1; }
+        22%     { opacity:0; }
+        100%    { opacity:0; }
+      }
+      #fc2 { animation: showFc2 40s linear infinite; }
+      @keyframes showFc2 {
+        0%,22%  { opacity:0; }
+        22.5%   { opacity:1; }
+        24%     { opacity:1; }
+        25%     { opacity:0; }
+        100%    { opacity:0; }
+      }
+      #fc3 { animation: showFc3 40s linear infinite; }
+      @keyframes showFc3 {
+        0%,25%  { opacity:0; }
+        25.5%   { opacity:1; }
+        27%     { opacity:1; }
+        28%     { opacity:0; }
+        100%    { opacity:0; }
+      }
+      #fc4 { animation: showFc4 40s linear infinite; }
+      @keyframes showFc4 {
+        0%,28%  { opacity:0; }
+        28.5%   { opacity:1; }
+        30%     { opacity:1; }
+        31%     { opacity:0; }
+        100%    { opacity:0; }
+      }
+      #fc5 { animation: showFc5 40s linear infinite; }
+      @keyframes showFc5 {
+        0%,31%  { opacity:0; }
+        31.5%   { opacity:1; }
+        35%     { opacity:1; }
+        36%     { opacity:0; }
+        100%    { opacity:0; }
+      }
+      /* ════════════════════
+         COUNTDOWN TIMER
+         ════════════════════ */
+      .countdown { fill: #94a3b8; font-size: 12px; }
+      #timer-group { animation: timerVis 40s linear infinite; opacity: 0; }
+      @keyframes timerVis {
+        0%,35%   { opacity:0; }
+        35.5%    { opacity:1; }
+        60%      { opacity:1; }
+        61%      { opacity:0; }
+        100%     { opacity:0; }
+      }
+      #timer-bar-fg {
+        animation: timerBar 40s linear infinite;
+        fill: #ef4444;
+      }
+      @keyframes timerBar {
+        0%,35%  { width:100; }
+        60%     { width:0; }
+        100%    { width:100; }
+      }
+      /* ════════════════════
+         TRANSITION LABELS (arrows + text)
+         ════════════════════ */
+      .trans-label { font-size: 10px; fill: #64748b; }
+      #lbl-open  { animation: lblOpen 40s linear infinite; opacity:0; }
+      @keyframes lblOpen {
+        0%,19%  { opacity:0; }
+        20%     { opacity:1; }
+        21%     { opacity:0; }
+        100%    { opacity:0; }
+      }
+      #lbl-halfopen { animation: lblHalf 40s linear infinite; opacity:0; }
+      @keyframes lblHalf {
+        0%,59%  { opacity:0; }
+        60%     { opacity:1; }
+        61%     { opacity:0; }
+        100%    { opacity:0; }
+      }
+      #lbl-closed { animation: lblClosed 40s linear infinite; opacity:0; }
+      @keyframes lblClosed {
+        0%,69%  { opacity:0; }
+        70%     { opacity:1; }
+        71%     { opacity:0; }
+        100%    { opacity:0; }
+      }
+      /* ════════════════════
+         "REJECTED" badge
+         ════════════════════ */
+      #rejected-badge {
+        animation: rejectedVis 40s linear infinite;
+        opacity: 0;
+      }
+      @keyframes rejectedVis {
+        0%,20%  { opacity:0; }
+        22%     { opacity:1; }
+        23%     { opacity:0; }
+        25%     { opacity:1; }
+        26%     { opacity:0; }
+        28%     { opacity:1; }
+        29%     { opacity:0; }
+        31%     { opacity:1; }
+        32%     { opacity:0; }
+        100%    { opacity:0; }
+      }
+      /* ════════════════════
+         SUCCESS badge (HALF-OPEN)
+         ════════════════════ */
+      #success-badge {
+        animation: successVis 40s linear infinite;
+        opacity: 0;
+      }
+      @keyframes successVis {
+        0%,64%  { opacity:0; }
+        65%     { opacity:1; }
+        70%     { opacity:1; }
+        71%     { opacity:0; }
+        100%    { opacity:0; }
+      }
+      /* ── Glow pulse on state box ── */
+      #state-glow {
+        animation: glowPulse 2s ease-in-out infinite, glowColor 40s linear infinite;
+        opacity: 0.3;
+      }
+      @keyframes glowPulse {
+        0%,100% { opacity:0.15; }
+        50%     { opacity:0.35; }
+      }
+      @keyframes glowColor {
+        0%,20%  { fill:#10b981; }
+        20%,60% { fill:#ef4444; }
+        60%,70% { fill:#f59e0b; }
+        70%,100%{ fill:#10b981; }
+      }
+    </style>
+    <!-- Arrow marker -->
+    <marker id="arrowGreen" markerwidth="8" markerheight="8" refx="6" refy="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#10b981" />
+    </marker>
+    <marker id="arrowGray" markerwidth="8" markerheight="8" refx="6" refy="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#64748b" />
+    </marker>
+    <marker id="arrowAmber" markerwidth="8" markerheight="8" refx="6" refy="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#f59e0b" />
+    </marker>
+    <!-- Filter: glow -->
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <fegaussianblur stddeviation="4" result="blur" />
+      <femerge><femergenode in="blur" /><femergenode in="SourceGraphic" /></femerge>
+    </filter>
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <fegaussianblur stddeviation="8" result="blur" />
+      <femerge><femergenode in="blur" /><femergenode in="SourceGraphic" /></femerge>
+    </filter>
+  </defs>
   <!-- ══ BACKGROUND ══ -->
   <rect width="760" height="340" fill="#f8fafc" />
   <!-- Grid lines (subtle) -->
@@ -1136,12 +1118,12 @@ Use synchronous REST/gRPC when the caller needs an immediate result; use async K
     </line>
   </g>
   <!-- ══ STATE PANEL (center top) ══ -->
-<p><rect id="state-panel" x="295" y="65" width="170" height="55" rx="10" fill="#10b98133" stroke="#10b981" stroke-width="2" /></p>
+  <rect id="state-panel" x="295" y="65" width="170" height="55" rx="10" fill="#10b98133" stroke="#10b981" stroke-width="2" />
   <!-- State name -->
-<p><text id="state-label" x="380" y="89" text-anchor="middle" font-size="18" font-weight="800" letter-spacing="2">
-CLOSED
-<animate attributename="textContent" values="CLOSED;CLOSED;OPEN;OPEN;HALF-OPEN;HALF-OPEN;CLOSED;CLOSED" keytimes="0;0.199;0.2;0.599;0.6;0.699;0.7;1" dur="40s" repeatcount="indefinite" />
-</text></p>
+  <text id="state-label" x="380" y="89" text-anchor="middle" font-size="18" font-weight="800" letter-spacing="2">
+    CLOSED
+    <animate attributename="textContent" values="CLOSED;CLOSED;OPEN;OPEN;HALF-OPEN;HALF-OPEN;CLOSED;CLOSED" keytimes="0;0.199;0.2;0.599;0.6;0.699;0.7;1" dur="40s" repeatcount="indefinite" />
+  </text>
   <!-- State sub-description -->
   <text x="380" y="108" text-anchor="middle" fill="#64748b" font-size="10">
     <animate attributename="textContent" values="Requests flowing normally;Requests flowing normally;All requests rejected;All requests rejected;Probe request allowed;Probe request allowed;Requests flowing normally;Requests flowing normally" keytimes="0;0.199;0.2;0.599;0.6;0.699;0.7;1" dur="40s" repeatcount="indefinite" />
@@ -1226,7 +1208,7 @@ CLOSED
   </g>
   <!-- ══ BOTTOM DIVIDER ══ -->
   <line x1="40" y1="295" x2="720" y2="295" stroke="#e2e8f0" stroke-width="1" />
-
+</svg>
 <hr>
 <h4 id="the-idea-4"><a class="header" href="#the-idea-4">The Idea</a></h4>
 <p>Imagine a house electrical circuit breaker. When current exceeds a safe threshold — because of a short circuit somewhere downstream — the breaker trips open, cutting the circuit. You do not get a catastrophic meltdown; you get a controlled failure. You fix the problem, then manually reset the breaker to restore power.</p>
@@ -2692,7 +2674,7 @@ public class SecurityConfig {
 <hr>
 <p><strong>Quick Revision (one line):</strong>
 Secure microservices with JWT validation at the API Gateway for external clients, mTLS or OAuth2 client credentials for service-to-service calls, fine-grained authorisation in each service for resource-level decisions, and secrets managed via Vault — never trust the internal network implicitly.</p>
-</style></defs></svg>
+
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">

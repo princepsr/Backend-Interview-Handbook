@@ -1,0 +1,516 @@
+﻿<svg viewBox="0 0 760 340" xmlns="http://www.w3.org/2000/svg" font-family="system-ui, -apple-system, sans-serif">
+  <defs>
+    <style>
+      /* ── Base resets ── */
+      .bucket-box { fill: #1e293b; stroke: #334155; stroke-width: 1.5; rx: 4; }
+      .bucket-label { fill: #64748b; font-size: 10px; text-anchor: middle; }
+      .bucket-index { fill: #475569; font-size: 9px; text-anchor: middle; }
+      .key-box { fill: #1d4ed8; stroke: #3b82f6; stroke-width: 1.5; rx: 6; }
+      .key-text { fill: #eff6ff; font-size: 11px; font-weight: 600; text-anchor: middle; }
+      .hash-box { fill: #1e293b; stroke: #6366f1; stroke-width: 1.5; rx: 6; }
+      .hash-text { fill: #a5b4fc; font-size: 10px; text-anchor: middle; }
+      .node-box { rx: 5; stroke-width: 1.5; }
+      .node-text { font-size: 9px; font-weight: 600; text-anchor: middle; }
+      .arrow { stroke-width: 1.8; fill: none; marker-end: url(#arrowhead); }
+      .title-text { fill: #94a3b8; font-size: 11px; font-weight: 500; }
+      .step-label { fill: #64748b; font-size: 9px; text-anchor: middle; }
+
+      /* ── Arrow markers ── */
+
+      /* ── PHASE TIMING (total loop = 6s) ──
+         Phase 1: 0-0.8s  — idle/reset
+         Phase 2: 0.8-2.0s — put "cat" → bucket 3
+         Phase 3: 2.0-3.4s — put "dog" → bucket 3 (collision)
+         Phase 4: 3.4-4.6s — put "fox" → bucket 6
+         Phase 5: 4.6-5.4s — treeify flash
+         Phase 6: 5.4-6.0s — hold/fade
+      */
+
+      /* ══════════════════════════════════
+         KEY "cat" — appears at t=0.8s
+      ══════════════════════════════════ */
+      #key-cat {
+        opacity: 0;
+        animation: showCat 6s linear infinite;
+      }
+      @keyframes showCat {
+        0%    { opacity: 0; }
+        13.3% { opacity: 0; }   /* 0.8s */
+        16.7% { opacity: 1; }   /* 1.0s */
+        66.7% { opacity: 1; }   /* 4.0s */
+        73.3% { opacity: 0; }   /* 4.4s */
+        100%  { opacity: 0; }
+      }
+
+      /* Arrow: key-cat → hash box */
+      #arrow-cat-hash {
+        opacity: 0;
+        animation: arrowCatHash 6s linear infinite;
+      }
+      @keyframes arrowCatHash {
+        0%    { opacity: 0; }
+        16.7% { opacity: 0; }
+        20.0% { opacity: 1; }
+        26.7% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+
+      /* Hash box pulse for cat */
+      #hash-box-cat {
+        opacity: 0;
+        animation: hashCat 6s linear infinite;
+      }
+      @keyframes hashCat {
+        0%    { opacity: 0; }
+        18.3% { opacity: 0; }
+        21.7% { opacity: 1; }
+        28.3% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+
+      /* Arrow: hash → bucket 3 (cat) */
+      #arrow-hash-b3-cat {
+        opacity: 0;
+        animation: arrowHashB3Cat 6s linear infinite;
+      }
+      @keyframes arrowHashB3Cat {
+        0%    { opacity: 0; }
+        23.3% { opacity: 0; }
+        26.7% { opacity: 1; }
+        33.3% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+
+      /* Node "cat" in bucket 3 */
+      #node-cat {
+        opacity: 0;
+        transform: translateY(8px);
+        animation: nodeCat 6s linear infinite;
+      }
+      @keyframes nodeCat {
+        0%    { opacity: 0; transform: translateY(8px); }
+        30.0% { opacity: 0; transform: translateY(8px); }
+        36.7% { opacity: 1; transform: translateY(0);   }
+        73.3% { opacity: 1; transform: translateY(0);   }
+        78.3% { opacity: 0; transform: translateY(0);   }
+        100%  { opacity: 0; transform: translateY(0);   }
+      }
+
+      /* ══════════════════════════════════
+         KEY "dog" — appears at t=2.0s
+      ══════════════════════════════════ */
+      #key-dog {
+        opacity: 0;
+        animation: showDog 6s linear infinite;
+      }
+      @keyframes showDog {
+        0%    { opacity: 0; }
+        33.3% { opacity: 0; }
+        36.7% { opacity: 1; }
+        66.7% { opacity: 1; }
+        73.3% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+
+      #arrow-dog-hash {
+        opacity: 0;
+        animation: arrowDogHash 6s linear infinite;
+      }
+      @keyframes arrowDogHash {
+        0%    { opacity: 0; }
+        36.7% { opacity: 0; }
+        40.0% { opacity: 1; }
+        46.7% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+
+      #hash-box-dog {
+        opacity: 0;
+        animation: hashDog 6s linear infinite;
+      }
+      @keyframes hashDog {
+        0%    { opacity: 0; }
+        38.3% { opacity: 0; }
+        41.7% { opacity: 1; }
+        48.3% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+
+      #arrow-hash-b3-dog {
+        opacity: 0;
+        animation: arrowHashB3Dog 6s linear infinite;
+      }
+      @keyframes arrowHashB3Dog {
+        0%    { opacity: 0; }
+        43.3% { opacity: 0; }
+        46.7% { opacity: 1; }
+        53.3% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+
+      /* Collision label */
+      #collision-label {
+        opacity: 0;
+        animation: collisionFlash 6s linear infinite;
+      }
+      @keyframes collisionFlash {
+        0%    { opacity: 0; }
+        46.7% { opacity: 0; }
+        50.0% { opacity: 1; }
+        58.3% { opacity: 1; }
+        63.3% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+
+      /* Node "dog" chained after "cat" */
+      #node-dog {
+        opacity: 0;
+        transform: translateY(8px);
+        animation: nodeDog 6s linear infinite;
+      }
+      @keyframes nodeDog {
+        0%    { opacity: 0; transform: translateY(8px); }
+        50.0% { opacity: 0; transform: translateY(8px); }
+        56.7% { opacity: 1; transform: translateY(0);   }
+        73.3% { opacity: 1; transform: translateY(0);   }
+        78.3% { opacity: 0; transform: translateY(0);   }
+        100%  { opacity: 0; transform: translateY(0);   }
+      }
+
+      /* Link line between cat→dog nodes */
+      #link-cat-dog {
+        opacity: 0;
+        animation: linkCatDog 6s linear infinite;
+      }
+      @keyframes linkCatDog {
+        0%    { opacity: 0; }
+        53.3% { opacity: 0; }
+        58.3% { opacity: 1; }
+        73.3% { opacity: 1; }
+        78.3% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+
+      /* ══════════════════════════════════
+         KEY "fox" — appears at t=3.4s
+      ══════════════════════════════════ */
+      #key-fox {
+        opacity: 0;
+        animation: showFox 6s linear infinite;
+      }
+      @keyframes showFox {
+        0%    { opacity: 0; }
+        56.7% { opacity: 0; }
+        60.0% { opacity: 1; }
+        76.7% { opacity: 1; }
+        81.7% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+
+      #arrow-fox-hash {
+        opacity: 0;
+        animation: arrowFoxHash 6s linear infinite;
+      }
+      @keyframes arrowFoxHash {
+        0%    { opacity: 0; }
+        60.0% { opacity: 0; }
+        63.3% { opacity: 1; }
+        68.3% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+
+      #hash-box-fox {
+        opacity: 0;
+        animation: hashFox 6s linear infinite;
+      }
+      @keyframes hashFox {
+        0%    { opacity: 0; }
+        62.0% { opacity: 0; }
+        65.3% { opacity: 1; }
+        70.3% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+
+      #arrow-hash-b6-fox {
+        opacity: 0;
+        animation: arrowHashB6Fox 6s linear infinite;
+      }
+      @keyframes arrowHashB6Fox {
+        0%    { opacity: 0; }
+        65.3% { opacity: 0; }
+        68.7% { opacity: 1; }
+        73.7% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+
+      #node-fox {
+        opacity: 0;
+        transform: translateY(8px);
+        animation: nodeFox 6s linear infinite;
+      }
+      @keyframes nodeFox {
+        0%    { opacity: 0; transform: translateY(8px); }
+        70.0% { opacity: 0; transform: translateY(8px); }
+        75.0% { opacity: 1; transform: translateY(0);   }
+        88.3% { opacity: 1; transform: translateY(0);   }
+        93.3% { opacity: 0; transform: translateY(0);   }
+        100%  { opacity: 0; transform: translateY(0);   }
+      }
+
+      /* ══════════════════════════════════
+         TREEIFY FLASH at t=4.6s
+      ══════════════════════════════════ */
+      #treeify-panel {
+        opacity: 0;
+        animation: treeifyFlash 6s linear infinite;
+      }
+      @keyframes treeifyFlash {
+        0%    { opacity: 0; }
+        76.7% { opacity: 0; }
+        80.0% { opacity: 1; }
+        90.0% { opacity: 1; }
+        95.0% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+
+      /* Bucket highlight on treeify */
+      #bucket3-highlight {
+        opacity: 0;
+        animation: b3Highlight 6s linear infinite;
+      }
+      @keyframes b3Highlight {
+        0%    { opacity: 0; }
+        76.7% { opacity: 0; }
+        80.0% { opacity: 0.6; }
+        90.0% { opacity: 0.6; }
+        95.0% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+    </style>
+
+    <marker id="arrowhead" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <polygon points="0 0, 7 3.5, 0 7" fill="#6366f1" opacity="0.85"/>
+    </marker>
+    <marker id="arrowhead-green" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <polygon points="0 0, 7 3.5, 0 7" fill="#10b981" opacity="0.85"/>
+    </marker>
+    <marker id="arrowhead-amber" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+      <polygon points="0 0, 7 3.5, 0 7" fill="#f59b0b" opacity="0.9"/>
+    </marker>
+  </defs>
+
+  <!-- ── Background ── -->
+  <rect width="760" height="340" fill="#f8fafc" rx="10"/>
+
+  <!-- ── Title ── -->
+  <text x="380" y="22" text-anchor="middle" fill="#1e293b" font-size="13" font-weight="700" font-family="system-ui">HashMap Internals — put() Lifecycle</text>
+
+  <!-- ════════════════════════════════════════
+       BUCKET ARRAY  (8 buckets, y=40..200)
+  ════════════════════════════════════════ -->
+  <!-- bucket width=72, gap=8, start x=40 -->
+
+  <!-- Bucket 0 -->
+  <rect x="40" y="50" width="72" height="60" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" rx="4"/>
+  <text x="76" y="66" class="bucket-index">0</text>
+  <text x="76" y="95" class="bucket-label">null</text>
+
+  <!-- Bucket 1 -->
+  <rect x="120" y="50" width="72" height="60" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" rx="4"/>
+  <text x="156" y="66" class="bucket-index">1</text>
+  <text x="156" y="95" class="bucket-label">null</text>
+
+  <!-- Bucket 2 -->
+  <rect x="200" y="50" width="72" height="60" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" rx="4"/>
+  <text x="236" y="66" class="bucket-index">2</text>
+  <text x="236" y="95" class="bucket-label">null</text>
+
+  <!-- Bucket 3 (active — cat/dog) -->
+  <rect x="280" y="50" width="72" height="60" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" rx="4"/>
+  <!-- treeify highlight layer -->
+  <rect id="bucket3-highlight" x="280" y="50" width="72" height="60" fill="#f59b0b" stroke="none" rx="4"/>
+  <text x="316" y="66" class="bucket-index">3</text>
+
+  <!-- Bucket 4 -->
+  <rect x="360" y="50" width="72" height="60" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" rx="4"/>
+  <text x="396" y="66" class="bucket-index">4</text>
+  <text x="396" y="95" class="bucket-label">null</text>
+
+  <!-- Bucket 5 -->
+  <rect x="440" y="50" width="72" height="60" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" rx="4"/>
+  <text x="476" y="66" class="bucket-index">5</text>
+  <text x="476" y="95" class="bucket-label">null</text>
+
+  <!-- Bucket 6 (active — fox) -->
+  <rect x="520" y="50" width="72" height="60" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" rx="4"/>
+  <text x="556" y="66" class="bucket-index">6</text>
+
+  <!-- Bucket 7 -->
+  <rect x="600" y="50" width="72" height="60" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" rx="4"/>
+  <text x="636" y="66" class="bucket-index">7</text>
+  <text x="636" y="95" class="bucket-label">null</text>
+
+  <!-- Array label -->
+  <text x="40" y="44" fill="#64748b" font-size="9" font-family="system-ui">table[ ]  (capacity = 8)</text>
+
+  <!-- ════════════════════════════════════════
+       LINKED LIST NODES below bucket 3
+  ════════════════════════════════════════ -->
+
+  <!-- Node "cat" (first node in bucket 3) -->
+  <g id="node-cat">
+    <rect x="282" y="125" width="68" height="22" fill="#d1fae5" stroke="#10b981" stroke-width="1.5" rx="5"/>
+    <text x="316" y="140" fill="#065f46" font-size="9" font-weight="600" text-anchor="middle">cat → v1</text>
+    <!-- next pointer stub -->
+    <rect x="338" y="131" width="12" height="10" fill="#d1fae5" stroke="#10b981" stroke-width="1" rx="2"/>
+    <text x="344" y="139" fill="#065f46" font-size="7" text-anchor="middle">→</text>
+  </g>
+
+  <!-- Node "dog" (chained after cat) -->
+  <g id="node-dog">
+    <rect x="282" y="158" width="68" height="22" fill="#fef3c7" stroke="#f59b0b" stroke-width="1.5" rx="5"/>
+    <text x="316" y="173" fill="#92400e" font-size="9" font-weight="600" text-anchor="middle">dog → v2</text>
+    <rect x="338" y="164" width="12" height="10" fill="#fef3c7" stroke="#f59b0b" stroke-width="1" rx="2"/>
+    <text x="344" y="172" fill="#92400e" font-size="7" text-anchor="middle">∅</text>
+  </g>
+
+  <!-- Link line cat → dog -->
+  <line id="link-cat-dog" x1="316" y1="147" x2="316" y2="158" stroke="#f59b0b" stroke-width="1.5" stroke-dasharray="3,2" marker-end="url(#arrowhead-amber)"/>
+
+  <!-- Node "fox" in bucket 6 -->
+  <g id="node-fox">
+    <rect x="522" y="125" width="68" height="22" fill="#d1fae5" stroke="#10b981" stroke-width="1.5" rx="5"/>
+    <text x="556" y="140" fill="#065f46" font-size="9" font-weight="600" text-anchor="middle">fox → v3</text>
+    <rect x="578" y="131" width="12" height="10" fill="#d1fae5" stroke="#10b981" stroke-width="1" rx="2"/>
+    <text x="584" y="139" fill="#065f46" font-size="7" text-anchor="middle">∅</text>
+  </g>
+
+  <!-- ════════════════════════════════════════
+       STEP INPUT AREA  (y ≈ 200–270)
+  ════════════════════════════════════════ -->
+
+  <!-- Key "cat" pill -->
+  <g id="key-cat">
+    <rect x="60" y="205" width="52" height="22" fill="#1d4ed8" stroke="#3b82f6" stroke-width="1.5" rx="6"/>
+    <text x="86" y="220" fill="#eff6ff" font-size="11" font-weight="600" text-anchor="middle">"cat"</text>
+  </g>
+
+  <!-- Key "dog" pill -->
+  <g id="key-dog">
+    <rect x="60" y="205" width="52" height="22" fill="#1d4ed8" stroke="#3b82f6" stroke-width="1.5" rx="6"/>
+    <text x="86" y="220" fill="#eff6ff" font-size="11" font-weight="600" text-anchor="middle">"dog"</text>
+  </g>
+
+  <!-- Key "fox" pill -->
+  <g id="key-fox">
+    <rect x="60" y="205" width="52" height="22" fill="#1d4ed8" stroke="#3b82f6" stroke-width="1.5" rx="6"/>
+    <text x="86" y="220" fill="#eff6ff" font-size="11" font-weight="600" text-anchor="middle">"fox"</text>
+  </g>
+
+  <!-- Arrow key → hash (shared path, colored per step via separate elements) -->
+  <!-- cat -->
+  <g id="arrow-cat-hash">
+    <line x1="114" y1="216" x2="158" y2="216" stroke="#6366f1" stroke-width="1.8" marker-end="url(#arrowhead)"/>
+  </g>
+  <!-- dog -->
+  <g id="arrow-dog-hash">
+    <line x1="114" y1="216" x2="158" y2="216" stroke="#6366f1" stroke-width="1.8" marker-end="url(#arrowhead)"/>
+  </g>
+  <!-- fox -->
+  <g id="arrow-fox-hash">
+    <line x1="114" y1="216" x2="158" y2="216" stroke="#6366f1" stroke-width="1.8" marker-end="url(#arrowhead)"/>
+  </g>
+
+  <!-- Hash function box — cat -->
+  <g id="hash-box-cat">
+    <rect x="160" y="204" width="88" height="24" fill="#f1f5f9" stroke="#6366f1" stroke-width="1.5" rx="6"/>
+    <text x="204" y="220" fill="#a5b4fc" font-size="9" font-weight="600" text-anchor="middle">hashCode() % 8</text>
+    <text x="204" y="233" fill="#6366f1" font-size="8" text-anchor="middle">→ index 3</text>
+  </g>
+
+  <!-- Hash function box — dog -->
+  <g id="hash-box-dog">
+    <rect x="160" y="204" width="88" height="24" fill="#f1f5f9" stroke="#6366f1" stroke-width="1.5" rx="6"/>
+    <text x="204" y="220" fill="#a5b4fc" font-size="9" font-weight="600" text-anchor="middle">hashCode() % 8</text>
+    <text x="204" y="233" fill="#f59b0b" font-size="8" text-anchor="middle">→ index 3 !</text>
+  </g>
+
+  <!-- Hash function box — fox -->
+  <g id="hash-box-fox">
+    <rect x="160" y="204" width="88" height="24" fill="#f1f5f9" stroke="#6366f1" stroke-width="1.5" rx="6"/>
+    <text x="204" y="220" fill="#a5b4fc" font-size="9" font-weight="600" text-anchor="middle">hashCode() % 8</text>
+    <text x="204" y="233" fill="#6366f1" font-size="8" text-anchor="middle">→ index 6</text>
+  </g>
+
+  <!-- Arrow hash → bucket 3 (cat) — diagonal up-right -->
+  <g id="arrow-hash-b3-cat">
+    <path d="M 248 212 Q 290 190 312 114" stroke="#10b981" stroke-width="1.8" fill="none" stroke-dasharray="5,3" marker-end="url(#arrowhead-green)"/>
+    <text x="268" y="193" fill="#10b981" font-size="8" font-weight="600">bucket[3]</text>
+  </g>
+
+  <!-- Arrow hash → bucket 3 (dog/collision) -->
+  <g id="arrow-hash-b3-dog">
+    <path d="M 248 212 Q 290 190 312 114" stroke="#f59b0b" stroke-width="1.8" fill="none" stroke-dasharray="5,3" marker-end="url(#arrowhead-amber)"/>
+    <text x="268" y="193" fill="#f59b0b" font-size="8" font-weight="600">bucket[3]</text>
+  </g>
+
+  <!-- Arrow hash → bucket 6 (fox) -->
+  <g id="arrow-hash-b6-fox">
+    <path d="M 248 212 Q 390 190 548 114" stroke="#10b981" stroke-width="1.8" fill="none" stroke-dasharray="5,3" marker-end="url(#arrowhead-green)"/>
+    <text x="388" y="196" fill="#10b981" font-size="8" font-weight="600">bucket[6]</text>
+  </g>
+
+  <!-- Collision label -->
+  <g id="collision-label">
+    <rect x="270" y="194" width="92" height="16" fill="#fef3c7" stroke="#f59b0b" stroke-width="1" rx="4"/>
+    <text x="316" y="205" fill="#92400e" font-size="9" font-weight="700" text-anchor="middle">⚡ COLLISION</text>
+  </g>
+
+  <!-- ════════════════════════════════════════
+       TREEIFY PANEL
+  ════════════════════════════════════════ -->
+  <g id="treeify-panel">
+    <rect x="200" y="120" width="232" height="70" fill="#fffbeb" stroke="#f59b0b" stroke-width="2" rx="8" opacity="0.97"/>
+    <text x="316" y="140" fill="#92400e" font-size="11" font-weight="700" text-anchor="middle">Treeification Triggered!</text>
+    <text x="316" y="157" fill="#b45309" font-size="9" text-anchor="middle">Bucket length ≥ TREEIFY_THRESHOLD (8)</text>
+    <text x="316" y="172" fill="#64748b" font-size="9" text-anchor="middle">LinkedList → Red-Black Tree</text>
+    <!-- small tree icon -->
+    <line x1="310" y1="183" x2="316" y2="175" stroke="#10b981" stroke-width="1.5"/>
+    <line x1="322" y1="183" x2="316" y2="175" stroke="#10b981" stroke-width="1.5"/>
+    <line x1="316" y1="175" x2="316" y2="169" stroke="#10b981" stroke-width="1.5"/>
+    <circle cx="316" cy="168" r="3" fill="#10b981"/>
+    <circle cx="309" cy="183" r="3" fill="#10b981"/>
+    <circle cx="323" cy="183" r="3" fill="#10b981"/>
+  </g>
+
+  <!-- ════════════════════════════════════════
+       LEGEND  (y ≈ 300–330)
+  ════════════════════════════════════════ -->
+  <rect x="40" y="296" width="680" height="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" rx="6"/>
+
+  <!-- legend item 1 -->
+  <rect x="52" y="305" width="12" height="12" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" rx="2"/>
+  <text x="69" y="315" fill="#64748b" font-size="9" font-family="system-ui">Array of Buckets</text>
+
+  <line x1="168" y1="304" x2="168" y2="318" stroke="#cbd5e1" stroke-width="1"/>
+
+  <!-- legend item 2 -->
+  <rect x="178" y="305" width="12" height="12" fill="#fef3c7" stroke="#f59b0b" stroke-width="1.5" rx="2"/>
+  <text x="195" y="315" fill="#64748b" font-size="9" font-family="system-ui">Hash Collision → Linked List</text>
+
+  <line x1="358" y1="304" x2="358" y2="318" stroke="#cbd5e1" stroke-width="1"/>
+
+  <!-- legend item 3 -->
+  <rect x="368" y="305" width="12" height="12" fill="#fffbeb" stroke="#f59b0b" stroke-width="1.5" rx="2"/>
+  <text x="385" y="315" fill="#64748b" font-size="9" font-family="system-ui">8+ Nodes → Red-Black Tree</text>
+
+  <line x1="530" y1="304" x2="530" y2="318" stroke="#cbd5e1" stroke-width="1"/>
+
+  <!-- legend item 4 -->
+  <rect x="540" y="305" width="12" height="12" fill="#d1fae5" stroke="#10b981" stroke-width="1.5" rx="2"/>
+  <text x="557" y="315" fill="#64748b" font-size="9" font-family="system-ui">Successful insert</text>
+
+  <!-- Step annotation strip -->
+  <text x="380" y="285" text-anchor="middle" fill="#1e293b" font-size="8" font-family="system-ui">Java 8+ HashMap — default load factor 0.75, default capacity 16 (shown here as 8 for clarity)</text>
+
+</svg>

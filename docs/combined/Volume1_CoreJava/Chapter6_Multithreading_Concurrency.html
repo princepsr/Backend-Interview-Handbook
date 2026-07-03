@@ -102,7 +102,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-586974fd.js";
+            window.path_to_searchindex_js = "../searchindex-8f01b192.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-e254c042.js"></script>
@@ -273,38 +273,35 @@ SDE2/Senior: skim “The Idea”, focus on “How It Works” and “Interview L
 <p><strong>Difficulty:</strong> Easy–Medium | <strong>Frequency:</strong> Very High | <strong>Companies:</strong> Amazon, Goldman Sachs, Google, Razorpay, Flipkart, Adobe</p>
 <svg viewbox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" font-family="&#39;Segoe UI&#39;, Arial, sans-serif" style="width:100%; max-width:760px; display:block; margin:16px 0;">
   <defs>
-<pre><code>&lt;!-- Arrow marker --&gt;
-&lt;marker id="arrow-dim" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"&gt;
-  &lt;polygon points="0 0, 8 3, 0 6" fill="#1e293b"/&gt;
-&lt;/marker&gt;
-&lt;marker id="arrow-active" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"&gt;
-  &lt;polygon points="0 0, 8 3, 0 6" fill="#38bdf8"/&gt;
-&lt;/marker&gt;
-
-&lt;!-- Animation timing:
-     Total loop = 8s
-     NEW active:         0-1s
-     NEW→RUNNABLE:       1-1.5s
-     RUNNABLE active:    1.5-2.5s
-     RUNNABLE→BLOCKED:   2.5-3s
-     BLOCKED active:     3-3.8s
-     BLOCKED→RUNNABLE:   3.8-4.3s
-     RUNNABLE active:    4.3-5s
-     RUNNABLE→WAITING:   5-5.5s
-     WAITING active:     5.5-6.2s
-     WAITING→RUNNABLE:   6.2-6.7s
-     RUNNABLE active:    6.7-7.2s
-     RUNNABLE→TERMINATED:7.2-7.6s
-     TERMINATED active:  7.6-8s
---&gt;
-
-&lt;!-- Clip paths not needed; using animate elements --&gt;
-</code></pre>
+    <!-- Arrow marker -->
+    <marker id="arrow-dim" markerwidth="8" markerheight="6" refx="8" refy="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#1e293b" />
+    </marker>
+    <marker id="arrow-active" markerwidth="8" markerheight="6" refx="8" refy="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#38bdf8" />
+    </marker>
+    <!-- Animation timing:
+         Total loop = 8s
+         NEW active:         0-1s
+         NEW→RUNNABLE:       1-1.5s
+         RUNNABLE active:    1.5-2.5s
+         RUNNABLE→BLOCKED:   2.5-3s
+         BLOCKED active:     3-3.8s
+         BLOCKED→RUNNABLE:   3.8-4.3s
+         RUNNABLE active:    4.3-5s
+         RUNNABLE→WAITING:   5-5.5s
+         WAITING active:     5.5-6.2s
+         WAITING→RUNNABLE:   6.2-6.7s
+         RUNNABLE active:    6.7-7.2s
+         RUNNABLE→TERMINATED:7.2-7.6s
+         TERMINATED active:  7.6-8s
+    -->
+    <!-- Clip paths not needed; using animate elements -->
   </defs>
   <!-- Background -->
   <rect width="760" height="360" fill="#f8fafc" />
   <!-- Title -->
-<p><text x="380" y="28" text-anchor="middle" fill="#64748b" font-size="14" font-weight="600" letter-spacing="1.5">JAVA THREAD LIFECYCLE</text></p>
+  <text x="380" y="28" text-anchor="middle" fill="#64748b" font-size="14" font-weight="600" letter-spacing="1.5">JAVA THREAD LIFECYCLE</text>
   <!-- ══════════════════════════════════════════════
        STATE NODES
        Layout (cx, cy):
@@ -466,10 +463,10 @@ SDE2/Senior: skim “The Idea”, focus on “How It Works” and “Interview L
     <text x="460" y="170" text-anchor="middle" fill="#64748b" font-size="8">run() completes</text>
   </g>
   <!-- RUNNABLE ↔ TIMED_WAITING (dim only, not animated in main path) -->
-<p><path d="M 288 212 Q 340 270 424 264" fill="none" stroke="#cbd5e1" stroke-width="1" marker-end="url(#arrow-dim)" stroke-dasharray="3 4" opacity="0.25" />
-<path d="M 424 278 Q 360 310 292 214" fill="none" stroke="#cbd5e1" stroke-width="1" marker-end="url(#arrow-dim)" stroke-dasharray="3 4" opacity="0.25" />
-<text x="348" y="288" text-anchor="middle" fill="#374151" font-size="7.5" opacity="0.5">sleep(ms)</text>
-<text x="316" y="304" text-anchor="middle" fill="#374151" font-size="7.5" opacity="0.5">timeout</text></p>
+  <path d="M 288 212 Q 340 270 424 264" fill="none" stroke="#cbd5e1" stroke-width="1" marker-end="url(#arrow-dim)" stroke-dasharray="3 4" opacity="0.25" />
+  <path d="M 424 278 Q 360 310 292 214" fill="none" stroke="#cbd5e1" stroke-width="1" marker-end="url(#arrow-dim)" stroke-dasharray="3 4" opacity="0.25" />
+  <text x="348" y="288" text-anchor="middle" fill="#374151" font-size="7.5" opacity="0.5">sleep(ms)</text>
+  <text x="316" y="304" text-anchor="middle" fill="#374151" font-size="7.5" opacity="0.5">timeout</text>
   <!-- ══════════════════════════════════════════════
        PROGRESS / STEP INDICATOR
        ══════════════════════════════════════════════ -->

@@ -1,0 +1,102 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 760 285" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:760px;display:block;margin:16px 0;">
+<rect width="760" height="285" rx="10" fill="#f8fafc"/>
+<text x="380" y="23" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="700" fill="#1e293b">B-tree index — search traversal for "WHERE age = 35"</text>
+<defs>
+<marker id="bta" markerWidth="7" markerHeight="6" refX="5.5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="#6366f1"/></marker>
+<marker id="btag" markerWidth="7" markerHeight="6" refX="5.5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="#10b981"/></marker>
+</defs>
+<!-- Level labels -->
+<text x="8" y="57" font-family="sans-serif" font-size="9" fill="#94a3b8">Root</text>
+<text x="8" y="152" font-family="sans-serif" font-size="9" fill="#94a3b8">Internal</text>
+<text x="8" y="247" font-family="sans-serif" font-size="9" fill="#94a3b8">Leaf</text>
+<!-- ── ROOT NODE ── -->
+<rect x="315" y="28" width="130" height="38" rx="5" fill="#f1f5f9" stroke="#6366f1" stroke-width="2"/>
+<line x1="380" y1="28" x2="380" y2="66" stroke="#cbd5e1" stroke-width="1"/>
+<text x="350" y="51" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="700" fill="#3730a3">20</text>
+<!-- Root highlight (step 1) -->
+<rect x="315" y="28" width="130" height="38" rx="5" fill="#f59e0b" opacity="0">
+  <animate attributeName="opacity" values="0;0.25;0.25;0;0;0;0" keyTimes="0;0.05;0.28;0.33;1;1;1" dur="12s" repeatCount="indefinite"/>
+</rect>
+<text x="380" y="21" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#94a3b8">O(log n) — start here every query</text>
+<!-- ── INTERNAL NODES ── -->
+<!-- Left internal [5|12] -->
+<rect x="78" y="118" width="148" height="38" rx="5" fill="#f1f5f9" stroke="#6366f1" stroke-width="1.5"/>
+<line x1="152" y1="118" x2="152" y2="156" stroke="#cbd5e1" stroke-width="1"/>
+<text x="117" y="141" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="700" fill="#3730a3">5</text>
+<text x="190" y="141" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="700" fill="#3730a3">12</text>
+<!-- Right internal [30|45] -->
+<rect x="534" y="118" width="148" height="38" rx="5" fill="#f1f5f9" stroke="#6366f1" stroke-width="2"/>
+<line x1="608" y1="118" x2="608" y2="156" stroke="#cbd5e1" stroke-width="1"/>
+<text x="573" y="141" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="700" fill="#3730a3">30</text>
+<text x="645" y="141" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="700" fill="#3730a3">45</text>
+<!-- Right internal highlight (step 2) -->
+<rect x="534" y="118" width="148" height="38" rx="5" fill="#f59e0b" opacity="0">
+  <animate attributeName="opacity" values="0;0;0;0.25;0.25;0;0;0" keyTimes="0;0.28;0.33;0.38;0.58;0.63;1;1" dur="12s" repeatCount="indefinite"/>
+</rect>
+<!-- ── EDGES ROOT→INTERNAL ── -->
+<path d="M345 66 Q285 90 226 118" stroke="#6366f1" stroke-width="1.5" fill="none" marker-end="url(#bta)"/>
+<path d="M415 66 Q476 90 534 118" stroke="#6366f1" stroke-width="1.5" fill="none" marker-end="url(#bta)"/>
+<!-- ── LEAF NODES ── -->
+<!-- Under left [5|12]: 3 leaves -->
+<rect x="16"  y="210" width="82" height="38" rx="4" fill="#e0e7ff" stroke="#6366f1" stroke-width="1"/>
+<text x="57"  y="225" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="600" fill="#4338ca">leaf</text>
+<text x="57"  y="240" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#3730a3">age 1–4</text>
+<rect x="107" y="210" width="82" height="38" rx="4" fill="#e0e7ff" stroke="#6366f1" stroke-width="1"/>
+<text x="148" y="225" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="600" fill="#4338ca">leaf</text>
+<text x="148" y="240" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#3730a3">age 6–11</text>
+<rect x="198" y="210" width="82" height="38" rx="4" fill="#e0e7ff" stroke="#6366f1" stroke-width="1"/>
+<text x="239" y="225" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="600" fill="#4338ca">leaf</text>
+<text x="239" y="240" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#3730a3">age 13–19</text>
+<!-- Under right [30|45]: 3 leaves -->
+<rect x="435" y="210" width="87" height="38" rx="4" fill="#e0e7ff" stroke="#6366f1" stroke-width="1"/>
+<text x="478" y="225" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="600" fill="#4338ca">leaf</text>
+<text x="478" y="240" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#3730a3">age 21–29</text>
+<!-- TARGET LEAF -->
+<rect x="530" y="210" width="93" height="38" rx="4" fill="#dcfce7" stroke="#10b981" stroke-width="2"/>
+<text x="576" y="225" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="600" fill="#065f46">leaf ★ FOUND</text>
+<text x="576" y="240" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#065f46" font-weight="600">age 31–44</text>
+<!-- Target leaf highlight (step 3) -->
+<rect x="530" y="210" width="93" height="38" rx="4" fill="#10b981" opacity="0">
+  <animate attributeName="opacity" values="0;0;0;0;0;0.3;0.3;0;0" keyTimes="0;0.58;0.60;0.63;0.67;0.70;0.90;0.95;1" dur="12s" repeatCount="indefinite"/>
+</rect>
+<rect x="633" y="210" width="87" height="38" rx="4" fill="#e0e7ff" stroke="#6366f1" stroke-width="1"/>
+<text x="676" y="225" text-anchor="middle" font-family="sans-serif" font-size="8" font-weight="600" fill="#4338ca">leaf</text>
+<text x="676" y="240" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#3730a3">age 45–99</text>
+<!-- ── EDGES INTERNAL→LEAF ── -->
+<!-- Left internal edges -->
+<path d="M107 156 Q82 182 57 210"  stroke="#6366f1" stroke-width="1" fill="none" marker-end="url(#bta)"/>
+<path d="M152 156 L148 210"         stroke="#6366f1" stroke-width="1" fill="none" marker-end="url(#bta)"/>
+<path d="M196 156 Q218 182 239 210" stroke="#6366f1" stroke-width="1" fill="none" marker-end="url(#bta)"/>
+<!-- Right internal edges -->
+<path d="M563 156 Q520 182 478 210" stroke="#6366f1" stroke-width="1" fill="none" marker-end="url(#bta)"/>
+<path d="M608 156 L576 210"          stroke="#10b981" stroke-width="2" fill="none" marker-end="url(#btag)"/>
+<path d="M652 156 Q664 182 676 210" stroke="#6366f1" stroke-width="1" fill="none" marker-end="url(#bta)"/>
+<!-- ── SEARCH PATH ANIMATED ── -->
+<!-- Moving dot: root → right internal → target leaf -->
+<circle r="9" fill="#f59e0b" stroke="#fff" stroke-width="2">
+  <animate attributeName="cx" values="380;380;608;608;576;576;380" keyTimes="0;0.05;0.33;0.38;0.65;0.90;1" dur="12s" repeatCount="indefinite"/>
+  <animate attributeName="cy" values="47;47;137;137;229;229;47" keyTimes="0;0.05;0.33;0.38;0.65;0.90;1" dur="12s" repeatCount="indefinite"/>
+  <animate attributeName="fill" values="#f59e0b;#f59e0b;#f59e0b;#f59e0b;#10b981;#10b981;#f59e0b" keyTimes="0;0.05;0.33;0.38;0.65;0.90;1" dur="12s" repeatCount="indefinite"/>
+  <animate attributeName="opacity" values="0;1;1;1;1;0;0" keyTimes="0;0.03;0.62;0.85;0.88;0.93;1" dur="12s" repeatCount="indefinite"/>
+</circle>
+<!-- Step labels -->
+<text text-anchor="middle" font-family="sans-serif" font-size="9" fill="#92400e" font-weight="600">
+  <animate attributeName="x" values="430;430;430" keyTimes="0;0.05;1" dur="12s" repeatCount="indefinite"/>
+  <animate attributeName="y" values="40;40;40"  keyTimes="0;0.05;1" dur="12s" repeatCount="indefinite"/>
+  <animate attributeName="opacity" values="0;0;1;0;0;0;0" keyTimes="0;0.03;0.08;0.28;1;1;1" dur="12s" repeatCount="indefinite"/>20 &lt; 35 → right
+</text>
+<text text-anchor="middle" font-family="sans-serif" font-size="9" fill="#92400e" font-weight="600">
+  <animate attributeName="x" values="700;700;700" keyTimes="0;0.33;1" dur="12s" repeatCount="indefinite"/>
+  <animate attributeName="y" values="132;132;132" keyTimes="0;0.33;1" dur="12s" repeatCount="indefinite"/>
+  <animate attributeName="opacity" values="0;0;0;1;0;0;0" keyTimes="0;0.31;0.35;0.40;0.60;1;1" dur="12s" repeatCount="indefinite"/>30≤35&lt;45 → middle
+</text>
+<text text-anchor="middle" font-family="sans-serif" font-size="9" fill="#065f46" font-weight="600">
+  <animate attributeName="x" values="576;576;576" keyTimes="0;0.65;1" dur="12s" repeatCount="indefinite"/>
+  <animate attributeName="y" values="205;205;205" keyTimes="0;0.65;1" dur="12s" repeatCount="indefinite"/>
+  <animate attributeName="opacity" values="0;0;0;0;1;0;0" keyTimes="0;0.63;0.65;0.68;0.72;0.88;1" dur="12s" repeatCount="indefinite"/>35 found! (3 page reads)
+</text>
+<!-- Leaf linked-list arrow (range scan) -->
+<path d="M623 231 L633 231" stroke="#94a3b8" stroke-width="1" fill="none" marker-end="url(#bta)"/>
+<text x="628" y="224" text-anchor="middle" font-family="sans-serif" font-size="7" fill="#94a3b8">range scan →</text>
+</svg>

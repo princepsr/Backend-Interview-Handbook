@@ -1,0 +1,33 @@
+[book]
+title = "Volume 2: Spring Ecosystem"
+authors = ["Prince Singh"]
+description = "Spring Core, Spring Boot, Spring Data JPA and Hibernate for SDE2 interviews. 2 deep-dive chapters."
+language = "en"
+src = "."
+
+[build]
+build-dir = "../../docs/vol2"
+create-missing = false
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+no-section-label = false
+fold = { enable = true, level = 1 }
+additional-css = ["custom.css"]
+additional-js = ["custom.js"]
+
+[output.html.print]
+enable = true
+page-break = true
+
+[output.html.search]
+enable = true
+limit-results = 30
+use-boolean-and = true
+boost-title = 2
+boost-hierarchy = 1
+boost-paragraph = 1
+expand = true
+heading-split-level = 3
+

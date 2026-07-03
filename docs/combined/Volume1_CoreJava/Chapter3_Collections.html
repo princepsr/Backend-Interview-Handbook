@@ -102,7 +102,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-586974fd.js";
+            window.path_to_searchindex_js = "../searchindex-8f01b192.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-e254c042.js"></script>
@@ -505,8 +505,8 @@ list.clear();  // capacity still 2000
   </defs>
   <rect width="760" height="300" fill="#f8fafc" rx="10" />
   <text x="380" y="28" text-anchor="middle" fill="#1e293b" font-size="14" font-weight="700">Singly Linked List — Traverse, Insert, Delete</text>
-<p><text id="head-label" x="100" y="82" text-anchor="middle" fill="#6366f1" font-size="11" font-weight="700">HEAD</text>
-<line x1="100" y1="86" x2="100" y2="100" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr)" /></p>
+  <text id="head-label" x="100" y="82" text-anchor="middle" fill="#6366f1" font-size="11" font-weight="700">HEAD</text>
+  <line x1="100" y1="86" x2="100" y2="100" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr)" />
   <!-- Node A -->
   <rect x="60" y="100" width="50" height="40" fill="#f1f5f9" stroke="#6366f1" stroke-width="2" rx="6" />
   <rect x="110" y="100" width="30" height="40" fill="#e0e7ff" stroke="#6366f1" stroke-width="1.5" />
@@ -1144,294 +1144,272 @@ System.out.println(set.size()); // 1, not 2
       .arrow { stroke-width: 1.8; fill: none; marker-end: url(#arrowhead); }
       .title-text { fill: #94a3b8; font-size: 11px; font-weight: 500; }
       .step-label { fill: #64748b; font-size: 9px; text-anchor: middle; }
-<pre><code>  /* ── Arrow markers ── */
-
-  /* ── PHASE TIMING (total loop = 6s) ──
-     Phase 1: 0-0.8s  — idle/reset
-     Phase 2: 0.8-2.0s — put "cat" → bucket 3
-     Phase 3: 2.0-3.4s — put "dog" → bucket 3 (collision)
-     Phase 4: 3.4-4.6s — put "fox" → bucket 6
-     Phase 5: 4.6-5.4s — treeify flash
-     Phase 6: 5.4-6.0s — hold/fade
-  */
-
-  /* ══════════════════════════════════
-     KEY "cat" — appears at t=0.8s
-  ══════════════════════════════════ */
-  #key-cat {
-    opacity: 0;
-    animation: showCat 6s linear infinite;
-  }
-  @keyframes showCat {
-    0%    { opacity: 0; }
-    13.3% { opacity: 0; }   /* 0.8s */
-    16.7% { opacity: 1; }   /* 1.0s */
-    66.7% { opacity: 1; }   /* 4.0s */
-    73.3% { opacity: 0; }   /* 4.4s */
-    100%  { opacity: 0; }
-  }
-
-  /* Arrow: key-cat → hash box */
-  #arrow-cat-hash {
-    opacity: 0;
-    animation: arrowCatHash 6s linear infinite;
-  }
-  @keyframes arrowCatHash {
-    0%    { opacity: 0; }
-    16.7% { opacity: 0; }
-    20.0% { opacity: 1; }
-    26.7% { opacity: 0; }
-    100%  { opacity: 0; }
-  }
-
-  /* Hash box pulse for cat */
-  #hash-box-cat {
-    opacity: 0;
-    animation: hashCat 6s linear infinite;
-  }
-  @keyframes hashCat {
-    0%    { opacity: 0; }
-    18.3% { opacity: 0; }
-    21.7% { opacity: 1; }
-    28.3% { opacity: 0; }
-    100%  { opacity: 0; }
-  }
-
-  /* Arrow: hash → bucket 3 (cat) */
-  #arrow-hash-b3-cat {
-    opacity: 0;
-    animation: arrowHashB3Cat 6s linear infinite;
-  }
-  @keyframes arrowHashB3Cat {
-    0%    { opacity: 0; }
-    23.3% { opacity: 0; }
-    26.7% { opacity: 1; }
-    33.3% { opacity: 0; }
-    100%  { opacity: 0; }
-  }
-
-  /* Node "cat" in bucket 3 */
-  #node-cat {
-    opacity: 0;
-    transform: translateY(8px);
-    animation: nodeCat 6s linear infinite;
-  }
-  @keyframes nodeCat {
-    0%    { opacity: 0; transform: translateY(8px); }
-    30.0% { opacity: 0; transform: translateY(8px); }
-    36.7% { opacity: 1; transform: translateY(0);   }
-    73.3% { opacity: 1; transform: translateY(0);   }
-    78.3% { opacity: 0; transform: translateY(0);   }
-    100%  { opacity: 0; transform: translateY(0);   }
-  }
-
-  /* ══════════════════════════════════
-     KEY "dog" — appears at t=2.0s
-  ══════════════════════════════════ */
-  #key-dog {
-    opacity: 0;
-    animation: showDog 6s linear infinite;
-  }
-  @keyframes showDog {
-    0%    { opacity: 0; }
-    33.3% { opacity: 0; }
-    36.7% { opacity: 1; }
-    66.7% { opacity: 1; }
-    73.3% { opacity: 0; }
-    100%  { opacity: 0; }
-  }
-
-  #arrow-dog-hash {
-    opacity: 0;
-    animation: arrowDogHash 6s linear infinite;
-  }
-  @keyframes arrowDogHash {
-    0%    { opacity: 0; }
-    36.7% { opacity: 0; }
-    40.0% { opacity: 1; }
-    46.7% { opacity: 0; }
-    100%  { opacity: 0; }
-  }
-
-  #hash-box-dog {
-    opacity: 0;
-    animation: hashDog 6s linear infinite;
-  }
-  @keyframes hashDog {
-    0%    { opacity: 0; }
-    38.3% { opacity: 0; }
-    41.7% { opacity: 1; }
-    48.3% { opacity: 0; }
-    100%  { opacity: 0; }
-  }
-
-  #arrow-hash-b3-dog {
-    opacity: 0;
-    animation: arrowHashB3Dog 6s linear infinite;
-  }
-  @keyframes arrowHashB3Dog {
-    0%    { opacity: 0; }
-    43.3% { opacity: 0; }
-    46.7% { opacity: 1; }
-    53.3% { opacity: 0; }
-    100%  { opacity: 0; }
-  }
-
-  /* Collision label */
-  #collision-label {
-    opacity: 0;
-    animation: collisionFlash 6s linear infinite;
-  }
-  @keyframes collisionFlash {
-    0%    { opacity: 0; }
-    46.7% { opacity: 0; }
-    50.0% { opacity: 1; }
-    58.3% { opacity: 1; }
-    63.3% { opacity: 0; }
-    100%  { opacity: 0; }
-  }
-
-  /* Node "dog" chained after "cat" */
-  #node-dog {
-    opacity: 0;
-    transform: translateY(8px);
-    animation: nodeDog 6s linear infinite;
-  }
-  @keyframes nodeDog {
-    0%    { opacity: 0; transform: translateY(8px); }
-    50.0% { opacity: 0; transform: translateY(8px); }
-    56.7% { opacity: 1; transform: translateY(0);   }
-    73.3% { opacity: 1; transform: translateY(0);   }
-    78.3% { opacity: 0; transform: translateY(0);   }
-    100%  { opacity: 0; transform: translateY(0);   }
-  }
-
-  /* Link line between cat→dog nodes */
-  #link-cat-dog {
-    opacity: 0;
-    animation: linkCatDog 6s linear infinite;
-  }
-  @keyframes linkCatDog {
-    0%    { opacity: 0; }
-    53.3% { opacity: 0; }
-    58.3% { opacity: 1; }
-    73.3% { opacity: 1; }
-    78.3% { opacity: 0; }
-    100%  { opacity: 0; }
-  }
-
-  /* ══════════════════════════════════
-     KEY "fox" — appears at t=3.4s
-  ══════════════════════════════════ */
-  #key-fox {
-    opacity: 0;
-    animation: showFox 6s linear infinite;
-  }
-  @keyframes showFox {
-    0%    { opacity: 0; }
-    56.7% { opacity: 0; }
-    60.0% { opacity: 1; }
-    76.7% { opacity: 1; }
-    81.7% { opacity: 0; }
-    100%  { opacity: 0; }
-  }
-
-  #arrow-fox-hash {
-    opacity: 0;
-    animation: arrowFoxHash 6s linear infinite;
-  }
-  @keyframes arrowFoxHash {
-    0%    { opacity: 0; }
-    60.0% { opacity: 0; }
-    63.3% { opacity: 1; }
-    68.3% { opacity: 0; }
-    100%  { opacity: 0; }
-  }
-
-  #hash-box-fox {
-    opacity: 0;
-    animation: hashFox 6s linear infinite;
-  }
-  @keyframes hashFox {
-    0%    { opacity: 0; }
-    62.0% { opacity: 0; }
-    65.3% { opacity: 1; }
-    70.3% { opacity: 0; }
-    100%  { opacity: 0; }
-  }
-
-  #arrow-hash-b6-fox {
-    opacity: 0;
-    animation: arrowHashB6Fox 6s linear infinite;
-  }
-  @keyframes arrowHashB6Fox {
-    0%    { opacity: 0; }
-    65.3% { opacity: 0; }
-    68.7% { opacity: 1; }
-    73.7% { opacity: 0; }
-    100%  { opacity: 0; }
-  }
-
-  #node-fox {
-    opacity: 0;
-    transform: translateY(8px);
-    animation: nodeFox 6s linear infinite;
-  }
-  @keyframes nodeFox {
-    0%    { opacity: 0; transform: translateY(8px); }
-    70.0% { opacity: 0; transform: translateY(8px); }
-    75.0% { opacity: 1; transform: translateY(0);   }
-    88.3% { opacity: 1; transform: translateY(0);   }
-    93.3% { opacity: 0; transform: translateY(0);   }
-    100%  { opacity: 0; transform: translateY(0);   }
-  }
-
-  /* ══════════════════════════════════
-     TREEIFY FLASH at t=4.6s
-  ══════════════════════════════════ */
-  #treeify-panel {
-    opacity: 0;
-    animation: treeifyFlash 6s linear infinite;
-  }
-  @keyframes treeifyFlash {
-    0%    { opacity: 0; }
-    76.7% { opacity: 0; }
-    80.0% { opacity: 1; }
-    90.0% { opacity: 1; }
-    95.0% { opacity: 0; }
-    100%  { opacity: 0; }
-  }
-
-  /* Bucket highlight on treeify */
-  #bucket3-highlight {
-    opacity: 0;
-    animation: b3Highlight 6s linear infinite;
-  }
-  @keyframes b3Highlight {
-    0%    { opacity: 0; }
-    76.7% { opacity: 0; }
-    80.0% { opacity: 0.6; }
-    90.0% { opacity: 0.6; }
-    95.0% { opacity: 0; }
-    100%  { opacity: 0; }
-  }
-&lt;/style&gt;
-
-&lt;marker id="arrowhead" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"&gt;
-  &lt;polygon points="0 0, 7 3.5, 0 7" fill="#6366f1" opacity="0.85"/&gt;
-&lt;/marker&gt;
-&lt;marker id="arrowhead-green" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"&gt;
-  &lt;polygon points="0 0, 7 3.5, 0 7" fill="#10b981" opacity="0.85"/&gt;
-&lt;/marker&gt;
-&lt;marker id="arrowhead-amber" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"&gt;
-  &lt;polygon points="0 0, 7 3.5, 0 7" fill="#f59b0b" opacity="0.9"/&gt;
-&lt;/marker&gt;
-</code></pre>
-  
+      /* ── Arrow markers ── */
+      /* ── PHASE TIMING (total loop = 6s) ──
+         Phase 1: 0-0.8s  — idle/reset
+         Phase 2: 0.8-2.0s — put "cat" → bucket 3
+         Phase 3: 2.0-3.4s — put "dog" → bucket 3 (collision)
+         Phase 4: 3.4-4.6s — put "fox" → bucket 6
+         Phase 5: 4.6-5.4s — treeify flash
+         Phase 6: 5.4-6.0s — hold/fade
+      */
+      /* ══════════════════════════════════
+         KEY "cat" — appears at t=0.8s
+      ══════════════════════════════════ */
+      #key-cat {
+        opacity: 0;
+        animation: showCat 6s linear infinite;
+      }
+      @keyframes showCat {
+        0%    { opacity: 0; }
+        13.3% { opacity: 0; }   /* 0.8s */
+        16.7% { opacity: 1; }   /* 1.0s */
+        66.7% { opacity: 1; }   /* 4.0s */
+        73.3% { opacity: 0; }   /* 4.4s */
+        100%  { opacity: 0; }
+      }
+      /* Arrow: key-cat → hash box */
+      #arrow-cat-hash {
+        opacity: 0;
+        animation: arrowCatHash 6s linear infinite;
+      }
+      @keyframes arrowCatHash {
+        0%    { opacity: 0; }
+        16.7% { opacity: 0; }
+        20.0% { opacity: 1; }
+        26.7% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+      /* Hash box pulse for cat */
+      #hash-box-cat {
+        opacity: 0;
+        animation: hashCat 6s linear infinite;
+      }
+      @keyframes hashCat {
+        0%    { opacity: 0; }
+        18.3% { opacity: 0; }
+        21.7% { opacity: 1; }
+        28.3% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+      /* Arrow: hash → bucket 3 (cat) */
+      #arrow-hash-b3-cat {
+        opacity: 0;
+        animation: arrowHashB3Cat 6s linear infinite;
+      }
+      @keyframes arrowHashB3Cat {
+        0%    { opacity: 0; }
+        23.3% { opacity: 0; }
+        26.7% { opacity: 1; }
+        33.3% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+      /* Node "cat" in bucket 3 */
+      #node-cat {
+        opacity: 0;
+        transform: translateY(8px);
+        animation: nodeCat 6s linear infinite;
+      }
+      @keyframes nodeCat {
+        0%    { opacity: 0; transform: translateY(8px); }
+        30.0% { opacity: 0; transform: translateY(8px); }
+        36.7% { opacity: 1; transform: translateY(0);   }
+        73.3% { opacity: 1; transform: translateY(0);   }
+        78.3% { opacity: 0; transform: translateY(0);   }
+        100%  { opacity: 0; transform: translateY(0);   }
+      }
+      /* ══════════════════════════════════
+         KEY "dog" — appears at t=2.0s
+      ══════════════════════════════════ */
+      #key-dog {
+        opacity: 0;
+        animation: showDog 6s linear infinite;
+      }
+      @keyframes showDog {
+        0%    { opacity: 0; }
+        33.3% { opacity: 0; }
+        36.7% { opacity: 1; }
+        66.7% { opacity: 1; }
+        73.3% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+      #arrow-dog-hash {
+        opacity: 0;
+        animation: arrowDogHash 6s linear infinite;
+      }
+      @keyframes arrowDogHash {
+        0%    { opacity: 0; }
+        36.7% { opacity: 0; }
+        40.0% { opacity: 1; }
+        46.7% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+      #hash-box-dog {
+        opacity: 0;
+        animation: hashDog 6s linear infinite;
+      }
+      @keyframes hashDog {
+        0%    { opacity: 0; }
+        38.3% { opacity: 0; }
+        41.7% { opacity: 1; }
+        48.3% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+      #arrow-hash-b3-dog {
+        opacity: 0;
+        animation: arrowHashB3Dog 6s linear infinite;
+      }
+      @keyframes arrowHashB3Dog {
+        0%    { opacity: 0; }
+        43.3% { opacity: 0; }
+        46.7% { opacity: 1; }
+        53.3% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+      /* Collision label */
+      #collision-label {
+        opacity: 0;
+        animation: collisionFlash 6s linear infinite;
+      }
+      @keyframes collisionFlash {
+        0%    { opacity: 0; }
+        46.7% { opacity: 0; }
+        50.0% { opacity: 1; }
+        58.3% { opacity: 1; }
+        63.3% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+      /* Node "dog" chained after "cat" */
+      #node-dog {
+        opacity: 0;
+        transform: translateY(8px);
+        animation: nodeDog 6s linear infinite;
+      }
+      @keyframes nodeDog {
+        0%    { opacity: 0; transform: translateY(8px); }
+        50.0% { opacity: 0; transform: translateY(8px); }
+        56.7% { opacity: 1; transform: translateY(0);   }
+        73.3% { opacity: 1; transform: translateY(0);   }
+        78.3% { opacity: 0; transform: translateY(0);   }
+        100%  { opacity: 0; transform: translateY(0);   }
+      }
+      /* Link line between cat→dog nodes */
+      #link-cat-dog {
+        opacity: 0;
+        animation: linkCatDog 6s linear infinite;
+      }
+      @keyframes linkCatDog {
+        0%    { opacity: 0; }
+        53.3% { opacity: 0; }
+        58.3% { opacity: 1; }
+        73.3% { opacity: 1; }
+        78.3% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+      /* ══════════════════════════════════
+         KEY "fox" — appears at t=3.4s
+      ══════════════════════════════════ */
+      #key-fox {
+        opacity: 0;
+        animation: showFox 6s linear infinite;
+      }
+      @keyframes showFox {
+        0%    { opacity: 0; }
+        56.7% { opacity: 0; }
+        60.0% { opacity: 1; }
+        76.7% { opacity: 1; }
+        81.7% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+      #arrow-fox-hash {
+        opacity: 0;
+        animation: arrowFoxHash 6s linear infinite;
+      }
+      @keyframes arrowFoxHash {
+        0%    { opacity: 0; }
+        60.0% { opacity: 0; }
+        63.3% { opacity: 1; }
+        68.3% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+      #hash-box-fox {
+        opacity: 0;
+        animation: hashFox 6s linear infinite;
+      }
+      @keyframes hashFox {
+        0%    { opacity: 0; }
+        62.0% { opacity: 0; }
+        65.3% { opacity: 1; }
+        70.3% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+      #arrow-hash-b6-fox {
+        opacity: 0;
+        animation: arrowHashB6Fox 6s linear infinite;
+      }
+      @keyframes arrowHashB6Fox {
+        0%    { opacity: 0; }
+        65.3% { opacity: 0; }
+        68.7% { opacity: 1; }
+        73.7% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+      #node-fox {
+        opacity: 0;
+        transform: translateY(8px);
+        animation: nodeFox 6s linear infinite;
+      }
+      @keyframes nodeFox {
+        0%    { opacity: 0; transform: translateY(8px); }
+        70.0% { opacity: 0; transform: translateY(8px); }
+        75.0% { opacity: 1; transform: translateY(0);   }
+        88.3% { opacity: 1; transform: translateY(0);   }
+        93.3% { opacity: 0; transform: translateY(0);   }
+        100%  { opacity: 0; transform: translateY(0);   }
+      }
+      /* ══════════════════════════════════
+         TREEIFY FLASH at t=4.6s
+      ══════════════════════════════════ */
+      #treeify-panel {
+        opacity: 0;
+        animation: treeifyFlash 6s linear infinite;
+      }
+      @keyframes treeifyFlash {
+        0%    { opacity: 0; }
+        76.7% { opacity: 0; }
+        80.0% { opacity: 1; }
+        90.0% { opacity: 1; }
+        95.0% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+      /* Bucket highlight on treeify */
+      #bucket3-highlight {
+        opacity: 0;
+        animation: b3Highlight 6s linear infinite;
+      }
+      @keyframes b3Highlight {
+        0%    { opacity: 0; }
+        76.7% { opacity: 0; }
+        80.0% { opacity: 0.6; }
+        90.0% { opacity: 0.6; }
+        95.0% { opacity: 0; }
+        100%  { opacity: 0; }
+      }
+    </style>
+    <marker id="arrowhead" markerwidth="7" markerheight="7" refx="5" refy="3.5" orient="auto">
+      <polygon points="0 0, 7 3.5, 0 7" fill="#6366f1" opacity="0.85" />
+    </marker>
+    <marker id="arrowhead-green" markerwidth="7" markerheight="7" refx="5" refy="3.5" orient="auto">
+      <polygon points="0 0, 7 3.5, 0 7" fill="#10b981" opacity="0.85" />
+    </marker>
+    <marker id="arrowhead-amber" markerwidth="7" markerheight="7" refx="5" refy="3.5" orient="auto">
+      <polygon points="0 0, 7 3.5, 0 7" fill="#f59b0b" opacity="0.9" />
+    </marker>
+  </defs>
   <!-- ── Background ── -->
   <rect width="760" height="340" fill="#f8fafc" rx="10" />
   <!-- ── Title ── -->
-<p><text x="380" y="22" text-anchor="middle" fill="#1e293b" font-size="13" font-weight="700" font-family="system-ui">HashMap Internals — put() Lifecycle</text></p>
+  <text x="380" y="22" text-anchor="middle" fill="#1e293b" font-size="13" font-weight="700" font-family="system-ui">HashMap Internals — put() Lifecycle</text>
   <!-- ════════════════════════════════════════
        BUCKET ARRAY  (8 buckets, y=40..200)
   ════════════════════════════════════════ -->
@@ -1469,7 +1447,7 @@ System.out.println(set.size()); // 1, not 2
   <text x="636" y="66" class="bucket-index">7</text>
   <text x="636" y="95" class="bucket-label">null</text>
   <!-- Array label -->
-<p><text x="40" y="44" fill="#64748b" font-size="9" font-family="system-ui">table[ ]  (capacity = 8)</text></p>
+  <text x="40" y="44" fill="#64748b" font-size="9" font-family="system-ui">table[ ]  (capacity = 8)</text>
   <!-- ════════════════════════════════════════
        LINKED LIST NODES below bucket 3
   ════════════════════════════════════════ -->
@@ -1602,8 +1580,8 @@ System.out.println(set.size()); // 1, not 2
   <rect x="540" y="305" width="12" height="12" fill="#d1fae5" stroke="#10b981" stroke-width="1.5" rx="2" />
   <text x="557" y="315" fill="#64748b" font-size="9" font-family="system-ui">Successful insert</text>
   <!-- Step annotation strip -->
-<p><text x="380" y="285" text-anchor="middle" fill="#1e293b" font-size="8" font-family="system-ui">Java 8+ HashMap — default load factor 0.75, default capacity 16 (shown here as 8 for clarity)</text></p>
-
+  <text x="380" y="285" text-anchor="middle" fill="#1e293b" font-size="8" font-family="system-ui">Java 8+ HashMap — default load factor 0.75, default capacity 16 (shown here as 8 for clarity)</text>
+</svg>
 <hr>
 <h3 id="the-idea-6"><a class="header" href="#the-idea-6">The Idea</a></h3>
 <p>Picture a city with 16 numbered post-office boxes (the default). When you send a letter (store a key-value pair), a fast sorting algorithm looks at the recipient’s address (the key’s hash code), mixes the upper and lower halves of the address together to spread things evenly, then assigns the letter to one specific box (bucket). Most boxes hold just one letter. Occasionally two letters end up in the same box (collision) — they form a chain. If a box gets so crowded that more than 8 letters pile up, the chain converts to a sorted tree so searching it stays fast even in the worst case.</p>
@@ -3624,7 +3602,7 @@ Need a Queue?
 <p><strong>Quick Revision (one line):</strong> Know the three axes — ordering, thread safety, and O-complexity — for each collection; default to <code>HashMap/ArrayList/ArrayDeque</code> for single-threaded use and <code>ConcurrentHashMap/CopyOnWriteArrayList/BlockingQueue</code> for concurrent use; <code>LinkedHashMap</code> with access-order = LRU cache in 10 lines.</p>
 <hr>
 <p><em>End of Chapter 3: Collections</em></p>
-</style></defs></svg>
+
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">

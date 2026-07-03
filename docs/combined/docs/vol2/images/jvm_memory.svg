@@ -1,0 +1,132 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 760 305" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:760px;display:block;margin:16px 0;">
+<style>
+@keyframes jvmGcFlash { 0%,42%{opacity:0} 48%,54%{opacity:0.15} 60%,100%{opacity:0} }
+@keyframes jvmObjEden { 0%,8%{opacity:0} 12%,28%{opacity:1} 33%,100%{opacity:0} }
+@keyframes jvmObjSurv { 0%,30%{opacity:0} 36%,52%{opacity:1} 57%,100%{opacity:0} }
+@keyframes jvmObjOld  { 0%,54%{opacity:0} 60%,76%{opacity:1} 81%,100%{opacity:0} }
+</style>
+<rect width="760" height="305" rx="10" fill="#f8fafc"/>
+<text x="380" y="26" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="700" fill="#1e293b">JVM memory architecture</text>
+<!-- Thread Stacks -->
+<rect x="12" y="40" width="132" height="178" rx="6" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="78" y="56" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="600" fill="#475569">Thread stacks</text>
+<text x="78" y="68" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#94a3b8">per-thread · private</text>
+<rect x="20" y="74" width="116" height="50" rx="4" fill="#ede9fe" stroke="#8b5cf6" stroke-width="1"/>
+<text x="78" y="88" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#5b21b6">Thread-1</text>
+<rect x="27" y="94" width="102" height="10" rx="2" fill="#c4b5fd"/><text x="78" y="102" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#3730a3">frame: doWork()</text>
+<rect x="27" y="106" width="102" height="10" rx="2" fill="#ddd6fe"/><text x="78" y="114" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#4c1d95">frame: main()</text>
+<rect x="20" y="131" width="116" height="36" rx="4" fill="#ede9fe" stroke="#8b5cf6" stroke-width="1"/>
+<text x="78" y="144" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#5b21b6">Thread-2</text>
+<rect x="27" y="150" width="102" height="10" rx="2" fill="#ddd6fe"/><text x="78" y="158" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#4c1d95">frame: query()</text>
+<text x="78" y="184" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#94a3b8">refs only — objects</text>
+<text x="78" y="196" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#94a3b8">live on the heap</text>
+<text x="78" y="208" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#94a3b8">StackOverflowError</text>
+<!-- Heap outer -->
+<rect x="156" y="40" width="437" height="178" rx="6" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="374" y="56" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="600" fill="#475569">Heap (shared · all threads)</text>
+<!-- Young Gen -->
+<rect x="164" y="63" width="218" height="148" rx="5" fill="#dcfce7" stroke="#10b981" stroke-width="1.5"/>
+<text x="273" y="78" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#065f46">Young generation</text>
+<!-- Eden -->
+<rect x="171" y="86" width="104" height="118" rx="4" fill="#bbf7d0" stroke="#10b981" stroke-width="1"/>
+<text x="223" y="100" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#065f46">Eden</text>
+<text x="223" y="112" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#047857">new objects born</text>
+<circle cx="198" cy="138" r="7" fill="#6366f1" opacity="0.55"/>
+<circle cx="222" cy="153" r="5" fill="#6366f1" opacity="0.45"/>
+<circle cx="245" cy="135" r="7" fill="#6366f1" opacity="0.65"/>
+<circle cx="210" cy="172" r="6" fill="#6366f1" opacity="0.4"/>
+<circle cx="243" cy="170" r="5" fill="#6366f1" opacity="0.5"/>
+<circle cx="225" cy="190" r="7" fill="#6366f1" opacity="0.6"/>
+<rect x="171" y="86" width="104" height="118" rx="4" fill="#10b981" style="animation:jvmGcFlash 10s linear infinite"/>
+<!-- S0 -->
+<rect x="281" y="86" width="93" height="57" rx="4" fill="#a7f3d0" stroke="#10b981" stroke-width="1"/>
+<text x="327" y="101" text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="600" fill="#065f46">S0 — from</text>
+<text x="327" y="113" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#047857">survivor space</text>
+<circle cx="307" cy="130" r="5" fill="#10b981" opacity="0.7"/>
+<circle cx="327" cy="126" r="6" fill="#10b981" opacity="0.6"/>
+<circle cx="350" cy="130" r="5" fill="#10b981" opacity="0.5"/>
+<!-- S1 -->
+<rect x="281" y="150" width="93" height="54" rx="4" fill="#6ee7b7" stroke="#059669" stroke-width="1"/>
+<text x="327" y="165" text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="600" fill="#065f46">S1 — to</text>
+<text x="327" y="177" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#047857">copy target</text>
+<text x="327" y="189" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#047857">during GC</text>
+<!-- Old Gen -->
+<rect x="389" y="63" width="196" height="148" rx="5" fill="#fef9c3" stroke="#f59e0b" stroke-width="1.5"/>
+<text x="487" y="78" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#92400e">Old generation</text>
+<text x="487" y="91" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#78350f">tenured — survived 15+ GC cycles</text>
+<circle cx="413" cy="118" r="10" fill="#f59e0b" opacity="0.6"/>
+<circle cx="443" cy="140" r="13" fill="#f59e0b" opacity="0.5"/>
+<circle cx="478" cy="115" r="9" fill="#f59e0b" opacity="0.7"/>
+<circle cx="514" cy="138" r="12" fill="#f59e0b" opacity="0.55"/>
+<circle cx="550" cy="120" r="8" fill="#f59e0b" opacity="0.65"/>
+<circle cx="430" cy="168" r="11" fill="#f59e0b" opacity="0.4"/>
+<circle cx="505" cy="172" r="10" fill="#f59e0b" opacity="0.55"/>
+<circle cx="560" cy="162" r="9" fill="#f59e0b" opacity="0.45"/>
+<!-- Arrows -->
+<defs>
+<marker id="jga" markerWidth="7" markerHeight="6" refX="5.5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="#10b981"/></marker>
+<marker id="jpa" markerWidth="7" markerHeight="6" refX="5.5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="#f59e0b"/></marker>
+</defs>
+<path d="M275 112 L281 112" stroke="#10b981" stroke-width="1.5" fill="none" marker-end="url(#jga)"/>
+<text x="278" y="107" text-anchor="middle" font-family="sans-serif" font-size="7" fill="#10b981">Minor</text>
+<text x="278" y="116" text-anchor="middle" font-family="sans-serif" font-size="7" fill="#10b981">GC</text>
+<path d="M374 112 L389 112" stroke="#f59e0b" stroke-width="1.5" fill="none" stroke-dasharray="3,2" marker-end="url(#jpa)"/>
+<text x="381" y="107" text-anchor="middle" font-family="sans-serif" font-size="7" fill="#f59e0b">age≥15</text>
+<text x="381" y="116" text-anchor="middle" font-family="sans-serif" font-size="7" fill="#f59e0b">promote</text>
+<!-- Native memory row -->
+<rect x="156" y="232" width="207" height="60" rx="6" fill="#ede9fe" stroke="#8b5cf6" stroke-width="1.5"/>
+<text x="259" y="249" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#5b21b6">Metaspace (native mem)</text>
+<text x="259" y="263" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#6d28d9">class definitions · method bytecode</text>
+<text x="259" y="277" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#6d28d9">constant pool · grows on demand</text>
+<rect x="372" y="232" width="221" height="60" rx="6" fill="#fce7f3" stroke="#ec4899" stroke-width="1.5"/>
+<text x="482" y="249" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#9d174d">Code cache (native mem)</text>
+<text x="482" y="263" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#be185d">JIT-compiled native machine code</text>
+<text x="482" y="277" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#be185d">-XX:ReservedCodeCacheSize (256 MB)</text>
+<!-- GC summary panel -->
+<rect x="605" y="40" width="143" height="252" rx="6" fill="#fff7ed" stroke="#fed7aa" stroke-width="1.5"/>
+<text x="676" y="57" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#9a3412">GC types</text>
+<text x="676" y="73" text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="600" fill="#c2410c">Minor GC</text>
+<text x="676" y="85" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#9a3412">Eden full → copy live</text>
+<text x="676" y="96" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#9a3412">objs to survivor</text>
+<text x="676" y="107" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#9a3412">fast · ms range</text>
+<line x1="611" y1="114" x2="742" y2="114" stroke="#fed7aa" stroke-width="0.8"/>
+<text x="676" y="128" text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="600" fill="#c2410c">Major GC</text>
+<text x="676" y="140" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#9a3412">Old gen full → mark</text>
+<text x="676" y="151" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#9a3412">sweep · compact</text>
+<text x="676" y="162" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#9a3412">slow · seconds</text>
+<line x1="611" y1="169" x2="742" y2="169" stroke="#fed7aa" stroke-width="0.8"/>
+<text x="676" y="183" text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="600" fill="#ea580c">Full GC</text>
+<text x="676" y="195" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#9a3412">Heap + Metaspace</text>
+<text x="676" y="206" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#9a3412">stop-the-world</text>
+<text x="676" y="217" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#ea580c">avoid in prod</text>
+<line x1="611" y1="224" x2="742" y2="224" stroke="#fed7aa" stroke-width="0.8"/>
+<text x="676" y="238" text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="600" fill="#c2410c">Collectors</text>
+<text x="676" y="251" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#9a3412">G1 (default ≥ Java 9)</text>
+<text x="676" y="262" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#9a3412">ZGC (low latency)</text>
+<text x="676" y="273" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#9a3412">Shenandoah</text>
+<text x="676" y="284" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#9a3412">Parallel GC</text>
+<!-- Animated object traveling through generations -->
+<circle r="9" fill="#6366f1" stroke="#fff" stroke-width="1.5">
+  <animate attributeName="cx" values="223;223;327;327;487;487;223" keyTimes="0;0.12;0.36;0.53;0.72;0.88;1" dur="10s" repeatCount="indefinite"/>
+  <animate attributeName="cy" values="150;150;109;109;128;128;150" keyTimes="0;0.12;0.36;0.53;0.72;0.88;1" dur="10s" repeatCount="indefinite"/>
+  <animate attributeName="fill" values="#6366f1;#6366f1;#10b981;#10b981;#f59e0b;#f59e0b;#6366f1" keyTimes="0;0.12;0.36;0.53;0.72;0.88;1" dur="10s" repeatCount="indefinite"/>
+  <animate attributeName="opacity" values="0;1;1;1;1;0;0" keyTimes="0;0.08;0.5;0.68;0.85;0.92;1" dur="10s" repeatCount="indefinite"/>
+</circle>
+<!-- Step label -->
+<text text-anchor="middle" font-family="sans-serif" font-size="8" fill="#1e293b" style="animation:jvmObjEden 10s linear infinite">
+  <animate attributeName="x" values="223;223;223" keyTimes="0;0.12;1" dur="10s" repeatCount="indefinite"/>
+  <animate attributeName="y" values="136;136;136" keyTimes="0;0.12;1" dur="10s" repeatCount="indefinite"/>
+  <animate attributeName="opacity" values="0;1;0" keyTimes="0;0.15;0.33" dur="10s" repeatCount="indefinite"/>new Object()
+</text>
+<text text-anchor="middle" font-family="sans-serif" font-size="8" fill="#065f46" style="animation:jvmObjSurv 10s linear infinite">
+  <animate attributeName="x" values="327;327;327" keyTimes="0;0.36;1" dur="10s" repeatCount="indefinite"/>
+  <animate attributeName="y" values="96;96;96" keyTimes="0;0.36;1" dur="10s" repeatCount="indefinite"/>
+  <animate attributeName="opacity" values="0;0;1;0" keyTimes="0;0.34;0.42;0.58" dur="10s" repeatCount="indefinite"/>survived GC
+</text>
+<text text-anchor="middle" font-family="sans-serif" font-size="8" fill="#78350f">
+  <animate attributeName="x" values="487;487;487" keyTimes="0;0.72;1" dur="10s" repeatCount="indefinite"/>
+  <animate attributeName="y" values="115;115;115" keyTimes="0;0.72;1" dur="10s" repeatCount="indefinite"/>
+  <animate attributeName="opacity" values="0;0;1;0" keyTimes="0;0.58;0.65;0.82" dur="10s" repeatCount="indefinite"/>promoted (age 15)
+</text>
+</svg>

@@ -102,7 +102,7 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-586974fd.js";
+            window.path_to_searchindex_js = "../searchindex-8f01b192.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-e254c042.js"></script>
@@ -280,139 +280,124 @@ SDE2/Senior: skim “The Idea”, focus on “How It Works” and “Interview L
     <style>
       /* ── Fonts &amp; base ── */
       text { font-family: 'Courier New', monospace; fill: #e2e8f0; }
-<pre><code>  /* ── Producer pulse ── */
-  @keyframes producerPulse {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.7; }
-  }
-
-  /* ── Message block: P0 ── */
-  @keyframes msgP0 {
-    0%         { transform: translateX(-60px); opacity: 0; }
-    8%         { transform: translateX(0);     opacity: 1; }
-    45%        { transform: translateX(0);     opacity: 1; }
-    55%        { transform: translateX(0);     opacity: 0; }
-    100%       { transform: translateX(0);     opacity: 0; }
-  }
-  /* ── Message block: P1 ── */
-  @keyframes msgP1 {
-    0%,  18%   { transform: translateX(-60px); opacity: 0; }
-    26%        { transform: translateX(0);     opacity: 1; }
-    55%        { transform: translateX(0);     opacity: 1; }
-    65%        { transform: translateX(0);     opacity: 0; }
-    100%       { transform: translateX(0);     opacity: 0; }
-  }
-  /* ── Message block: P2 ── */
-  @keyframes msgP2 {
-    0%,  34%   { transform: translateX(-60px); opacity: 0; }
-    42%        { transform: translateX(0);     opacity: 1; }
-    70%        { transform: translateX(0);     opacity: 1; }
-    80%        { transform: translateX(0);     opacity: 0; }
-    100%       { transform: translateX(0);     opacity: 0; }
-  }
-
-  /* ── Offset counter flash ── */
-  @keyframes offsetP0 {
-    0%,  7%   { opacity: 0; }
-    8%,  54%  { opacity: 1; }
-    55%, 100% { opacity: 0; }
-  }
-  @keyframes offsetP1 {
-    0%,  25%  { opacity: 0; }
-    26%, 64%  { opacity: 1; }
-    65%, 100% { opacity: 0; }
-  }
-  @keyframes offsetP2 {
-    0%,  41%  { opacity: 0; }
-    42%, 79%  { opacity: 1; }
-    80%, 100% { opacity: 0; }
-  }
-
-  /* ── Consumer pull arrows ── */
-  @keyframes arrowP0 {
-    0%,  44%  { stroke-dashoffset: 80; opacity: 0; }
-    46%        { opacity: 1; }
-    55%        { stroke-dashoffset: 0; opacity: 1; }
-    62%        { opacity: 0; }
-    100%       { stroke-dashoffset: 80; opacity: 0; }
-  }
-  @keyframes arrowP1 {
-    0%,  62%  { stroke-dashoffset: 80; opacity: 0; }
-    64%        { opacity: 1; }
-    73%        { stroke-dashoffset: 0; opacity: 1; }
-    80%        { opacity: 0; }
-    100%       { stroke-dashoffset: 80; opacity: 0; }
-  }
-  @keyframes arrowP2 {
-    0%,  78%  { stroke-dashoffset: 80; opacity: 0; }
-    80%        { opacity: 1; }
-    90%        { stroke-dashoffset: 0; opacity: 1; }
-    97%        { opacity: 0; }
-    100%       { stroke-dashoffset: 80; opacity: 0; }
-  }
-
-  /* ── Consumer green flash ── */
-  @keyframes consumerFlashC0 {
-    0%,  54%  { fill: #10b981; }
-    55%,  62% { fill: #34d399; }
-    63%, 100% { fill: #10b981; }
-  }
-  @keyframes consumerFlashC1 {
-    0%,  72%  { fill: #10b981; }
-    73%,  80% { fill: #34d399; }
-    81%, 100% { fill: #10b981; }
-  }
-  @keyframes consumerFlashC2 {
-    0%,  89%  { fill: #10b981; }
-    90%,  97% { fill: #34d399; }
-    98%, 100% { fill: #10b981; }
-  }
-
-  /* ── Group label blink ── */
-  @keyframes groupLabel {
-    0%,  10%  { opacity: 0; }
-    15%,  85% { opacity: 1; }
-    90%, 100% { opacity: 0; }
-  }
-
-  /* ── Producer line dash flow ── */
-  @keyframes dashFlow {
-    0%   { stroke-dashoffset: 20; }
-    100% { stroke-dashoffset: 0; }
-  }
-
-  .producer-box   { animation: producerPulse 6s infinite; }
-
-  .msg-p0  { animation: msgP0 6s infinite; }
-  .msg-p1  { animation: msgP1 6s infinite; }
-  .msg-p2  { animation: msgP2 6s infinite; }
-
-  .off-p0  { animation: offsetP0 6s infinite; }
-  .off-p1  { animation: offsetP1 6s infinite; }
-  .off-p2  { animation: offsetP2 6s infinite; }
-
-  .arrow-p0 { animation: arrowP0 6s infinite; }
-  .arrow-p1 { animation: arrowP1 6s infinite; }
-  .arrow-p2 { animation: arrowP2 6s infinite; }
-
-  .consumer-c0 { animation: consumerFlashC0 6s infinite; }
-  .consumer-c1 { animation: consumerFlashC1 6s infinite; }
-  .consumer-c2 { animation: consumerFlashC2 6s infinite; }
-
-  .group-label { animation: groupLabel 6s infinite; }
-
-  .prod-line { animation: dashFlow 0.6s linear infinite; }
-&lt;/style&gt;
-
-&lt;!-- arrowhead markers --&gt;
-&lt;marker id="arrowAmber" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"&gt;
-  &lt;path d="M0,0 L0,6 L8,3 z" fill="#f59e0b"/&gt;
-&lt;/marker&gt;
-&lt;marker id="arrowGreen" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"&gt;
-  &lt;path d="M0,0 L0,6 L8,3 z" fill="#10b981"/&gt;
-&lt;/marker&gt;
-</code></pre>
-  
+      /* ── Producer pulse ── */
+      @keyframes producerPulse {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.7; }
+      }
+      /* ── Message block: P0 ── */
+      @keyframes msgP0 {
+        0%         { transform: translateX(-60px); opacity: 0; }
+        8%         { transform: translateX(0);     opacity: 1; }
+        45%        { transform: translateX(0);     opacity: 1; }
+        55%        { transform: translateX(0);     opacity: 0; }
+        100%       { transform: translateX(0);     opacity: 0; }
+      }
+      /* ── Message block: P1 ── */
+      @keyframes msgP1 {
+        0%,  18%   { transform: translateX(-60px); opacity: 0; }
+        26%        { transform: translateX(0);     opacity: 1; }
+        55%        { transform: translateX(0);     opacity: 1; }
+        65%        { transform: translateX(0);     opacity: 0; }
+        100%       { transform: translateX(0);     opacity: 0; }
+      }
+      /* ── Message block: P2 ── */
+      @keyframes msgP2 {
+        0%,  34%   { transform: translateX(-60px); opacity: 0; }
+        42%        { transform: translateX(0);     opacity: 1; }
+        70%        { transform: translateX(0);     opacity: 1; }
+        80%        { transform: translateX(0);     opacity: 0; }
+        100%       { transform: translateX(0);     opacity: 0; }
+      }
+      /* ── Offset counter flash ── */
+      @keyframes offsetP0 {
+        0%,  7%   { opacity: 0; }
+        8%,  54%  { opacity: 1; }
+        55%, 100% { opacity: 0; }
+      }
+      @keyframes offsetP1 {
+        0%,  25%  { opacity: 0; }
+        26%, 64%  { opacity: 1; }
+        65%, 100% { opacity: 0; }
+      }
+      @keyframes offsetP2 {
+        0%,  41%  { opacity: 0; }
+        42%, 79%  { opacity: 1; }
+        80%, 100% { opacity: 0; }
+      }
+      /* ── Consumer pull arrows ── */
+      @keyframes arrowP0 {
+        0%,  44%  { stroke-dashoffset: 80; opacity: 0; }
+        46%        { opacity: 1; }
+        55%        { stroke-dashoffset: 0; opacity: 1; }
+        62%        { opacity: 0; }
+        100%       { stroke-dashoffset: 80; opacity: 0; }
+      }
+      @keyframes arrowP1 {
+        0%,  62%  { stroke-dashoffset: 80; opacity: 0; }
+        64%        { opacity: 1; }
+        73%        { stroke-dashoffset: 0; opacity: 1; }
+        80%        { opacity: 0; }
+        100%       { stroke-dashoffset: 80; opacity: 0; }
+      }
+      @keyframes arrowP2 {
+        0%,  78%  { stroke-dashoffset: 80; opacity: 0; }
+        80%        { opacity: 1; }
+        90%        { stroke-dashoffset: 0; opacity: 1; }
+        97%        { opacity: 0; }
+        100%       { stroke-dashoffset: 80; opacity: 0; }
+      }
+      /* ── Consumer green flash ── */
+      @keyframes consumerFlashC0 {
+        0%,  54%  { fill: #10b981; }
+        55%,  62% { fill: #34d399; }
+        63%, 100% { fill: #10b981; }
+      }
+      @keyframes consumerFlashC1 {
+        0%,  72%  { fill: #10b981; }
+        73%,  80% { fill: #34d399; }
+        81%, 100% { fill: #10b981; }
+      }
+      @keyframes consumerFlashC2 {
+        0%,  89%  { fill: #10b981; }
+        90%,  97% { fill: #34d399; }
+        98%, 100% { fill: #10b981; }
+      }
+      /* ── Group label blink ── */
+      @keyframes groupLabel {
+        0%,  10%  { opacity: 0; }
+        15%,  85% { opacity: 1; }
+        90%, 100% { opacity: 0; }
+      }
+      /* ── Producer line dash flow ── */
+      @keyframes dashFlow {
+        0%   { stroke-dashoffset: 20; }
+        100% { stroke-dashoffset: 0; }
+      }
+      .producer-box   { animation: producerPulse 6s infinite; }
+      .msg-p0  { animation: msgP0 6s infinite; }
+      .msg-p1  { animation: msgP1 6s infinite; }
+      .msg-p2  { animation: msgP2 6s infinite; }
+      .off-p0  { animation: offsetP0 6s infinite; }
+      .off-p1  { animation: offsetP1 6s infinite; }
+      .off-p2  { animation: offsetP2 6s infinite; }
+      .arrow-p0 { animation: arrowP0 6s infinite; }
+      .arrow-p1 { animation: arrowP1 6s infinite; }
+      .arrow-p2 { animation: arrowP2 6s infinite; }
+      .consumer-c0 { animation: consumerFlashC0 6s infinite; }
+      .consumer-c1 { animation: consumerFlashC1 6s infinite; }
+      .consumer-c2 { animation: consumerFlashC2 6s infinite; }
+      .group-label { animation: groupLabel 6s infinite; }
+      .prod-line { animation: dashFlow 0.6s linear infinite; }
+    </style>
+    <!-- arrowhead markers -->
+    <marker id="arrowAmber" markerwidth="8" markerheight="8" refx="6" refy="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#f59e0b" />
+    </marker>
+    <marker id="arrowGreen" markerwidth="8" markerheight="8" refx="6" refy="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#10b981" />
+    </marker>
+  </defs>
   <!-- ══════════════════════════════════════════════════
        BACKGROUND
   ══════════════════════════════════════════════════ -->
@@ -420,7 +405,7 @@ SDE2/Senior: skim “The Idea”, focus on “How It Works” and “Interview L
   <!-- ══════════════════════════════════════════════════
        TITLE
   ══════════════════════════════════════════════════ -->
-<p><text x="380" y="26" text-anchor="middle" font-size="14" font-weight="bold" fill="#64748b">Kafka Producer-Consumer Flow</text></p>
+  <text x="380" y="26" text-anchor="middle" font-size="14" font-weight="bold" fill="#64748b">Kafka Producer-Consumer Flow</text>
   <!-- ══════════════════════════════════════════════════
        PRODUCER  (left, x=30..130, vertically centered)
   ══════════════════════════════════════════════════ -->
@@ -434,7 +419,7 @@ SDE2/Senior: skim “The Idea”, focus on “How It Works” and “Interview L
   <!-- ══════════════════════════════════════════════════
        PRODUCER → TOPIC connector line
   ══════════════════════════════════════════════════ -->
-<p><line x1="130" y1="170" x2="218" y2="170" stroke="#f59e0b" stroke-width="2" stroke-dasharray="6 3" marker-end="url(#arrowAmber)" class="prod-line" /></p>
+  <line x1="130" y1="170" x2="218" y2="170" stroke="#f59e0b" stroke-width="2" stroke-dasharray="6 3" marker-end="url(#arrowAmber)" class="prod-line" />
   <!-- ══════════════════════════════════════════════════
        TOPIC BOX  (center, x=220..530)
   ══════════════════════════════════════════════════ -->
@@ -494,11 +479,11 @@ SDE2/Senior: skim “The Idea”, focus on “How It Works” and “Interview L
        Partition right edge x=524, Consumer left edge x=548
   ══════════════════════════════════════════════════ -->
   <!-- Arrow P0 → C0 -->
-<p><line x1="524" y1="105" x2="548" y2="105" stroke="#10b981" stroke-width="2.5" stroke-dasharray="10 4" stroke-dashoffset="80" marker-end="url(#arrowGreen)" class="arrow-p0" /></p>
+  <line x1="524" y1="105" x2="548" y2="105" stroke="#10b981" stroke-width="2.5" stroke-dasharray="10 4" stroke-dashoffset="80" marker-end="url(#arrowGreen)" class="arrow-p0" />
   <!-- Arrow P1 → C1 -->
-<p><line x1="524" y1="166" x2="548" y2="166" stroke="#10b981" stroke-width="2.5" stroke-dasharray="10 4" stroke-dashoffset="80" marker-end="url(#arrowGreen)" class="arrow-p1" /></p>
+  <line x1="524" y1="166" x2="548" y2="166" stroke="#10b981" stroke-width="2.5" stroke-dasharray="10 4" stroke-dashoffset="80" marker-end="url(#arrowGreen)" class="arrow-p1" />
   <!-- Arrow P2 → C2 -->
-<p><line x1="524" y1="227" x2="548" y2="227" stroke="#10b981" stroke-width="2.5" stroke-dasharray="10 4" stroke-dashoffset="80" marker-end="url(#arrowGreen)" class="arrow-p2" /></p>
+  <line x1="524" y1="227" x2="548" y2="227" stroke="#10b981" stroke-width="2.5" stroke-dasharray="10 4" stroke-dashoffset="80" marker-end="url(#arrowGreen)" class="arrow-p2" />
   <!-- ══════════════════════════════════════════════════
        CONSUMER GROUP BOX  (right, x=546..730)
   ══════════════════════════════════════════════════ -->
@@ -536,7 +521,7 @@ SDE2/Senior: skim “The Idea”, focus on “How It Works” and “Interview L
   <!-- Offset text -->
   <text x="470" y="322" font-size="9" fill="#92400e">offset: N</text>
   <text x="510" y="322" font-size="9" fill="#64748b">= committed read position</text>
-
+</svg>
 <hr>
 <h4 id="the-idea"><a class="header" href="#the-idea">The Idea</a></h4>
 <p>Imagine a city’s postal sorting office that never throws away any letter — it just stacks them in numbered slots. Every letter that arrives gets a unique slot number, and that number never changes. If you want to re-read letter number 42, it’s still there. Multiple delivery teams can each keep their own bookmark (saying “I’ve read up to slot 42”) and work independently without interfering with each other.</p>
@@ -2564,7 +2549,7 @@ public ProducerFactory&lt;String, String&gt; highThroughputProducerFactory() {
 <hr>
 <p><strong>Quick Revision (one line):</strong>
 Maximize producer throughput with larger batches (<code>batch.size</code>), <code>linger.ms</code>, and <code>lz4</code> compression; consumer throughput with concurrency and larger fetch sizes; broker efficiency by keeping JVM heap at 4–8 GB to maximize OS page cache for zero-copy reads.</p>
-</style></defs></svg>
+
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
