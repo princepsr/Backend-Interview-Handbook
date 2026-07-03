@@ -1,4 +1,4 @@
-# Volume 5: System Design & LLD
+﻿# Volume 5: System Design & LLD
 
 **4 chapters · ~80+ Q&As · RADIO Framework · GoF Patterns · LLD Case Studies**
 
@@ -17,51 +17,8 @@ The design round is the primary differentiator at SDE2. Most candidates can code
 
 ---
 
-## Study Plan for This Volume
-
-### 4-Week Plan (Days 22–28 of Week 4)
-
-| Day | Chapter | Focus |
-|-----|---------|-------|
-| Day 22 | Ch19 | Singleton (thread-safe variants), Factory vs Abstract Factory, Builder, Proxy, Strategy, Observer |
-| Day 23 | Ch20 | Work through BAD → GOOD code transformations; apply SOLID critique to your own code |
-| Day 24 | Ch21 | Parking Lot + URL Shortener — design both from scratch without notes |
-| Day 25 | Ch21 | Rate Limiter + BookMyShow — focus on concurrency and thread safety |
-| Day 26 | Ch22 | RADIO framework, back-of-envelope math, news feed design |
-| Day 27 | Ch21 + Ch22 | Splitwise + Elevator + 2 HLD designs from scratch — time-boxed 45 min each |
-| Day 28 | Full mock | Ch27 (100 Q&As) + interview checklist |
-
-> After finishing this volume, validate with **Chapter 27** (System Design & LLD Revision) in the Revision Pack.
-
-### Crash Plan (1 week total — Days 5–6 of 7)
-
-Day 5: Ch19 + Ch20 + 2 LLD designs from Ch21 (Parking Lot + URL Shortener).  
-Day 6: Ch22 — 2 HLD designs from scratch using the RADIO framework.
-
----
-
-## Company Focus
-
-### Amazon
-- **Ch22** — System design is the primary L5 differentiator. Include monitoring/alerting in every design.
-- Expect: capacity estimation first → then architecture. "How many writes per second? What's your SLA?"
-- Bar raiser: ambiguous requirements — push back and clarify rather than assume
-- LPs in design: Ownership (justify trade-offs), Dive Deep (internals), Invent and Simplify
-
-### Google
-- **Ch22** — Start every design with constraints and capacity math. Push to 1B users.
-- **Ch20** — Code quality is evaluated in LLD rounds: clean naming, single responsibility, open/closed
-- "What would break first?" — prepare failure mode analysis for every component
-
-### Atlassian / Salesforce
-- **Ch19 + Ch20 + Ch21** — LLD is a primary round. Model features from their own products.
-- Atlassian: Jira board state machine, Confluence page hierarchy (tree structure with permissions)
-- Salesforce: multi-tenant data model, extensible object/field metadata system
-- Expect: "Design the class hierarchy before writing any code"
-
-### Goldman Sachs / FinTech
-- **Ch19** — Command pattern for order execution, Observer for market data feeds
-- **Ch21** — Rate limiter with correctness under concurrent updates; focus on thread safety proofs
+- [Volume 5 Study Plan](STUDY_GUIDE.md) — 1-week plan, 3-day crash plan, top 10 questions, and daily practice tips.
+- [Volume 5 Company Guide](COMPANY_GUIDE.md) — which companies go deep on System Design/LLD and what they specifically test.
 
 ---
 

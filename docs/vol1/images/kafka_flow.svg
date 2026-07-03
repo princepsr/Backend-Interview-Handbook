@@ -1,0 +1,291 @@
+﻿<svg viewBox="0 0 760 340" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <style>
+      /* ── Fonts &amp; base ── */
+      text { font-family: 'Courier New', monospace; fill: #e2e8f0; }
+
+      /* ── Producer pulse ── */
+      @keyframes producerPulse {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.7; }
+      }
+
+      /* ── Message block: P0 ── */
+      @keyframes msgP0 {
+        0%         { transform: translateX(-60px); opacity: 0; }
+        8%         { transform: translateX(0);     opacity: 1; }
+        45%        { transform: translateX(0);     opacity: 1; }
+        55%        { transform: translateX(0);     opacity: 0; }
+        100%       { transform: translateX(0);     opacity: 0; }
+      }
+      /* ── Message block: P1 ── */
+      @keyframes msgP1 {
+        0%,  18%   { transform: translateX(-60px); opacity: 0; }
+        26%        { transform: translateX(0);     opacity: 1; }
+        55%        { transform: translateX(0);     opacity: 1; }
+        65%        { transform: translateX(0);     opacity: 0; }
+        100%       { transform: translateX(0);     opacity: 0; }
+      }
+      /* ── Message block: P2 ── */
+      @keyframes msgP2 {
+        0%,  34%   { transform: translateX(-60px); opacity: 0; }
+        42%        { transform: translateX(0);     opacity: 1; }
+        70%        { transform: translateX(0);     opacity: 1; }
+        80%        { transform: translateX(0);     opacity: 0; }
+        100%       { transform: translateX(0);     opacity: 0; }
+      }
+
+      /* ── Offset counter flash ── */
+      @keyframes offsetP0 {
+        0%,  7%   { opacity: 0; }
+        8%,  54%  { opacity: 1; }
+        55%, 100% { opacity: 0; }
+      }
+      @keyframes offsetP1 {
+        0%,  25%  { opacity: 0; }
+        26%, 64%  { opacity: 1; }
+        65%, 100% { opacity: 0; }
+      }
+      @keyframes offsetP2 {
+        0%,  41%  { opacity: 0; }
+        42%, 79%  { opacity: 1; }
+        80%, 100% { opacity: 0; }
+      }
+
+      /* ── Consumer pull arrows ── */
+      @keyframes arrowP0 {
+        0%,  44%  { stroke-dashoffset: 80; opacity: 0; }
+        46%        { opacity: 1; }
+        55%        { stroke-dashoffset: 0; opacity: 1; }
+        62%        { opacity: 0; }
+        100%       { stroke-dashoffset: 80; opacity: 0; }
+      }
+      @keyframes arrowP1 {
+        0%,  62%  { stroke-dashoffset: 80; opacity: 0; }
+        64%        { opacity: 1; }
+        73%        { stroke-dashoffset: 0; opacity: 1; }
+        80%        { opacity: 0; }
+        100%       { stroke-dashoffset: 80; opacity: 0; }
+      }
+      @keyframes arrowP2 {
+        0%,  78%  { stroke-dashoffset: 80; opacity: 0; }
+        80%        { opacity: 1; }
+        90%        { stroke-dashoffset: 0; opacity: 1; }
+        97%        { opacity: 0; }
+        100%       { stroke-dashoffset: 80; opacity: 0; }
+      }
+
+      /* ── Consumer green flash ── */
+      @keyframes consumerFlashC0 {
+        0%,  54%  { fill: #10b981; }
+        55%,  62% { fill: #34d399; }
+        63%, 100% { fill: #10b981; }
+      }
+      @keyframes consumerFlashC1 {
+        0%,  72%  { fill: #10b981; }
+        73%,  80% { fill: #34d399; }
+        81%, 100% { fill: #10b981; }
+      }
+      @keyframes consumerFlashC2 {
+        0%,  89%  { fill: #10b981; }
+        90%,  97% { fill: #34d399; }
+        98%, 100% { fill: #10b981; }
+      }
+
+      /* ── Group label blink ── */
+      @keyframes groupLabel {
+        0%,  10%  { opacity: 0; }
+        15%,  85% { opacity: 1; }
+        90%, 100% { opacity: 0; }
+      }
+
+      /* ── Producer line dash flow ── */
+      @keyframes dashFlow {
+        0%   { stroke-dashoffset: 20; }
+        100% { stroke-dashoffset: 0; }
+      }
+
+      .producer-box   { animation: producerPulse 6s infinite; }
+
+      .msg-p0  { animation: msgP0 6s infinite; }
+      .msg-p1  { animation: msgP1 6s infinite; }
+      .msg-p2  { animation: msgP2 6s infinite; }
+
+      .off-p0  { animation: offsetP0 6s infinite; }
+      .off-p1  { animation: offsetP1 6s infinite; }
+      .off-p2  { animation: offsetP2 6s infinite; }
+
+      .arrow-p0 { animation: arrowP0 6s infinite; }
+      .arrow-p1 { animation: arrowP1 6s infinite; }
+      .arrow-p2 { animation: arrowP2 6s infinite; }
+
+      .consumer-c0 { animation: consumerFlashC0 6s infinite; }
+      .consumer-c1 { animation: consumerFlashC1 6s infinite; }
+      .consumer-c2 { animation: consumerFlashC2 6s infinite; }
+
+      .group-label { animation: groupLabel 6s infinite; }
+
+      .prod-line { animation: dashFlow 0.6s linear infinite; }
+    </style>
+
+    <!-- arrowhead markers -->
+    <marker id="arrowAmber" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#10b981"/>
+    </marker>
+  </defs>
+
+  <!-- ══════════════════════════════════════════════════
+       BACKGROUND
+  ══════════════════════════════════════════════════ -->
+  <rect width="760" height="340" fill="#f8fafc" rx="10"/>
+
+  <!-- ══════════════════════════════════════════════════
+       TITLE
+  ══════════════════════════════════════════════════ -->
+  <text x="380" y="26" text-anchor="middle" font-size="14" font-weight="bold" fill="#64748b">Kafka Producer-Consumer Flow</text>
+
+  <!-- ══════════════════════════════════════════════════
+       PRODUCER  (left, x=30..130, vertically centered)
+  ══════════════════════════════════════════════════ -->
+  <g class="producer-box">
+    <rect x="30" y="120" width="100" height="100" rx="8" fill="#3b82f6" stroke="#60a5fa" stroke-width="1.5"/>
+    <text x="80" y="163" text-anchor="middle" font-size="12" font-weight="bold">Producer</text>
+    <text x="80" y="180" text-anchor="middle" font-size="9" fill="#1d4ed8">orders-svc</text>
+    <!-- animated dashes representing activity -->
+    <line x1="48" y1="200" x2="112" y2="200" stroke="#bfdbfe" stroke-width="1" stroke-dasharray="4 3" opacity="0.5" class="prod-line"/>
+  </g>
+
+  <!-- ══════════════════════════════════════════════════
+       PRODUCER → TOPIC connector line
+  ══════════════════════════════════════════════════ -->
+  <line x1="130" y1="170" x2="218" y2="170"
+        stroke="#f59e0b" stroke-width="2" stroke-dasharray="6 3"
+        marker-end="url(#arrowAmber)" class="prod-line"/>
+
+  <!-- ══════════════════════════════════════════════════
+       TOPIC BOX  (center, x=220..530)
+  ══════════════════════════════════════════════════ -->
+  <!-- outer topic container -->
+  <rect x="218" y="50" width="316" height="240" rx="10" fill="#f1f5f9" stroke="#475569" stroke-width="1.5"/>
+  <text x="376" y="74" text-anchor="middle" font-size="12" font-weight="bold" fill="#64748b">Topic: orders</text>
+
+  <!-- ── Partition 0 (y=85..135) ── -->
+  <rect x="230" y="82" width="294" height="46" rx="5" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="246" y="110" font-size="10" fill="#334155">Partition 0</text>
+  <!-- slot for message block -->
+  <clipPath id="clipP0"><rect x="300" y="84" width="210" height="42" rx="3"/></clipPath>
+  <g clip-path="url(#clipP0)">
+    <g class="msg-p0">
+      <rect x="382" y="88" width="60" height="32" rx="3" fill="#f59e0b"/>
+      <text x="412" y="107" text-anchor="middle" font-size="9" fill="#fffbeb" font-weight="bold">msg-42</text>
+    </g>
+    <!-- second message -->
+    <rect x="306" y="88" width="56" height="32" rx="3" fill="#f59e0b" opacity="0.4"/>
+    <text x="334" y="107" text-anchor="middle" font-size="9" fill="#fffbeb">msg-41</text>
+  </g>
+  <!-- offset label -->
+  <g class="off-p0">
+    <text x="454" y="110" font-size="9" fill="#92400e">offset: 43</text>
+  </g>
+
+  <!-- ── Partition 1 (y=145..195) ── -->
+  <rect x="230" y="143" width="294" height="46" rx="5" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="246" y="171" font-size="10" fill="#334155">Partition 1</text>
+  <clipPath id="clipP1"><rect x="300" y="145" width="210" height="42" rx="3"/></clipPath>
+  <g clip-path="url(#clipP1)">
+    <g class="msg-p1">
+      <rect x="382" y="149" width="60" height="32" rx="3" fill="#f59e0b"/>
+      <text x="412" y="168" text-anchor="middle" font-size="9" fill="#fffbeb" font-weight="bold">msg-17</text>
+    </g>
+    <rect x="306" y="149" width="56" height="32" rx="3" fill="#f59e0b" opacity="0.4"/>
+    <text x="334" y="168" text-anchor="middle" font-size="9" fill="#fffbeb">msg-16</text>
+  </g>
+  <g class="off-p1">
+    <text x="454" y="171" font-size="9" fill="#92400e">offset: 18</text>
+  </g>
+
+  <!-- ── Partition 2 (y=205..255) ── -->
+  <rect x="230" y="204" width="294" height="46" rx="5" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="246" y="232" font-size="10" fill="#334155">Partition 2</text>
+  <clipPath id="clipP2"><rect x="300" y="206" width="210" height="42" rx="3"/></clipPath>
+  <g clip-path="url(#clipP2)">
+    <g class="msg-p2">
+      <rect x="382" y="210" width="60" height="32" rx="3" fill="#f59e0b"/>
+      <text x="412" y="229" text-anchor="middle" font-size="9" fill="#fffbeb" font-weight="bold">msg-09</text>
+    </g>
+    <rect x="306" y="210" width="56" height="32" rx="3" fill="#f59e0b" opacity="0.4"/>
+    <text x="334" y="229" text-anchor="middle" font-size="9" fill="#fffbeb">msg-08</text>
+  </g>
+  <g class="off-p2">
+    <text x="454" y="232" font-size="9" fill="#92400e">offset: 10</text>
+  </g>
+
+  <!-- ══════════════════════════════════════════════════
+       PULL ARROWS  (partition right edge → consumer left edge)
+       Partition right edge x=524, Consumer left edge x=548
+  ══════════════════════════════════════════════════ -->
+  <!-- Arrow P0 → C0 -->
+  <line x1="524" y1="105" x2="548" y2="105"
+        stroke="#10b981" stroke-width="2.5"
+        stroke-dasharray="10 4" stroke-dashoffset="80"
+        marker-end="url(#arrowGreen)"
+        class="arrow-p0"/>
+  <!-- Arrow P1 → C1 -->
+  <line x1="524" y1="166" x2="548" y2="166"
+        stroke="#10b981" stroke-width="2.5"
+        stroke-dasharray="10 4" stroke-dashoffset="80"
+        marker-end="url(#arrowGreen)"
+        class="arrow-p1"/>
+  <!-- Arrow P2 → C2 -->
+  <line x1="524" y1="227" x2="548" y2="227"
+        stroke="#10b981" stroke-width="2.5"
+        stroke-dasharray="10 4" stroke-dashoffset="80"
+        marker-end="url(#arrowGreen)"
+        class="arrow-p2"/>
+
+  <!-- ══════════════════════════════════════════════════
+       CONSUMER GROUP BOX  (right, x=546..730)
+  ══════════════════════════════════════════════════ -->
+  <rect x="546" y="50" width="190" height="240" rx="10" fill="#f1f5f9" stroke="#059669" stroke-width="1.5"/>
+
+  <!-- Consumer Group label (flashing) -->
+  <g class="group-label">
+    <rect x="556" y="56" width="170" height="22" rx="4" fill="#d1fae5"/>
+    <text x="641" y="71" text-anchor="middle" font-size="9" fill="#065f46">Consumer Group: my-group</text>
+  </g>
+
+  <!-- ── Consumer 0 ── -->
+  <rect x="562" y="84" width="158" height="46" rx="6" class="consumer-c0" fill="#10b981"/>
+  <text x="641" y="108" text-anchor="middle" font-size="10" font-weight="bold" fill="#022c22">Consumer-0</text>
+  <text x="641" y="122" text-anchor="middle" font-size="8" fill="#d1fae5">← P0 assigned</text>
+
+  <!-- ── Consumer 1 ── -->
+  <rect x="562" y="143" width="158" height="46" rx="6" class="consumer-c1" fill="#10b981"/>
+  <text x="641" y="167" text-anchor="middle" font-size="10" font-weight="bold" fill="#022c22">Consumer-1</text>
+  <text x="641" y="181" text-anchor="middle" font-size="8" fill="#d1fae5">← P1 assigned</text>
+
+  <!-- ── Consumer 2 ── -->
+  <rect x="562" y="204" width="158" height="46" rx="6" class="consumer-c2" fill="#10b981"/>
+  <text x="641" y="228" text-anchor="middle" font-size="10" font-weight="bold" fill="#022c22">Consumer-2</text>
+  <text x="641" y="242" text-anchor="middle" font-size="8" fill="#d1fae5">← P2 assigned</text>
+
+  <!-- ══════════════════════════════════════════════════
+       LEGEND  (bottom)
+  ══════════════════════════════════════════════════ -->
+  <rect x="30" y="305" width="700" height="26" rx="5" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>
+  <!-- Message block legend -->
+  <rect x="44" y="313" width="14" height="10" rx="2" fill="#f59e0b"/>
+  <text x="62" y="322" font-size="9" fill="#64748b">Message (amber)</text>
+  <!-- Consumer legend -->
+  <rect x="190" y="313" width="14" height="10" rx="2" fill="#10b981"/>
+  <text x="208" y="322" font-size="9" fill="#64748b">Consumer (green)</text>
+  <!-- Producer legend -->
+  <rect x="340" y="313" width="14" height="10" rx="2" fill="#3b82f6"/>
+  <text x="358" y="322" font-size="9" fill="#64748b">Producer (blue)</text>
+  <!-- Offset text -->
+  <text x="470" y="322" font-size="9" fill="#92400e">offset: N</text>
+  <text x="510" y="322" font-size="9" fill="#64748b">= committed read position</text>
+</svg>

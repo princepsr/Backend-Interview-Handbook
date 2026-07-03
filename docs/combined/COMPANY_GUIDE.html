@@ -1,0 +1,1605 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Company-Specific Guide - Java Backend Interview Handbook</title>
+
+
+        <!-- Custom HTML head -->
+        <script>
+        (function() {
+            var RULES = [
+                { re: /^interview trap/i,     cls: "callout-trap" },
+                { re: /^common mistake/i,     cls: "callout-mistake" },
+                { re: /^quick tip|^pro tip/i, cls: "callout-tip" },
+                { re: /^quick revision/i,     cls: "callout-revision" },
+                { re: /^real.world example/i, cls: "callout-example" },
+                { re: /^follow.up question/i, cls: "callout-tip" },
+            ];
+        
+            function run() {
+                document.querySelectorAll(".content p").forEach(function(p) {
+                    var first = p.querySelector("strong");
+                    if (!first) return;
+                    var txt = first.textContent.trim();
+                    for (var i = 0; i < RULES.length; i++) {
+                        if (RULES[i].re.test(txt)) {
+                            p.classList.add(RULES[i].cls);
+                            var next = p.nextElementSibling;
+                            if (next && (next.tagName === "UL" || next.tagName === "OL")) {
+                                next.classList.add(RULES[i].cls);
+                                next.style.marginTop = "0";
+                                p.style.marginBottom = "0";
+                            }
+                            break;
+                        }
+                    }
+                });
+            }
+        
+            window.applyEnhancements = run;
+        
+            function tryRun() { setTimeout(run, 200); }
+        
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", tryRun);
+            } else {
+                tryRun();
+            }
+        
+            window.addEventListener("hashchange", tryRun);
+            window.addEventListener("popstate", tryRun);
+        
+            // Watch for mdBook replacing the content div
+            var observer = new MutationObserver(function(muts) {
+                for (var i = 0; i < muts.length; i++) {
+                    if (muts[i].addedNodes.length > 0) {
+                        tryRun();
+                        return;
+                    }
+                }
+            });
+        
+            function attachObserver() {
+                var el = document.querySelector(".content");
+                if (el) { observer.observe(el, { childList: true }); }
+            }
+        
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", attachObserver);
+            } else {
+                attachObserver();
+            }
+        })();
+        </script>
+
+        <meta name="description" content="Complete SDE2 interview preparation guide for Java Backend — FAANG+, FinTech &amp; SaaS. Java 17 / Spring Boot 3.x. 27 chapters, 400+ questions.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-0392ca55.css">
+        <link rel="stylesheet" href="css/chrome-fc474251.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="custom-aab4aca2.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-586974fd.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-e254c042.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Java Backend Interview Handbook</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="company-specific-interview-guide"><a class="header" href="#company-specific-interview-guide">Company-Specific Interview Guide</a></h1>
+<h2 id="backend-interview-handbook--java--spring--kafka--redis--sql--system-design"><a class="header" href="#backend-interview-handbook--java--spring--kafka--redis--sql--system-design">Backend Interview Handbook — Java / Spring / Kafka / Redis / SQL / System Design</a></h2>
+<blockquote>
+<p><strong>How to use this guide:</strong> Each section is written as if a senior engineer who has been through these loops is briefing you the night before. The chapter references point to specific chapters in this handbook. Do not treat this as a generic topic list — treat it as a targeting system.</p>
+</blockquote>
+<hr>
+<h2 id="table-of-contents"><a class="header" href="#table-of-contents">Table of Contents</a></h2>
+<ol>
+<li><a href="#amazon--aws">Amazon / AWS</a></li>
+<li><a href="#google--deepmind">Google / DeepMind</a></li>
+<li><a href="#meta--facebook">Meta / Facebook</a></li>
+<li><a href="#microsoft">Microsoft</a></li>
+<li><a href="#netflix">Netflix</a></li>
+<li><a href="#uber--lyft">Uber / Lyft</a></li>
+<li><a href="#stripe">Stripe</a></li>
+<li><a href="#atlassian">Atlassian</a></li>
+<li><a href="#salesforce">Salesforce</a></li>
+<li><a href="#goldman-sachs--fintech-jane-street-citadel">Goldman Sachs / FinTech</a></li>
+<li><a href="#thoughtworks">Thoughtworks</a></li>
+<li><a href="#flipkart--indian-product-companies-swiggy-zepto-cred-razorpay">Flipkart / Indian Product Companies</a></li>
+<li><a href="#quick-comparison-matrix">Quick Comparison Matrix</a></li>
+<li><a href="#universal-must-know-list-every-company">Universal Must-Know List</a></li>
+<li><a href="#the-10-questions-you-must-be-able-to-answer-cold">The 10 Questions You MUST Answer Cold</a></li>
+<li><a href="#mock-interview-simulation-guide">Mock Interview Simulation Guide</a></li>
+</ol>
+<hr>
+<h2 id="amazon--aws"><a class="header" href="#amazon--aws">Amazon / AWS</a></h2>
+<h3 id="what-theyre-actually-hiring-for"><a class="header" href="#what-theyre-actually-hiring-for">What They’re Actually Hiring For</a></h3>
+<p>Amazon wants engineers who think in terms of ownership and scale — someone who will not just build a feature but own it end-to-end, including the 3 AM on-call. The bar is high on distributed systems because at Amazon, nearly everything is a distributed system.</p>
+<h3 id="interview-format"><a class="header" href="#interview-format">Interview Format</a></h3>
+<ul>
+<li><strong>5-6 rounds</strong> virtual onsite (sometimes a phone screen before)</li>
+<li>Typical duration: 4-5 hours total, spread across one day</li>
+<li>You talk to: 2 SDE-IIs, 1 SDE-III, 1 Bar Raiser (a specially trained interviewer who is not on the hiring team), sometimes an Engineering Manager</li>
+<li>A Bar Raiser round exists specifically to maintain the hiring bar — they are the most unpredictable interviewer in the loop</li>
+</ul>
+<h3 id="round-by-round-breakdown"><a class="header" href="#round-by-round-breakdown">Round-by-Round Breakdown</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Round</th><th>Type</th><th>Duration</th><th>What They Assess</th></tr>
+</thead>
+<tbody>
+<tr><td>Phone Screen</td><td>Coding + LP</td><td>45 min</td><td>One DSA problem + 2 LP questions</td></tr>
+<tr><td>Coding 1</td><td>DSA</td><td>45 min</td><td>Arrays/graphs/DP — must code cleanly</td></tr>
+<tr><td>Coding 2</td><td>DSA</td><td>45 min</td><td>Usually harder — trees, recursion, optimization</td></tr>
+<tr><td>System Design</td><td>HLD</td><td>60 min</td><td>Scalable distributed system, AWS services expected</td></tr>
+<tr><td>Bar Raiser</td><td>Mixed (coding or SD + heavy LP)</td><td>60 min</td><td>Unpredictable format, very heavy LP focus</td></tr>
+<tr><td>Hiring Manager</td><td>Behavioral</td><td>30-45 min</td><td>Team fit, past experience, leadership principles</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="high-frequency-topics-with-chapter-refs"><a class="header" href="#high-frequency-topics-with-chapter-refs">High-Frequency Topics (with chapter refs)</a></h3>
+<p><strong>Must Know</strong></p>
+<ul>
+<li>Distributed system design with availability vs consistency tradeoffs → Ch17, Ch22</li>
+<li>Kafka for event-driven pipelines (Amazon uses Kinesis, but Kafka concepts apply) → Ch11</li>
+<li>Java concurrency — thread safety, locks, ExecutorService → Ch6</li>
+<li>SQL query optimization and indexes for high-traffic tables → Ch14, Ch15</li>
+<li>Spring Boot microservices with REST, resilience patterns → Ch9, Ch10</li>
+</ul>
+<p><strong>Frequently Asked</strong></p>
+<ul>
+<li>JVM tuning — GC, heap, memory leaks → Ch5</li>
+<li>Redis for caching and session management → Ch12</li>
+<li>ACID vs BASE, eventual consistency → Ch16, Ch17</li>
+<li>Design patterns: Circuit Breaker, Saga, Outbox → Ch19</li>
+</ul>
+<p><strong>Nice to Have</strong></p>
+<ul>
+<li>AWS-specific services (DynamoDB, SQS, SNS, RDS) — map to your distributed DB knowledge → Ch17, Ch18</li>
+<li>Clean architecture and hexagonal arch → Ch20</li>
+</ul>
+<h3 id="what-sets-amazon-apart"><a class="header" href="#what-sets-amazon-apart">What Sets Amazon Apart</a></h3>
+<ul>
+<li><strong>The Leadership Principles are not a formality</strong> — every interviewer is scoring your LP answers against actual principles (Ownership, Bias for Action, Customer Obsession). Prepare 3 real stories per LP.</li>
+<li><strong>The Bar Raiser can veto an otherwise unanimous hire</strong> — they are looking for the “raise the bar” signal, not just a pass.</li>
+<li><strong>Amazon expects you to push back</strong> — if you disagree with their design choice during SD, say so with data. Silence reads as having no opinion.</li>
+<li><strong>They care about operational thinking</strong> — “how would you monitor this?” and “what happens when this service goes down?” are standard follow-ups in SD.</li>
+<li><strong>Coding must be production-quality</strong> — edge cases, error handling, and mentioning test strategy matter.</li>
+</ul>
+<h3 id="sample-questions-they-actually-ask"><a class="header" href="#sample-questions-they-actually-ask">Sample Questions They Actually Ask</a></h3>
+<ol>
+<li>Design Amazon’s order fulfillment system — handle 10M orders/day, eventual consistency across warehouse services.</li>
+<li>You own a service that is timing out under load. Walk me through your debugging approach from symptom to fix.</li>
+<li>Implement a distributed rate limiter that works across multiple instances (no single point of failure).</li>
+<li>Tell me about a time you disagreed with your manager and how you handled it. (LP: Have Backbone)</li>
+<li>Design a notification system that sends push, email, and SMS — at-least-once delivery guaranteed.</li>
+<li>Given a Java app with a memory leak in production, how do you diagnose it? (Ch5)</li>
+<li>You need to process 1 million events/second from IoT devices with ordering guarantees per device — design it.</li>
+</ol>
+<h3 id="red-flags-that-kill-candidates"><a class="header" href="#red-flags-that-kill-candidates">Red Flags That Kill Candidates</a></h3>
+<ul>
+<li>Jumping to a solution without clarifying requirements in SD — Amazon is very explicit about requirements gathering.</li>
+<li>Giving vague LP answers (“we worked as a team”) — they want YOUR specific action and the measurable result.</li>
+<li>Not knowing what the Bar Raiser round is and treating it like a normal LP interview.</li>
+<li>Ignoring operational concerns — every SD answer needs monitoring, alerting, and failure modes.</li>
+<li>Writing code that has no error handling or ignores edge cases — Amazon’s codebase runs at massive scale.</li>
+</ul>
+<h3 id="preparation-checklist"><a class="header" href="#preparation-checklist">Preparation Checklist</a></h3>
+<ul>
+<li><input disabled="" type="checkbox"> Prepare 15 LP stories (one per principle), using STAR format with measurable outcomes (Ch22 mindset applied to behavior)</li>
+<li><input disabled="" type="checkbox"> Practice designing 5 distributed systems from scratch including failure modes (Ch22, Ch17)</li>
+<li><input disabled="" type="checkbox"> Be able to explain Kafka consumer groups, offsets, and at-least-once vs exactly-once (Ch11)</li>
+<li><input disabled="" type="checkbox"> Know Java’s <code>CompletableFuture</code>, <code>ExecutorService</code>, and deadlock prevention cold (Ch6)</li>
+<li><input disabled="" type="checkbox"> Practice reading and optimizing SQL EXPLAIN plans (Ch15)</li>
+<li><input disabled="" type="checkbox"> Know Redis eviction policies and when to use Redis vs a DB (Ch12)</li>
+<li><input disabled="" type="checkbox"> Code 10 medium/hard LeetCode problems under 30 minutes each — Amazon coding bar is real</li>
+<li><input disabled="" type="checkbox"> Understand Circuit Breaker and Saga pattern with a concrete implementation example (Ch19)</li>
+<li><input disabled="" type="checkbox"> Review AWS service equivalents for Kafka (Kinesis), Redis (ElastiCache), SQL (RDS/Aurora)</li>
+<li><input disabled="" type="checkbox"> Practice the “operational follow-up” — for every SD, add monitoring, alerting, and rollback plan</li>
+</ul>
+<h3 id="recommended-study-plan"><a class="header" href="#recommended-study-plan">Recommended Study Plan</a></h3>
+<p>Use <strong>Plan B (4-week)</strong> with extra focus on <strong>Ch11 (Kafka), Ch17 (Distributed DBs), Ch22 (HLD)</strong>, and spend 1 full week on Leadership Principles storytelling separately from technical prep.</p>
+<hr>
+<h2 id="google--deepmind"><a class="header" href="#google--deepmind">Google / DeepMind</a></h2>
+<h3 id="what-theyre-actually-hiring-for-1"><a class="header" href="#what-theyre-actually-hiring-for-1">What They’re Actually Hiring For</a></h3>
+<p>Google hires for intellectual horsepower and the ability to think through ambiguous problems from first principles. They want engineers who love computer science for its own sake, not just engineers who can ship features. The bar on algorithms is the highest in the industry.</p>
+<h3 id="interview-format-1"><a class="header" href="#interview-format-1">Interview Format</a></h3>
+<ul>
+<li><strong>5-6 rounds</strong> virtual onsite after a phone screen</li>
+<li>Typical duration: 4.5 hours, all in one day</li>
+<li>You talk to: 2-3 SWEs for coding, 1-2 for system design, 1 Googleyness round</li>
+<li>No dedicated Bar Raiser role, but a hiring committee reviews all feedback independently</li>
+</ul>
+<h3 id="round-by-round-breakdown-1"><a class="header" href="#round-by-round-breakdown-1">Round-by-Round Breakdown</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Round</th><th>Type</th><th>Duration</th><th>What They Assess</th></tr>
+</thead>
+<tbody>
+<tr><td>Phone Screen</td><td>Coding</td><td>45 min</td><td>One DSA problem — must fully solve, no partial credit</td></tr>
+<tr><td>Coding 1</td><td>DSA</td><td>45 min</td><td>Medium/Hard — clean code, time/space complexity stated</td></tr>
+<tr><td>Coding 2</td><td>DSA</td><td>45 min</td><td>Often involves graphs, DP, or strings</td></tr>
+<tr><td>System Design 1</td><td>HLD</td><td>45 min</td><td>Large-scale distributed system</td></tr>
+<tr><td>System Design 2</td><td>HLD or LLD</td><td>45 min</td><td>May be more product-oriented or OOP design</td></tr>
+<tr><td>Googleyness</td><td>Behavioral + culture</td><td>30-45 min</td><td>“How do you work with people?”</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="high-frequency-topics-with-chapter-refs-1"><a class="header" href="#high-frequency-topics-with-chapter-refs-1">High-Frequency Topics (with chapter refs)</a></h3>
+<p><strong>Must Know</strong></p>
+<ul>
+<li>Graph algorithms: BFS, DFS, Dijkstra, topological sort → (DSA, referenced in Ch22 context)</li>
+<li>System design at Google scale — Bigtable-style, distributed caching, CDN → Ch17, Ch22</li>
+<li>Java generics, streams, functional programming → Ch4</li>
+<li>Concurrency: happens-before, volatile, lock-free structures → Ch6</li>
+<li>CAP theorem and consistency models → Ch16, Ch17</li>
+</ul>
+<p><strong>Frequently Asked</strong></p>
+<ul>
+<li>JVM internals — classloading, bytecode, GC algorithms → Ch5</li>
+<li>REST API design and idempotency → Ch9</li>
+<li>SQL joins, window functions, query plan analysis → Ch14, Ch15</li>
+<li>Clean code principles and SOLID → Ch20</li>
+</ul>
+<p><strong>Nice to Have</strong></p>
+<ul>
+<li>Protocol Buffers / gRPC (Google’s internal default)</li>
+<li>MapReduce conceptual understanding → Ch22</li>
+<li>LLD — design a chess game, parking lot, elevator → Ch21</li>
+</ul>
+<h3 id="what-sets-google-apart"><a class="header" href="#what-sets-google-apart">What Sets Google Apart</a></h3>
+<ul>
+<li><strong>The coding bar is genuinely higher</strong> — they expect optimal solutions, not just working code. If your solution is O(n²) and O(n) is possible, they will tell you and expect you to find it.</li>
+<li><strong>Thinking out loud is mandatory</strong> — they score on your reasoning process, not just the final answer. Silence for 3 minutes is a red flag.</li>
+<li><strong>The Googleyness round is not soft</strong> — they are assessing whether you will be a nightmare to work with. “How did you handle a disagreement?” needs a real nuanced answer.</li>
+<li><strong>System design at Google scale means truly massive</strong> — design for billions of requests, petabytes of data, global distribution.</li>
+<li><strong>They hire from a hiring committee that does not know you</strong> — your interviewer’s feedback is translated through a rubric, so how you communicate matters as much as what you say.</li>
+</ul>
+<h3 id="sample-questions-they-actually-ask-1"><a class="header" href="#sample-questions-they-actually-ask-1">Sample Questions They Actually Ask</a></h3>
+<ol>
+<li>Design Google Docs — collaborative real-time editing for millions of concurrent users.</li>
+<li>Given an infinite stream of search queries, find the top-K most frequent queries at any point in time.</li>
+<li>Design a distributed key-value store (Bigtable-inspired) — what does your data model look like?</li>
+<li>Implement LRU Cache with O(1) get and put. Then make it thread-safe. (Ch6, Ch3)</li>
+<li>Tell me about a time you had to learn a completely new technology quickly to solve a problem.</li>
+<li>Design YouTube’s video upload and transcoding pipeline.</li>
+<li>Given a 10GB log file on a machine with 1GB RAM, find the 100 most frequent IP addresses.</li>
+</ol>
+<h3 id="red-flags-that-kill-candidates-1"><a class="header" href="#red-flags-that-kill-candidates-1">Red Flags That Kill Candidates</a></h3>
+<ul>
+<li>Jumping to code before discussing approach — Google interviewers want to see you think before you type.</li>
+<li>Not stating time/space complexity for every solution — this is table stakes at Google.</li>
+<li>Giving a brute-force solution and not recognizing there’s a better approach.</li>
+<li>In SD, not pushing the design to Google-level scale — millions/billions, not thousands.</li>
+<li>Giving corporate non-answers in the Googleyness round — they will probe until they get a real example.</li>
+</ul>
+<h3 id="preparation-checklist-1"><a class="header" href="#preparation-checklist-1">Preparation Checklist</a></h3>
+<ul>
+<li><input disabled="" type="checkbox"> Solve 50+ LeetCode Medium/Hard problems, focusing on graphs, DP, and string manipulation</li>
+<li><input disabled="" type="checkbox"> Practice stating Big-O before writing a single line of code (habit formation)</li>
+<li><input disabled="" type="checkbox"> Deep dive JVM internals — GC types, G1 vs ZGC, memory model (Ch5)</li>
+<li><input disabled="" type="checkbox"> Study Google-scale design papers: Bigtable, Spanner, Chubby — map to Ch17, Ch22</li>
+<li><input disabled="" type="checkbox"> Practice “think out loud” by recording yourself solving problems</li>
+<li><input disabled="" type="checkbox"> Know Java Streams, Optional, and functional interfaces inside out (Ch4)</li>
+<li><input disabled="" type="checkbox"> Prepare 5 real behavioral stories with measurable outcomes for the Googleyness round</li>
+<li><input disabled="" type="checkbox"> Design 3 “at Google scale” systems from scratch: search index, maps, ads serving</li>
+<li><input disabled="" type="checkbox"> Know CAP theorem well enough to argue both sides in a real trade-off discussion (Ch17)</li>
+<li><input disabled="" type="checkbox"> Practice system design with a 45-minute timer — scope, design, deep-dive, wrap-up</li>
+</ul>
+<h3 id="recommended-study-plan-1"><a class="header" href="#recommended-study-plan-1">Recommended Study Plan</a></h3>
+<p>Use <strong>Plan A (6-week)</strong> with extra focus on <strong>Ch5 (JVM), Ch17 (Distributed DBs), Ch22 (HLD)</strong>, and dedicate Week 1 entirely to DSA re-baseline.</p>
+<hr>
+<h2 id="meta--facebook"><a class="header" href="#meta--facebook">Meta / Facebook</a></h2>
+<h3 id="what-theyre-actually-hiring-for-2"><a class="header" href="#what-theyre-actually-hiring-for-2">What They’re Actually Hiring For</a></h3>
+<p>Meta hires for engineers who move fast, make data-driven decisions, and are comfortable with ambiguity and rapid product change. They value pragmatic engineering — shipping at scale matters more than theoretical purity. Social graph problems are uniquely theirs.</p>
+<h3 id="interview-format-2"><a class="header" href="#interview-format-2">Interview Format</a></h3>
+<ul>
+<li><strong>5 rounds</strong> virtual onsite (no phone screen in some markets)</li>
+<li>Typical duration: 4 hours</li>
+<li>You talk to: 2 coding interviewers, 1 system design, 1 behavioral (often hiring manager), 1 optional ML/product round for senior roles</li>
+</ul>
+<h3 id="round-by-round-breakdown-2"><a class="header" href="#round-by-round-breakdown-2">Round-by-Round Breakdown</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Round</th><th>Type</th><th>Duration</th><th>What They Assess</th></tr>
+</thead>
+<tbody>
+<tr><td>Coding 1</td><td>DSA</td><td>45 min</td><td>Usually graphs or arrays — must get to optimal</td></tr>
+<tr><td>Coding 2</td><td>DSA</td><td>45 min</td><td>Trees, DP, or string manipulation</td></tr>
+<tr><td>System Design</td><td>HLD</td><td>60 min</td><td>Social-scale system, feed ranking systems</td></tr>
+<tr><td>Behavioral</td><td>Life story + values</td><td>45 min</td><td>“Why Meta?”, impact, collaboration</td></tr>
+<tr><td>Product Sense (senior)</td><td>Product + engineering</td><td>45 min</td><td>How would you instrument and improve X?</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="high-frequency-topics-with-chapter-refs-2"><a class="header" href="#high-frequency-topics-with-chapter-refs-2">High-Frequency Topics (with chapter refs)</a></h3>
+<p><strong>Must Know</strong></p>
+<ul>
+<li>Graph traversal on social networks — friend-of-friend, shortest path, connected components → Ch22</li>
+<li>Distributed feed systems — fan-out on write vs fan-out on read → Ch22, Ch17</li>
+<li>Java concurrency fundamentals (Meta services are largely JVM-based) → Ch6</li>
+<li>Caching strategies — what to cache, TTL design, cache invalidation → Ch12</li>
+<li>REST API design at scale → Ch9</li>
+</ul>
+<p><strong>Frequently Asked</strong></p>
+<ul>
+<li>Kafka for activity event pipelines → Ch11</li>
+<li>ACID vs eventual consistency for social data → Ch16, Ch17</li>
+<li>OOP design — clean class hierarchies, design patterns → Ch1, Ch19</li>
+<li>SQL for analytics queries → Ch14, Ch15</li>
+</ul>
+<p><strong>Nice to Have</strong></p>
+<ul>
+<li>React/GraphQL for full-stack context (mostly backend but SD may touch it)</li>
+<li>Paxos/Raft consensus understanding → Ch17</li>
+<li>LLD design exercises → Ch21</li>
+</ul>
+<h3 id="what-sets-meta-apart"><a class="header" href="#what-sets-meta-apart">What Sets Meta Apart</a></h3>
+<ul>
+<li><strong>“Move fast” is still real</strong> — they want to hear about shipping, not just designing. Say “how I would deploy this incrementally” not just “this is my architecture.”</li>
+<li><strong>Social graph problems are unique</strong> — fan-out, news feed, friend recommendation are signature Meta questions. If you’ve never thought deeply about them, you will feel it.</li>
+<li><strong>The behavioral round really matters</strong> — Meta explicitly uses their values (Move Fast, Be Bold, Focus on Impact, Be Open, Build Social Value). Know them and map your stories.</li>
+<li><strong>Data instrumentation is expected</strong> — for any system you design, they expect you to explain what metrics you’d track and how you’d detect degradation.</li>
+<li><strong>They push on scale numbers</strong> — “how many requests per second?” at every step of the design.</li>
+</ul>
+<h3 id="sample-questions-they-actually-ask-2"><a class="header" href="#sample-questions-they-actually-ask-2">Sample Questions They Actually Ask</a></h3>
+<ol>
+<li>Design Facebook’s News Feed — both fan-out-on-write and fan-out-on-read approaches, trade-offs.</li>
+<li>Design a messaging system like WhatsApp — end-to-end, message ordering, read receipts.</li>
+<li>Implement a graph BFS that finds all friends within N degrees of separation.</li>
+<li>You have a service that randomly returns stale data. Walk me through how you’d debug it.</li>
+<li>Tell me about your most impactful project — what would you do differently?</li>
+<li>Design a rate limiter that works globally across Meta’s data centers.</li>
+<li>Given an activity stream of 1 billion events/day, design the pipeline to compute DAU/MAU.</li>
+</ol>
+<h3 id="red-flags-that-kill-candidates-2"><a class="header" href="#red-flags-that-kill-candidates-2">Red Flags That Kill Candidates</a></h3>
+<ul>
+<li>Not engaging with scale numbers — Meta will explicitly ask “how many users?” and expect you to design for it.</li>
+<li>Behavioral answers that lack clear personal ownership — they want “I did X” not “we did X.”</li>
+<li>Ignoring cache invalidation — Meta interviewers will probe your caching design until you address invalidation.</li>
+<li>Being dogmatic about consistency — sometimes eventual consistency is correct, and Meta expects you to defend it.</li>
+<li>Not asking clarifying questions in SD — they have specific requirements in mind and are testing if you surface them.</li>
+</ul>
+<h3 id="preparation-checklist-2"><a class="header" href="#preparation-checklist-2">Preparation Checklist</a></h3>
+<ul>
+<li><input disabled="" type="checkbox"> Study fan-out-on-write vs fan-out-on-read deeply — know the exact trade-off points (Ch22)</li>
+<li><input disabled="" type="checkbox"> Solve 30+ graph problems on LeetCode — DFS, BFS, union-find, shortest path</li>
+<li><input disabled="" type="checkbox"> Practice designing systems at 100M-1B user scale with explicit numbers</li>
+<li><input disabled="" type="checkbox"> Know Redis data structures: sorted sets for feed ranking, pub/sub for notifications (Ch12)</li>
+<li><input disabled="" type="checkbox"> Prepare impact-focused behavioral stories using Meta’s values framework</li>
+<li><input disabled="" type="checkbox"> Understand Kafka consumer lag and how you’d monitor a real-time pipeline (Ch11)</li>
+<li><input disabled="" type="checkbox"> Know Java’s ConcurrentHashMap, BlockingQueue, and ForkJoinPool (Ch6)</li>
+<li><input disabled="" type="checkbox"> Design the news feed system from scratch 3 times until you can do it in 10 minutes</li>
+<li><input disabled="" type="checkbox"> Practice adding metrics/observability to every system design answer</li>
+<li><input disabled="" type="checkbox"> Know cache invalidation patterns: write-through, write-behind, cache-aside (Ch12)</li>
+</ul>
+<h3 id="recommended-study-plan-2"><a class="header" href="#recommended-study-plan-2">Recommended Study Plan</a></h3>
+<p>Use <strong>Plan B (4-week)</strong> with extra focus on <strong>Ch12 (Redis/Caching), Ch17 (Distributed DBs), Ch22 (HLD)</strong>. Spend 3 days specifically on social graph system design.</p>
+<hr>
+<h2 id="microsoft"><a class="header" href="#microsoft">Microsoft</a></h2>
+<h3 id="what-theyre-actually-hiring-for-3"><a class="header" href="#what-theyre-actually-hiring-for-3">What They’re Actually Hiring For</a></h3>
+<p>Microsoft hires strong generalists who can work across a large, complex product surface. They value collaborative problem solving — they care about how you think through a problem with someone, not just whether you get the right answer. Azure experience is a plus but not required for non-Azure teams.</p>
+<h3 id="interview-format-3"><a class="header" href="#interview-format-3">Interview Format</a></h3>
+<ul>
+<li><strong>4-5 rounds</strong> virtual onsite after a recruiter screen</li>
+<li>Typical duration: 3.5-4.5 hours</li>
+<li>You talk to: SWEs, a Senior SWE, and often the Hiring Manager in the final round</li>
+<li>Some teams use an “As Appropriate” (AA) interview — an independent evaluator</li>
+</ul>
+<h3 id="round-by-round-breakdown-3"><a class="header" href="#round-by-round-breakdown-3">Round-by-Round Breakdown</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Round</th><th>Type</th><th>Duration</th><th>What They Assess</th></tr>
+</thead>
+<tbody>
+<tr><td>Recruiter Screen</td><td>General fit + experience</td><td>30 min</td><td>Background, motivations, rough technical check</td></tr>
+<tr><td>Coding 1</td><td>DSA</td><td>45 min</td><td>Medium-level problem, clean code expected</td></tr>
+<tr><td>Coding 2</td><td>DSA or OOP</td><td>45 min</td><td>May involve object-oriented design problem</td></tr>
+<tr><td>System Design</td><td>HLD or LLD</td><td>60 min</td><td>More conversational than Google/Amazon</td></tr>
+<tr><td>Hiring Manager</td><td>Behavioral + vision</td><td>30-45 min</td><td>Culture fit, team-specific questions</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="high-frequency-topics-with-chapter-refs-3"><a class="header" href="#high-frequency-topics-with-chapter-refs-3">High-Frequency Topics (with chapter refs)</a></h3>
+<p><strong>Must Know</strong></p>
+<ul>
+<li>OOP design — solid Java class design, inheritance vs composition → Ch1, Ch19, Ch20</li>
+<li>Spring Boot REST APIs with exception handling and validation → Ch7, Ch9</li>
+<li>JPA/Hibernate with lazy loading, N+1 awareness → Ch8</li>
+<li>SQL — joins, aggregations, stored procedures → Ch14</li>
+<li>Basic distributed system concepts — availability, partitioning → Ch22</li>
+</ul>
+<p><strong>Frequently Asked</strong></p>
+<ul>
+<li>Java Collections — which data structure and why → Ch3</li>
+<li>Design patterns: Factory, Singleton, Observer, Decorator → Ch19</li>
+<li>Microservices patterns — service discovery, API gateway → Ch10</li>
+<li>Redis as cache with TTL strategy → Ch12</li>
+</ul>
+<p><strong>Nice to Have</strong></p>
+<ul>
+<li>Azure-specific services for SD rounds in Azure teams</li>
+<li>SOLID principles and clean architecture → Ch20</li>
+<li>LLD case studies — elevator, parking lot → Ch21</li>
+</ul>
+<h3 id="what-sets-microsoft-apart"><a class="header" href="#what-sets-microsoft-apart">What Sets Microsoft Apart</a></h3>
+<ul>
+<li><strong>The interview is more collaborative</strong> — Microsoft interviewers often guide you if you’re stuck. They want to see how you respond to hints.</li>
+<li><strong>OOP is taken more seriously</strong> — Microsoft has a large C#/Java/C++ codebase culture. Poor class design is a genuine red flag.</li>
+<li><strong>The LLD round is more common</strong> — unlike Google/Amazon which are HLD-heavy, Microsoft may give you an object design problem.</li>
+<li><strong>Team-specific variation is high</strong> — Azure vs Office vs Xbox vs Surface all have different bars and focuses. Research your specific team.</li>
+<li><strong>The Hiring Manager round can make or break you</strong> — if they don’t see you fitting the team dynamic, they’ll pass even if technical rounds went well.</li>
+</ul>
+<h3 id="sample-questions-they-actually-ask-3"><a class="header" href="#sample-questions-they-actually-ask-3">Sample Questions They Actually Ask</a></h3>
+<ol>
+<li>Design an elevator system — class hierarchy, scheduling algorithm, edge cases. (Ch21)</li>
+<li>How would you build a collaborative document editing system like OneDrive?</li>
+<li>Implement a thread-safe Singleton in Java — cover double-checked locking. (Ch6, Ch19)</li>
+<li>Tell me about a time you improved a process or system that was inefficient.</li>
+<li>You have a Spring Boot service running slowly in production — step through your investigation.</li>
+<li>Design a notification system for Microsoft Teams — handle 500M users across time zones.</li>
+<li>What is the N+1 problem in JPA and how do you fix it? (Ch8)</li>
+</ol>
+<h3 id="red-flags-that-kill-candidates-3"><a class="header" href="#red-flags-that-kill-candidates-3">Red Flags That Kill Candidates</a></h3>
+<ul>
+<li>Getting defensive when the interviewer offers a different approach — Microsoft values collaborative problem solving.</li>
+<li>Weak OOP — Microsoft comes from a strong object-oriented tradition; basic design smell is noticed.</li>
+<li>Not researching the team — “Why Microsoft?” answered with generic answers is spotted immediately.</li>
+<li>Poor error handling in code — try-catch blocks that swallow exceptions, null pointer risks.</li>
+<li>In SD, staying too abstract and never discussing concrete implementation choices.</li>
+</ul>
+<h3 id="preparation-checklist-3"><a class="header" href="#preparation-checklist-3">Preparation Checklist</a></h3>
+<ul>
+<li><input disabled="" type="checkbox"> Practice OOP design from scratch — design 5 real-world systems using class diagrams (Ch1, Ch21)</li>
+<li><input disabled="" type="checkbox"> Know every Spring Boot annotation and what it does under the hood (Ch7)</li>
+<li><input disabled="" type="checkbox"> Be comfortable with JPA one-to-many, many-to-many, and cascade options (Ch8)</li>
+<li><input disabled="" type="checkbox"> Solve 25 LeetCode mediums across arrays, trees, and strings</li>
+<li><input disabled="" type="checkbox"> Practice accepting hints gracefully — rehearse responses to “what if you tried X instead?”</li>
+<li><input disabled="" type="checkbox"> Research your specific Microsoft team and know their product deeply</li>
+<li><input disabled="" type="checkbox"> Prepare behavioral stories mapped to Microsoft’s culture (Growth Mindset, Inclusion, Collaboration)</li>
+<li><input disabled="" type="checkbox"> Know Java design patterns with code-level examples, not just definitions (Ch19)</li>
+<li><input disabled="" type="checkbox"> Practice LLD: parking lot, library management system, ATM (Ch21)</li>
+<li><input disabled="" type="checkbox"> Know SQL window functions and when to use them vs subqueries (Ch14)</li>
+</ul>
+<h3 id="recommended-study-plan-3"><a class="header" href="#recommended-study-plan-3">Recommended Study Plan</a></h3>
+<p>Use <strong>Plan B (4-week)</strong> with extra focus on <strong>Ch1 (OOP), Ch8 (JPA/Hibernate), Ch19 (Design Patterns), Ch21 (LLD)</strong>.</p>
+<hr>
+<h2 id="netflix"><a class="header" href="#netflix">Netflix</a></h2>
+<h3 id="what-theyre-actually-hiring-for-4"><a class="header" href="#what-theyre-actually-hiring-for-4">What They’re Actually Hiring For</a></h3>
+<p>Netflix hires for “highly aligned, loosely coupled” — senior engineers who can operate with extreme autonomy. They value context over control, which means they want engineers who can make the right call independently. The bar on both distributed systems and Java is exceptionally high, and they expect you to have real opinions about architecture.</p>
+<h3 id="interview-format-4"><a class="header" href="#interview-format-4">Interview Format</a></h3>
+<ul>
+<li><strong>5-6 rounds</strong> virtual (often spread across 2 days for senior roles)</li>
+<li>Typical duration: 5+ hours total</li>
+<li>You talk to: Senior SWEs, a Staff/Principal engineer, and sometimes a VP</li>
+<li>Take-home coding challenge for some teams before onsite</li>
+</ul>
+<h3 id="round-by-round-breakdown-4"><a class="header" href="#round-by-round-breakdown-4">Round-by-Round Breakdown</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Round</th><th>Type</th><th>Duration</th><th>What They Assess</th></tr>
+</thead>
+<tbody>
+<tr><td>Phone Screen</td><td>Coding + experience</td><td>60 min</td><td>One coding problem + deep experience discussion</td></tr>
+<tr><td>Coding 1</td><td>Java/DSA</td><td>60 min</td><td>Real coding problem — production quality expected</td></tr>
+<tr><td>System Design 1</td><td>HLD (streaming infra)</td><td>60 min</td><td>Video delivery, recommendation, or observability</td></tr>
+<tr><td>System Design 2</td><td>HLD or architecture</td><td>60 min</td><td>Often tests breadth — resiliency, chaos engineering</td></tr>
+<tr><td>Architecture Review</td><td>Deep technical discussion</td><td>60 min</td><td>Your past systems — defended like a PhD defense</td></tr>
+<tr><td>Culture/Values</td><td>Netflix culture fit</td><td>45 min</td><td>Freedom &amp; Responsibility, high performance</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="high-frequency-topics-with-chapter-refs-4"><a class="header" href="#high-frequency-topics-with-chapter-refs-4">High-Frequency Topics (with chapter refs)</a></h3>
+<p><strong>Must Know</strong></p>
+<ul>
+<li>Microservices resilience: Circuit Breaker, bulkhead, retry with backoff → Ch10, Ch19</li>
+<li>Kafka at scale — consumer groups, lag monitoring, compacted topics → Ch11</li>
+<li>Redis for distributed session and caching → Ch12</li>
+<li>JVM deep dive — GC tuning for low-latency streaming services → Ch5</li>
+<li>Java advanced concurrency — reactive streams, Project Reactor → Ch6</li>
+</ul>
+<p><strong>Frequently Asked</strong></p>
+<ul>
+<li>CDN design and content delivery optimization → Ch22</li>
+<li>Distributed tracing and observability → Ch10, Ch22</li>
+<li>CQRS and event sourcing patterns → Ch19, Ch22</li>
+<li>Spring Boot with Eureka, Ribbon, Hystrix → Ch7, Ch10</li>
+</ul>
+<p><strong>Nice to Have</strong></p>
+<ul>
+<li>Chaos engineering principles (Netflix invented it)</li>
+<li>A/B testing system design</li>
+<li>Cassandra and wide-column store concepts → Ch17, Ch18</li>
+</ul>
+<h3 id="what-sets-netflix-apart"><a class="header" href="#what-sets-netflix-apart">What Sets Netflix Apart</a></h3>
+<ul>
+<li><strong>The autonomy bar is the real filter</strong> — they are not hiring someone to follow instructions. Every answer should demonstrate independent judgment.</li>
+<li><strong>Chaos engineering is their culture</strong> — expect questions about how your system handles failure, not just how it works when healthy.</li>
+<li><strong>Senior engineers defend past work like a thesis</strong> — the Architecture Review round means you MUST know your past projects deeply, including every trade-off you made and why.</li>
+<li><strong>The freedom comes with high accountability</strong> — “we had some issues” is not an answer. They want root cause, your specific decision, and what you’d do differently.</li>
+<li><strong>They value opinionated engineers</strong> — if you hedge everything, they lose interest. Pick a stance and defend it.</li>
+</ul>
+<h3 id="sample-questions-they-actually-ask-4"><a class="header" href="#sample-questions-they-actually-ask-4">Sample Questions They Actually Ask</a></h3>
+<ol>
+<li>Design Netflix’s video streaming infrastructure — from upload to play, at 200M subscribers.</li>
+<li>How would you build a recommendation engine that updates in near real-time with user behavior?</li>
+<li>Your microservice has a cascading failure issue — walk me through how you’d add resilience.</li>
+<li>Tell me about the most complex distributed system you’ve designed or significantly contributed to.</li>
+<li>Design a global rate limiter with no single point of failure across 5 regions.</li>
+<li>How does ZGC differ from G1GC and when would you choose one over the other? (Ch5)</li>
+<li>You need exactly-once processing for payment events in Kafka — how do you achieve it? (Ch11)</li>
+</ol>
+<h3 id="red-flags-that-kill-candidates-4"><a class="header" href="#red-flags-that-kill-candidates-4">Red Flags That Kill Candidates</a></h3>
+<ul>
+<li>Hedging every technical opinion — Netflix reads this as lacking depth or conviction.</li>
+<li>Not knowing your own past projects well enough to defend trade-offs under pressure.</li>
+<li>Ignoring operational concerns — Netflix lives by operational excellence; pure design without ops is incomplete.</li>
+<li>Not knowing Java/JVM internals at a senior level — they expect deep platform knowledge (Ch5, Ch6).</li>
+<li>Generic culture answers — saying “I work well independently” without a concrete story.</li>
+</ul>
+<h3 id="preparation-checklist-4"><a class="header" href="#preparation-checklist-4">Preparation Checklist</a></h3>
+<ul>
+<li><input disabled="" type="checkbox"> Deep dive JVM GC: G1, ZGC, Shenandoah — know when to use each and how to tune (Ch5)</li>
+<li><input disabled="" type="checkbox"> Implement a Circuit Breaker from scratch, not just use Resilience4j (Ch19)</li>
+<li><input disabled="" type="checkbox"> Know Kafka exactly-once semantics with transactional producers/consumers (Ch11)</li>
+<li><input disabled="" type="checkbox"> Design Netflix streaming architecture from scratch 3 times</li>
+<li><input disabled="" type="checkbox"> Prepare to defend every major technical decision you made in your last 3 years of work</li>
+<li><input disabled="" type="checkbox"> Study chaos engineering principles — failure injection, steady-state hypothesis</li>
+<li><input disabled="" type="checkbox"> Know Project Reactor/RxJava for reactive programming patterns (Ch6)</li>
+<li><input disabled="" type="checkbox"> Practice “what would you do differently?” questions about your own past projects</li>
+<li><input disabled="" type="checkbox"> Know Cassandra data modeling at a conceptual level (Ch17, Ch18)</li>
+<li><input disabled="" type="checkbox"> Prepare 3 stories where you exercised independent technical judgment against popular opinion</li>
+</ul>
+<h3 id="recommended-study-plan-4"><a class="header" href="#recommended-study-plan-4">Recommended Study Plan</a></h3>
+<p>Use <strong>Plan A (6-week)</strong> with heavy focus on <strong>Ch5 (JVM), Ch6 (Concurrency), Ch10 (Microservices), Ch11 (Kafka)</strong>. Add a dedicated week for past project deep-dive preparation.</p>
+<hr>
+<h2 id="uber--lyft"><a class="header" href="#uber--lyft">Uber / Lyft</a></h2>
+<h3 id="what-theyre-actually-hiring-for-5"><a class="header" href="#what-theyre-actually-hiring-for-5">What They’re Actually Hiring For</a></h3>
+<p>Uber/Lyft need engineers who can handle real-time geospatial systems, high-throughput event pipelines, and the unique challenges of marketplace engineering (two-sided supply/demand). They value engineers who can own a problem end-to-end and think about reliability under traffic spikes.</p>
+<h3 id="interview-format-5"><a class="header" href="#interview-format-5">Interview Format</a></h3>
+<ul>
+<li><strong>4-5 rounds</strong> virtual onsite</li>
+<li>Typical duration: 4 hours</li>
+<li>You talk to: 2 SWEs for coding, 1-2 for system design, 1 engineering manager</li>
+<li>Lyft tends to be slightly more collaborative/warmer; Uber is slightly more rigorous</li>
+</ul>
+<h3 id="round-by-round-breakdown-5"><a class="header" href="#round-by-round-breakdown-5">Round-by-Round Breakdown</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Round</th><th>Type</th><th>Duration</th><th>What They Assess</th></tr>
+</thead>
+<tbody>
+<tr><td>Phone Screen</td><td>Coding</td><td>45 min</td><td>One DSA problem, clean implementation</td></tr>
+<tr><td>Coding 1</td><td>DSA</td><td>45 min</td><td>Arrays, graphs, real-world constraint problems</td></tr>
+<tr><td>Coding 2</td><td>DSA or system</td><td>45 min</td><td>Sometimes a mini-system coding problem</td></tr>
+<tr><td>System Design</td><td>HLD</td><td>60 min</td><td>Real-time geo, dispatch, surge pricing systems</td></tr>
+<tr><td>Engineering Manager</td><td>Behavioral</td><td>45 min</td><td>Impact, collaboration, growth mindset</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="high-frequency-topics-with-chapter-refs-5"><a class="header" href="#high-frequency-topics-with-chapter-refs-5">High-Frequency Topics (with chapter refs)</a></h3>
+<p><strong>Must Know</strong></p>
+<ul>
+<li>Real-time geospatial systems — H3 indexing, proximity queries → Ch22</li>
+<li>Kafka for ride events, driver location updates, pricing pipelines → Ch11</li>
+<li>Redis for real-time state: driver location, ride matching → Ch12</li>
+<li>SQL for analytics — trip data, driver earnings, surge zones → Ch14, Ch15</li>
+<li>Microservices patterns: rate limiting, service mesh → Ch10</li>
+</ul>
+<p><strong>Frequently Asked</strong></p>
+<ul>
+<li>Distributed transactions — saga pattern for ride lifecycle → Ch16, Ch19</li>
+<li>JVM performance — latency-sensitive services → Ch5</li>
+<li>REST API design for mobile clients with offline support → Ch9</li>
+<li>Concurrency — handling concurrent driver/rider matching → Ch6</li>
+</ul>
+<p><strong>Nice to Have</strong></p>
+<ul>
+<li>ML pipeline design for surge pricing, ETA prediction</li>
+<li>gRPC vs REST decision for internal services</li>
+<li>Event sourcing for audit trail → Ch19</li>
+</ul>
+<h3 id="what-sets-uberlyft-apart"><a class="header" href="#what-sets-uberlyft-apart">What Sets Uber/Lyft Apart</a></h3>
+<ul>
+<li><strong>Geospatial is their signature</strong> — no other company asks about geohashing, H3 indexing, or proximity search as regularly. If you’ve never thought about this, spend a day on it.</li>
+<li><strong>The marketplace problem is unique</strong> — supply (drivers) and demand (riders) are dynamic, creating interesting distributed state management problems.</li>
+<li><strong>Traffic spike engineering is real</strong> — Uber handles New Year’s Eve 10x spikes. Questions about auto-scaling, queue buffering, and backpressure are common.</li>
+<li><strong>They care about latency</strong> — ride matching happens in &lt;1 second. Latency optimization, not just throughput, is a key concern.</li>
+<li><strong>Lyft’s engineering culture is notably more open</strong> — they publish extensively on their tech blog and often ask about industry trends.</li>
+</ul>
+<h3 id="sample-questions-they-actually-ask-5"><a class="header" href="#sample-questions-they-actually-ask-5">Sample Questions They Actually Ask</a></h3>
+<ol>
+<li>Design Uber’s driver-rider matching system — real-time, globally distributed, sub-second matching.</li>
+<li>How would you build surge pricing? What data do you need and how do you compute it in real-time?</li>
+<li>Design the location tracking system for 1M active drivers updating location every 5 seconds.</li>
+<li>Implement a leaky bucket rate limiter in Java. Now make it distributed. (Ch6, Ch10)</li>
+<li>You have a microservice that processes ride completions. It’s losing events under traffic spikes — fix it.</li>
+<li>Tell me about a time you improved system reliability under high load.</li>
+<li>Design a trip receipt generation system that handles edge cases: cancelled trips, refunds, promos.</li>
+</ol>
+<h3 id="red-flags-that-kill-candidates-5"><a class="header" href="#red-flags-that-kill-candidates-5">Red Flags That Kill Candidates</a></h3>
+<ul>
+<li>No awareness of geospatial concepts — designing Uber’s location system without knowing geo-indexing.</li>
+<li>Over-engineering for average load without discussing peak load and surge capacity.</li>
+<li>Not knowing Kafka consumer lag and how to detect/fix a lagging consumer (Ch11).</li>
+<li>Ignoring idempotency — payment and trip completion events must be idempotent.</li>
+<li>Vague behavioral answers with no quantified impact.</li>
+</ul>
+<h3 id="preparation-checklist-5"><a class="header" href="#preparation-checklist-5">Preparation Checklist</a></h3>
+<ul>
+<li><input disabled="" type="checkbox"> Study H3 geospatial indexing and geohash — understand proximity queries at scale</li>
+<li><input disabled="" type="checkbox"> Design the driver location tracking system (1M drivers, 5-second updates) from scratch</li>
+<li><input disabled="" type="checkbox"> Know Kafka backpressure, consumer groups, and lag alerting (Ch11)</li>
+<li><input disabled="" type="checkbox"> Implement rate limiting — token bucket and leaky bucket — in Java (Ch10)</li>
+<li><input disabled="" type="checkbox"> Know Redis sorted sets for leaderboard/location ranking (Ch12)</li>
+<li><input disabled="" type="checkbox"> Study Saga pattern for distributed transactions (Ch19)</li>
+<li><input disabled="" type="checkbox"> Practice SQL for time-series data — trips per hour, average wait time by zone (Ch14)</li>
+<li><input disabled="" type="checkbox"> Know Circuit Breaker and bulkhead patterns with code examples (Ch10, Ch19)</li>
+<li><input disabled="" type="checkbox"> Prepare behavioral stories focused on reliability improvements with numbers</li>
+<li><input disabled="" type="checkbox"> Study the Uber/Lyft engineering blogs — they publish their actual systems</li>
+</ul>
+<h3 id="recommended-study-plan-5"><a class="header" href="#recommended-study-plan-5">Recommended Study Plan</a></h3>
+<p>Use <strong>Plan B (4-week)</strong> with extra focus on <strong>Ch11 (Kafka), Ch12 (Redis), Ch22 (HLD)</strong>. Add 3 days on geospatial system design which is not covered extensively in standard prep.</p>
+<hr>
+<h2 id="stripe"><a class="header" href="#stripe">Stripe</a></h2>
+<h3 id="what-theyre-actually-hiring-for-6"><a class="header" href="#what-theyre-actually-hiring-for-6">What They’re Actually Hiring For</a></h3>
+<p>Stripe wants engineers who are obsessive about correctness, API design, and developer experience. They are building financial infrastructure, which means correctness and reliability are non-negotiable. They value engineers who can reason about distributed systems in the context of money movement — idempotency, exactly-once, and auditability are first-class concerns.</p>
+<h3 id="interview-format-6"><a class="header" href="#interview-format-6">Interview Format</a></h3>
+<ul>
+<li><strong>5 rounds</strong> virtual onsite (sometimes a take-home first)</li>
+<li>Typical duration: 4.5 hours</li>
+<li>You talk to: 2 coding interviewers, 1 system design, 1 API/product design, 1 behavioral</li>
+<li>Take-home: a real coding problem on their platform, often involves their API</li>
+</ul>
+<h3 id="round-by-round-breakdown-6"><a class="header" href="#round-by-round-breakdown-6">Round-by-Round Breakdown</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Round</th><th>Type</th><th>Duration</th><th>What They Assess</th></tr>
+</thead>
+<tbody>
+<tr><td>Take-Home</td><td>Coding (Stripe API)</td><td>3-4 hours</td><td>Real implementation quality, not DSA</td></tr>
+<tr><td>Coding 1</td><td>DSA + correctness</td><td>45 min</td><td>Production-quality code, edge cases</td></tr>
+<tr><td>Coding 2</td><td>System implementation</td><td>45 min</td><td>Build a small system component correctly</td></tr>
+<tr><td>System Design</td><td>HLD (payments infra)</td><td>60 min</td><td>Payment processing, idempotency, reliability</td></tr>
+<tr><td>API Design</td><td>REST API design</td><td>45 min</td><td>Stripe-quality API: versioning, errors, pagination</td></tr>
+<tr><td>Behavioral</td><td>Culture + values</td><td>30 min</td><td>Curiosity, ownership, user empathy</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="high-frequency-topics-with-chapter-refs-6"><a class="header" href="#high-frequency-topics-with-chapter-refs-6">High-Frequency Topics (with chapter refs)</a></h3>
+<p><strong>Must Know</strong></p>
+<ul>
+<li>Idempotency keys and exactly-once processing → Ch16, Ch9</li>
+<li>Distributed transactions for payment flows → Ch16, Ch17</li>
+<li>REST API design best practices — versioning, error codes, pagination → Ch9</li>
+<li>ACID transactions — isolation levels, optimistic vs pessimistic locking → Ch16</li>
+<li>Event-driven architecture for payment state machines → Ch11, Ch19</li>
+</ul>
+<p><strong>Frequently Asked</strong></p>
+<ul>
+<li>Redis for idempotency key storage → Ch12</li>
+<li>SQL for financial reporting and reconciliation → Ch14, Ch16</li>
+<li>Java exception handling — custom exceptions, error propagation → Ch2</li>
+<li>Kafka for payment event streaming → Ch11</li>
+</ul>
+<p><strong>Nice to Have</strong></p>
+<ul>
+<li>Double-entry bookkeeping concepts</li>
+<li>PCI DSS compliance at an architectural level</li>
+<li>Webhook design and delivery guarantees → Ch9, Ch11</li>
+</ul>
+<h3 id="what-sets-stripe-apart"><a class="header" href="#what-sets-stripe-apart">What Sets Stripe Apart</a></h3>
+<ul>
+<li><strong>Correctness over speed</strong> — this is the company that will fail you for not handling edge cases, not for having an O(n²) solution. If your code has a race condition in a payment flow, that’s disqualifying.</li>
+<li><strong>API design is a first-class interview</strong> — Stripe’s public API is considered the gold standard. They expect you to think like an API designer, not just a backend engineer.</li>
+<li><strong>The take-home is a real test</strong> — they read your code carefully, including commit history, test coverage, and documentation.</li>
+<li><strong>Financial domain knowledge matters</strong> — you don’t need to be an accountant, but idempotency, double-entry accounting, and reconciliation are real topics.</li>
+<li><strong>They care about developer experience</strong> — when designing APIs, “how does this feel to the person calling it?” is as important as technical correctness.</li>
+</ul>
+<h3 id="sample-questions-they-actually-ask-6"><a class="header" href="#sample-questions-they-actually-ask-6">Sample Questions They Actually Ask</a></h3>
+<ol>
+<li>Design Stripe’s payment processing system — from card charge to settlement, handling failures idempotently.</li>
+<li>Your payment service processes a charge and the network times out before you get a response. What do you do?</li>
+<li>Design a webhook delivery system with at-least-once delivery and retry logic.</li>
+<li>You’re designing a refund API. What edge cases do you consider? Write the API spec first.</li>
+<li>How do you handle distributed transactions across payment and inventory services? (Saga vs 2PC)</li>
+<li>Design a rate limiter for Stripe’s API — per customer, per endpoint, with burst allowance.</li>
+<li>Tell me about a time you had to balance shipping fast with getting it exactly right.</li>
+</ol>
+<h3 id="red-flags-that-kill-candidates-6"><a class="header" href="#red-flags-that-kill-candidates-6">Red Flags That Kill Candidates</a></h3>
+<ul>
+<li>Ignoring idempotency — any payment system design that doesn’t address duplicate processing is a hard fail.</li>
+<li>Poor API design — vague error codes, inconsistent naming, no pagination on list endpoints.</li>
+<li>Weak exception handling in code — Stripe’s systems cannot silently fail.</li>
+<li>Not knowing SQL isolation levels — phantom reads and dirty reads have real consequences in payments (Ch16).</li>
+<li>Prioritizing clever code over readable, maintainable code — Stripe values clarity.</li>
+</ul>
+<h3 id="preparation-checklist-6"><a class="header" href="#preparation-checklist-6">Preparation Checklist</a></h3>
+<ul>
+<li><input disabled="" type="checkbox"> Study idempotency key patterns — implementation in Java with Redis (Ch12, Ch16)</li>
+<li><input disabled="" type="checkbox"> Read Stripe’s API documentation and understand their design decisions</li>
+<li><input disabled="" type="checkbox"> Know all SQL isolation levels with concrete examples of anomalies each prevents (Ch16)</li>
+<li><input disabled="" type="checkbox"> Practice REST API design: design 5 APIs from scratch focusing on error codes, versioning, pagination (Ch9)</li>
+<li><input disabled="" type="checkbox"> Know the Outbox pattern for reliable event publishing with exactly-once semantics (Ch11, Ch19)</li>
+<li><input disabled="" type="checkbox"> Implement a distributed rate limiter with burst allowance from scratch</li>
+<li><input disabled="" type="checkbox"> Study the Saga pattern choreography vs orchestration with payment examples (Ch19)</li>
+<li><input disabled="" type="checkbox"> Practice writing production-quality code in take-home setting — tests included</li>
+<li><input disabled="" type="checkbox"> Know Java checked vs unchecked exceptions and when to use each (Ch2)</li>
+<li><input disabled="" type="checkbox"> Study double-entry bookkeeping at a conceptual level — it comes up in reconciliation design</li>
+</ul>
+<h3 id="recommended-study-plan-6"><a class="header" href="#recommended-study-plan-6">Recommended Study Plan</a></h3>
+<p>Use <strong>Plan B (4-week)</strong> with heavy focus on <strong>Ch9 (REST APIs), Ch16 (ACID/Transactions), Ch11 (Kafka)</strong>. Reserve one full week for API design practice and Stripe API documentation study.</p>
+<hr>
+<h2 id="atlassian"><a class="header" href="#atlassian">Atlassian</a></h2>
+<h3 id="what-theyre-actually-hiring-for-7"><a class="header" href="#what-theyre-actually-hiring-for-7">What They’re Actually Hiring For</a></h3>
+<p>Atlassian hires engineers who care deeply about developer productivity and collaboration tooling. They value good software craftsmanship, strong opinions on code quality, and the ability to work across a complex product surface (Jira, Confluence, Bitbucket, Trello). Their interview culture is known for being more conversational and less high-pressure than FAANG.</p>
+<h3 id="interview-format-7"><a class="header" href="#interview-format-7">Interview Format</a></h3>
+<ul>
+<li><strong>4-5 rounds</strong> virtual onsite</li>
+<li>Typical duration: 3.5-4 hours</li>
+<li>You talk to: SWEs, a Tech Lead, and an Engineering Manager</li>
+<li>Some teams include a “Values” interview (5 Atlassian values: Open Company, Don’t #@!% the Customer, Play as a Team, Be the Change, Build with Heart and Balance)</li>
+</ul>
+<h3 id="round-by-round-breakdown-7"><a class="header" href="#round-by-round-breakdown-7">Round-by-Round Breakdown</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Round</th><th>Type</th><th>Duration</th><th>What They Assess</th></tr>
+</thead>
+<tbody>
+<tr><td>Recruiter Screen</td><td>Background + fit</td><td>30 min</td><td>Experience, motivations, culture check</td></tr>
+<tr><td>Coding 1</td><td>DSA</td><td>45 min</td><td>Clean, working code — medium level</td></tr>
+<tr><td>System Design</td><td>HLD or LLD</td><td>60 min</td><td>Collaboration tools, issue tracking, notifications</td></tr>
+<tr><td>Technical Deep Dive</td><td>Past project discussion</td><td>45 min</td><td>Architecture decisions you’ve made</td></tr>
+<tr><td>Values/Culture</td><td>Behavioral</td><td>45 min</td><td>Atlassian values — specific stories required</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="high-frequency-topics-with-chapter-refs-7"><a class="header" href="#high-frequency-topics-with-chapter-refs-7">High-Frequency Topics (with chapter refs)</a></h3>
+<p><strong>Must Know</strong></p>
+<ul>
+<li>Spring Boot microservices — standard CRUD + event-driven → Ch7, Ch9, Ch10</li>
+<li>JPA/Hibernate — entity relationships, lazy/eager loading → Ch8</li>
+<li>REST API design — pagination, filtering, versioning → Ch9</li>
+<li>SQL — relational data modeling for project/issue data → Ch14</li>
+<li>Basic distributed system concepts → Ch22</li>
+</ul>
+<p><strong>Frequently Asked</strong></p>
+<ul>
+<li>Redis for caching with eviction policies → Ch12</li>
+<li>Java OOP and design patterns → Ch1, Ch19</li>
+<li>Clean code and SOLID → Ch20</li>
+<li>Microservices communication patterns → Ch10</li>
+</ul>
+<p><strong>Nice to Have</strong></p>
+<ul>
+<li>Kafka for real-time notification pipelines → Ch11</li>
+<li>LLD for collaboration tools → Ch21</li>
+<li>GraphQL API design (used in newer Atlassian products)</li>
+</ul>
+<h3 id="what-sets-atlassian-apart"><a class="header" href="#what-sets-atlassian-apart">What Sets Atlassian Apart</a></h3>
+<ul>
+<li><strong>The culture bar is genuinely different</strong> — Atlassian will pass on a strong technical candidate who doesn’t embody their values. Take the values interview seriously.</li>
+<li><strong>The technical deep dive is uncommon elsewhere</strong> — they want to understand how you think about past architecture decisions. “We chose X over Y because…” is what they’re looking for.</li>
+<li><strong>They build for developers</strong> — they expect you to have opinions about developer experience, not just implementation details.</li>
+<li><strong>The interview is more of a conversation</strong> — less trick questions, more “help us think through this problem together.”</li>
+<li><strong>Remote-first culture means written communication is important</strong> — some Atlassian teams assess how well you structure technical explanations.</li>
+</ul>
+<h3 id="sample-questions-they-actually-ask-7"><a class="header" href="#sample-questions-they-actually-ask-7">Sample Questions They Actually Ask</a></h3>
+<ol>
+<li>Design Jira’s issue tracking system — hierarchy of projects, epics, stories, subtasks; comment threading.</li>
+<li>How would you build Confluence’s real-time collaborative editing?</li>
+<li>Design a notification system for Jira — users watching issues, @mentions, digest emails.</li>
+<li>Tell me about a time you advocated for better engineering practices when it wasn’t your job to.</li>
+<li>Your Spring Boot service is getting N+1 query problems at scale — identify and fix it. (Ch8)</li>
+<li>Design a search system for Jira — full-text search across issues, comments, and attachments.</li>
+<li>How do you handle breaking API changes when you have 200,000 developer customers?</li>
+</ol>
+<h3 id="red-flags-that-kill-candidates-7"><a class="header" href="#red-flags-that-kill-candidates-7">Red Flags That Kill Candidates</a></h3>
+<ul>
+<li>Not having genuine stories for the values interview — generic answers are easy to spot.</li>
+<li>Ignoring backwards compatibility in API design — Atlassian’s developer ecosystem makes breaking changes catastrophic.</li>
+<li>Poor JPA knowledge — N+1 problems, incorrect cascade types, missing indexes (Ch8).</li>
+<li>Dismissiveness about non-FAANG scale — Atlassian products serve millions of professional developers.</li>
+<li>Not asking questions at the end — Atlassian values curiosity and engagement.</li>
+</ul>
+<h3 id="preparation-checklist-7"><a class="header" href="#preparation-checklist-7">Preparation Checklist</a></h3>
+<ul>
+<li><input disabled="" type="checkbox"> Read Atlassian’s 5 values and prepare one specific story per value</li>
+<li><input disabled="" type="checkbox"> Know JPA deeply — FetchType, CascadeType, orphanRemoval, and JPQL (Ch8)</li>
+<li><input disabled="" type="checkbox"> Design Jira’s data model from scratch — issues, hierarchy, comments, watchers</li>
+<li><input disabled="" type="checkbox"> Practice API versioning strategies — URL versioning, header versioning, trade-offs (Ch9)</li>
+<li><input disabled="" type="checkbox"> Prepare 3 past projects you can discuss at depth including what you’d change</li>
+<li><input disabled="" type="checkbox"> Know Spring Boot autoconfiguration and how to customize it (Ch7)</li>
+<li><input disabled="" type="checkbox"> Study full-text search design — inverted index concepts → Ch22</li>
+<li><input disabled="" type="checkbox"> Solve 20 LeetCode mediums — Atlassian coding bar is real but not FAANG-level</li>
+<li><input disabled="" type="checkbox"> Know Redis cache-aside pattern implementation in Spring (Ch12)</li>
+<li><input disabled="" type="checkbox"> Practice collaborative problem-solving style — ask questions, think out loud</li>
+</ul>
+<h3 id="recommended-study-plan-7"><a class="header" href="#recommended-study-plan-7">Recommended Study Plan</a></h3>
+<p>Use <strong>Plan C (2-week intensive)</strong> with focus on <strong>Ch7 (Spring Boot), Ch8 (JPA), Ch9 (REST APIs)</strong>. Spend 3 days on values storytelling — it is not optional at Atlassian.</p>
+<hr>
+<h2 id="salesforce"><a class="header" href="#salesforce">Salesforce</a></h2>
+<h3 id="what-theyre-actually-hiring-for-8"><a class="header" href="#what-theyre-actually-hiring-for-8">What They’re Actually Hiring For</a></h3>
+<p>Salesforce hires for engineers who can work in a multi-tenant, highly configurable enterprise SaaS environment. They care about data isolation, performance at enterprise scale, and robust API design. Trust is their #1 value, and that manifests as security consciousness and reliability engineering.</p>
+<h3 id="interview-format-8"><a class="header" href="#interview-format-8">Interview Format</a></h3>
+<ul>
+<li><strong>4-5 rounds</strong> virtual onsite</li>
+<li>Typical duration: 4 hours</li>
+<li>You talk to: SWEs, an Architect, and often a role-specific leader</li>
+<li>Some orgs include a technical presentation round for senior candidates</li>
+</ul>
+<h3 id="round-by-round-breakdown-8"><a class="header" href="#round-by-round-breakdown-8">Round-by-Round Breakdown</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Round</th><th>Type</th><th>Duration</th><th>What They Assess</th></tr>
+</thead>
+<tbody>
+<tr><td>Phone Screen</td><td>Technical + background</td><td>45 min</td><td>Java, Spring, past experience overview</td></tr>
+<tr><td>Coding 1</td><td>DSA + Java</td><td>45 min</td><td>Medium DSA, Java idioms</td></tr>
+<tr><td>System Design</td><td>HLD — enterprise SaaS</td><td>60 min</td><td>Multi-tenancy, metadata-driven architecture</td></tr>
+<tr><td>Architecture/Deep Dive</td><td>Past system or hypothetical</td><td>60 min</td><td>Architecture decisions, trade-offs</td></tr>
+<tr><td>Behavioral/Values</td><td>Salesforce V2MOM alignment</td><td>30-45 min</td><td>Trailblazer culture, customer success</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="high-frequency-topics-with-chapter-refs-8"><a class="header" href="#high-frequency-topics-with-chapter-refs-8">High-Frequency Topics (with chapter refs)</a></h3>
+<p><strong>Must Know</strong></p>
+<ul>
+<li>Multi-tenant architecture — data isolation strategies (shared schema, row-level security) → Ch22, Ch17</li>
+<li>Spring Boot enterprise patterns — interceptors, AOP, custom annotations → Ch7</li>
+<li>JPA for complex multi-tenant data models → Ch8</li>
+<li>SQL for large-scale reporting with row-level security → Ch14, Ch16</li>
+<li>REST API design with OAuth 2.0 → Ch9, Ch13</li>
+</ul>
+<p><strong>Frequently Asked</strong></p>
+<ul>
+<li>Redis for tenant-scoped caching → Ch12</li>
+<li>Kafka for CRM event streaming → Ch11</li>
+<li>Security: JWT, OAuth 2.0, RBAC → Ch13</li>
+<li>Microservices in enterprise context → Ch10</li>
+</ul>
+<p><strong>Nice to Have</strong></p>
+<ul>
+<li>Apex (Salesforce’s proprietary language) conceptual awareness</li>
+<li>Heroku/Salesforce platform architecture understanding</li>
+<li>GDPR/data sovereignty implications on multi-tenant design</li>
+</ul>
+<h3 id="what-sets-salesforce-apart"><a class="header" href="#what-sets-salesforce-apart">What Sets Salesforce Apart</a></h3>
+<ul>
+<li><strong>Multi-tenancy is the defining technical challenge</strong> — almost everything technical at Salesforce comes back to “how does this work in a multi-tenant context?”</li>
+<li><strong>Enterprise customers have enterprise SLAs</strong> — 99.99% uptime, zero data leakage between tenants, audit trails are non-negotiable.</li>
+<li><strong>Trust first</strong> — security considerations are expected in every system design answer. Authentication, authorization, data encryption at rest.</li>
+<li><strong>The V2MOM culture framework is used for alignment</strong> — understand it before behavioral rounds.</li>
+<li><strong>Metadata-driven architecture is their competitive moat</strong> — point-and-click configuration drives real products; understanding this shows Salesforce-specific savvy.</li>
+</ul>
+<h3 id="sample-questions-they-actually-ask-8"><a class="header" href="#sample-questions-they-actually-ask-8">Sample Questions They Actually Ask</a></h3>
+<ol>
+<li>Design a multi-tenant CRM system — data isolation, performance, and customization at the tenant level.</li>
+<li>How would you implement row-level security in SQL for a multi-tenant application?</li>
+<li>Design the Salesforce notification system — 100,000 tenants, each with 100s of users, custom triggers.</li>
+<li>Your OAuth token validation is adding 50ms to every API call — how do you fix it?</li>
+<li>Tell me about a time you had to make a security trade-off in system design.</li>
+<li>Design a workflow automation engine where tenants can define custom triggers and actions.</li>
+<li>How do you handle schema migrations in a multi-tenant database without downtime?</li>
+</ol>
+<h3 id="red-flags-that-kill-candidates-8"><a class="header" href="#red-flags-that-kill-candidates-8">Red Flags That Kill Candidates</a></h3>
+<ul>
+<li>Ignoring multi-tenancy in system design answers — every Salesforce SD has a tenancy dimension.</li>
+<li>Weak security knowledge — no understanding of OAuth flows or token validation (Ch13).</li>
+<li>Not understanding row-level security in SQL (Ch14, Ch16).</li>
+<li>Overly academic answers without enterprise pragmatism — “it depends” without concrete enterprise constraints.</li>
+<li>Not having questions for the interviewer — Salesforce culture values curiosity.</li>
+</ul>
+<h3 id="preparation-checklist-8"><a class="header" href="#preparation-checklist-8">Preparation Checklist</a></h3>
+<ul>
+<li><input disabled="" type="checkbox"> Study multi-tenant architecture patterns: schema-per-tenant, shared schema with tenant_id, dedicated DB</li>
+<li><input disabled="" type="checkbox"> Know OAuth 2.0 flows — Authorization Code, Client Credentials, Resource Owner (Ch13)</li>
+<li><input disabled="" type="checkbox"> Implement row-level security in SQL with tenant_id filtering (Ch14)</li>
+<li><input disabled="" type="checkbox"> Know Spring Security for JWT validation and role-based access control (Ch13, Ch7)</li>
+<li><input disabled="" type="checkbox"> Understand AOP in Spring for cross-cutting concerns like audit logging (Ch7)</li>
+<li><input disabled="" type="checkbox"> Design a multi-tenant notification system from scratch</li>
+<li><input disabled="" type="checkbox"> Study GDPR data isolation requirements — right to erasure in multi-tenant context</li>
+<li><input disabled="" type="checkbox"> Know Kafka consumer groups for tenant-specific event isolation (Ch11)</li>
+<li><input disabled="" type="checkbox"> Prepare behavioral stories aligned with Salesforce’s Trust, Customer Success, and Innovation values</li>
+<li><input disabled="" type="checkbox"> Solve 25 LeetCode mediums with focus on string processing and tree problems</li>
+</ul>
+<h3 id="recommended-study-plan-8"><a class="header" href="#recommended-study-plan-8">Recommended Study Plan</a></h3>
+<p>Use <strong>Plan B (4-week)</strong> with extra focus on <strong>Ch7 (Spring Core), Ch13 (Security), Ch22 (HLD)</strong>. Spend 2 dedicated days on multi-tenant architecture patterns — it is Salesforce’s signature topic.</p>
+<hr>
+<h2 id="goldman-sachs--fintech-jane-street-citadel"><a class="header" href="#goldman-sachs--fintech-jane-street-citadel">Goldman Sachs / FinTech (Jane Street, Citadel)</a></h2>
+<h3 id="what-theyre-actually-hiring-for-9"><a class="header" href="#what-theyre-actually-hiring-for-9">What They’re Actually Hiring For</a></h3>
+<p>Goldman Sachs wants engineers who can build high-performance, mission-critical financial systems where a bug costs real money. Jane Street and Citadel want exceptional computer scientists — the algorithmic and systems bar is FAANG-level or higher, with additional quantitative reasoning expectations. Correctness, performance, and risk awareness are the north stars.</p>
+<h3 id="interview-format-9"><a class="header" href="#interview-format-9">Interview Format</a></h3>
+<p><strong>Goldman Sachs:</strong></p>
+<ul>
+<li><strong>4-5 rounds</strong> virtual onsite</li>
+<li>Coding + system design + behavioral + culture fit</li>
+<li>Emphasis on low-latency systems, data pipelines, and regulatory compliance</li>
+</ul>
+<p><strong>Jane Street:</strong></p>
+<ul>
+<li><strong>5-6 rounds</strong> — heavily algorithmic, often OCaml/functional (but Java/C++ acceptable)</li>
+<li>Take-home problem + onsite technical marathon</li>
+<li>Expect deep CS fundamentals, probabilistic reasoning, and trading-context problems</li>
+</ul>
+<p><strong>Citadel:</strong></p>
+<ul>
+<li><strong>4-5 rounds</strong> — mix of DSA, quantitative problems, and system design</li>
+<li>Very high bar on both algorithms and distributed systems</li>
+</ul>
+<h3 id="round-by-round-breakdown-goldman-sachs"><a class="header" href="#round-by-round-breakdown-goldman-sachs">Round-by-Round Breakdown (Goldman Sachs)</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Round</th><th>Type</th><th>Duration</th><th>What They Assess</th></tr>
+</thead>
+<tbody>
+<tr><td>Online Assessment</td><td>Coding</td><td>90 min</td><td>2-3 DSA problems on HackerRank</td></tr>
+<tr><td>Technical Phone</td><td>Coding + experience</td><td>60 min</td><td>Java, OOP, system concepts</td></tr>
+<tr><td>System Design</td><td>HLD — financial systems</td><td>60 min</td><td>Trade processing, risk systems, market data</td></tr>
+<tr><td>Architecture Review</td><td>Deep dive</td><td>60 min</td><td>Past system + trade-offs</td></tr>
+<tr><td>Partner/MD Interview</td><td>Culture + vision</td><td>30 min</td><td>Business acumen, communication</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="high-frequency-topics-with-chapter-refs-9"><a class="header" href="#high-frequency-topics-with-chapter-refs-9">High-Frequency Topics (with chapter refs)</a></h3>
+<p><strong>Must Know</strong></p>
+<ul>
+<li>Java concurrency — thread-safe data structures, lock strategies for financial data → Ch6</li>
+<li>ACID and isolation levels — financial transactions must be correct → Ch16</li>
+<li>High-throughput, low-latency system design → Ch22, Ch5</li>
+<li>SQL for financial reporting — aggregations, time-series queries, reconciliation → Ch14, Ch16</li>
+<li>Message queues and event streaming for trade events → Ch11</li>
+</ul>
+<p><strong>Frequently Asked</strong></p>
+<ul>
+<li>JVM tuning for low-latency — GC pauses are catastrophic in trading → Ch5</li>
+<li>Redis for market data caching → Ch12</li>
+<li>Design patterns for financial systems: CQRS, Event Sourcing → Ch19</li>
+<li>REST APIs with audit trail requirements → Ch9</li>
+</ul>
+<p><strong>Nice to Have</strong></p>
+<ul>
+<li>FIX protocol conceptual awareness</li>
+<li>Double-entry accounting</li>
+<li>Regulatory frameworks: MiFID II, Dodd-Frank (at a conceptual level)</li>
+</ul>
+<h3 id="what-sets-goldmanfintech-apart"><a class="header" href="#what-sets-goldmanfintech-apart">What Sets Goldman/FinTech Apart</a></h3>
+<ul>
+<li><strong>Money errors are never acceptable</strong> — your system design answers must address failure modes more carefully than anywhere else. “Retry” is not enough; you need idempotency, audit trails, and reconciliation.</li>
+<li><strong>Regulatory compliance is a real constraint</strong> — audit logging, data retention policies, and trade surveillance are real architectural concerns.</li>
+<li><strong>Low latency is a first-class concern</strong> — market data systems process millions of events per second. GC pause tuning is not academic here (Ch5).</li>
+<li><strong>Jane Street’s bar is CS-research level</strong> — they care deeply about algorithmic correctness and functional programming approaches.</li>
+<li><strong>Quantitative reasoning appears</strong> — at Jane Street/Citadel, expect probability questions: expected value, binomial distributions, basic option pricing intuition.</li>
+</ul>
+<h3 id="sample-questions-they-actually-ask-9"><a class="header" href="#sample-questions-they-actually-ask-9">Sample Questions They Actually Ask</a></h3>
+<ol>
+<li>Design a real-time trade processing system that handles 1M trades/second with zero data loss.</li>
+<li>How would you implement a rate limiter for an order management system that must be globally consistent?</li>
+<li>Your financial batch reconciliation job is running too slowly — what do you investigate first?</li>
+<li>Design a market data feed system — multiple exchanges, conflicting prices, last-writer-wins vs timestamp ordering.</li>
+<li>What are the trade-offs between optimistic and pessimistic locking in a high-contention order book? (Ch16)</li>
+<li>You have a Java service that has occasional 500ms GC pauses in production — diagnose and fix it. (Ch5)</li>
+<li>Tell me about a time you found and fixed a critical bug before it went to production.</li>
+</ol>
+<h3 id="red-flags-that-kill-candidates-9"><a class="header" href="#red-flags-that-kill-candidates-9">Red Flags That Kill Candidates</a></h3>
+<ul>
+<li>Not addressing data loss scenarios — “at-most-once” is not acceptable for financial systems.</li>
+<li>Weak SQL — financial data is highly relational; poor query skills are noticed (Ch14).</li>
+<li>Not knowing Java concurrency deeply — race conditions in trading systems lose money (Ch6).</li>
+<li>Generic system design answers without financial domain awareness.</li>
+<li>Not knowing GC tuning for low-latency requirements (Ch5).</li>
+</ul>
+<h3 id="preparation-checklist-9"><a class="header" href="#preparation-checklist-9">Preparation Checklist</a></h3>
+<ul>
+<li><input disabled="" type="checkbox"> Deep dive Java <code>synchronized</code>, <code>ReentrantLock</code>, <code>StampedLock</code>, and lock-free structures (Ch6)</li>
+<li><input disabled="" type="checkbox"> Know SQL isolation levels with financial transaction examples: dirty read, phantom read (Ch16)</li>
+<li><input disabled="" type="checkbox"> Study CQRS and Event Sourcing with financial use cases (Ch19)</li>
+<li><input disabled="" type="checkbox"> Design a trade processing system end-to-end with audit trail and reconciliation</li>
+<li><input disabled="" type="checkbox"> Know JVM GC tuning: G1GC, heap sizing, GC log analysis (Ch5)</li>
+<li><input disabled="" type="checkbox"> Understand the Outbox pattern for financial event publishing (Ch11, Ch19)</li>
+<li><input disabled="" type="checkbox"> Practice quantitative reasoning: expected value, basic probability (for Jane Street/Citadel)</li>
+<li><input disabled="" type="checkbox"> Know double-entry accounting concepts — debits/credits, ledger design</li>
+<li><input disabled="" type="checkbox"> Prepare behavioral stories focused on catching defects and preventing production incidents</li>
+<li><input disabled="" type="checkbox"> Solve 40 LeetCode problems — FinTech coding bar is comparable to FAANG</li>
+</ul>
+<h3 id="recommended-study-plan-9"><a class="header" href="#recommended-study-plan-9">Recommended Study Plan</a></h3>
+<p>Use <strong>Plan A (6-week)</strong> with heavy focus on <strong>Ch5 (JVM), Ch6 (Concurrency), Ch16 (ACID/Transactions)</strong>. FinTech companies reward the depth that other companies don’t reward — do not skip the deep JVM and concurrency chapters.</p>
+<hr>
+<h2 id="thoughtworks"><a class="header" href="#thoughtworks">Thoughtworks</a></h2>
+<h3 id="what-theyre-actually-hiring-for-10"><a class="header" href="#what-theyre-actually-hiring-for-10">What They’re Actually Hiring For</a></h3>
+<p>Thoughtworks is a consultancy that places exceptional emphasis on software craftsmanship, agile engineering, and clean code. They hire for TDD practitioners, clean code advocates, and engineers who have strong opinions about how software should be built. The technical bar is deliberately different from product companies — less about distributed systems at Google-scale, more about code quality and XP practices.</p>
+<h3 id="interview-format-10"><a class="header" href="#interview-format-10">Interview Format</a></h3>
+<ul>
+<li><strong>3-4 rounds</strong> — more process-oriented than FAANG</li>
+<li>Often starts with a take-home coding exercise</li>
+<li>Includes pair programming (unusual in industry)</li>
+<li>Behavioral/culture round is very important</li>
+</ul>
+<h3 id="round-by-round-breakdown-9"><a class="header" href="#round-by-round-breakdown-9">Round-by-Round Breakdown</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Round</th><th>Type</th><th>Duration</th><th>What They Assess</th></tr>
+</thead>
+<tbody>
+<tr><td>Online Application</td><td>CV + written answers</td><td>—</td><td>Communication, self-awareness</td></tr>
+<tr><td>Take-Home Coding</td><td>Full implementation</td><td>4-6 hours</td><td>TDD, clean code, SOLID, design quality</td></tr>
+<tr><td>Pair Programming</td><td>Collaborative coding</td><td>60 min</td><td>How you code with others, TDD habit</td></tr>
+<tr><td>Technical Discussion</td><td>Code review + design</td><td>60 min</td><td>Architecture choices, refactoring instincts</td></tr>
+<tr><td>Thoughtworks Values</td><td>Culture + ethics</td><td>45 min</td><td>Social impact, diversity, agile beliefs</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="high-frequency-topics-with-chapter-refs-10"><a class="header" href="#high-frequency-topics-with-chapter-refs-10">High-Frequency Topics (with chapter refs)</a></h3>
+<p><strong>Must Know</strong></p>
+<ul>
+<li>TDD — writing tests before code, red-green-refactor cycle</li>
+<li>SOLID principles — be able to identify violations and fix them → Ch20</li>
+<li>Clean code — meaningful names, small functions, no magic numbers → Ch20</li>
+<li>OOP design — good class hierarchies, appropriate patterns → Ch1, Ch19</li>
+<li>Refactoring patterns → Ch20</li>
+</ul>
+<p><strong>Frequently Asked</strong></p>
+<ul>
+<li>Java design patterns with real examples → Ch19</li>
+<li>Spring Boot fundamentals → Ch7</li>
+<li>REST API design principles → Ch9</li>
+<li>Basic SQL → Ch14</li>
+</ul>
+<p><strong>Nice to Have</strong></p>
+<ul>
+<li>Domain-Driven Design concepts</li>
+<li>Continuous Integration/Delivery pipeline design</li>
+<li>Hexagonal architecture (Ports and Adapters) → Ch20</li>
+</ul>
+<h3 id="what-sets-thoughtworks-apart"><a class="header" href="#what-sets-thoughtworks-apart">What Sets Thoughtworks Apart</a></h3>
+<ul>
+<li><strong>TDD is not optional</strong> — it is a filter. If you cannot write a test before writing code, you will not get through the pair programming round.</li>
+<li><strong>Pair programming is in the interview</strong> — this is unique. They are assessing how you communicate, receive feedback, and collaborate in real time.</li>
+<li><strong>The take-home is the most important round</strong> — they read every line of your code, every commit message, every test. Code quality matters more than the algorithm used.</li>
+<li><strong>Social and ethical views matter</strong> — Thoughtworks has a strong stance on diversity, ethics in technology, and social impact. Vague answers on these topics are noticed.</li>
+<li><strong>Consulting context shapes the role</strong> — you will work with clients, which means communication skills, not just coding skills, are evaluated.</li>
+</ul>
+<h3 id="sample-questions-they-actually-ask-10"><a class="header" href="#sample-questions-they-actually-ask-10">Sample Questions They Actually Ask</a></h3>
+<ol>
+<li>In the pair programming session: “Add a feature to this existing codebase using TDD.”</li>
+<li>Code review exercise: “What issues do you see in this code? How would you refactor it?”</li>
+<li>Tell me about a time you pushed back on a technical decision because it was the wrong approach.</li>
+<li>How do you introduce TDD and clean code practices into a team that has never done them?</li>
+<li>Design a simple object model for a library management system with SOLID principles. (Ch20, Ch21)</li>
+<li>What does the Dependency Inversion Principle mean to you? Give a concrete Java example. (Ch20)</li>
+<li>Tell me about a technology or tool you think is overused or misapplied in the industry.</li>
+</ol>
+<h3 id="red-flags-that-kill-candidates-10"><a class="header" href="#red-flags-that-kill-candidates-10">Red Flags That Kill Candidates</a></h3>
+<ul>
+<li>Not practicing TDD before the pair programming round — it shows immediately.</li>
+<li>Messy commit history on the take-home — commit messages, code organization, and test coverage are read.</li>
+<li>Being defensive in code review — Thoughtworks expects you to take feedback graciously.</li>
+<li>Vague or inauthentic answers on the values/ethics round — they will probe.</li>
+<li>Long functions, poor naming, and no tests in the take-home coding exercise.</li>
+</ul>
+<h3 id="preparation-checklist-10"><a class="header" href="#preparation-checklist-10">Preparation Checklist</a></h3>
+<ul>
+<li><input disabled="" type="checkbox"> Practice TDD for 2 weeks before interviewing — write no production code without a failing test first</li>
+<li><input disabled="" type="checkbox"> Study and internalize all 5 SOLID principles with Java examples (Ch20)</li>
+<li><input disabled="" type="checkbox"> Read “Clean Code” by Robert Martin — at least the naming, functions, and comments chapters</li>
+<li><input disabled="" type="checkbox"> Practice pair programming with someone — get comfortable coding while explaining</li>
+<li><input disabled="" type="checkbox"> Study the Strangler Fig, Extract Method, Replace Conditional with Polymorphism refactoring patterns (Ch20)</li>
+<li><input disabled="" type="checkbox"> Prepare views on technology ethics, diversity in tech, and responsible AI</li>
+<li><input disabled="" type="checkbox"> Review your take-home before submission — ensure tests cover edge cases and are readable</li>
+<li><input disabled="" type="checkbox"> Know hexagonal architecture with a concrete Java Spring example (Ch20)</li>
+<li><input disabled="" type="checkbox"> Practice writing commit messages that tell a story: “feat: add rate limiting to payment endpoint”</li>
+<li><input disabled="" type="checkbox"> Know when NOT to use design patterns — overuse is an anti-pattern (Ch19)</li>
+</ul>
+<h3 id="recommended-study-plan-10"><a class="header" href="#recommended-study-plan-10">Recommended Study Plan</a></h3>
+<p>Use <strong>Plan C (2-week intensive)</strong> focusing on <strong>Ch1 (OOP), Ch19 (Design Patterns), Ch20 (SOLID/Clean Arch)</strong>. Unlike other companies, add a dedicated week of TDD practice — it is their most important filter.</p>
+<hr>
+<h2 id="flipkart--indian-product-companies-swiggy-zepto-cred-razorpay"><a class="header" href="#flipkart--indian-product-companies-swiggy-zepto-cred-razorpay">Flipkart / Indian Product Companies (Swiggy, Zepto, CRED, Razorpay)</a></h2>
+<h3 id="what-theyre-actually-hiring-for-11"><a class="header" href="#what-theyre-actually-hiring-for-11">What They’re Actually Hiring For</a></h3>
+<p>Indian product companies are maturing rapidly and now run some of the most complex distributed systems in the world. Flipkart, Swiggy, and Zepto operate at real hyperscale (hundreds of millions of users, sub-second delivery). CRED and Razorpay have FinTech rigor. The bar is increasingly FAANG-comparable, and they value engineers who understand the Indian market’s unique constraints: low bandwidth users, payment diversity, and aggressive cost optimization.</p>
+<h3 id="interview-format-flipkart--swiggy--zepto"><a class="header" href="#interview-format-flipkart--swiggy--zepto">Interview Format (Flipkart / Swiggy / Zepto)</a></h3>
+<ul>
+<li><strong>4-5 rounds</strong> virtual</li>
+<li>Typical duration: 3.5-4.5 hours</li>
+<li>Machine coding round is standard (unique to Indian companies)</li>
+<li>You talk to: SDE-IIs, Senior SDE, Hiring Manager</li>
+<li>Machine coding is 90 minutes — a real implementation problem</li>
+</ul>
+<h3 id="round-by-round-breakdown-10"><a class="header" href="#round-by-round-breakdown-10">Round-by-Round Breakdown</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Round</th><th>Type</th><th>Duration</th><th>What They Assess</th></tr>
+</thead>
+<tbody>
+<tr><td>Coding Round</td><td>DSA</td><td>60 min</td><td>Arrays, graphs, DP — medium/hard level</td></tr>
+<tr><td>Machine Coding</td><td>Full implementation</td><td>90 min</td><td>OOP design, clean code, working system</td></tr>
+<tr><td>System Design HLD</td><td>Distributed systems</td><td>60 min</td><td>Scale, trade-offs, India-specific constraints</td></tr>
+<tr><td>LLD (sometimes)</td><td>Object design</td><td>45 min</td><td>Clean class design, extensibility</td></tr>
+<tr><td>Hiring Manager</td><td>Behavioral + fitment</td><td>30 min</td><td>Growth, impact, why this company</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="high-frequency-topics-with-chapter-refs-11"><a class="header" href="#high-frequency-topics-with-chapter-refs-11">High-Frequency Topics (with chapter refs)</a></h3>
+<p><strong>Must Know</strong></p>
+<ul>
+<li>Machine coding proficiency — clean OOP, working code in 90 minutes → Ch1, Ch19, Ch21</li>
+<li>Spring Boot CRUD with proper exception handling → Ch7, Ch9</li>
+<li>JPA with complex relationships → Ch8</li>
+<li>System design for Indian-scale: 100M users, Tier 2/3 city bandwidth → Ch22</li>
+<li>Kafka for order events, delivery tracking, payment events → Ch11</li>
+</ul>
+<p><strong>Frequently Asked</strong></p>
+<ul>
+<li>Redis for cart, session, OTP storage → Ch12</li>
+<li>SQL for transactional and reporting queries → Ch14, Ch15</li>
+<li>Java Collections — performance trade-offs → Ch3</li>
+<li>Microservices patterns: API gateway, service registry → Ch10</li>
+</ul>
+<p><strong>Nice to Have (CRED/Razorpay FinTech)</strong></p>
+<ul>
+<li>Payment gateway internals → Ch16 (idempotency, retry logic)</li>
+<li>UPI integration architecture</li>
+<li>PCI DSS awareness → Ch13</li>
+</ul>
+<h3 id="what-sets-indian-product-companies-apart"><a class="header" href="#what-sets-indian-product-companies-apart">What Sets Indian Product Companies Apart</a></h3>
+<ul>
+<li><strong>The Machine Coding round is unique</strong> — no other country’s companies do this as standardly. 90 minutes, build a working system with clean OOP. This is not a whiteboard exercise — your code must run.</li>
+<li><strong>Indian-scale has unique constraints</strong> — 2G/3G users, UPI payments, vernacular language handling, massive traffic spikes on sale days (Flipkart Big Billion Days = Amazon Prime Day but more intense).</li>
+<li><strong>Cost optimization is a real concern</strong> — AWS costs matter in India; engineers are expected to think about cost efficiency in design.</li>
+<li><strong>Rapid growth means architectural flexibility matters</strong> — Zepto went from 0 to 3M orders/month in 18 months. They want engineers who can build for today and evolve for tomorrow.</li>
+<li><strong>For FinTech (CRED/Razorpay): correctness over features</strong> — payment bugs are existential for these companies.</li>
+</ul>
+<h3 id="sample-questions-they-actually-ask-11"><a class="header" href="#sample-questions-they-actually-ask-11">Sample Questions They Actually Ask</a></h3>
+<ol>
+<li>Machine Coding: Build a food delivery system with restaurants, menus, ordering, and delivery assignment in 90 minutes.</li>
+<li>Design Flipkart’s Flash Sale system — 1M users hitting “buy” in the first second of a sale.</li>
+<li>Design Swiggy’s real-time delivery tracking — driver location, customer ETA, re-routing on traffic.</li>
+<li>How would you design a UPI payment system for 500M transactions/day with Razorpay?</li>
+<li>Design Zepto’s inventory management — 10-minute delivery means real-time inventory sync across dark stores.</li>
+<li>Your Spring Boot service is throwing <code>LazyInitializationException</code> — what caused it and how do you fix it? (Ch8)</li>
+<li>Implement a parking lot system in 90 minutes using clean OOP principles. (Ch21)</li>
+</ol>
+<h3 id="red-flags-that-kill-candidates-11"><a class="header" href="#red-flags-that-kill-candidates-11">Red Flags That Kill Candidates</a></h3>
+<ul>
+<li>Machine coding output that doesn’t compile — they test your code.</li>
+<li>Messy OOP in machine coding: God classes, no separation of concerns, no interfaces (Ch1, Ch20).</li>
+<li>Not knowing JPA LazyInitializationException — it is the most common Hibernate bug in Spring apps (Ch8).</li>
+<li>Treating the HLD round as generic — not addressing India-specific constraints.</li>
+<li>Weak behavioral answers — Indian product companies have grown up on startup culture and want ownership mindset.</li>
+</ul>
+<h3 id="preparation-checklist-11"><a class="header" href="#preparation-checklist-11">Preparation Checklist</a></h3>
+<ul>
+<li><input disabled="" type="checkbox"> Practice Machine Coding: build 5 systems in 90 minutes — parking lot, splitwise, chess, food delivery, movie booking (Ch21)</li>
+<li><input disabled="" type="checkbox"> Clean OOP habits: always use interfaces, follow SOLID in machine coding (Ch20)</li>
+<li><input disabled="" type="checkbox"> Know JPA Lazy vs Eager loading and when each causes problems (Ch8)</li>
+<li><input disabled="" type="checkbox"> Design Flash Sale system: inventory reservation, Redis distributed locks, Kafka order events (Ch12, Ch11)</li>
+<li><input disabled="" type="checkbox"> Study India-specific constraints: CDN at edge, OTP via Redis, UPI payment design</li>
+<li><input disabled="" type="checkbox"> Know Kafka for order lifecycle events end-to-end (Ch11)</li>
+<li><input disabled="" type="checkbox"> Solve 30 LeetCode mediums — Indian companies are raising their DSA bar to match FAANG</li>
+<li><input disabled="" type="checkbox"> Practice explaining system designs with cost optimization in mind</li>
+<li><input disabled="" type="checkbox"> Know Spring Boot exception handling: @ControllerAdvice, custom error responses (Ch7, Ch9)</li>
+<li><input disabled="" type="checkbox"> Prepare stories around impact, scale, and ownership — startup culture values this</li>
+</ul>
+<h3 id="recommended-study-plan-11"><a class="header" href="#recommended-study-plan-11">Recommended Study Plan</a></h3>
+<p>Use <strong>Plan B (4-week)</strong> with extra focus on <strong>Ch1 (OOP), Ch8 (JPA), Ch21 (LLD Case Studies)</strong>. Indian product companies are uniquely heavy on Machine Coding — dedicate 1 week entirely to 90-minute implementation practice.</p>
+<hr>
+<h2 id="quick-comparison-matrix"><a class="header" href="#quick-comparison-matrix">Quick Comparison Matrix</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Company</th><th>Coding</th><th>System Design</th><th>LLD</th><th>Behavioral</th><th>Java Depth</th><th>Kafka/Messaging</th><th>DB Depth</th><th>Difficulty</th></tr>
+</thead>
+<tbody>
+<tr><td>Amazon</td><td>4</td><td>5</td><td>2</td><td>5</td><td>3</td><td>4</td><td>4</td><td>5</td></tr>
+<tr><td>Google</td><td>5</td><td>5</td><td>3</td><td>3</td><td>4</td><td>2</td><td>3</td><td>5</td></tr>
+<tr><td>Meta</td><td>4</td><td>5</td><td>2</td><td>4</td><td>3</td><td>3</td><td>4</td><td>4</td></tr>
+<tr><td>Microsoft</td><td>3</td><td>3</td><td>4</td><td>3</td><td>4</td><td>2</td><td>3</td><td>3</td></tr>
+<tr><td>Netflix</td><td>4</td><td>5</td><td>2</td><td>4</td><td>5</td><td>5</td><td>4</td><td>5</td></tr>
+<tr><td>Uber / Lyft</td><td>3</td><td>5</td><td>2</td><td>3</td><td>3</td><td>4</td><td>4</td><td>4</td></tr>
+<tr><td>Stripe</td><td>4</td><td>4</td><td>3</td><td>3</td><td>3</td><td>4</td><td>5</td><td>4</td></tr>
+<tr><td>Atlassian</td><td>3</td><td>3</td><td>3</td><td>4</td><td>4</td><td>2</td><td>3</td><td>3</td></tr>
+<tr><td>Salesforce</td><td>3</td><td>4</td><td>2</td><td>3</td><td>3</td><td>3</td><td>4</td><td>3</td></tr>
+<tr><td>Goldman Sachs</td><td>4</td><td>4</td><td>2</td><td>3</td><td>5</td><td>4</td><td>5</td><td>4</td></tr>
+<tr><td>Jane Street</td><td>5</td><td>4</td><td>1</td><td>2</td><td>4</td><td>2</td><td>3</td><td>5</td></tr>
+<tr><td>Thoughtworks</td><td>2</td><td>2</td><td>5</td><td>4</td><td>3</td><td>1</td><td>2</td><td>3</td></tr>
+<tr><td>Flipkart</td><td>4</td><td>4</td><td>5</td><td>3</td><td>3</td><td>4</td><td>3</td><td>4</td></tr>
+<tr><td>Swiggy/Zepto</td><td>3</td><td>4</td><td>5</td><td>3</td><td>3</td><td>3</td><td>3</td><td>3</td></tr>
+<tr><td>CRED/Razorpay</td><td>3</td><td>4</td><td>4</td><td>3</td><td>3</td><td>3</td><td>4</td><td>4</td></tr>
+</tbody>
+</table>
+</div>
+<p><em>Scale: 1 (barely tested) to 5 (critical/deep assessment)</em></p>
+<hr>
+<h2 id="universal-must-know-list-every-company"><a class="header" href="#universal-must-know-list-every-company">Universal Must-Know List (Every Company)</a></h2>
+<p>These 15 topics appear in every product company interview regardless of the company. Master all 15 before targeting any specific company.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>#</th><th>Topic</th><th>Why It’s Universal</th><th>Chapter</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td>Java Collections internals</td><td>Every coding problem uses ArrayList, HashMap, or a tree. They will ask why you chose one over another.</td><td>Ch3</td></tr>
+<tr><td>2</td><td>OOP fundamentals — inheritance, polymorphism, encapsulation</td><td>LLD rounds exist at every company. Without solid OOP, you cannot design classes cleanly.</td><td>Ch1</td></tr>
+<tr><td>3</td><td>Java 8 Streams and Lambdas</td><td>Modern Java code uses Streams. Inability to use them reads as outdated.</td><td>Ch4</td></tr>
+<tr><td>4</td><td>Java Concurrency — synchronized, locks, thread pools</td><td>Every high-traffic service is concurrent. Thread safety questions appear everywhere.</td><td>Ch6</td></tr>
+<tr><td>5</td><td>Spring Boot fundamentals — DI, beans, AOP</td><td>If you use Java professionally, you use Spring. No exceptions.</td><td>Ch7</td></tr>
+<tr><td>6</td><td>JPA / Hibernate basics — lazy loading, N+1</td><td>The #1 cause of production performance bugs in Java apps. Every team knows it.</td><td>Ch8</td></tr>
+<tr><td>7</td><td>REST API design — idempotency, status codes, pagination</td><td>You will design or critique an API in every interview.</td><td>Ch9</td></tr>
+<tr><td>8</td><td>SQL — joins, aggregations, indexing</td><td>Data lives in databases. SQL competence is assumed.</td><td>Ch14, Ch15</td></tr>
+<tr><td>9</td><td>ACID properties and isolation levels</td><td>Every company that handles data cares about correctness.</td><td>Ch16</td></tr>
+<tr><td>10</td><td>Microservices patterns — circuit breaker, service discovery</td><td>Modern backend is microservices. Understanding the failure modes is expected.</td><td>Ch10, Ch19</td></tr>
+<tr><td>11</td><td>Redis as cache — patterns, eviction, TTL</td><td>Redis appears in 80% of system designs as a caching layer.</td><td>Ch12</td></tr>
+<tr><td>12</td><td>Kafka fundamentals — topics, partitions, consumer groups</td><td>Event-driven architecture is the default. Kafka is the reference implementation.</td><td>Ch11</td></tr>
+<tr><td>13</td><td>CAP theorem and consistency trade-offs</td><td>System design rounds always hit this. It frames every distributed system decision.</td><td>Ch17</td></tr>
+<tr><td>14</td><td>JVM memory model — heap, GC, memory leaks</td><td>“My service is slow in production” is a universal question. JVM knowledge is expected.</td><td>Ch5</td></tr>
+<tr><td>15</td><td>Design patterns — at least Factory, Observer, Strategy, Circuit Breaker</td><td>They appear in both code and system design. Naming them correctly signals seniority.</td><td>Ch19</td></tr>
+</tbody>
+</table>
+</div>
+<blockquote>
+<p><strong>Important:</strong> Do not treat these as “nice to know.” These are the table stakes. Arriving at an interview without confidence in all 15 is equivalent to arriving underprepared.</p>
+</blockquote>
+<hr>
+<h2 id="the-10-questions-you-must-be-able-to-answer-cold"><a class="header" href="#the-10-questions-you-must-be-able-to-answer-cold">The 10 Questions You MUST Be Able to Answer Cold</a></h2>
+<p>These questions come up across virtually every company at every level. “Answering cold” means you can give a confident, correct, complete answer without hesitation — not a perfect answer, but a minimum acceptable answer that shows you know the territory.</p>
+<hr>
+<p><strong>1. How does a HashMap work internally in Java?</strong></p>
+<p><em>Minimum acceptable answer:</em> HashMap uses an array of linked lists (or trees for large buckets since Java 8). <code>hashCode()</code> determines the bucket index via <code>hash % capacity</code>. Collisions are handled by chaining. When load factor (default 0.75) is exceeded, it resizes by doubling capacity and rehashing. Keys must implement <code>equals()</code> and <code>hashCode()</code> consistently. → Ch3</p>
+<hr>
+<p><strong>2. What is the difference between <code>@Transactional</code> propagation types REQUIRED and REQUIRES_NEW?</strong></p>
+<p><em>Minimum acceptable answer:</em> REQUIRED joins an existing transaction or creates one if none exists. REQUIRES_NEW always creates a new transaction, suspending the current one. Use REQUIRES_NEW when you need the inner operation to commit or rollback independently — for example, writing an audit log that should persist even if the outer transaction rolls back. → Ch7, Ch16</p>
+<hr>
+<p><strong>3. Explain the N+1 problem in JPA and how you solve it.</strong></p>
+<p><em>Minimum acceptable answer:</em> N+1 occurs when you fetch N parent entities and then execute 1 additional query per parent to load a lazily-loaded child collection — resulting in N+1 total queries. Fix it with <code>JOIN FETCH</code> in JPQL, <code>@EntityGraph</code>, or setting the fetch type to EAGER strategically. Always check query count in development with query logging enabled. → Ch8</p>
+<hr>
+<p><strong>4. What happens when a Kafka consumer falls behind? How do you fix it?</strong></p>
+<p><em>Minimum acceptable answer:</em> Consumer lag accumulates. If lag grows unboundedly, the consumer will eventually fall off the beginning of the retention window and lose messages. Fix by: scaling consumer instances up to the partition count, increasing batch size, optimizing the processing logic, or adding more partitions to the topic. Monitor consumer lag with tools like Kafka Consumer Group commands or Burrow. → Ch11</p>
+<hr>
+<p><strong>5. Design a URL shortener like bit.ly — high-level.</strong></p>
+<p><em>Minimum acceptable answer:</em> Write API generates a short hash (base62 of a counter or MD5 truncation), stores long-to-short mapping in a DB (or Redis for hot links). Read API does a DB lookup and returns a 301/302 redirect. Scale reads with Redis cache. For globally unique IDs, use a distributed ID generator (Snowflake). Handle custom aliases and expiry. → Ch22, Ch12</p>
+<hr>
+<p><strong>6. What is the difference between optimistic and pessimistic locking?</strong></p>
+<p><em>Minimum acceptable answer:</em> Pessimistic locking acquires a lock before reading data, preventing concurrent modification — uses <code>SELECT FOR UPDATE</code>. Optimistic locking reads without a lock, but checks a version/timestamp before writing; if another transaction modified the record, the update fails and must retry. Use optimistic for low-contention reads, pessimistic for high-contention writes where retries are expensive. → Ch16</p>
+<hr>
+<p><strong>7. How would you make a REST API endpoint idempotent?</strong></p>
+<p><em>Minimum acceptable answer:</em> The client sends a unique <code>Idempotency-Key</code> header with each request. The server stores the key and the response in a cache (Redis with TTL). Before processing, check if the key exists — if yes, return the cached response without reprocessing. This ensures duplicate retries due to network failures produce the same result without side effects. → Ch9, Ch12</p>
+<hr>
+<p><strong>8. What are the SOLID principles? Give one Java example for each.</strong></p>
+<p><em>Minimum acceptable answer:</em> S — Single Responsibility (a class that handles only Order logic, not Order + Email). O — Open/Closed (add new discount types via subclassing, not modifying existing code). L — Liskov Substitution (a Square extending Rectangle violates this — use composition instead). I — Interface Segregation (split a fat interface into smaller, focused interfaces). D — Dependency Inversion (inject dependencies via constructor rather than instantiating inside the class). → Ch20</p>
+<hr>
+<p><strong>9. Explain the Circuit Breaker pattern — when does it open, and what happens when it’s open?</strong></p>
+<p><em>Minimum acceptable answer:</em> A Circuit Breaker wraps calls to a downstream service. In CLOSED state, calls go through normally. When failure rate exceeds a threshold, it trips to OPEN state — subsequent calls immediately return a fallback response without hitting the service. After a timeout, it enters HALF-OPEN and allows a probe request. If the probe succeeds, it closes; if not, it opens again. This prevents cascade failures under downstream outages. → Ch10, Ch19</p>
+<hr>
+<p><strong>10. Describe the difference between process and thread, and when you’d use a thread pool in Java.</strong></p>
+<p><em>Minimum acceptable answer:</em> A process has its own memory space; threads share memory within a process. Threads are lightweight — creating a thread is cheaper than a process but still has overhead. A thread pool (<code>ExecutorService</code>) reuses a fixed set of threads for multiple tasks, avoiding the cost of creation/destruction on each request. Use it for concurrent I/O (HTTP calls, DB queries) where tasks are short-lived and you want bounded parallelism to avoid resource exhaustion. → Ch6</p>
+<hr>
+<h2 id="mock-interview-simulation-guide"><a class="header" href="#mock-interview-simulation-guide">Mock Interview Simulation Guide</a></h2>
+<p>Use this guide to run a self-contained 1-hour practice session. Do this at least 10 times before your target interviews. Record yourself — audio at minimum, video is better.</p>
+<hr>
+<h3 id="the-1-hour-solo-mock-interview"><a class="header" href="#the-1-hour-solo-mock-interview">The 1-Hour Solo Mock Interview</a></h3>
+<p><strong>Setup before starting:</strong></p>
+<ul>
+<li>Pick a company from this guide — run all 1-hour sessions with that company in mind</li>
+<li>Choose a system design topic (use the “Sample Questions” for that company)</li>
+<li>Set a timer — do not pause it</li>
+</ul>
+<hr>
+<h3 id="05-min-behavioral-opener"><a class="header" href="#05-min-behavioral-opener">0–5 min: Behavioral Opener</a></h3>
+<p>Start every mock with a behavioral question. This sets tone and warms up your verbal communication.</p>
+<p>Use one of these prompts:</p>
+<ul>
+<li>“Tell me about the most complex system you’ve built.”</li>
+<li>“Describe a time you disagreed with your team’s technical direction.”</li>
+<li>“Walk me through a production incident you personally resolved.”</li>
+</ul>
+<p><strong>What to assess in your recording:</strong></p>
+<ul>
+<li>Did you give a specific, measured outcome? (“Reduced p99 latency from 800ms to 120ms”)</li>
+<li>Did you use “I” vs “we” appropriately?</li>
+<li>Was it under 3 minutes?</li>
+</ul>
+<hr>
+<h3 id="545-min-system-design-or-coding-problem"><a class="header" href="#545-min-system-design-or-coding-problem">5–45 min: System Design or Coding Problem</a></h3>
+<p>Pick one:</p>
+<p><strong>Option A — System Design (40 min)</strong></p>
+<ol>
+<li><strong>Requirements gathering (5 min):</strong> State assumptions out loud. “I’ll assume 10M daily active users, writes are infrequent relative to reads, consistency can be eventual…”</li>
+<li><strong>High-level design (15 min):</strong> Draw the major components. Name every service, queue, and data store.</li>
+<li><strong>Deep dive (15 min):</strong> Pick the hardest component. Go to API level, data model level, and failure mode level.</li>
+<li><strong>Operational concerns (5 min):</strong> What do you monitor? How do you scale? What’s the first thing to fail under 10x load?</li>
+</ol>
+<blockquote>
+<p><strong>Important:</strong> Use the chapter references from this guide for the company you chose. Amazon SD should explicitly address Kafka, Redis, and distributed consistency. Stripe SD must address idempotency.</p>
+</blockquote>
+<p><strong>Option B — Coding Problem (40 min)</strong></p>
+<ol>
+<li><strong>Read the problem (2 min):</strong> Restate it in your own words before writing any code.</li>
+<li><strong>Brute force approach (5 min):</strong> State it verbally with complexity.</li>
+<li><strong>Optimal approach (5 min):</strong> State it with complexity before coding.</li>
+<li><strong>Implement (20 min):</strong> Write production-quality code — error handling, edge cases.</li>
+<li><strong>Test with examples (8 min):</strong> Walk through 2-3 test cases including edge cases.</li>
+</ol>
+<blockquote>
+<p><strong>Important:</strong> Say every thought out loud. Google and Meta in particular score on your reasoning process.</p>
+</blockquote>
+<hr>
+<h3 id="4555-min-follow-up-questions"><a class="header" href="#4555-min-follow-up-questions">45–55 min: Follow-Up Questions</a></h3>
+<p>These test depth. Do not skip this section — most candidates get caught here.</p>
+<p>Pick 3 follow-up questions from this list:</p>
+<ul>
+<li>“How does this change if we need 10x the load?”</li>
+<li>“What breaks first under failure?”</li>
+<li>“How would you monitor this in production?”</li>
+<li>“Can you explain the time complexity of that algorithm more precisely?”</li>
+<li>“What would you do differently if you were starting over?”</li>
+<li>“How does your design handle duplicate events?”</li>
+</ul>
+<p><strong>Rule:</strong> Give a direct answer immediately, then justify. Do not hedge before committing to a position.</p>
+<hr>
+<h3 id="5560-min-your-questions-to-ask"><a class="header" href="#5560-min-your-questions-to-ask">55–60 min: Your Questions to Ask</a></h3>
+<p>Every interview ends with “Do you have questions for us?” — most candidates ask generic questions. Practice asking specific, informed questions.</p>
+<p><strong>Strong question templates (adapt to company):</strong></p>
+<ul>
+<li>“What’s the hardest distributed systems problem your team is working on right now?”</li>
+<li>“How do you handle the trade-off between shipping fast and maintaining system reliability?”</li>
+<li>“What does the oncall experience look like for a new engineer on this team?”</li>
+<li>“Where does the team feel its technical debt is most acute?”</li>
+<li>“What would make someone exceptional in this role vs just successful?”</li>
+</ul>
+<p><strong>Bad questions to avoid:</strong></p>
+<ul>
+<li>“What does your company do?” (Shows no preparation)</li>
+<li>“What’s the salary?” (Save for recruiter)</li>
+<li>“How many vacation days?” (Wrong time)</li>
+</ul>
+<hr>
+<h3 id="after-the-mock-self-scoring"><a class="header" href="#after-the-mock-self-scoring">After the Mock: Self-Scoring</a></h3>
+<p>Score yourself on this rubric immediately after (while memory is fresh):</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Dimension</th><th>1 (Poor)</th><th>3 (Acceptable)</th><th>5 (Strong)</th></tr>
+</thead>
+<tbody>
+<tr><td>Communication</td><td>Silence, vague</td><td>Explains most steps</td><td>Narrates clearly at all times</td></tr>
+<tr><td>Technical Correctness</td><td>Significant errors</td><td>Minor errors</td><td>Correct and justified</td></tr>
+<tr><td>Edge Cases</td><td>Ignored</td><td>Mentioned but not addressed</td><td>Fully handled</td></tr>
+<tr><td>Scale Awareness</td><td>Didn’t address</td><td>Mentioned numbers</td><td>Designed for numbers</td></tr>
+<tr><td>Time Management</td><td>Ran out of time</td><td>Finished under pressure</td><td>Natural pacing</td></tr>
+<tr><td>Follow-Up Response</td><td>Stumped</td><td>Partially answered</td><td>Direct and confident</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Target: average 4+ across all dimensions before your real interview.</strong></p>
+<hr>
+<blockquote>
+<p><strong>Final note:</strong> This guide is a targeting system, not a syllabus. The companies in this guide have told you what they care about. Your job is to close the gap between where you are and what they need. Every hour of preparation should be traceable back to a specific company, a specific chapter, or a specific skill in this guide. Unfocused prep is the #1 reason candidates with strong fundamentals still fail loops.</p>
+</blockquote>
+<hr>
+<p><em>Backend Interview Handbook — Company Guide</em>
+<em>Chapters 1–27 across 6 volumes</em></p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="STUDY_GUIDE.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="Volume1_CoreJava/Chapter1_OOP.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="STUDY_GUIDE.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="Volume1_CoreJava/Chapter1_OOP.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-09f2665d.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-c22b7243.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="custom-877a7a53.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

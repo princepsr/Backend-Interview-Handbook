@@ -1,0 +1,1527 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Chapter 4 - Java 8+ Modern Features - Volume 1: Core Java</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Core Java fundamentals for SDE2 interviews. OOP, Collections, Java 8+, JVM Internals, Multithreading and Concurrency. 6 chapters, 100+ Q&amp;As.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-0392ca55.css">
+        <link rel="stylesheet" href="../css/chrome-fc474251.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../custom-aab4aca2.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-3feadd69.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-1afed8f8.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Volume 1: Core Java</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="volume-1-core-java"><a class="header" href="#volume-1-core-java">Volume 1: Core Java</a></h1>
+<h1 id="chapter-4-java-8-features"><a class="header" href="#chapter-4-java-8-features">Chapter 4: Java 8+ Features</a></h1>
+<hr>
+<h2 id="table-of-contents"><a class="header" href="#table-of-contents">Table of Contents</a></h2>
+<ol>
+<li>Lambdas &amp; Method References</li>
+<li>Functional Interfaces</li>
+<li>Streams — Pipeline, Operations &amp; Collectors</li>
+<li>Streams — Advanced Usage</li>
+<li>Optional</li>
+<li>CompletableFuture</li>
+<li>Java 9–17 Key Additions</li>
+<li>Java 8+ Quick Reference</li>
+</ol>
+<hr>
+<blockquote>
+<p><strong>How to read this chapter:</strong> Each topic has three layers.</p>
+<ul>
+<li><strong>The Idea</strong> — start here, no prior knowledge needed.</li>
+<li><strong>How It Works</strong> — the real mechanism, patterns, and tradeoffs.</li>
+<li><strong>Interview Lens</strong> — what interviewers actually probe.</li>
+</ul>
+<p>Beginners: read all three layers top to bottom.
+SDE2/Senior: skim “The Idea”, focus on “How It Works” and “Interview Lens”.</p>
+</blockquote>
+<hr>
+<h2 id="topic-1-lambdas--method-references"><a class="header" href="#topic-1-lambdas--method-references">Topic 1: Lambdas &amp; Method References</a></h2>
+<p><strong>Difficulty:</strong> Medium | <strong>Frequency:</strong> Very High | <strong>Companies:</strong> Amazon, Google, Microsoft, Goldman Sachs, Atlassian, Netflix</p>
+<hr>
+<h3 id="the-idea"><a class="header" href="#the-idea">The Idea</a></h3>
+<p>Before Java 8, passing behavior meant writing an anonymous inner class — a verbose block of boilerplate just to say “do this one thing.” A lambda expression is a shorthand for the same idea: it represents an instance of a functional interface (any interface with exactly one abstract method) without the ceremony.</p>
+<p>Think of a lambda like a sticky note attached to a job description. The functional interface is the job description (“I need something that takes a String and returns a boolean”). The lambda is the sticky note you hand back: <code>name -&gt; name.length() &gt; 5</code>. No class name, no <code>new</code>, no <code>@Override</code> — just the logic.</p>
+<p>Method references take this a step further. When your lambda body does nothing but call an existing method — <code>s -&gt; s.toUpperCase()</code> — you can just write <code>String::toUpperCase</code>. Same compiled output, cleaner to read.</p>
+<hr>
+<h3 id="how-it-works"><a class="header" href="#how-it-works">How It Works</a></h3>
+<p><strong>Lambda compilation (pseudocode):</strong></p>
+<pre><code>Compiler sees lambda expression
+  → emits invokedynamic bytecode instruction (not a .class file)
+  → first call at runtime: JVM invokes LambdaMetafactory.metafactory()
+  → LambdaMetafactory generates a hidden class implementing the functional interface
+  → subsequent calls: reuse the linked CallSite — no repeated bootstrap cost
+</code></pre>
+<p><strong>Variable capture rules (pseudocode):</strong></p>
+<pre><code>Lambda can freely access:
+  → instance variables of the enclosing class
+  → static variables
+  → local variables ONLY IF they are effectively final
+      (never reassigned after initialization)
+
+Reason: local variables live on the stack.
+If the lambda outlives the method call (e.g. passed to another thread),
+the JVM must copy the variable into the lambda closure.
+Mutation would introduce race conditions.
+</code></pre>
+<p><strong>Four types of method reference:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Type</th><th>Syntax</th><th>Equivalent lambda</th></tr>
+</thead>
+<tbody>
+<tr><td>Static method</td><td><code>Integer::parseInt</code></td><td><code>s -&gt; Integer.parseInt(s)</code></td></tr>
+<tr><td>Instance — specific object</td><td><code>log::add</code></td><td><code>s -&gt; log.add(s)</code></td></tr>
+<tr><td>Instance — arbitrary object</td><td><code>String::toUpperCase</code></td><td><code>s -&gt; s.toUpperCase()</code></td></tr>
+<tr><td>Constructor</td><td><code>ArrayList::new</code></td><td><code>() -&gt; new ArrayList&lt;&gt;()</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Key distinction for Type 2 vs Type 3: Type 2 captures a specific object already in scope. Type 3 receives the object as its first argument at call time — the stream element becomes the receiver.</p>
+<p><strong>The one interview-critical gotcha — <code>this</code> inside a lambda vs anonymous class:</strong></p>
+<pre><code class="language-java">public class MyService {
+    private String name = "service";
+
+    Runnable lambda = () -&gt; System.out.println(this.name);
+    // 'this' = MyService instance — correct
+
+    Runnable anon = new Runnable() {
+        @Override public void run() {
+            System.out.println(this.name); // compile error — 'this' = the anonymous class
+        }
+    };
+}
+</code></pre>
+<hr>
+<h3 id="interview-lens"><a class="header" href="#interview-lens">Interview Lens</a></h3>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. You can read just this section the night before an interview and walk in prepared. Every concept referenced is explained inline — no need to flip back.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: In a real interview, lead with the one-line answer first. Pause. Expand only if the interviewer nods or probes.</em></p>
+</blockquote>
+<hr>
+<h4 id="q1--concept-check"><a class="header" href="#q1--concept-check">Q1 — Concept Check</a></h4>
+<p><strong>“What is a lambda expression and how does the compiler handle it?”</strong></p>
+<p><strong>One-line answer:</strong> A lambda is a concise instance of a functional interface, compiled via <code>invokedynamic</code> rather than generating a separate <code>.class</code> file.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“A lambda expression lets me represent a single-method behavior — what Java calls a functional interface — without writing an anonymous inner class. The key difference from anonymous classes is at the bytecode level. The compiler emits an <code>invokedynamic</code> instruction, which is a special JVM opcode that defers method linkage to runtime. On the first call, the JVM invokes a bootstrap method called <code>LambdaMetafactory</code>, which generates a hidden class that implements the functional interface. After that first call, the CallSite is linked and subsequent calls go straight to it with no bootstrap overhead. This is why lambdas are more efficient than anonymous classes — no separate <code>.class</code> file, less class-loading pressure. There’s also a capture rule: lambdas can freely read instance variables and static variables, but can only capture local variables if they are effectively final, meaning never reassigned after initialization. This exists because local variables live on the stack, and if the lambda outlives the stack frame — for example if it’s passed to another thread — the JVM has to copy the value into the lambda’s closure. Allowing mutation would cause race conditions.”</p>
+</blockquote>
+<p><em>Say this in about 60 seconds. Emphasize the invokedynamic/LambdaMetafactory point — interviewers at Goldman and Amazon ask this specifically.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“Is a lambda expression always a new object every time it is evaluated?”</em></p>
+<blockquote>
+<p>No. The JVM may cache stateless lambdas — lambdas that capture no variables — as singletons. When there’s nothing to capture, the same object can be reused safely across invocations. Lambdas that capture variables must produce a new object each time, because the captured state is part of the instance. This is an optimization detail, not a guarantee in the spec, but it is worth knowing because interviewers use it to test whether you understand the difference between stateless and stateful lambdas.</p>
+</blockquote>
+<hr>
+<h4 id="q2--concept-check"><a class="header" href="#q2--concept-check">Q2 — Concept Check</a></h4>
+<p><strong>“What are method references and what are the four types?”</strong></p>
+<p><strong>One-line answer:</strong> Method references are shorthand lambdas that call an existing method directly, compiled via the same <code>invokedynamic</code> mechanism.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“A method reference is just syntactic sugar for a lambda whose body does nothing but call one method. There are four types. First, a static method reference like <code>Integer::parseInt</code> — equivalent to <code>s -&gt; Integer.parseInt(s)</code>. Second, an instance method reference on a specific captured object, like <code>log::add</code> where <code>log</code> is already in scope — equivalent to <code>s -&gt; log.add(s)</code>. Third, an instance method reference on an arbitrary object of a type, like <code>String::toUpperCase</code> — here the stream element itself becomes the receiver, so <code>s -&gt; s.toUpperCase()</code>. Fourth, a constructor reference like <code>ArrayList::new</code> — equivalent to <code>() -&gt; new ArrayList&lt;&gt;()</code>. The confusing pair is type two versus type three. Type two captures a specific object. Type three has no captured object — the object is supplied as the first argument at call time, which is why you use the class name rather than an instance name. For example, <code>String::compareTo</code> as a <code>Comparator&lt;String&gt;</code> works because the two strings are passed as arguments — the first becomes the receiver, the second is the argument to <code>compareTo</code>.”</p>
+</blockquote>
+<p><em>Lead with the four types table mentally. Slow down on type 2 vs 3 — that’s where interviewers probe.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“What functional interface does <code>String::valueOf</code> correspond to?”</em></p>
+<blockquote>
+<p><code>String::valueOf</code> is a static method that takes an <code>Object</code> and returns a <code>String</code>, so it corresponds to <code>Function&lt;Object, String&gt;</code>. If used in a context expecting <code>Function&lt;Integer, String&gt;</code>, the compiler will resolve it as <code>Function&lt;Integer, String&gt;</code> because <code>valueOf</code> has an overload accepting <code>int</code>. The compiler picks the overload that matches the target functional interface’s signature.</p>
+</blockquote>
+<hr>
+<h4 id="q3--tradeoff-question"><a class="header" href="#q3--tradeoff-question">Q3 — Tradeoff Question</a></h4>
+<p><strong>“When would you prefer a lambda over a method reference, or vice versa?”</strong></p>
+<p><strong>One-line answer:</strong> Prefer method references for pure delegation to an existing method; prefer lambdas when you need additional logic, argument reordering, or clarity over a non-obvious reference.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“Method references are more readable when the lambda body is a straightforward delegation — <code>String::toUpperCase</code> communicates intent instantly. But I prefer lambdas in a few cases. First, when additional logic is needed: <code>s -&gt; s.trim().toUpperCase()</code> cannot become a single method reference. Second, when the method reference type would be ambiguous or confusing — <code>String::compareTo</code> technically works as a <code>Comparator&lt;String&gt;</code> because the first string becomes the receiver and the second is the argument, but a reader might not recognize this immediately. Third, for argument reordering: if I want <code>(a, b) -&gt; b.compareTo(a)</code> for reverse order, there is no method reference form. The underlying execution cost is identical — both compile to <code>invokedynamic</code> — so the choice is purely about readability and maintainability.”</p>
+</blockquote>
+<p><em>This is a judgment question. Show you think about team readability, not just syntax tricks.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“Can a method reference be used for a method that throws a checked exception?”</em></p>
+<blockquote>
+<p>Only if the target functional interface’s abstract method also declares that checked exception. Standard interfaces like <code>Function&lt;T,R&gt;</code> do not declare checked exceptions, so you cannot directly use a method reference to a method that throws <code>IOException</code> as a <code>Function</code>. The workaround is a custom functional interface — often called <code>ThrowingFunction</code> — whose abstract method declares <code>throws Exception</code>, plus a static wrapper that catches and re-throws as <code>RuntimeException</code>. This pattern is covered in the Functional Interfaces topic.</p>
+</blockquote>
+<hr>
+<h4 id="q4--design-scenario"><a class="header" href="#q4--design-scenario">Q4 — Design Scenario</a></h4>
+<p><strong>“How do lambdas interact with concurrency? What are the rules around captured variables and thread safety?”</strong></p>
+<p><strong>One-line answer:</strong> Lambdas can only capture effectively final local variables, eliminating one class of race conditions, but captured instance state and shared mutable data structures still require explicit synchronization.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“The effectively-final rule — meaning a captured local variable must never be reassigned after it is initialized — is a compile-time guarantee that prevents a specific concurrency bug: if a lambda is executed on a different thread and the capturing method has already returned, the local variable’s stack frame is gone. The JVM copies the value into the lambda’s closure at capture time. If mutation were allowed, you’d have a data race between the original stack frame and the copy. However, the rule only protects local variables. If the lambda captures an instance variable — for example <code>this.orders</code> — that’s still shared mutable state. Two lambda instances running on separate threads can both read and write <code>this.orders</code> simultaneously unless I synchronize. Similarly, if I use a lambda with <code>parallelStream()</code> and the lambda has side effects on a shared list, I will get corruption or <code>ConcurrentModificationException</code>. Stateless lambdas — those that capture nothing — are inherently thread-safe and the JVM may even cache them as singletons.”</p>
+</blockquote>
+<p><em>Good answer for senior-level interviews. Mention parallelStream side effects — that’s the practical trap.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“What’s the difference between <code>this</code> inside a lambda vs <code>this</code> inside an anonymous inner class?”</em></p>
+<blockquote>
+<p>Inside a lambda, <code>this</code> refers to the enclosing class instance — the same object you’d get if you used <code>this</code> in a regular method. Inside an anonymous inner class, <code>this</code> refers to the anonymous class instance itself, not the outer class. To access the outer class from an anonymous inner class, you need <code>OuterClass.this</code>. This is one of the subtle semantic differences between lambdas and anonymous classes that the compiler does not sugar away.</p>
+</blockquote>
+<hr>
+<blockquote>
+<p><strong>Common Mistake — Treating lambdas as pure anonymous class sugar:</strong> Lambdas and anonymous classes differ in <code>this</code> semantics, bytecode representation, and capture rules. Writing code that relies on a lambda having its own <code>this</code> (for self-reference, for example) will not compile or behave as expected.</p>
+</blockquote>
+<blockquote>
+<p><strong>Common Mistake — Mutating captured variables via workaround:</strong> Using a single-element array or an <code>AtomicInteger</code> to mutate a “captured” value from inside a lambda defeats the purpose of the effectively-final rule. It works at compile time but introduces the exact race condition the rule was designed to prevent if the lambda runs on another thread.</p>
+</blockquote>
+<p><strong>Quick Revision (one line):</strong> Lambda = <code>invokedynamic</code> + <code>LambdaMetafactory</code>, effectively-final capture, <code>this</code> = enclosing class; method references are syntactic sugar with four types distinguished by whether the receiver is captured or supplied.</p>
+<hr>
+<h2 id="topic-2-functional-interfaces"><a class="header" href="#topic-2-functional-interfaces">Topic 2: Functional Interfaces</a></h2>
+<p><strong>Difficulty:</strong> Medium | <strong>Frequency:</strong> Very High | <strong>Companies:</strong> Amazon, Microsoft, Goldman Sachs, JPMorgan, Stripe, Uber</p>
+<hr>
+<h3 id="the-idea-1"><a class="header" href="#the-idea-1">The Idea</a></h3>
+<p>Java’s type system is built around types, so to pass a lambda around you need a type for it to inhabit. That type is a functional interface: any interface with exactly one abstract method. The interface is the contract (“I accept a String and return a boolean”). The lambda fills the contract.</p>
+<p>Java 8 ships a standard library of pre-built functional interfaces in <code>java.util.function</code> so you don’t invent your own for every common pattern. There are five families: <code>Function</code> (transform), <code>Predicate</code> (test), <code>Consumer</code> (side effect), <code>Supplier</code> (produce), and <code>Operator</code> (same-type transform). Each also has two-input (<code>Bi-</code>) and primitive-specialized variants (<code>IntFunction</code>, <code>ToLongFunction</code>, etc.) to avoid boxing overhead.</p>
+<p>When the standard interfaces don’t fit — for example, you need a function that throws a checked exception, or one that takes three arguments — you define your own. The <code>@FunctionalInterface</code> annotation is optional but recommended: it makes the compiler enforce the single-abstract-method contract and documents the intent to future readers.</p>
+<hr>
+<h3 id="how-it-works-1"><a class="header" href="#how-it-works-1">How It Works</a></h3>
+<p><strong>Core functional interfaces at a glance:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Interface</th><th>Abstract method</th><th>What it does</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Function&lt;T,R&gt;</code></td><td><code>R apply(T t)</code></td><td>Transform T to R</td></tr>
+<tr><td><code>BiFunction&lt;T,U,R&gt;</code></td><td><code>R apply(T t, U u)</code></td><td>Two inputs, one output</td></tr>
+<tr><td><code>Predicate&lt;T&gt;</code></td><td><code>boolean test(T t)</code></td><td>Test a condition</td></tr>
+<tr><td><code>BiPredicate&lt;T,U&gt;</code></td><td><code>boolean test(T t, U u)</code></td><td>Two-input condition</td></tr>
+<tr><td><code>Consumer&lt;T&gt;</code></td><td><code>void accept(T t)</code></td><td>Side effect, no return</td></tr>
+<tr><td><code>BiConsumer&lt;T,U&gt;</code></td><td><code>void accept(T t, U u)</code></td><td>Two-input side effect</td></tr>
+<tr><td><code>Supplier&lt;T&gt;</code></td><td><code>T get()</code></td><td>Produce a value, no input</td></tr>
+<tr><td><code>UnaryOperator&lt;T&gt;</code></td><td><code>T apply(T t)</code></td><td>Transform T to same type T</td></tr>
+<tr><td><code>BinaryOperator&lt;T&gt;</code></td><td><code>T apply(T t1, T t2)</code></td><td>Combine two T values into T</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Composition pseudocode:</strong></p>
+<pre><code>Function f, Function g:
+  f.andThen(g)  → input → f first → g second → output   (f then g)
+  f.compose(g)  → input → g first → f second → output   (g then f)
+
+Predicate p, Predicate q:
+  p.and(q)      → true only if both pass
+  p.or(q)       → true if either passes
+  p.negate()    → flips result
+  Predicate.not(p)  → same as negate, Java 11+
+
+Consumer c1, Consumer c2:
+  c1.andThen(c2) → run c1 then c2 on the same input
+  (no compose — consumers return void, there is nothing to chain backward)
+</code></pre>
+<p><strong>The one interview-critical gotcha — <code>andThen</code> vs <code>compose</code> order:</strong></p>
+<pre><code class="language-java">Function&lt;Integer, Integer&gt; times2 = x -&gt; x * 2;
+Function&lt;Integer, Integer&gt; plus3  = x -&gt; x + 3;
+
+// andThen: times2 first, then plus3
+times2.andThen(plus3).apply(5);  // (5*2)+3 = 13
+
+// compose: plus3 first, then times2
+times2.compose(plus3).apply(5);  // (5+3)*2 = 16
+</code></pre>
+<p><strong>Custom functional interface rules (pseudocode):</strong></p>
+<pre><code>A custom functional interface needs:
+  → exactly ONE abstract method (the "functional method")
+  → any number of default methods    (allowed)
+  → any number of static methods     (allowed)
+  → Object methods (equals, toString) do NOT count as abstract
+
+@FunctionalInterface annotation:
+  → optional at runtime
+  → if present: compiler enforces exactly-one-abstract-method constraint
+  → strongly recommended for documentation and safety
+</code></pre>
+<hr>
+<h3 id="interview-lens-1"><a class="header" href="#interview-lens-1">Interview Lens</a></h3>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. You can read just this section the night before an interview and walk in prepared. Every concept referenced is explained inline — no need to flip back.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: In a real interview, lead with the one-line answer first. Pause. Expand only if the interviewer nods or probes.</em></p>
+</blockquote>
+<hr>
+<h4 id="q5--concept-check"><a class="header" href="#q5--concept-check">Q5 — Concept Check</a></h4>
+<p><strong>“What are the core built-in functional interfaces in Java 8 and when do you use each?”</strong></p>
+<p><strong>One-line answer:</strong> The five families are <code>Function</code> (transform), <code>Predicate</code> (test), <code>Consumer</code> (side effect), <code>Supplier</code> (produce), and <code>Operator</code> (same-type transform) — each covering a distinct role in functional pipelines.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“Java 8 introduced a standard library of functional interfaces in <code>java.util.function</code> so you don’t need to define your own for common patterns. I’ll walk through the five families. <code>Function&lt;T,R&gt;</code> transforms an input of type T to an output of type R — the workhorse of stream <code>map</code> operations. <code>Predicate&lt;T&gt;</code> takes a T and returns a boolean — used in <code>filter</code>, validation, and conditional logic. <code>Consumer&lt;T&gt;</code> takes a T and returns nothing — it exists purely for side effects like logging or writing to a database. <code>Supplier&lt;T&gt;</code> takes no input and returns a T — useful for lazy evaluation, factory patterns, and <code>orElseGet</code> on Optional. <code>UnaryOperator&lt;T&gt;</code> and <code>BinaryOperator&lt;T&gt;</code> are specializations of <code>Function</code> where all types are the same — <code>UnaryOperator</code> for in-place transformations, <code>BinaryOperator</code> for reductions like <code>reduce</code> in streams. Each family also has two-input <code>Bi-</code> variants and primitive-specialized variants to avoid autoboxing overhead. Composition is built in: <code>Function</code> has <code>andThen</code> and <code>compose</code>, <code>Predicate</code> has <code>and</code>, <code>or</code>, <code>negate</code>, and <code>Consumer</code> has <code>andThen</code>.”</p>
+</blockquote>
+<p><em>Mention the primitive variants (IntFunction, ToLongFunction) if you have time — it shows you think about performance.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“What is the difference between <code>Function.andThen()</code> and <code>Function.compose()</code>?”</em></p>
+<blockquote>
+<p>Both compose two functions into one, but the order differs. <code>f.andThen(g)</code> means apply <code>f</code> first, then pass its result to <code>g</code> — reading left to right. <code>f.compose(g)</code> means apply <code>g</code> first, then pass its result to <code>f</code> — the argument function runs before <code>this</code>. A concrete example: if <code>f</code> doubles a number and <code>g</code> adds three, <code>f.andThen(g).apply(5)</code> gives 13 (double then add), while <code>f.compose(g).apply(5)</code> gives 16 (add then double). The confusion is common because <code>andThen</code> reads naturally but <code>compose</code> reads mathematically (like function composition f∘g where g runs first).</p>
+</blockquote>
+<hr>
+<h4 id="q6--concept-check"><a class="header" href="#q6--concept-check">Q6 — Concept Check</a></h4>
+<p><strong>“Why does <code>Consumer</code> have <code>andThen</code> but not <code>compose</code>?”</strong></p>
+<p><strong>One-line answer:</strong> <code>Consumer</code> returns void, so there is no output to feed as input to a preceding function — composition in reverse is meaningless.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“Functional composition requires an output from one function to become the input of another. <code>Consumer&lt;T&gt;</code> accepts a value and returns nothing — void. <code>andThen</code> on <code>Consumer</code> threads the same original input to both consumers in sequence, which is valid and useful for chaining side effects like print then audit. But <code>compose</code> would mean: take my output, feed it to another function, then feed that result to me. Since my output is void, there is nothing to feed — the operation is undefined. The API designers simply omitted <code>compose</code> because it has no sensible semantics for a void-returning interface. The same logic applies to <code>BiConsumer</code>. This is also why <code>Consumer.andThen</code> takes a <code>Consumer</code> not a <code>Function</code> — you can only chain another consumer, not a transformer.”</p>
+</blockquote>
+<p><em>Short question, short answer. This is a signal of whether you understand the type-level reasoning behind the API design.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“When would you use <code>Supplier</code> instead of just calling a method directly?”</em></p>
+<blockquote>
+<p>The key word is lazy. If I call a method directly — <code>orElse(computeExpensiveDefault())</code> — the expensive computation runs whether or not the Optional is empty. If I use a <code>Supplier</code> — <code>orElseGet(() -&gt; computeExpensiveDefault())</code> — the computation only runs if the Optional is actually empty. <code>Supplier</code> defers execution until the value is truly needed. This matters for expensive database lookups, object construction, or any computation with side effects that should not happen unconditionally.</p>
+</blockquote>
+<hr>
+<h4 id="q7--design-scenario"><a class="header" href="#q7--design-scenario">Q7 — Design Scenario</a></h4>
+<p><strong>“How do you handle checked exceptions inside a lambda? <code>Function&lt;T,R&gt;</code> doesn’t declare any.”</strong></p>
+<p><strong>One-line answer:</strong> Define a custom functional interface that declares <code>throws Exception</code>, then add a static wrapper method that catches and re-throws as <code>RuntimeException</code>.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“The standard <code>Function&lt;T,R&gt;</code> interface does not declare any checked exceptions, so if my lambda calls a method that throws <code>IOException</code> — like a file read or HTTP call — it won’t compile as a <code>Function</code>. There are two approaches. The quick approach is to wrap the exception inside the lambda: <code>t -&gt; { try { return riskyCall(t); } catch (IOException e) { throw new RuntimeException(e); } }</code>. This works but is verbose and repeats at every use site. The cleaner approach is a custom functional interface — often called <code>ThrowingFunction&lt;T,R&gt;</code> — whose abstract method declares <code>throws Exception</code>. Then I add a static <code>wrap</code> method that converts a <code>ThrowingFunction</code> to a plain <code>Function</code> by doing the try-catch internally. That way I can write <code>.map(ThrowingFunction.wrap(url -&gt; fetchData(url)))</code> cleanly throughout my codebase. The <code>wrap</code> method is a static method on the functional interface itself, which is allowed — functional interfaces can have any number of static methods.”</p>
+</blockquote>
+<p><em>This comes up in any company that does stream-heavy data pipelines. Have the ThrowingFunction pattern memorized.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“Can a functional interface extend another interface?”</em></p>
+<blockquote>
+<p>Yes. A functional interface can extend another interface and still be functional if the result has exactly one abstract method. For example, <code>UnaryOperator&lt;T&gt;</code> extends <code>Function&lt;T,T&gt;</code> — it inherits <code>apply</code>, which is the one abstract method. The child interface adds no new abstract methods, just specializes the type. <code>Comparator&lt;T&gt;</code> is another example: it has many default and static methods, and even declares <code>equals(Object)</code>, but <code>equals</code> comes from <code>Object</code> and doesn’t count as an abstract method in this context, so <code>Comparator</code> remains a valid functional interface with <code>compare</code> as its single abstract method.</p>
+</blockquote>
+<hr>
+<h4 id="q8--tradeoff-question"><a class="header" href="#q8--tradeoff-question">Q8 — Tradeoff Question</a></h4>
+<p><strong>“When should you define a custom functional interface vs reuse a standard one?”</strong></p>
+<p><strong>One-line answer:</strong> Use standard interfaces whenever the signature fits; define custom ones when you need a checked exception declaration, more than two parameters, or domain-specific naming that improves readability.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“The standard interfaces cover the vast majority of cases: transform, test, consume, produce, reduce. I default to them because they compose naturally with streams, Optional, and CompletableFuture — all of which are built around those types. I define a custom interface in three situations. First, when I need checked exceptions: as discussed, <code>Function</code> cannot declare them, so <code>ThrowingFunction</code> is necessary. Second, when the arity is wrong: the standard library goes up to <code>BiFunction</code> (two arguments) — if I need three parameters, I define <code>TriFunction</code>. Third, when domain naming makes the code significantly more readable: a <code>PricingStrategy</code> functional interface communicates intent better than a raw <code>BiFunction&lt;Order, Context, Money&gt;</code>, especially if that function is referenced in many places. The <code>@FunctionalInterface</code> annotation on custom interfaces is not required to make them work, but it is strongly recommended — it makes the compiler catch the mistake of accidentally adding a second abstract method, and it documents the intent.”</p>
+</blockquote>
+<p><em>Show you default to standard interfaces — that’s the right instinct. Custom interfaces are the exception, not the rule.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“Does adding a second <code>default</code> method to a functional interface break it?”</em></p>
+<blockquote>
+<p>No. Functional interfaces can have any number of default methods and static methods. Only abstract methods count toward the one-abstract-method constraint. Default methods have a body and are inherited by implementing classes (or lambdas). Adding <code>andThen</code> as a default method to a custom functional interface is perfectly valid and is exactly what the standard library does — <code>Function</code>, <code>Consumer</code>, and <code>Predicate</code> all have default composition methods.</p>
+</blockquote>
+<hr>
+<blockquote>
+<p><strong>Common Mistake — Confusing <code>andThen</code> and <code>compose</code> execution order:</strong> <code>f.andThen(g)</code> runs <code>f</code> first; <code>f.compose(g)</code> runs <code>g</code> first. Getting this backwards silently produces wrong results — no compile error, no runtime exception.</p>
+</blockquote>
+<blockquote>
+<p><strong>Common Mistake — Using <code>orElse</code> with an expensive computation instead of <code>orElseGet</code>:</strong> <code>orElse(expensiveMethod())</code> always evaluates the argument. <code>orElseGet(() -&gt; expensiveMethod())</code> only evaluates it if the Optional is empty. The bug is silent — code is correct but wasteful, and in some cases causes unwanted side effects.</p>
+</blockquote>
+<p><strong>Quick Revision (one line):</strong> Function=transform, Predicate=test, Consumer=void side-effect, Supplier=lazy produce, Operator=same-type; <code>andThen</code> runs this-then-argument, <code>compose</code> runs argument-then-this; custom interfaces need one abstract method and should declare <code>@FunctionalInterface</code>.</p>
+<hr>
+<h2 id="topic-3-streams--pipeline-operations--collectors"><a class="header" href="#topic-3-streams--pipeline-operations--collectors">Topic 3: Streams — Pipeline, Operations &amp; Collectors</a></h2>
+<p><strong>Difficulty:</strong> Medium–Hard | <strong>Frequency:</strong> Very High | <strong>Companies:</strong> Amazon, Google, Goldman Sachs, Stripe, Netflix, Uber, JPMorgan</p>
+<hr>
+<h3 id="the-idea-2"><a class="header" href="#the-idea-2">The Idea</a></h3>
+<p>A stream is a conveyor belt for data. You set up a sequence of processing steps — filter these items, transform those, stop after five — and nothing moves until you press the start button at the end. That start button is the terminal operation. Until you add one, the conveyor belt just sits there with your instructions written on it but no items moving.</p>
+<p>This is lazy evaluation: the pipeline description is built eagerly, but execution is deferred until a terminal operation pulls elements through. One element travels through all pipeline stages before the next element is fetched. This is why a <code>filter().limit(5)</code> on a million-element list only looks at the first handful of elements that pass the filter — it stops as soon as five pass, never touching the rest.</p>
+<p>Collectors are the packaging station at the end of the belt. <code>collect()</code> is a terminal operation that accumulates stream elements into a container — a list, a map, a grouped structure. <code>Collectors.groupingBy</code> is the most powerful: it partitions elements by a classifier key and optionally applies a downstream collector (count, average, max) to each group.</p>
+<hr>
+<h3 id="how-it-works-2"><a class="header" href="#how-it-works-2">How It Works</a></h3>
+<p><strong>Pipeline structure (pseudocode):</strong></p>
+<pre><code>stream pipeline = source + zero or more intermediate ops + one terminal op
+
+Source creates a Spliterator:
+  → Spliterator knows how to traverse and optionally split the data source
+  → tryAdvance() = process one element
+  → trySplit()   = split for parallel processing
+  → characteristics (SIZED, ORDERED, SORTED, DISTINCT...) guide optimizations
+
+Intermediate ops (lazy):
+  → each returns a new Stream (a linked ReferencePipeline stage)
+  → no element processing happens yet
+  → builds a description of what to do
+
+Terminal op (triggers execution):
+  → pulls elements one at a time through all fused stages
+  → short-circuit terminals (findFirst, anyMatch) stop early
+  → stateful ops (sorted, distinct) must buffer all elements before emitting
+</code></pre>
+<p><strong>map vs flatMap (pseudocode):</strong></p>
+<pre><code>map(f):
+  for each element e → produce exactly ONE output: f(e)
+  Stream&lt;T&gt; → Stream&lt;R&gt;
+  shape is preserved: n inputs → n outputs
+
+flatMap(f):
+  for each element e → f(e) returns a Stream&lt;R&gt;
+  all resulting streams are flattened into ONE stream
+  Stream&lt;T&gt; → Stream&lt;Stream&lt;R&gt;&gt; → Stream&lt;R&gt;  (flatten removes one level)
+  n inputs → 0 or more outputs per element
+</code></pre>
+<p><strong>Stateful vs stateless intermediate ops:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operation</th><th>Type</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td><code>filter</code>, <code>map</code>, <code>flatMap</code>, <code>peek</code></td><td>Stateless</td><td>Process each element independently</td></tr>
+<tr><td><code>distinct</code>, <code>sorted</code></td><td>Stateful (buffered)</td><td>Must see ALL elements before emitting any</td></tr>
+<tr><td><code>limit</code>, <code>skip</code></td><td>Stateful (counter)</td><td><code>limit</code> is short-circuit; <code>skip</code> is not</td></tr>
+<tr><td><code>takeWhile</code>, <code>dropWhile</code> (Java 9)</td><td>Stateful</td><td>Stop/start based on predicate</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Terminal operations summary:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operation</th><th>Short-circuit?</th><th>Returns</th></tr>
+</thead>
+<tbody>
+<tr><td><code>collect(Collector)</code></td><td>No</td><td>Container</td></tr>
+<tr><td><code>forEach</code></td><td>No</td><td>void</td></tr>
+<tr><td><code>reduce</code></td><td>No</td><td><code>T</code> or <code>Optional&lt;T&gt;</code></td></tr>
+<tr><td><code>count</code></td><td>Sometimes (SIZED)</td><td><code>long</code></td></tr>
+<tr><td><code>findFirst</code>, <code>findAny</code></td><td>Yes</td><td><code>Optional&lt;T&gt;</code></td></tr>
+<tr><td><code>anyMatch</code>, <code>allMatch</code>, <code>noneMatch</code></td><td>Yes</td><td><code>boolean</code></td></tr>
+<tr><td><code>min</code>, <code>max</code></td><td>No</td><td><code>Optional&lt;T&gt;</code></td></tr>
+<tr><td><code>toArray</code></td><td>No</td><td><code>Object[]</code> or <code>T[]</code></td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>The one interview-critical gotcha — <code>toMap</code> throws on duplicate keys:</strong></p>
+<pre><code class="language-java">// DANGER: throws IllegalStateException if two employees share a dept
+Map&lt;String, Employee&gt; byDept = employees.stream()
+    .collect(Collectors.toMap(Employee::dept, e -&gt; e)); // WRONG if depts repeat
+
+// SAFE: provide a merge function
+Map&lt;String, Double&gt; maxSalaryByDept = employees.stream()
+    .collect(Collectors.toMap(
+        Employee::dept,
+        Employee::salary,
+        Double::max   // merge: keep the higher salary on duplicate key
+    ));
+</code></pre>
+<hr>
+<h3 id="interview-lens-2"><a class="header" href="#interview-lens-2">Interview Lens</a></h3>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. You can read just this section the night before an interview and walk in prepared. Every concept referenced is explained inline — no need to flip back.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: In a real interview, lead with the one-line answer first. Pause. Expand only if the interviewer nods or probes.</em></p>
+</blockquote>
+<hr>
+<h4 id="q9--concept-check"><a class="header" href="#q9--concept-check">Q9 — Concept Check</a></h4>
+<p><strong>“How does a stream pipeline work? What is lazy evaluation and why does it matter?”</strong></p>
+<p><strong>One-line answer:</strong> A stream pipeline has a source, lazy intermediate operations, and a terminal operation that triggers execution; laziness means no element is processed until the terminal pulls it through.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“A stream pipeline has three parts. The source — typically a collection, a file, or a generator — creates a <code>Spliterator</code>, which is the internal iterator abstraction that knows how to traverse and optionally split the data. Intermediate operations like <code>filter</code>, <code>map</code>, and <code>sorted</code> each return a new <code>Stream</code> object representing an additional stage in the pipeline. Critically, they do not execute anything. They just describe what to do. The terminal operation — <code>collect</code>, <code>findFirst</code>, <code>forEach</code>, and so on — is what actually starts element processing. When the terminal fires, it pulls elements one at a time through all fused stages. Lazy evaluation is what makes this efficient: elements are processed one at a time end-to-end rather than the entire collection passing through each stage in sequence. This means <code>limit(5)</code> on a million-element source stops processing after five qualifying elements — it never looks at the rest. It also means no intermediate collections are allocated. The one exception is stateful operations like <code>sorted</code> and <code>distinct</code>, which must buffer all elements before they can emit any output, breaking the one-at-a-time fusion for that stage.”</p>
+</blockquote>
+<p><em>Draw the mental picture of one element traveling through all stages before the next one is fetched. That visual lands well.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“What happens if I call a terminal operation on a stream that has already been consumed?”</em></p>
+<blockquote>
+<p>It throws <code>IllegalStateException: stream has already been operated upon or closed</code>. A stream is single-use. Once a terminal operation has been called, the stream is considered consumed and cannot be reused. If you need to process the same data twice, you must either create two separate streams from the source, or collect to a list and stream from that. This is a common debugging trap — a <code>Stream</code> returned from a repository method might be consumed by one caller, and a second caller re-using the same reference gets the exception.</p>
+</blockquote>
+<hr>
+<h4 id="q10--concept-check"><a class="header" href="#q10--concept-check">Q10 — Concept Check</a></h4>
+<p><strong>“Explain the difference between <code>map</code> and <code>flatMap</code> in streams.”</strong></p>
+<p><strong>One-line answer:</strong> <code>map</code> transforms each element one-to-one; <code>flatMap</code> transforms each element into a stream and flattens all those streams into one — one-to-many with a flatten.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“Both are intermediate operations that transform elements, but they differ in output cardinality. <code>map(f)</code> applies a function to each element and produces exactly one output per input — a <code>Stream&lt;T&gt;</code> becomes a <code>Stream&lt;R&gt;</code>. <code>flatMap(f)</code> applies a function where the function itself returns a <code>Stream&lt;R&gt;</code>, and then flattens all those inner streams into a single output stream. So a <code>Stream&lt;T&gt;</code> effectively becomes a <code>Stream&lt;R&gt;</code> after the flatten, but the intermediate shape was <code>Stream&lt;Stream&lt;R&gt;&gt;</code>. The practical difference: if I have a list of orders and each order has a list of line items, <code>map(Order::getLineItems)</code> gives me a <code>Stream&lt;List&lt;LineItem&gt;&gt;</code> — a stream of lists, not a flat stream of items. <code>flatMap(o -&gt; o.getLineItems().stream())</code> gives me a <code>Stream&lt;LineItem&gt;</code> — all line items from all orders in one flat stream. A useful edge case: if <code>flatMap</code> returns <code>Stream.empty()</code> for some elements, those elements effectively disappear from the output, making <code>flatMap</code> also usable as a combined filter-and-transform.”</p>
+</blockquote>
+<p><em>The order-lineitem example is the clearest real-world illustration. Use it.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“Why is <code>sorted()</code> expensive on a parallel stream?”</em></p>
+<blockquote>
+<p><code>sorted()</code> is a stateful intermediate operation — it must see every element before it can emit any sorted output. In a parallel stream, the pipeline splits the data across multiple threads for concurrent processing. But <code>sorted()</code> requires all those partial results to be gathered and merged before sorting can proceed. This reassembly step negates the parallelism benefit for that stage and adds merge overhead on top. For large parallel streams, <code>sorted()</code> is often a bottleneck. If you need sorted output and the data is large, consider sorting at the database query level, sorting a list directly via <code>Collections.sort</code>, or accepting that the sorted stage will run serially.</p>
+</blockquote>
+<hr>
+<h4 id="q11--concept-check"><a class="header" href="#q11--concept-check">Q11 — Concept Check</a></h4>
+<p><strong>“What are the main terminal operations and what is <code>reduce</code>?”</strong></p>
+<p><strong>One-line answer:</strong> Terminal operations trigger pipeline execution and produce a result or side effect; <code>reduce</code> folds all elements into a single value using an identity and a combining function.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“Terminal operations are the trigger that starts element processing. They fall into a few categories. Aggregation: <code>count</code>, <code>min</code>, <code>max</code>, <code>sum</code> on primitive streams. Reduction to a single value: <code>reduce</code>. Collection into a container: <code>collect</code>. Short-circuit operations that may not process all elements: <code>findFirst</code>, <code>findAny</code>, <code>anyMatch</code>, <code>allMatch</code>, <code>noneMatch</code>. Side-effect operations: <code>forEach</code>, <code>forEachOrdered</code>. <code>reduce</code> works like this: you provide an identity value — a neutral starting point — and a <code>BinaryOperator</code> that combines two values of the same type. The stream folds left to right, combining the running accumulator with the next element repeatedly. For example, <code>reduce(0, Integer::sum)</code> starts at zero and adds each element. If you omit the identity, you get <code>Optional&lt;T&gt;</code> back because an empty stream has no result. One subtle rule: the identity must genuinely be neutral for the operation — <code>0</code> for addition, <code>1</code> for multiplication, empty string for concatenation — otherwise you corrupt the result.”</p>
+</blockquote>
+<p><em>The identity-must-be-neutral point is an interview trap. Mention it.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“Is <code>forEach</code> guaranteed to process elements in encounter order?”</em></p>
+<blockquote>
+<p>On a sequential stream, yes — <code>forEach</code> processes elements in the stream’s encounter order if one is defined (which it is for ordered sources like <code>List</code>). On a parallel stream, <code>forEach</code> does not guarantee order; threads process elements concurrently in whatever order they happen to complete. If order matters in a parallel stream, use <code>forEachOrdered</code>, which reestablishes encounter order at the cost of some parallelism benefit. There is also the vacuous truth trap: <code>allMatch</code> on an empty stream returns <code>true</code>, and <code>anyMatch</code> on an empty stream returns <code>false</code>. This is logically correct but frequently surprises developers who expect an empty stream to short-circuit to false for <code>allMatch</code>.</p>
+</blockquote>
+<hr>
+<h4 id="q12--design-scenario"><a class="header" href="#q12--design-scenario">Q12 — Design Scenario</a></h4>
+<p><strong>“Explain <code>Collectors.groupingBy</code>, <code>partitioningBy</code>, and the <code>toMap</code> pitfall.”</strong></p>
+<p><strong>One-line answer:</strong> <code>groupingBy</code> produces a <code>Map&lt;K, List&lt;V&gt;&gt;</code> grouped by a classifier; <code>partitioningBy</code> produces exactly two groups keyed by true/false; <code>toMap</code> throws <code>IllegalStateException</code> on duplicate keys unless you provide a merge function.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“A <code>Collector</code> is the abstraction behind <code>collect()</code>. It defines how to accumulate stream elements into a container: a supplier to create the container, an accumulator to fold in each element, a combiner to merge two containers in parallel, and a finisher to produce the final result. <code>Collectors</code> is the utility class with pre-built implementations. <code>groupingBy(classifier)</code> takes a function from element to key and produces a <code>Map&lt;K, List&lt;V&gt;&gt;</code> where each key maps to all elements that produced it. You can chain a downstream collector as a second argument — <code>groupingBy(Employee::dept, Collectors.averagingDouble(Employee::salary))</code> gives you average salary per department directly. <code>partitioningBy(predicate)</code> is a specialized <code>groupingBy</code> with a boolean classifier — it always produces a map with both <code>true</code> and <code>false</code> keys, even if one group is empty. This differs from <code>groupingBy</code>, which only creates keys for groups that actually exist. <code>toMap</code> is the most dangerous collector: if two elements produce the same key and you haven’t provided a merge function, it throws <code>IllegalStateException</code> at runtime — no warning at compile time. Always provide a merge function when your key mapper might not be unique. Also: <code>toMap</code> uses <code>HashMap.merge</code> internally and will throw <code>NullPointerException</code> if a value is null even when a merge function is present.”</p>
+</blockquote>
+<p><em>The null-value NPE in <code>toMap</code> is the deep-level gotcha. Mentioning it marks you as someone who has actually debugged this in production.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“What does <code>Stream.toList()</code> (Java 16) return — is it mutable?”</em></p>
+<blockquote>
+<p><code>Stream.toList()</code> introduced in Java 16 returns an unmodifiable list. It is a shorthand for <code>collect(Collectors.toUnmodifiableList())</code>. Attempting to call <code>add</code>, <code>remove</code>, or <code>set</code> on it throws <code>UnsupportedOperationException</code>. This is a silent behavioral change if you migrate code from <code>collect(Collectors.toList())</code> — the old form returns a mutable <code>ArrayList</code>, the new form does not. If mutability is needed after collection, keep using <code>collect(Collectors.toList())</code> or wrap the result in <code>new ArrayList&lt;&gt;(stream.toList())</code>.</p>
+</blockquote>
+<hr>
+<blockquote>
+<p><strong>Common Mistake — Building a pipeline with no terminal operation:</strong> A stream with only intermediate operations executes nothing and produces no output. <code>list.stream().filter(...).map(...)</code> without a terminal call is completely inert. This is the most common stream debugging trap — the code looks like it should do something, but nothing happens.</p>
+</blockquote>
+<blockquote>
+<p><strong>Common Mistake — Calling <code>toMap</code> without a merge function on potentially non-unique keys:</strong> The exception is thrown at runtime on the first duplicate key. If your data changes over time and keys that were once unique become duplicates, this is a latent production bug. Always ask: “Can two elements produce the same key?” before omitting the merge function.</p>
+</blockquote>
+<p><strong>Quick Revision (one line):</strong> Source → lazy intermediate ops → terminal triggers execution; <code>map</code> is 1:1, <code>flatMap</code> is 1:many-flattened; <code>sorted</code>/<code>distinct</code> buffer all elements; <code>reduce</code> folds with identity + BinaryOperator; <code>groupingBy</code> partitions into map, <code>toMap</code> needs a merge function for duplicate keys, <code>Stream.toList()</code> returns unmodifiable.</p>
+<hr>
+<h2 id="topic-4-streams--advanced-usage"><a class="header" href="#topic-4-streams--advanced-usage">Topic 4: Streams — Advanced Usage</a></h2>
+<p><strong>Difficulty:</strong> Medium–Hard | <strong>Frequency:</strong> Very High | <strong>Companies:</strong> Amazon, Google, Goldman Sachs, Netflix, Stripe, Atlassian</p>
+<hr>
+<h3 id="the-idea-3"><a class="header" href="#the-idea-3">The Idea</a></h3>
+<p>Think of a stream as a conveyor belt in a factory. Raw material (your collection) sits in a warehouse (memory). You don’t move all the material onto the belt at once — you only pull the next item when the next workstation is ready. That pull-on-demand behaviour is called <strong>laziness</strong>, and it is the foundational idea behind every stream feature.</p>
+<p>A collection owns its data; a stream is a view over data that describes <em>what to do</em>, not <em>how to store it</em>. Because the description is separate from the data, the same pipeline can be executed sequentially or handed off to multiple workers (parallel streams) with a single method call.</p>
+<p>Once you understand the lazy conveyor belt, four advanced topics fall into place naturally: (1) when to use streams vs. loops, (2) when to add more workers (parallel streams), (3) why there are special belts for numbers (primitive streams), and (4) why a used belt cannot be re-threaded (stream single-use rule) — plus the exotic case of a belt that never runs out of material (infinite streams).</p>
+<h3 id="how-it-works-3"><a class="header" href="#how-it-works-3">How It Works</a></h3>
+<p><strong>Stream vs. Collection — decision pseudocode:</strong></p>
+<pre><code>if operation is filter → map → reduce/collect
+    AND no complex stateful mutations per element
+    AND no checked exceptions to propagate
+    → use stream
+
+if you need index-based logic
+    OR break-on-complex-condition with multiple mutations
+    OR tight loop where profiling shows overhead matters
+    → use for/while loop
+</code></pre>
+<p><strong>Parallel stream — internal flow:</strong></p>
+<pre><code>parallelStream() called
+  → Spliterator.trySplit() splits source into sub-ranges
+  → sub-tasks submitted to ForkJoinPool.commonPool()
+  → each thread executes the pipeline independently
+  → results merged using combiner from terminal operation
+  → final result returned to caller
+</code></pre>
+<p><strong>Primitive stream — why it exists:</strong></p>
+<pre><code>Stream&lt;Integer&gt;: each int → new Integer() on heap → GC pressure
+IntStream:       each int → raw int in CPU register → no allocation
+
+IntStream.range(0, 1_000_000).sum()   // zero boxing
+Stream.of(0..999999).mapToInt(i-&gt;i).sum()  // 1M Integer objects first
+</code></pre>
+<p><strong>Stream single-use rule:</strong></p>
+<pre><code>AbstractPipeline internal flag: linkedOrConsumed = false
+
+terminal_op() called:
+  → set linkedOrConsumed = true
+  → execute pipeline
+
+any_subsequent_call() on same Stream instance:
+  → check linkedOrConsumed → true
+  → throw IllegalStateException
+</code></pre>
+<p><strong>Infinite streams — safety contract:</strong></p>
+<pre><code>Stream.generate(supplier)   // unordered, no seed
+Stream.iterate(seed, f)     // ordered: seed, f(seed), f(f(seed)), ...
+Stream.iterate(seed, pred, f)  // Java 9: stops when pred is false
+
+SAFE terminal ops:  findFirst(), findAny(), limit(n), takeWhile(p)
+UNSAFE terminal ops: count(), collect(), forEach() — hang forever
+</code></pre>
+<p><strong>Single most interview-critical gotcha — orElse eagerness on streams:</strong></p>
+<pre><code class="language-java">// Parallel stream race condition — the classic trap
+List&lt;String&gt; results = new ArrayList&lt;&gt;();
+list.parallelStream().forEach(results::add); // RACE CONDITION: ArrayList not thread-safe
+
+// Correct — use collect, which handles merging safely
+List&lt;String&gt; results = list.parallelStream()
+    .map(this::transform)
+    .collect(Collectors.toList());
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Scenario</th><th>Stream</th><th>Loop</th></tr>
+</thead>
+<tbody>
+<tr><td>Filter → map → collect</td><td>Preferred</td><td>Verbose</td></tr>
+<tr><td>Budget cap with break</td><td>Awkward</td><td>Natural</td></tr>
+<tr><td>Large CPU-bound data, parallelisable</td><td>Parallel stream</td><td>Hard to parallelize</td></tr>
+<tr><td>IO-bound (HTTP, DB)</td><td>Avoid parallel</td><td>Use async</td></tr>
+<tr><td>Numeric aggregation (sum, avg)</td><td>IntStream/LongStream</td><td>Loop comparable</td></tr>
+<tr><td>Infinite lazy sequence</td><td>Stream.iterate / generate</td><td>Awkward</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h3 id="interview-lens-3"><a class="header" href="#interview-lens-3">Interview Lens</a></h3>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. You can read just this section the night before an interview and walk in prepared. Every concept referenced is explained inline — no need to flip back.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: In a real interview, lead with the one-line answer first. Pause. Expand only if the interviewer nods or probes.</em></p>
+</blockquote>
+<hr>
+<h4 id="q9--tradeoff-question"><a class="header" href="#q9--tradeoff-question">Q9 — Tradeoff Question</a></h4>
+<p><strong>“When do you use streams instead of a for loop in Java?”</strong></p>
+<p><strong>One-line answer:</strong> Use streams for declarative filter–map–reduce pipelines; use loops when you need complex stateful control flow or checked exceptions.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>I reach for a stream when I can describe the work as a pipeline: filter this, transform that, collect the results. Streams let me write that pipeline declaratively, and they compose naturally — I can add <code>.parallel()</code> later without restructuring the logic. They are also lazy, so operations like <code>findFirst()</code> stop early rather than processing the whole collection.</p>
+<p>I switch to a loop when: (1) I need to <code>break</code> based on accumulated state across multiple fields — the shopping cart example where I stop adding items once a budget cap is reached is easier with a loop; (2) I’m mutating several fields of the same object per iteration; (3) I’m using checked exceptions heavily, because streams don’t propagate checked exceptions without an ugly wrapper; or (4) I’m in a hot path and profiling shows the lambda dispatch overhead matters.</p>
+<p>For numeric work — summing, averaging — I always use <code>IntStream</code> or <code>LongStream</code> over <code>Stream&lt;Integer&gt;</code> to avoid autoboxing each <code>int</code> into an <code>Integer</code> object.</p>
+</blockquote>
+<p><em>Pause after “lazy”. If the interviewer asks about laziness, explain that intermediate operations like <code>filter</code> and <code>map</code> don’t execute until a terminal operation like <code>collect</code> is called — this enables short-circuit evaluation and infinite sources.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“Are streams always slower than loops?”</em></p>
+<blockquote>
+<p>No. For small collections (under ~1000 elements) the overhead from lambda dispatch and pipeline setup is negligible and the JIT often eliminates it. For large datasets with <code>.parallel()</code>, streams can significantly outperform a sequential loop. The rule is: measure before assuming either direction.</p>
+</blockquote>
+<hr>
+<h4 id="q10--concept-check-1"><a class="header" href="#q10--concept-check-1">Q10 — Concept Check</a></h4>
+<p><strong>“How do parallel streams work internally, and when should you avoid them?”</strong></p>
+<p><strong>One-line answer:</strong> Parallel streams split the source via <code>Spliterator</code>, run subtasks in <code>ForkJoinPool.commonPool()</code>, then merge results — avoid them for IO-bound work, small data, stateful ops, or shared mutable state.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>When you call <code>.parallelStream()</code> or <code>.parallel()</code>, the stream’s <code>Spliterator</code> recursively splits the data source into smaller sub-ranges. Each sub-range becomes a task submitted to <code>ForkJoinPool.commonPool()</code>, which by default has <code>(number of CPU cores - 1)</code> threads. Each thread runs the same pipeline independently; the terminal operation’s combiner function merges the partial results back into the final answer.</p>
+<p>The critical thing to know about <code>commonPool</code> is that it is <strong>shared across the entire JVM</strong>. <code>CompletableFuture.supplyAsync()</code> also uses it by default. If a long-running parallel stream operation occupies all threads, it can starve async tasks elsewhere. For production workloads with bursty parallelism, I’d wrap the stream in a custom <code>ForkJoinPool.submit(() -&gt; list.parallelStream()...)</code>.</p>
+<p>I avoid parallel streams when: the data is IO-bound (blocking threads in a CPU-sized pool is wasteful); the dataset is small (splitting and merging overhead exceeds the gain — rule of thumb: under ~10,000 elements, profile first); the operations are stateful like <code>sorted()</code> or <code>distinct()</code>, which require synchronisation; or there is shared mutable state in the lambda (a shared <code>ArrayList</code> passed to <code>forEach</code> will produce corrupt results silently). <code>LinkedList</code> also parallelizes poorly because its <code>Spliterator</code> must traverse to find a midpoint, unlike <code>ArrayList</code> which can split by index instantly.</p>
+</blockquote>
+<p><em>If the interviewer seems engaged, mention the <code>ArrayList</code> vs <code>LinkedList</code> Spliterator point — it signals you understand the implementation, not just the API.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“Why is <code>list.parallelStream().forEach(sharedList::add)</code> wrong?”</em></p>
+<blockquote>
+<p><code>ArrayList</code> is not thread-safe. Multiple threads calling <code>add</code> simultaneously can corrupt the internal array — elements get lost, duplicate slots appear, or an <code>ArrayIndexOutOfBoundsException</code> is thrown. The correct pattern is to use <code>collect(Collectors.toList())</code>, which uses a thread-safe combining strategy internally.</p>
+</blockquote>
+<hr>
+<h4 id="q11--concept-check-1"><a class="header" href="#q11--concept-check-1">Q11 — Concept Check</a></h4>
+<p><strong>“What are primitive streams? Why do they exist?”</strong></p>
+<p><strong>One-line answer:</strong> <code>IntStream</code>, <code>LongStream</code>, and <code>DoubleStream</code> avoid the boxing overhead of <code>Stream&lt;Integer&gt;</code> and add numeric terminal operations like <code>sum()</code>, <code>average()</code>, and <code>summaryStatistics()</code>.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>Java generics are erased at runtime and cannot hold primitive types — a <code>Stream&lt;int&gt;</code> is not legal. Without primitive streams, every <code>int</code> value in a <code>Stream&lt;Integer&gt;</code> must be autoboxed into an <code>Integer</code> object on the heap. For a stream of a million integers, that’s a million short-lived objects driving GC pressure. <code>IntStream</code> works directly on raw <code>int</code> values, so there is no allocation, no GC cost, and the JIT can vectorise the loop.</p>
+<p>Beyond performance, primitive streams add terminal operations that don’t exist on <code>Stream&lt;T&gt;</code>: <code>sum()</code>, <code>average()</code> (returns <code>OptionalDouble</code>), <code>min()</code>, <code>max()</code>, and <code>summaryStatistics()</code> which gives count, min, max, sum, and average in one pass.</p>
+<p>The bridge methods are: <code>stream.mapToInt(ToIntFunction)</code> to go from object stream to <code>IntStream</code>; <code>intStream.boxed()</code> to go back to <code>Stream&lt;Integer&gt;</code>; and <code>intStream.mapToObj(IntFunction)</code> to produce a <code>Stream&lt;R&gt;</code>. For ranges, <code>IntStream.range(0, n)</code> gives <code>[0, n)</code> — exclusive end, like a for loop — and <code>IntStream.rangeClosed(1, n)</code> gives <code>[1, n]</code> inclusive.</p>
+</blockquote>
+<p><em>The <code>range</code> vs <code>rangeClosed</code> distinction trips up candidates — mention it proactively to show you know the trap.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“What does <code>IntStream.average()</code> return, and why isn’t it just <code>double</code>?”</em></p>
+<blockquote>
+<p>It returns <code>OptionalDouble</code> because the stream might be empty — there is no meaningful average of zero elements. Returning <code>0.0</code> would silently mislead callers, so the type forces them to handle the empty case explicitly.</p>
+</blockquote>
+<hr>
+<h4 id="q12--concept-check"><a class="header" href="#q12--concept-check">Q12 — Concept Check</a></h4>
+<p><strong>“Why can’t you reuse a stream after a terminal operation? How do you work around it?”</strong></p>
+<p><strong>One-line answer:</strong> Streams are single-use pipelines — the internal <code>linkedOrConsumed</code> flag is set on the first terminal operation, and any subsequent call throws <code>IllegalStateException</code>.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>A stream is not a data structure — it is a description of a pipeline over a data source. Once the terminal operation executes (say, <code>count()</code> or <code>collect()</code>), the pipeline has been “consumed”: the source has been traversed and the internal flag <code>linkedOrConsumed</code> in <code>AbstractPipeline</code> is set to true. Any further operation on that same stream instance sees the flag and throws <code>IllegalStateException: stream has already been operated upon or closed</code>. This is by design — it prevents you from accidentally re-traversing the source expecting a fresh result.</p>
+<p>The fix is always to get a new stream from the source: <code>collection.stream()</code> is cheap and creates a fresh pipeline. If I want to express reusable stream logic without repeating the source reference, I use a <code>Supplier&lt;Stream&lt;T&gt;&gt;</code>: <code>Supplier&lt;Stream&lt;String&gt;&gt; s = names::stream;</code> — then <code>s.get()</code> returns a fresh stream each time.</p>
+</blockquote>
+<p><em>Keep it concise here — this is a simpler question. The <code>Supplier</code> pattern is the detail that earns marks.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“If you store a stream as a field and inject it into a service, what happens?”</em></p>
+<blockquote>
+<p>The first caller consumes it. Every subsequent caller gets <code>IllegalStateException</code>. Never store a stream as a field — always store the collection or the <code>Supplier&lt;Stream&lt;T&gt;&gt;</code> and create streams on demand.</p>
+</blockquote>
+<hr>
+<h4 id="q13--design-scenario"><a class="header" href="#q13--design-scenario">Q13 — Design Scenario</a></h4>
+<p><strong>“What are infinite streams? How do you use <code>Stream.generate</code> and <code>Stream.iterate</code> safely?”</strong></p>
+<p><strong>One-line answer:</strong> Infinite streams produce elements on demand forever — safety comes from always pairing them with a short-circuit operation (<code>findFirst</code>, <code>limit</code>, <code>takeWhile</code>) that stops the pipeline.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p><code>Stream.generate(supplier)</code> calls the supplier repeatedly to produce an unordered, infinite sequence — useful for things like generating UUID correlation IDs or random values. <code>Stream.iterate(seed, f)</code> produces an ordered sequence: <code>seed</code>, <code>f(seed)</code>, <code>f(f(seed))</code>, and so on — think Fibonacci numbers or exponential backoff intervals.</p>
+<p>They are safe because streams are lazy: elements are only produced when the downstream operation asks for the next one. The danger is calling a terminal operation that demands <em>all</em> elements — <code>collect()</code>, <code>count()</code>, or <code>forEach()</code> on an infinite stream will hang forever. The rule is: always bound an infinite stream with <code>limit(n)</code>, <code>findFirst()</code>, <code>findAny()</code>, or Java 9’s <code>takeWhile(predicate)</code>.</p>
+<p><code>takeWhile</code> is particularly powerful for real-world use — I’ve used <code>Stream.iterate</code> to walk API pagination: start at page 0, produce page 1, 2, 3, and stop with <code>takeWhile(page -&gt; !page.isEmpty())</code>. That’s cleaner than a while loop with a mutable page counter.</p>
+<p>Java 9 also added a three-argument <code>Stream.iterate(seed, hasNextPredicate, nextFunction)</code> that is finite by construction — equivalent to <code>for (int n = seed; hasNext(n); n = f(n))</code>.</p>
+</blockquote>
+<p><em>The pagination example lands well — it connects infinite streams to a concrete backend use case interviewers recognise.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“What is the difference between <code>takeWhile</code> and <code>filter</code> on an infinite stream?”</em></p>
+<blockquote>
+<p><code>filter</code> skips elements that don’t match but keeps looking — on an infinite stream it would run forever if no element ever matches after a certain point. <code>takeWhile</code> stops the entire pipeline at the first non-matching element. For ordered streams, <code>takeWhile</code> is the correct tool for “take elements while this condition holds, then stop.”</p>
+</blockquote>
+<hr>
+<blockquote>
+<p><strong>Common Mistake — Mutating shared state in parallel streams:</strong> Passing a shared non-thread-safe collection to <code>parallelStream().forEach()</code> causes silent data corruption with no exception at compile time. The consequence is lost records and non-deterministic results that are nearly impossible to reproduce in tests. Always use <code>collect()</code>.</p>
+</blockquote>
+<p><strong>Quick Revision (one line):</strong> Streams = lazy declarative pipelines; use <code>IntStream</code> for numbers, <code>Supplier&lt;Stream&lt;T&gt;&gt;</code> for reuse, <code>limit</code>/<code>takeWhile</code> to bound infinite streams, and never touch shared mutable state inside <code>parallelStream</code>.</p>
+<hr>
+<h2 id="topic-5-optional"><a class="header" href="#topic-5-optional">Topic 5: Optional</a></h2>
+<p><strong>Difficulty:</strong> Medium | <strong>Frequency:</strong> Very High | <strong>Companies:</strong> Amazon, Google, Goldman Sachs, Stripe, Netflix, Uber</p>
+<hr>
+<h3 id="the-idea-4"><a class="header" href="#the-idea-4">The Idea</a></h3>
+<p>Before Java 8, a method that might not find a result had two bad choices: return <code>null</code> (which callers routinely forgot to check, causing <code>NullPointerException</code> at runtime) or throw an exception (which is expensive and semantically wrong for “not found”). <code>Optional&lt;T&gt;</code> is a container that makes the absence of a value visible in the type system — the caller <em>must</em> decide what to do when nothing is there.</p>
+<p>Think of it as a gift box that may or may not contain something. The box itself is never null — you always get a box back. But when you open it, you are forced to handle the “empty box” case. The compiler doesn’t enforce this, but the API design nudges you strongly: there is no free <code>get()</code> that silently returns null.</p>
+<p>The most important thing to internalise about <code>Optional</code> is its <em>intended scope</em>: it is a <strong>method return type</strong> for APIs that may produce no result. It is explicitly not meant for fields (it breaks serialisation), not for method parameters (use overloading), and not for wrapping collections (return an empty list instead). Brian Goetz, the Java language architect, described it as “a limited mechanism for library method return types, not a general-purpose Maybe monad.”</p>
+<h3 id="how-it-works-4"><a class="header" href="#how-it-works-4">How It Works</a></h3>
+<p><strong>Creation — three factory methods:</strong></p>
+<pre><code>Optional.of(value)         → non-empty; NPE if value is null
+Optional.ofNullable(value) → empty if value is null, non-empty otherwise
+Optional.empty()           → singleton empty instance
+</code></pre>
+<p><strong>Extraction — ordered from dangerous to safe:</strong></p>
+<pre><code>.get()              → value or NoSuchElementException  [avoid]
+.orElse(x)          → value or x                      [x always evaluated]
+.orElseGet(sup)     → value or sup.get()               [lazy — only if empty]
+.orElseThrow()      → value or NoSuchElementException  [Java 10, clearer than get()]
+.orElseThrow(sup)   → value or throw sup.get()         [custom exception]
+</code></pre>
+<p><strong>Transformation pipeline:</strong></p>
+<pre><code>.map(f)        → Optional&lt;R&gt;          [f returns R; null return → empty]
+.flatMap(f)    → Optional&lt;R&gt;          [f returns Optional&lt;R&gt;; avoids Optional&lt;Optional&lt;R&gt;&gt;]
+.filter(pred)  → Optional&lt;T&gt;          [empty if pred false]
+.or(sup)       → Optional&lt;T&gt;          [Java 9; fallback Optional if empty]
+</code></pre>
+<p><strong>Conditional execution:</strong></p>
+<pre><code>.ifPresent(consumer)              → run consumer if present
+.ifPresentOrElse(consumer, run)   → Java 9; run runnable if empty
+.stream()                         → Java 9; Stream&lt;T&gt; of 0 or 1 element
+</code></pre>
+<p><strong>Single most interview-critical gotcha — <code>orElse</code> vs <code>orElseGet</code>:</strong></p>
+<pre><code class="language-java">Optional&lt;Config&gt; cached = redisCache.get(key);
+
+// BAD: loadFromDatabase() executes on EVERY call, even cache hits
+Config c1 = cached.orElse(loadFromDatabase());
+
+// GOOD: loadFromDatabase() executes ONLY on cache miss
+Config c2 = cached.orElseGet(() -&gt; loadFromDatabase());
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Method</th><th>Argument evaluated</th><th>When to use</th></tr>
+</thead>
+<tbody>
+<tr><td><code>orElse(x)</code></td><td>Always (eager)</td><td>Constants, literals, <code>null</code>, <code>Collections.emptyList()</code></td></tr>
+<tr><td><code>orElseGet(sup)</code></td><td>Only if empty (lazy)</td><td>Any method call, DB lookup, object construction</td></tr>
+<tr><td><code>map(f)</code></td><td>Only if present</td><td>f returns a plain value</td></tr>
+<tr><td><code>flatMap(f)</code></td><td>Only if present</td><td>f returns <code>Optional&lt;R&gt;</code></td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h3 id="interview-lens-4"><a class="header" href="#interview-lens-4">Interview Lens</a></h3>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. You can read just this section the night before an interview and walk in prepared. Every concept referenced is explained inline — no need to flip back.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: In a real interview, lead with the one-line answer first. Pause. Expand only if the interviewer nods or probes.</em></p>
+</blockquote>
+<hr>
+<h4 id="q14--concept-check"><a class="header" href="#q14--concept-check">Q14 — Concept Check</a></h4>
+<p><strong>“What is <code>Optional</code> and what problem does it solve? When should you not use it?”</strong></p>
+<p><strong>One-line answer:</strong> <code>Optional&lt;T&gt;</code> makes the absence of a return value explicit in the type system, forcing callers to handle the empty case — but it is for return types only, not fields, parameters, or collections.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>Before <code>Optional</code>, the Java convention for “nothing found” was to return <code>null</code>. The problem is that null is invisible at the call site — the compiler doesn’t warn you, the method signature doesn’t tell you, and a forgotten null check produces a <code>NullPointerException</code> that surfaces far from where the null was introduced. <code>Optional&lt;T&gt;</code> makes the contract explicit: the return type itself tells you “this might be absent,” and the API forces you to decide what to do.</p>
+<p>The correct use is as a <strong>method return type</strong> in APIs that may not find a result — think <code>userRepository.findById(id)</code> returning <code>Optional&lt;User&gt;</code>. The caller then chains <code>.orElseThrow()</code> to throw a domain exception, or <code>.orElse(defaultValue)</code> to supply a fallback.</p>
+<p>Where <code>Optional</code> should <em>not</em> be used: as a <strong>field type</strong> in entities or DTOs — <code>Optional</code> is not <code>Serializable</code>, so it breaks Java serialisation, Jackson, JPA, and similar frameworks silently. Not as a <strong>method parameter</strong> — if a parameter might be absent, use overloading or document it as <code>@Nullable</code>. Not wrapping <strong>collections</strong> — <code>Optional&lt;List&lt;T&gt;&gt;</code> is always wrong; return an empty list instead, because a list already expresses zero-or-more.</p>
+</blockquote>
+<p><em>Listing the three anti-patterns (fields, params, collections) in one breath signals senior-level awareness — most candidates only know the “return type” rule.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“What happens if you call <code>Optional.of(null)</code>?”</em></p>
+<blockquote>
+<p>It throws <code>NullPointerException</code> immediately at construction time. If the value might be null, use <code>Optional.ofNullable(value)</code> — that returns <code>Optional.empty()</code> instead of throwing.</p>
+</blockquote>
+<hr>
+<h4 id="q15--concept-check"><a class="header" href="#q15--concept-check">Q15 — Concept Check</a></h4>
+<p><strong>“Walk me through the Optional API — factory methods, extraction, and transformation.”</strong></p>
+<p><strong>One-line answer:</strong> Optional has three creation paths (<code>of</code>, <code>ofNullable</code>, <code>empty</code>), five extraction methods ordered by safety, two conditional-execution methods, and four transformation methods (<code>map</code>, <code>flatMap</code>, <code>filter</code>, <code>or</code>).</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>Starting with creation: <code>Optional.of(value)</code> expects a non-null value and throws <code>NullPointerException</code> immediately if you pass null. <code>Optional.ofNullable(value)</code> is the null-safe version — it returns <code>Optional.empty()</code> for null and a non-empty Optional otherwise. <code>Optional.empty()</code> returns the singleton empty instance.</p>
+<p>For extraction, the methods range from dangerous to safe. <code>get()</code> returns the value or throws <code>NoSuchElementException</code> — I treat it as deprecated in practice and always use <code>orElseThrow()</code> instead, which is semantically identical but shows intent. <code>orElse(x)</code> returns the value if present, otherwise returns <code>x</code> — and <code>x</code> is <em>always evaluated</em>, even on a cache hit. <code>orElseGet(supplier)</code> is lazy: the supplier runs only when the Optional is empty. <code>orElseThrow(exceptionSupplier)</code> throws a custom exception on empty — the standard pattern in service layers.</p>
+<p>For transformation: <code>map(f)</code> applies a function to the value if present and returns an <code>Optional&lt;R&gt;</code>. If the function returns null, the result is <code>Optional.empty()</code> — not an NPE. <code>flatMap(f)</code> is for when the function itself returns an <code>Optional&lt;R&gt;</code> — using <code>map</code> in that case would give <code>Optional&lt;Optional&lt;R&gt;&gt;</code>, which <code>flatMap</code> collapses. <code>filter(predicate)</code> returns the same Optional if the predicate matches, otherwise empty. Java 9 added <code>or(supplier)</code>, which returns the same Optional if present, otherwise calls the supplier to get a fallback Optional — useful for chaining lookup strategies.</p>
+<p>Java 9 also added <code>ifPresentOrElse(consumer, runnable)</code> to handle both the present and absent cases in one call, and <code>stream()</code> to treat Optional as a <code>Stream&lt;T&gt;</code> of zero or one element — handy when you want to <code>flatMap</code> a stream of Optionals.</p>
+</blockquote>
+<p><em>If the interviewer asks about <code>flatMap</code> in more detail, give the safe-navigation example: <code>findUser(id).flatMap(user -&gt; findAddress(user.id()))</code> — both methods return Optional, so <code>flatMap</code> avoids wrapping.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“What does <code>Optional.map(f)</code> return if the mapping function returns null?”</em></p>
+<blockquote>
+<p>It returns <code>Optional.empty()</code>. The implementation explicitly checks the mapper’s return value for null and converts it to empty rather than wrapping a null in a non-empty Optional. This means <code>map</code> is safe to use even with functions that might return null — the result is always a valid Optional.</p>
+</blockquote>
+<hr>
+<h4 id="q16--tradeoff-question"><a class="header" href="#q16--tradeoff-question">Q16 — Tradeoff Question</a></h4>
+<p><strong>“What is the difference between <code>orElse()</code> and <code>orElseGet()</code>? Why does it matter in production?”</strong></p>
+<p><strong>One-line answer:</strong> <code>orElse(x)</code> always evaluates <code>x</code> eagerly; <code>orElseGet(supplier)</code> evaluates the supplier lazily — only when the Optional is empty — so use <code>orElseGet</code> whenever the fallback involves a method call.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>This is one of the most common Optional interview traps, and it catches experienced developers too. <code>orElse(value)</code> is a regular method call — Java evaluates all arguments before invoking the method, so <code>value</code> is computed regardless of whether the Optional is present. <code>orElseGet(supplier)</code> takes a lambda; the lambda body is only executed when the Optional is empty.</p>
+<p>The difference is invisible for constants: <code>optional.orElse("default")</code> or <code>optional.orElse(null)</code> — those are literals with zero computation cost. But <code>optional.orElse(loadFromDatabase())</code> calls <code>loadFromDatabase()</code> on <em>every invocation</em>, even when the Optional has a value. In a cache-aside pattern — where the happy path is a cache hit — this means you’re paying full database latency on every request, completely defeating the purpose of the cache.</p>
+<p>The rule I follow: if the fallback is a literal, a constant, or a no-arg static factory that returns a cached object (like <code>Collections.emptyList()</code>), <code>orElse</code> is fine. If the fallback involves any method call — especially one with IO, object allocation, or side effects — use <code>orElseGet</code> and wrap it in a lambda. The cost of the lambda allocation is negligible compared to a single database round-trip.</p>
+</blockquote>
+<p><em>Demonstrate the output difference if asked: with <code>Optional.of("cached-value")</code>, calling <code>orElse(expensiveMethod())</code> prints the expensive call’s side effects; <code>orElseGet(() -&gt; expensiveMethod())</code> does not.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“Is <code>optional.orElse(new ArrayList&lt;&gt;())</code> a problem?”</em></p>
+<blockquote>
+<p>Yes, every call constructs a new <code>ArrayList</code> on the heap, even when the Optional is present. On a hot path it generates unnecessary GC pressure. Use <code>orElseGet(ArrayList::new)</code> or, better, return <code>Collections.emptyList()</code> directly (which is a cached singleton) if the list is not going to be mutated.</p>
+</blockquote>
+<hr>
+<blockquote>
+<p><strong>Common Mistake — Using <code>Optional</code> as a field in a JPA entity:</strong> Annotating an entity field as <code>Optional&lt;String&gt; phone</code> breaks Hibernate serialisation silently — the field may not be persisted correctly and Jackson will serialise it as <code>{"phone": {"present": true}}</code> rather than the raw value. The consequence is corrupted data in the database that only surfaces at runtime under specific code paths. Use a nullable field and document it, or use <code>@Nullable</code> from a JSR-305 library.</p>
+</blockquote>
+<p><strong>Quick Revision (one line):</strong> Optional is for return types only; prefer <code>orElseGet</code> over <code>orElse</code> for any method-call fallback; use <code>flatMap</code> when the mapping function itself returns an Optional; never use Optional as a field, parameter, or collection wrapper.</p>
+<hr>
+<h2 id="topic-6-completablefuture"><a class="header" href="#topic-6-completablefuture">Topic 6: CompletableFuture</a></h2>
+<p><strong>Difficulty:</strong> Hard | <strong>Frequency:</strong> Very High | <strong>Companies:</strong> Amazon, Google, Netflix, Goldman Sachs, Stripe</p>
+<hr>
+<h3 id="the-idea-5"><a class="header" href="#the-idea-5">The Idea</a></h3>
+<p>Imagine you’re ordering food from three different restaurants at once. With old-style Java (<code>Future</code>), you’d have to wait at the door of the first restaurant until your order arrived, then walk to the second, wait again, and so on — even though the kitchens are all cooking in parallel. <code>CompletableFuture</code> is like sending a delivery driver to all three simultaneously, with instructions to call you when everything arrives and to use a backup restaurant if any one fails.</p>
+<p><code>CompletableFuture</code> is Java’s answer to non-blocking, callback-driven asynchronous programming. Introduced in Java 8, it lets you describe a <em>pipeline</em> — fetch data, transform it, combine it with other results, handle errors — without ever blocking a thread to wait. The thread is freed to do other work while the async operations run.</p>
+<p>The name “Completable” signals two things: it can be completed programmatically (you can manually inject a result or exception), and it is a <code>Future</code> you can chain transformations onto. In backend systems this matters enormously — blocking a thread per request kills throughput under load; async pipelines let you serve many more requests with the same thread pool.</p>
+<hr>
+<h3 id="how-it-works-5"><a class="header" href="#how-it-works-5">How It Works</a></h3>
+<p><strong>Creating a future:</strong></p>
+<pre><code>supplyAsync(supplier)           → runs supplier on ForkJoinPool, returns CompletableFuture&lt;T&gt;
+supplyAsync(supplier, executor) → use your own thread pool (preferred in production)
+completedFuture(value)          → already-done future, useful for testing
+</code></pre>
+<p><strong>Transforming results (pipeline building):</strong></p>
+<pre><code>future.thenApply(fn)            → transform T → U (like Stream.map); runs on same thread
+future.thenApplyAsync(fn)       → transform on a different thread
+future.thenAccept(consumer)     → consume result, return CompletableFuture&lt;Void&gt;
+future.thenRun(runnable)        → run after completion, ignores result
+</code></pre>
+<p><strong>Chaining dependent futures (flatMap equivalent):</strong></p>
+<pre><code>future.thenCompose(fn)          → fn returns CompletableFuture&lt;U&gt;; flattens to CompletableFuture&lt;U&gt;
+future.thenApply(fn)            → if fn returns CompletableFuture&lt;U&gt;, you get CompletableFuture&lt;CompletableFuture&lt;U&gt;&gt; ← BAD
+</code></pre>
+<p><strong>Combining independent futures:</strong></p>
+<pre><code>allOf(f1, f2, f3)               → waits for ALL; returns CompletableFuture&lt;Void&gt;
+anyOf(f1, f2, f3)               → completes when FIRST finishes; returns CompletableFuture&lt;Object&gt;
+thenCombine(other, BiFunction)  → both run concurrently, combine their two results
+</code></pre>
+<p><strong>Error handling:</strong></p>
+<pre><code>exceptionally(fn)               → if exception: transform ex → fallback value; skip if success
+handle(BiFunction&lt;T,ex,U&gt;)      → always runs; gets (result, exception), exactly one is null
+whenComplete(BiConsumer)        → side-effect only (logging); propagates original result/exception
+</code></pre>
+<p><strong>The single most interview-critical gotcha — <code>allOf</code> returns <code>Void</code>, not the results:</strong></p>
+<pre><code class="language-java">CompletableFuture&lt;User&gt; userFuture    = userService.getAsync(userId);
+CompletableFuture&lt;List&lt;Order&gt;&gt; ordersFuture = orderService.getByUserAsync(userId);
+CompletableFuture&lt;Account&gt; accountFuture  = accountService.getAsync(userId);
+
+// allOf waits for all three to complete
+CompletableFuture&lt;Void&gt; all = CompletableFuture.allOf(userFuture, ordersFuture, accountFuture);
+
+// WRONG: all.thenApply(v -&gt; v.getUser()) — there is no getUser() on Void
+// CORRECT: hold references to individual futures, then join() after allOf
+all.thenRun(() -&gt; {
+    User user         = userFuture.join();    // join() safe here — already completed
+    List&lt;Order&gt; orders = ordersFuture.join();
+    Account account   = accountFuture.join();
+    buildDashboard(user, orders, account);
+}).get();
+</code></pre>
+<p><strong>thenCompose vs thenApply — the flatMap analogy:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operation</th><th>When <code>fn</code> returns plain <code>U</code></th><th>When <code>fn</code> returns <code>CompletableFuture&lt;U&gt;</code></th></tr>
+</thead>
+<tbody>
+<tr><td><code>thenApply(fn)</code></td><td><code>CompletableFuture&lt;U&gt;</code> ✓</td><td><code>CompletableFuture&lt;CompletableFuture&lt;U&gt;&gt;</code> ✗</td></tr>
+<tr><td><code>thenCompose(fn)</code></td><td>Not applicable</td><td><code>CompletableFuture&lt;U&gt;</code> ✓ (flattened)</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>CompletableFuture vs Future:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Feature</th><th><code>Future</code></th><th><code>CompletableFuture</code></th></tr>
+</thead>
+<tbody>
+<tr><td>Get result</td><td><code>get()</code> — blocks</td><td><code>thenApply()</code> — non-blocking callback</td></tr>
+<tr><td>Combine futures</td><td>Manual / impossible</td><td><code>allOf</code>, <code>anyOf</code>, <code>thenCombine</code></td></tr>
+<tr><td>Error handling</td><td><code>try/catch</code> around <code>get()</code></td><td><code>exceptionally</code>, <code>handle</code></td></tr>
+<tr><td>Manual completion</td><td>No</td><td><code>complete(value)</code>, <code>completeExceptionally(ex)</code></td></tr>
+<tr><td>Cancel</td><td><code>cancel(true)</code></td><td>Same, but downstream stages still run</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h3 id="interview-lens-5"><a class="header" href="#interview-lens-5">Interview Lens</a></h3>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. You can read just this section the night before an interview and walk in prepared. Every concept referenced is explained inline — no need to flip back.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: In a real interview, lead with the one-line answer first. Pause. Expand only if the interviewer nods or probes.</em></p>
+</blockquote>
+<hr>
+<h4 id="q1--concept-check-1"><a class="header" href="#q1--concept-check-1">Q1 — Concept Check</a></h4>
+<p><strong>“What is CompletableFuture and why was it introduced?”</strong></p>
+<p><strong>One-line answer:</strong> <code>CompletableFuture</code> is a non-blocking, composable alternative to <code>Future</code> that lets you build async pipelines with callbacks instead of blocking <code>get()</code> calls.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“<code>Future</code> — introduced in Java 5 — lets you submit work to a thread pool and retrieve the result later. But ‘later’ still means you must call <code>get()</code> which blocks your current thread until the result is ready. If I have ten parallel calls to make, I need ten blocked threads sitting there waiting — that doesn’t scale.</p>
+<p><code>CompletableFuture</code>, added in Java 8, solves this with a callback model. I describe what to do <em>when</em> the result arrives: <code>supplyAsync(() -&gt; fetchUser(id)).thenApply(u -&gt; enrich(u)).thenAccept(u -&gt; cache(u))</code>. The calling thread never blocks — it moves on to other work. The pipeline executes on threads from <code>ForkJoinPool.commonPool()</code>, or from an <code>Executor</code> I provide.</p>
+<p>It also supports combining multiple futures: <code>allOf</code> to wait for all, <code>anyOf</code> for the first winner, <code>thenCombine</code> to merge two independent results. And it has built-in error handling via <code>exceptionally()</code> and <code>handle()</code> — no try/catch around <code>get()</code>.</p>
+<p>In Spring Boot, this is why <code>@Async</code> returns <code>CompletableFuture&lt;T&gt;</code> in modern code instead of raw <code>Future&lt;T&gt;</code>.“</p>
+</blockquote>
+<p><em>Lead with the blocking-vs-callback contrast. Mention ForkJoinPool thread pool to signal you understand the threading model.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“If you use <code>supplyAsync</code> without an executor, what thread pool does it use — and what’s the problem with that?”</em></p>
+<blockquote>
+<p>The default is <code>ForkJoinPool.commonPool()</code>. The problem: it’s shared across the entire JVM — including parallel streams. Under heavy load, your async tasks and parallel stream operations compete for the same threads. In production backends, always pass a dedicated <code>ExecutorService</code> to <code>supplyAsync</code> so you have independent thread pool sizing and monitoring.</p>
+</blockquote>
+<hr>
+<h4 id="q2--concept-check-1"><a class="header" href="#q2--concept-check-1">Q2 — Concept Check</a></h4>
+<p><strong>“What is the difference between <code>thenApply</code> and <code>thenCompose</code>?”</strong></p>
+<p><strong>One-line answer:</strong> <code>thenApply</code> transforms the result to a plain value; <code>thenCompose</code> is for when your transformation itself returns a <code>CompletableFuture</code> — it flattens the nesting, exactly like <code>flatMap</code> on streams.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“Think of the Stream analogy: <code>map</code> transforms <code>T → U</code>, <code>flatMap</code> transforms <code>T → Stream&lt;U&gt;</code> and flattens. Same idea here.</p>
+<p>If I have <code>CompletableFuture&lt;User&gt;</code> and I call <code>thenApply(u -&gt; u.getName())</code>, I get <code>CompletableFuture&lt;String&gt;</code> — the transformation is synchronous, just a function.</p>
+<p>But if my next step is itself async — say, fetching orders for that user from a remote service — my function would return <code>CompletableFuture&lt;List&lt;Order&gt;&gt;</code>. Using <code>thenApply</code> would give me <code>CompletableFuture&lt;CompletableFuture&lt;List&lt;Order&gt;&gt;&gt;</code> — a nested future I’d have to manually unwrap. <code>thenCompose</code> flattens that to <code>CompletableFuture&lt;List&lt;Order&gt;&gt;</code> directly.</p>
+<p>Rule of thumb: if your lambda returns a <code>CompletableFuture</code>, use <code>thenCompose</code>. If it returns a plain value, use <code>thenApply</code>.“</p>
+</blockquote>
+<p><em>The <code>flatMap</code> analogy lands well with interviewers — it connects two concepts they already know.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“When would you use <code>thenCombine</code> instead of <code>thenCompose</code>?”</em></p>
+<blockquote>
+<p><code>thenCompose</code> is for <em>sequential</em> chains — the second future depends on the result of the first. <code>thenCombine</code> is for <em>independent</em> futures that can run concurrently — you fire both and combine their results with a <code>BiFunction</code> when both complete. Example: fetch user profile and fetch account balance simultaneously, then combine into a dashboard object.</p>
+</blockquote>
+<hr>
+<h4 id="q3--concept-check"><a class="header" href="#q3--concept-check">Q3 — Concept Check</a></h4>
+<p><strong>“How do you handle exceptions in a CompletableFuture pipeline?”</strong></p>
+<p><strong>One-line answer:</strong> Use <code>exceptionally</code> for a fallback value when there’s an error, <code>handle</code> when you always want to run recovery logic regardless of success or failure.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“There are three main tools. <code>exceptionally(fn)</code> is like a catch block — it only runs if an exception occurred and lets me return a fallback value. The normal pipeline stages are skipped on exception, and <code>exceptionally</code> recovers.</p>
+<p><code>handle(BiFunction&lt;T, Throwable, U&gt;)</code> is like a finally block — it always runs. I receive either the successful result or the exception (exactly one will be null). I return a new value of type <code>U</code>, so I can transform the result in both the happy path and the error path.</p>
+<p><code>whenComplete(BiConsumer&lt;T, Throwable&gt;)</code> is purely for side effects — logging, metrics. It doesn’t change the result: it passes the original result or exception downstream unchanged.</p>
+<p>One critical gotcha: exceptions in <code>CompletableFuture</code> are wrapped in <code>CompletionException</code> when you call <code>join()</code> or <code>get()</code>. So if I call <code>join()</code> and catch <code>RuntimeException</code>, I need to inspect the cause, not the outer exception.“</p>
+</blockquote>
+<p><em>Name all three, explain when you’d pick each. The CompletionException wrapping detail signals deep knowledge.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“If future A fails and you call <code>allOf(A, B, C)</code>, what happens to B and C?”</em></p>
+<blockquote>
+<p><code>allOf</code> itself completes exceptionally immediately when any constituent future fails. But B and C continue running — they are not cancelled. If I need to cancel them, I must hold references and call <code>cancel(true)</code> on each manually.</p>
+</blockquote>
+<hr>
+<h4 id="q4--design-scenario-1"><a class="header" href="#q4--design-scenario-1">Q4 — Design Scenario</a></h4>
+<p><strong>“Design a service that calls three downstream APIs in parallel and assembles the results, with a timeout and fallback.”</strong></p>
+<p><strong>One-line answer:</strong> Use <code>supplyAsync</code> for each call with a dedicated executor, <code>allOf</code> to wait for all, <code>orTimeout</code> for the deadline, and <code>exceptionally</code> per future for individual fallbacks.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“I’d structure this in three layers. First, I launch all three async calls simultaneously using <code>supplyAsync</code> with a bounded <code>ExecutorService</code> — not <code>ForkJoinPool.commonPool()</code> — so I control thread count and prevent starvation.</p>
+<p>Second, I attach <code>exceptionally</code> on each individual future to return a safe fallback (empty list, default object) if that specific call fails. This way one bad service doesn’t blow up the whole response.</p>
+<p>Third, I call <code>allOf</code> on the three futures and chain <code>.orTimeout(500, TimeUnit.MILLISECONDS)</code> so the whole assembly has a hard deadline. After <code>allOf</code> resolves I call <code>join()</code> on each individual future — since they’re already completed at that point, <code>join()</code> is instant and won’t block.</p>
+<p>I would not use <code>anyOf</code> here because I need all three results. <code>anyOf</code> would be appropriate if I wanted the fastest of three redundant cache reads.“</p>
+</blockquote>
+<p><em>Mentioning <code>orTimeout</code> (Java 9+) and per-future fallbacks over a single global <code>exceptionally</code> shows production thinking.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“Why not just use <code>join()</code> on each future sequentially instead of <code>allOf</code>?”</em></p>
+<blockquote>
+<p>Because sequential <code>join()</code> calls serialize the waiting. If all three calls take 300ms, sequential joins take 900ms total. <code>allOf</code> waits for the slowest of the three — in this case still 300ms. The parallelism happens in the <code>supplyAsync</code> launch; <code>allOf</code> is just the synchronization point.</p>
+</blockquote>
+<hr>
+<blockquote>
+<p><strong>Common Mistake — Calling <code>join()</code> before <code>allOf</code> completes:</strong>
+Calling <code>userFuture.join()</code> before the <code>allOf</code> future resolves defeats the purpose — it blocks the calling thread waiting for that one future while the others are still running. Always chain logic off <code>allOf.thenRun(...)</code> or call <code>join()</code> only inside the callback after <code>allOf</code> has completed.</p>
+</blockquote>
+<p><strong>Quick Revision (one line):</strong> <code>CompletableFuture</code> replaces blocking <code>Future.get()</code> with callback chains; <code>thenCompose</code> for sequential async, <code>allOf</code> for parallel — but collect results via individual <code>.join()</code> inside the callback, not from <code>allOf</code> itself.</p>
+<hr>
+<h2 id="topic-7-java-917-key-additions"><a class="header" href="#topic-7-java-917-key-additions">Topic 7: Java 9–17 Key Additions</a></h2>
+<p><strong>Difficulty:</strong> Medium | <strong>Frequency:</strong> High | <strong>Companies:</strong> Google, Amazon, Microsoft, ThoughtWorks, Atlassian</p>
+<hr>
+<h3 id="the-idea-6"><a class="header" href="#the-idea-6">The Idea</a></h3>
+<p>Java releases used to be massive multi-year events. Since Java 9 (2017), Oracle shifted to a six-month release cadence, shipping smaller, targeted features continuously. This is good for interviewers: instead of one big thing to learn, each version adds a focused, understandable improvement you can describe precisely.</p>
+<p>The five features that appear most in interviews — <code>var</code>, Records, Sealed Classes, Text Blocks, and Pattern Matching for <code>instanceof</code> — all share a common theme: <em>reducing boilerplate while improving readability and expressiveness</em>. They’re not replacing core Java semantics; they’re cleaning up the surface syntax. Think of them as Java finally borrowing the ergonomic improvements that Kotlin and Scala users had enjoyed for years.</p>
+<p>Each feature has a clear “before and after” story. Interviewers love these because a candidate who can articulate the <em>problem being solved</em> — not just the syntax — shows they understand the language’s evolution rather than just memorizing keywords.</p>
+<hr>
+<h3 id="how-it-works-6"><a class="header" href="#how-it-works-6">How It Works</a></h3>
+<p><strong><code>var</code> — Local Variable Type Inference (Java 10)</strong></p>
+<pre><code>// Before
+ArrayList&lt;Map&lt;String, List&lt;Integer&gt;&gt;&gt; data = new ArrayList&lt;&gt;();
+
+// After
+var data = new ArrayList&lt;Map&lt;String, List&lt;Integer&gt;&gt;&gt;();  // type inferred from RHS
+
+Rules:
+  ✓ Local variables with initializer only
+  ✗ Fields, method parameters, return types
+  ✗ Null initializer (compiler cannot infer type)
+  ✗ Array initializers: var arr = {1,2,3} is illegal
+  
+Still statically typed — type is fixed at compile time, not dynamic
+</code></pre>
+<p><strong>Records — Immutable Data Carriers (Java 16)</strong></p>
+<pre><code>// Before (classic POJO)
+class Point {
+  private final int x, y;
+  public Point(int x, int y) { this.x = x; this.y = y; }
+  public int x() { return x; }
+  public int y() { return y; }
+  // equals, hashCode, toString ... 30+ lines
+}
+
+// After
+record Point(int x, int y) {}   // everything auto-generated
+
+Compiler generates:
+  - Canonical constructor
+  - Accessor methods x(), y()  (NOT getX() — note the difference)
+  - equals(), hashCode(), toString()
+  
+Cannot extend another class (implicitly extends Record)
+Components are final — immutable by design
+Can have compact constructors for validation
+</code></pre>
+<p><strong>Sealed Classes — Controlled Hierarchies (Java 17)</strong></p>
+<pre><code>sealed interface Shape permits Circle, Rectangle, Triangle {}
+
+final class Circle    implements Shape { ... }
+final class Rectangle implements Shape { ... }
+final class Triangle  implements Shape { ... }
+// No other class can implement Shape — compiler enforces this
+
+Subclass must be one of: final | sealed | non-sealed
+Enables exhaustive switch — compiler can verify all cases covered
+</code></pre>
+<p><strong>Text Blocks (Java 15)</strong></p>
+<pre><code>// Before — escape hell
+String json = "{\n  \"name\": \"Alice\",\n  \"age\": 30\n}";
+
+// After
+String json = """
+        {
+          "name": "Alice",
+          "age": 30
+        }
+        """;
+// Indentation is stripped to the leftmost non-whitespace column
+// Closing """ position controls indent stripping
+</code></pre>
+<p><strong>Pattern Matching for <code>instanceof</code> (Java 16) — the single most interview-critical example:</strong></p>
+<pre><code class="language-java">// Before Java 16 — check then cast (redundant)
+if (obj instanceof String) {
+    String s = (String) obj;   // cast we already know is safe
+    System.out.println(s.toUpperCase());
+}
+
+// Java 16+ — check and bind in one step
+if (obj instanceof String s) {
+    System.out.println(s.toUpperCase());  // s is String, scoped to true-branch
+}
+
+// Combine with &amp;&amp; guard
+if (obj instanceof String s &amp;&amp; s.length() &gt; 5) {
+    System.out.println("Long string: " + s);
+}
+</code></pre>
+<p><strong>Feature comparison table:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Feature</th><th>Java Version</th><th>Problem Solved</th></tr>
+</thead>
+<tbody>
+<tr><td><code>var</code></td><td>10</td><td>Verbose type declarations on local variables</td></tr>
+<tr><td>Text Blocks</td><td>15 (final)</td><td>Escape sequences in embedded SQL/JSON/HTML strings</td></tr>
+<tr><td>Records</td><td>16 (final)</td><td>Boilerplate POJO/DTO code</td></tr>
+<tr><td>Pattern Matching <code>instanceof</code></td><td>16 (final)</td><td>Redundant cast after type check</td></tr>
+<tr><td>Sealed Classes</td><td>17 (final)</td><td>Unrestricted open inheritance hierarchies</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h3 id="interview-lens-6"><a class="header" href="#interview-lens-6">Interview Lens</a></h3>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. You can read just this section the night before an interview and walk in prepared. Every concept referenced is explained inline — no need to flip back.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: In a real interview, lead with the one-line answer first. Pause. Expand only if the interviewer nods or probes.</em></p>
+</blockquote>
+<hr>
+<h4 id="q1--concept-check-2"><a class="header" href="#q1--concept-check-2">Q1 — Concept Check</a></h4>
+<p><strong>“What is <code>var</code> and is Java now dynamically typed?”</strong></p>
+<p><strong>One-line answer:</strong> <code>var</code> is local variable type inference — the compiler infers the type from the right-hand side at compile time; the type is still static and fixed, just not written by the programmer.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“<code>var</code> was introduced in Java 10. It tells the compiler: ‘figure out the type from the right-hand side so I don’t have to write it.’ So <code>var list = new ArrayList&lt;String&gt;()</code> — the compiler knows <code>list</code> is <code>ArrayList&lt;String&gt;</code> and enforces that everywhere.</p>
+<p>This is not dynamic typing. Java remains statically typed. The variable’s type is fully resolved at compile time. There is no runtime dispatch based on assigned value. If I write <code>var x = 42</code> and then try to assign a <code>String</code> to <code>x</code> later, the compiler rejects it.</p>
+<p>The restrictions: only local variables with an initializer. Not fields, not method parameters, not return types. You cannot write <code>var x = null</code> because there’s no type to infer. You also cannot use <code>var</code> in a lambda parameter in most contexts — with the notable exception of annotating lambda parameters in Java 11 where <code>var</code> allows annotation syntax like <code>(@NonNull var s) -&gt; s.length()</code>.</p>
+<p>When to use it: when the type is obvious from the right-hand side (constructor call, literal, method name that makes it clear). Avoid it when the type is non-obvious — it hurts readability without saving much.“</p>
+</blockquote>
+<p><em>The ‘statically typed at compile time’ clarification is the key point interviewers test. Hit it explicitly.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“Can you use <code>var</code> for a lambda parameter?”</em></p>
+<blockquote>
+<p>Only in Java 11+ and only to attach annotations: <code>(@NotNull var x) -&gt; x.toUpperCase()</code>. In Java 10, <code>var</code> in lambdas was not allowed. In practice this is rarely used. You cannot infer the lambda parameter type without <code>var</code> in normal lambdas anyway.</p>
+</blockquote>
+<hr>
+<h4 id="q2--concept-check-2"><a class="header" href="#q2--concept-check-2">Q2 — Concept Check</a></h4>
+<p><strong>“What are Records in Java 16 and when would you use them over a regular class?”</strong></p>
+<p><strong>One-line answer:</strong> Records are immutable data carrier classes that auto-generate the constructor, accessors, <code>equals</code>, <code>hashCode</code>, and <code>toString</code> — ideal for DTOs, value objects, and event payloads.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“Before records, creating a proper immutable data class in Java meant writing: constructor, private final fields, accessor methods, <code>equals()</code>, <code>hashCode()</code>, and <code>toString()</code> — easily 40–50 lines for a simple three-field object. Lombok helped, but it was a build-time annotation processor.</p>
+<p>Records collapse that to one line: <code>record Point(int x, int y) {}</code>. The compiler generates everything. The accessor methods are <code>x()</code> and <code>y()</code>, not <code>getX()</code> and <code>getY()</code> — important detail interviewers check. The constructor validates its arguments automatically (you can add a compact constructor for custom validation).</p>
+<p>Records are implicitly final — no subclassing. They implicitly extend <code>java.lang.Record</code>. Their components are final — mutation after construction is not allowed. This makes them safe to share across threads without synchronization.</p>
+<p>I use records for: API response DTOs, database query result projections, event objects in messaging, value objects in domain-driven design. I wouldn’t use them where I need mutable state, inheritance, or JPA entity mapping (JPA requires no-arg constructors and mutable fields).“</p>
+</blockquote>
+<p><em>The accessor naming (<code>x()</code> not <code>getX()</code>), JPA incompatibility, and immutability are the three gotcha points to hit.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“Can a Record implement an interface?”</em></p>
+<blockquote>
+<p>Yes. Records can implement interfaces — they just can’t extend classes (other than <code>Record</code>). This is a common pattern: define a <code>Printable</code> or <code>Serializable</code> interface and have records implement it.</p>
+</blockquote>
+<hr>
+<h4 id="q3--concept-check-1"><a class="header" href="#q3--concept-check-1">Q3 — Concept Check</a></h4>
+<p><strong>“What are Sealed Classes in Java 17 and what problem do they solve?”</strong></p>
+<p><strong>One-line answer:</strong> Sealed classes restrict which classes can extend or implement them, giving the compiler a closed set of subtypes — enabling exhaustive, verified switch expressions and modeling closed domain hierarchies.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“By default in Java, any class or interface can be extended by anyone. This open-world assumption is great for frameworks but bad when you want to model a closed domain. For example, a <code>PaymentMethod</code> in a billing system should only ever be <code>CreditCard</code>, <code>BankTransfer</code>, or <code>Wallet</code> — not an arbitrary subclass from some random package.</p>
+<p>Sealed classes enforce this with a <code>permits</code> clause: <code>sealed interface PaymentMethod permits CreditCard, BankTransfer, Wallet {}</code>. The compiler refuses to compile any other class that implements <code>PaymentMethod</code>.</p>
+<p>The payoff is exhaustive pattern matching. When I write a <code>switch</code> over a <code>PaymentMethod</code>, the compiler can verify I’ve handled all three permitted types and warn me if I add a fourth type later and forget to update the switch. Before Java 17, the compiler had no way to know whether the switch was exhaustive.</p>
+<p>Each permitted subclass must be declared as <code>final</code> (no further extension), <code>sealed</code> (further restricts its own subtypes), or <code>non-sealed</code> (reopens the hierarchy — essentially opts out). All permitted classes must be in the same package or module as the sealed class.“</p>
+</blockquote>
+<p><em>The exhaustive switch / compiler verification angle is why sealed classes matter — connect it to pattern matching in switches.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“How do Sealed Classes interact with Records?”</em></p>
+<blockquote>
+<p>They compose naturally. A <code>sealed interface</code> with <code>record</code> implementations is idiomatic Java 17: you get the closed hierarchy from sealing and the concise syntax from records. <code>record CreditCard(String cardNumber, String cvv) implements PaymentMethod {}</code> — both features work together.</p>
+</blockquote>
+<hr>
+<h4 id="q4--concept-check"><a class="header" href="#q4--concept-check">Q4 — Concept Check</a></h4>
+<p><strong>“What is pattern matching for <code>instanceof</code> and how does it differ from the old approach?”</strong></p>
+<p><strong>One-line answer:</strong> It eliminates the redundant explicit cast after an <code>instanceof</code> check by binding a typed variable in the same expression — less code, and the scope of the variable is narrowed to exactly where the type is guaranteed.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“The classic Java idiom was: <code>if (obj instanceof String) { String s = (String) obj; ... }</code>. The cast on the second line is technically redundant — we just checked the type on the first line. It’s noise the programmer must write and the reader must parse.</p>
+<p>Pattern matching for <code>instanceof</code>, finalized in Java 16, collapses this: <code>if (obj instanceof String s) { ... }</code>. The variable <code>s</code> is of type <code>String</code>, scoped to the true branch of the <code>if</code>. No cast needed. If the condition is false, <code>s</code> is out of scope — the compiler prevents accidental use.</p>
+<p>You can combine the type check with a guard using <code>&amp;&amp;</code>: <code>if (obj instanceof String s &amp;&amp; s.length() &gt; 5)</code>. The <code>&amp;&amp;</code> short-circuits, so <code>s</code> is always valid when <code>s.length()</code> is evaluated.</p>
+<p>This is a stepping stone toward full switch pattern matching (Java 21+), where you can switch over an object and match against multiple types with guards. In Java 17, the <code>instanceof</code> form is already final and production-ready. It also works well with sealed classes: when you switch over a sealed type, the compiler knows all possible patterns.“</p>
+</blockquote>
+<p><em>Mentioning the scope narrowing and the Java 21 switch pattern matching roadmap signals awareness of the feature trajectory.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“What happens if the object is null — does the pattern variable bind?”</em></p>
+<blockquote>
+<p>No. <code>null instanceof String s</code> evaluates to <code>false</code> — no <code>NullPointerException</code>, and <code>s</code> is not bound. This is the same behavior as the old <code>instanceof</code> — it has always returned <code>false</code> for null. The new pattern matching preserves that behavior.</p>
+</blockquote>
+<hr>
+<blockquote>
+<p><strong>Common Mistake — Using <code>var</code> where the type is non-obvious:</strong>
+Writing <code>var result = userService.findByEmail(email)</code> hides the return type from the reader. The IDE shows it on hover, but code review tools, diff viewers, and junior readers all lose the type context. Use <code>var</code> only when the type is self-evident from the right-hand side — constructor calls, literals, and clearly named factory methods.</p>
+</blockquote>
+<p><strong>Quick Revision (one line):</strong> Java 9–17 is all about ergonomics: <code>var</code> cuts declaration noise, Records cut POJO boilerplate, Sealed Classes close open hierarchies for exhaustive matching, Text Blocks end escape-sequence hell, and pattern matching <code>instanceof</code> removes redundant casts — all static, all compile-time safe.</p>
+<hr>
+<h2 id="topic-8-java-8-quick-reference"><a class="header" href="#topic-8-java-8-quick-reference">Topic 8: Java 8+ Quick Reference</a></h2>
+<p><strong>Difficulty:</strong> Medium | <strong>Frequency:</strong> Very High | <strong>Companies:</strong> All — appears in almost every senior Java interview</p>
+<hr>
+<h3 id="the-idea-7"><a class="header" href="#the-idea-7">The Idea</a></h3>
+<p>This topic is a synthesis layer. You know the individual features — lambdas, streams, Optional, CompletableFuture, records. What trips candidates up in interviews is the <em>decision layer</em>: when do you pick one tool over another? Interviewers love “compare X vs Y” and “what would you never do with Z” because those questions separate people who read the docs from people who’ve shipped production Java.</p>
+<p>Think of this as your mental decision tree. When you see a collection-processing task, you should instantly know whether to reach for a stream or a loop. When you design an API return type, you should know whether <code>Optional</code> belongs there. When you write async code, you should know whether <code>CompletableFuture</code> or a plain thread is right. These aren’t academic distinctions — they’re the judgment calls that define a senior Java engineer.</p>
+<hr>
+<h3 id="how-it-works-7"><a class="header" href="#how-it-works-7">How It Works</a></h3>
+<p><strong>Lambda vs Method Reference — decision rule:</strong></p>
+<pre><code>Use method reference when: the lambda body is a single method call that forwards all arguments exactly
+
+  list.forEach(s -&gt; System.out.println(s))    → list.forEach(System.out::println)       ✓
+  list.stream().map(s -&gt; s.toUpperCase())     → list.stream().map(String::toUpperCase)  ✓
+
+  list.stream().map(s -&gt; s.trim().toUpperCase())  → stay with lambda (two operations)   ✗
+  list.stream().filter(s -&gt; s.length() &gt; 5)       → stay with lambda (not a method ref) ✗
+
+Method reference types:
+  Static:   ClassName::staticMethod       (Integer::parseInt)
+  Instance: instance::method              (System.out::println)
+  Unbound:  ClassName::instanceMethod     (String::toUpperCase — applied to each element)
+  Constructor: ClassName::new             (ArrayList::new)
+</code></pre>
+<p><strong>Stream vs Loop — decision rules:</strong></p>
+<pre><code>Prefer STREAM when:
+  - Transforming / filtering / collecting a pipeline
+  - Readability matters more than micro-performance
+  - Parallel processing is needed (.parallelStream())
+  - You want lazy evaluation (infinite streams, short-circuit with findFirst/anyMatch)
+
+Prefer LOOP when:
+  - You need early exit with complex state changes (break + mutation)
+  - Performance is critical and profiling shows stream overhead
+  - Checked exceptions must be thrown (streams don't propagate checked exceptions cleanly)
+  - You're iterating and mutating external mutable state (confusing inside stream lambdas)
+  - Debugging is hard: stack traces through stream pipelines are noisy
+</code></pre>
+<p><strong>Optional dos and don’ts:</strong></p>
+<pre><code>DO:
+  - Return Optional&lt;T&gt; from methods that legitimately have no result
+  - Use orElse(default), orElseGet(supplier), orElseThrow() to extract value safely
+  - Use map(), flatMap(), filter() to transform without null checks
+  - Use Optional for repository return types (findById → Optional&lt;User&gt;)
+
+DON'T:
+  - Use Optional as a field type in a class (serialization issues, heap overhead)
+  - Use Optional as a method parameter (caller can still pass Optional.empty() or null — not a null guard)
+  - Call get() without isPresent() check (defeats the purpose — same as NPE risk)
+  - Use Optional&lt;List&lt;T&gt;&gt; — return empty list instead, never null collections
+  - Use Optional in collections: List&lt;Optional&lt;T&gt;&gt; is an anti-pattern
+</code></pre>
+<p><strong>CompletableFuture vs plain Future:</strong></p>
+<pre><code>Feature                    | Future        | CompletableFuture
+---------------------------|---------------|------------------
+Non-blocking callback      | No            | Yes (thenApply, thenAccept)
+Combine multiple futures   | No            | Yes (allOf, anyOf, thenCombine)
+Exception handling         | try/catch get()| exceptionally, handle
+Manual completion          | No            | complete(), completeExceptionally()
+Timeout                    | No (Java 8-)  | orTimeout() (Java 9+)
+Cancel propagates          | Stops task    | Downstream stages still run
+
+Rule: if you need callbacks, combination, or error recovery → CompletableFuture always.
+Use plain Future only in legacy code or when submitting a single task and blocking for it immediately.
+</code></pre>
+<p><strong>Which Java 9–17 features matter most in interviews:</strong></p>
+<pre><code>Tier 1 — Asked constantly:
+  Records        → "Replace this DTO class with a record"
+  var            → "Is Java dynamically typed now?"
+  Pattern matching instanceof → "Clean up this type dispatch code"
+
+Tier 2 — Asked often in design questions:
+  Sealed Classes → "How would you model a closed payment type hierarchy?"
+  Text Blocks    → "How do you embed SQL/JSON in Java cleanly?"
+
+Tier 3 — Good to mention, rarely drilled:
+  Switch Expressions (Java 14) → returns a value, no fall-through
+  Stream.toList() (Java 16)    → unmodifiable list without Collectors.toList()
+  Map.copyOf(), List.copyOf() (Java 10) → defensive immutable copies
+</code></pre>
+<p><strong>The one Java gotcha table every senior candidate must know:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Gotcha</th><th>Wrong</th><th>Right</th></tr>
+</thead>
+<tbody>
+<tr><td><code>allOf</code> result</td><td><code>allOf.thenApply(v -&gt; getResult())</code></td><td>Collect individual futures, <code>join()</code> after <code>allOf</code></td></tr>
+<tr><td><code>Optional</code> parameter</td><td><code>void save(Optional&lt;String&gt; name)</code></td><td>Overload the method instead</td></tr>
+<tr><td><code>thenApply</code> + async fn</td><td><code>future.thenApply(id -&gt; fetchAsync(id))</code></td><td><code>future.thenCompose(id -&gt; fetchAsync(id))</code></td></tr>
+<tr><td>Stream with checked ex</td><td><code>stream.map(f -&gt; checkedMethod(f))</code></td><td>Wrap in try/catch inside lambda or use utility</td></tr>
+<tr><td>Record accessor name</td><td><code>point.getX()</code></td><td><code>point.x()</code> — records don’t use <code>get</code> prefix</td></tr>
+<tr><td>Sealed class subtype</td><td><code>non-sealed</code> reopens hierarchy</td><td>Use <code>final</code> unless you explicitly want to reopen</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h3 id="interview-lens-7"><a class="header" href="#interview-lens-7">Interview Lens</a></h3>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. You can read just this section the night before an interview and walk in prepared. Every concept referenced is explained inline — no need to flip back.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: In a real interview, lead with the one-line answer first. Pause. Expand only if the interviewer nods or probes.</em></p>
+</blockquote>
+<hr>
+<h4 id="q1--tradeoff-question"><a class="header" href="#q1--tradeoff-question">Q1 — Tradeoff Question</a></h4>
+<p><strong>“When would you use a stream and when would you use a for-loop?”</strong></p>
+<p><strong>One-line answer:</strong> Use streams for declarative pipelines — transform, filter, collect — where readability wins; use loops when you need early exit with mutable state, must throw checked exceptions, or profiling shows stream overhead.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“The real question is readability vs. control. Streams shine when I’m describing <em>what</em> to do: <code>employees.stream().filter(e -&gt; e.isActive()).map(Employee::getSalary).reduce(0, Integer::sum)</code>. The intent is clear at a glance.</p>
+<p>Loops are better when I need control flow that doesn’t map cleanly to stream operators. If I need to <code>break</code> with complex state — say, I’m searching and also accumulating a side-effect result — a loop is clearer. Streams don’t support <code>break</code> at all; <code>findFirst</code> or <code>anyMatch</code> provide short-circuiting but only for simple termination.</p>
+<p>Checked exceptions are the other big pain point. If <code>readFile(path)</code> throws <code>IOException</code>, I can’t write <code>paths.stream().map(this::readFile)</code> without wrapping it in a try/catch inside the lambda — ugly. A loop handles it naturally.</p>
+<p>Performance: parallel streams are genuinely useful for CPU-bound work on large datasets. For small in-memory collections under a few thousand elements, streams and loops are effectively equivalent. I wouldn’t optimize prematurely — profiler first.“</p>
+</blockquote>
+<p><em>The checked exception pain point is a detail many candidates miss — it signals real experience.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“Can you use <code>parallelStream()</code> safely on any collection?”</em></p>
+<blockquote>
+<p>No. <code>parallelStream()</code> splits work using the ForkJoinPool. If the stream pipeline has side effects — writing to a shared list, for example — you’ll get race conditions. It’s only safe when each element’s processing is independent and you’re collecting to a thread-safe terminal (like <code>collect(Collectors.toList())</code>). Also, the overhead of splitting and joining means it’s only faster than sequential for large datasets with CPU-heavy per-element work.</p>
+</blockquote>
+<hr>
+<h4 id="q2--tradeoff-question"><a class="header" href="#q2--tradeoff-question">Q2 — Tradeoff Question</a></h4>
+<p><strong>“What are the rules you follow for <code>Optional</code> — when to use it and when not to?”</strong></p>
+<p><strong>One-line answer:</strong> Return <code>Optional&lt;T&gt;</code> from methods that may legitimately have no result; never use it as a field type, method parameter, or wrapper around collections.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“The purpose of <code>Optional</code> is to make the absence of a value explicit at the API level — it’s a contract that says ‘this method might not find anything.’ Repository methods like <code>findById(id)</code> are the canonical use case.</p>
+<p>The antipatterns: using <code>Optional</code> as a method parameter is pointless — the caller can still pass <code>Optional.empty()</code> or even null, so you haven’t gained safety. Use method overloading instead. Using <code>Optional</code> as a field type causes serialization issues (Jackson can’t map <code>Optional&lt;String&gt;</code> cleanly without configuration) and adds heap overhead for every instance.</p>
+<p><code>Optional&lt;List&lt;T&gt;&gt;</code> is always wrong — if you have no items, return an empty list, not <code>Optional&lt;List&gt;</code>. The same applies to <code>Optional&lt;String&gt;</code> for empty-vs-absent — be explicit about whether empty string and absent are the same case.</p>
+<p>The other antipattern: calling <code>optional.get()</code> without checking <code>isPresent()</code>. You’ve just recreated the NPE risk. Always use <code>orElse(default)</code>, <code>orElseGet(supplier)</code>, or <code>orElseThrow(exception)</code>. Chain transformations with <code>map()</code> and <code>filter()</code> to stay in the <code>Optional</code> monad until you’re forced to extract.“</p>
+</blockquote>
+<p><em>The four specific antipatterns (field, parameter, collection wrapper, bare <code>get()</code>) give the answer structure and signal breadth of experience.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“What’s the difference between <code>orElse</code> and <code>orElseGet</code>?”</em></p>
+<blockquote>
+<p><code>orElse(value)</code> always evaluates the argument — even if the Optional has a value. <code>orElseGet(supplier)</code> evaluates the supplier lazily, only when the Optional is empty. If the default is expensive to compute (database call, object creation), always use <code>orElseGet</code>. Using <code>orElse</code> with a method call is a common performance bug.</p>
+</blockquote>
+<hr>
+<h4 id="q3--tradeoff-question-1"><a class="header" href="#q3--tradeoff-question-1">Q3 — Tradeoff Question</a></h4>
+<p><strong>“Lambda vs method reference — how do you decide which to use?”</strong></p>
+<p><strong>One-line answer:</strong> Use a method reference when the lambda body is a single method call that passes all arguments directly; stay with a lambda when there’s any transformation, composition, or conditional logic.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“Method references are a readability win when they make the intent obvious. <code>list.stream().map(String::toUpperCase)</code> reads like English. The reader immediately knows we’re transforming each string by uppercasing it, without wading through lambda syntax.</p>
+<p>But method references become a readability loss when they obscure intent. <code>stream.map(this::processAndValidate)</code> — what does <code>processAndValidate</code> do? I’d rather see <code>stream.map(item -&gt; validate(transform(item)))</code> so the two steps are visible at the call site.</p>
+<p>The technical decision: if the lambda body is exactly <code>args -&gt; SomeClass.method(args)</code> or <code>args -&gt; obj.method(args)</code> with no modification, a method reference works. If I’m adding arguments, calling two methods, adding a conditional — stay with the lambda.</p>
+<p>One subtle gotcha: unbound instance method references like <code>String::toUpperCase</code> look like static references but aren’t. The first argument becomes the receiver. <code>stream.map(String::toUpperCase)</code> is equivalent to <code>stream.map(s -&gt; s.toUpperCase())</code>. Interviewers sometimes ask about this to test whether you understand the four method reference forms.“</p>
+</blockquote>
+<p><em>The four method reference forms and the unbound instance method distinction are the knowledge signals interviewers probe for.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“Can a method reference throw a checked exception?”</em></p>
+<blockquote>
+<p>Yes, if the functional interface it targets declares the exception. But most built-in functional interfaces (<code>Function</code>, <code>Predicate</code>, <code>Consumer</code>) don’t declare checked exceptions. You can’t use a method reference that throws <code>IOException</code> with <code>Stream.map()</code> — you’d need a custom functional interface that declares the exception, or wrap the call in a try/catch. This is one of the rougher edges of Java streams.</p>
+</blockquote>
+<hr>
+<h4 id="q4--design-scenario-2"><a class="header" href="#q4--design-scenario-2">Q4 — Design Scenario</a></h4>
+<p><strong>“If I gave you a legacy Java 8 codebase and said ‘modernize it to Java 17,’ what changes would you make and in what order?”</strong></p>
+<p><strong>One-line answer:</strong> Start with Records for DTOs (highest boilerplate reduction), then <code>var</code> for verbose declarations, then pattern matching to clean up instanceof casts, then text blocks for embedded strings, then sealed classes for closed hierarchies where exhaustive matching matters.</p>
+<p><strong>Full answer to give in an interview:</strong></p>
+<blockquote>
+<p>“I’d prioritize by impact-to-risk ratio.</p>
+<p>First, Records. DTOs and value objects are the biggest boilerplate in most Java codebases. Converting a 50-line <code>UserDto</code> to <code>record UserDto(String name, String email, long id) {}</code> is low risk (immutability is a strict improvement for DTOs) and high impact. One caveat: skip JPA entities — records and JPA are incompatible due to JPA’s no-arg constructor requirement.</p>
+<p>Second, <code>var</code> for obvious local declarations. I’d do this conservatively — only where the type is clear from the right-hand side. This is a purely cosmetic change with zero semantic impact.</p>
+<p>Third, pattern matching <code>instanceof</code>. Search for the two-line pattern <code>if (x instanceof Foo) { Foo f = (Foo) x; ... }</code> and collapse it. Again, zero semantic change — strictly cleaner.</p>
+<p>Fourth, text blocks for embedded SQL, JSON, HTML strings. Easy wins — find string concatenation with <code>\n</code> and <code>\"</code> sequences.</p>
+<p>Last, sealed classes — these require design thought. I’d apply them only to existing hierarchies that are already de-facto closed. Don’t force it on genuinely open extension points.</p>
+<p>Throughout: I’d leave <code>CompletableFuture</code> and streams alone unless there are correctness bugs. Async refactoring carries real risk and needs load testing.“</p>
+</blockquote>
+<p><em>The JPA–Records incompatibility and the risk-ordered migration plan show production thinking, not just syntax knowledge.</em></p>
+<p><strong>Gotcha follow-up they’ll ask:</strong> <em>“Records are immutable. How do you handle validation in a Record constructor?”</em></p>
+<blockquote>
+<p>Use a compact constructor — a constructor with no parameter list that runs inside the canonical constructor. You can validate and throw there: <code>record Range(int min, int max) { Range { if (min &gt; max) throw new IllegalArgumentException("min &gt; max"); } }</code>. The compact constructor runs before the fields are assigned, giving you a validation hook.</p>
+</blockquote>
+<hr>
+<blockquote>
+<p><strong>Common Mistake — Treating Java 9–17 features as optional polish:</strong>
+Not adopting Records for DTOs in a Java 17 codebase is a red flag in code review. The features aren’t syntactic sugar to be ignored — they’re the idiomatic way to write modern Java, and interviewers expect you to use them. A 40-line POJO with getters and Lombok annotations when you could have a 1-line record signals the candidate hasn’t kept current.</p>
+</blockquote>
+<p><strong>Quick Revision (one line):</strong> The Java 8+ decision framework: method references for simple forwarding, streams for pipelines, Optional for nullable returns (never fields or params), CompletableFuture for anything async over <code>Future</code>, and Java 9–17 features (Records, <code>var</code>, sealed, text blocks, pattern matching) as the default idiom in any Java 17+ codebase.</p>
+<hr>
+<h2 id="streams-quick-reference-cheat-sheet"><a class="header" href="#streams-quick-reference-cheat-sheet">Streams Quick Reference Cheat Sheet</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Operation</th><th>Type</th><th>Returns</th><th>Short-circuit</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td><code>filter(Predicate)</code></td><td>Intermediate</td><td><code>Stream&lt;T&gt;</code></td><td>No</td><td>Stateless</td></tr>
+<tr><td><code>map(Function)</code></td><td>Intermediate</td><td><code>Stream&lt;R&gt;</code></td><td>No</td><td>1-to-1 transform</td></tr>
+<tr><td><code>flatMap(Function)</code></td><td>Intermediate</td><td><code>Stream&lt;R&gt;</code></td><td>No</td><td>1-to-many, flatten</td></tr>
+<tr><td><code>distinct()</code></td><td>Intermediate</td><td><code>Stream&lt;T&gt;</code></td><td>No</td><td>Stateful, buffers all</td></tr>
+<tr><td><code>sorted()</code></td><td>Intermediate</td><td><code>Stream&lt;T&gt;</code></td><td>No</td><td>Stateful, buffers all</td></tr>
+<tr><td><code>limit(n)</code></td><td>Intermediate</td><td><code>Stream&lt;T&gt;</code></td><td>Yes</td><td>Stateful</td></tr>
+<tr><td><code>skip(n)</code></td><td>Intermediate</td><td><code>Stream&lt;T&gt;</code></td><td>No</td><td>Stateful</td></tr>
+<tr><td><code>peek(Consumer)</code></td><td>Intermediate</td><td><code>Stream&lt;T&gt;</code></td><td>No</td><td>Debug only</td></tr>
+<tr><td><code>takeWhile(Predicate)</code></td><td>Intermediate</td><td><code>Stream&lt;T&gt;</code></td><td>Yes</td><td>Java 9+</td></tr>
+<tr><td><code>dropWhile(Predicate)</code></td><td>Intermediate</td><td><code>Stream&lt;T&gt;</code></td><td>No</td><td>Java 9+</td></tr>
+<tr><td><code>forEach(Consumer)</code></td><td>Terminal</td><td><code>void</code></td><td>No</td><td>Unordered in parallel</td></tr>
+<tr><td><code>collect(Collector)</code></td><td>Terminal</td><td><code>R</code></td><td>No</td><td>Most flexible</td></tr>
+<tr><td><code>toList()</code></td><td>Terminal</td><td><code>List&lt;T&gt;</code></td><td>No</td><td>Java 16+, unmodifiable</td></tr>
+<tr><td><code>count()</code></td><td>Terminal</td><td><code>long</code></td><td>No</td><td></td></tr>
+<tr><td><code>reduce(identity, op)</code></td><td>Terminal</td><td><code>T</code></td><td>No</td><td>Fold</td></tr>
+<tr><td><code>findFirst()</code></td><td>Terminal</td><td><code>Optional&lt;T&gt;</code></td><td>Yes</td><td>Ordered</td></tr>
+<tr><td><code>findAny()</code></td><td>Terminal</td><td><code>Optional&lt;T&gt;</code></td><td>Yes</td><td>Parallel-friendly</td></tr>
+<tr><td><code>anyMatch(Predicate)</code></td><td>Terminal</td><td><code>boolean</code></td><td>Yes</td><td></td></tr>
+<tr><td><code>allMatch(Predicate)</code></td><td>Terminal</td><td><code>boolean</code></td><td>Yes</td><td>Empty stream: true</td></tr>
+<tr><td><code>noneMatch(Predicate)</code></td><td>Terminal</td><td><code>boolean</code></td><td>Yes</td><td>Empty stream: true</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="key-collectors"><a class="header" href="#key-collectors">Key Collectors</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Collector</th><th>Returns</th><th>Notes</th></tr>
+</thead>
+<tbody>
+<tr><td><code>toList()</code></td><td><code>List&lt;T&gt;</code></td><td>Mutable</td></tr>
+<tr><td><code>toUnmodifiableList()</code></td><td><code>List&lt;T&gt;</code></td><td>Immutable</td></tr>
+<tr><td><code>toMap(k, v)</code></td><td><code>Map&lt;K,V&gt;</code></td><td>Throws on duplicate keys</td></tr>
+<tr><td><code>toMap(k, v, merge)</code></td><td><code>Map&lt;K,V&gt;</code></td><td>Merge fn for duplicates</td></tr>
+<tr><td><code>groupingBy(f)</code></td><td><code>Map&lt;K,List&lt;T&gt;&gt;</code></td><td>Most versatile</td></tr>
+<tr><td><code>groupingBy(f, downstream)</code></td><td><code>Map&lt;K,R&gt;</code></td><td>Nested aggregation</td></tr>
+<tr><td><code>partitioningBy(p)</code></td><td><code>Map&lt;Boolean,List&lt;T&gt;&gt;</code></td><td>Always 2 keys</td></tr>
+<tr><td><code>joining(delim, pre, suf)</code></td><td><code>String</code></td><td>CSV, formatted output</td></tr>
+<tr><td><code>counting()</code></td><td><code>Long</code></td><td>Use as downstream</td></tr>
+<tr><td><code>averagingDouble(f)</code></td><td><code>Double</code></td><td>Use as downstream</td></tr>
+<tr><td><code>summarizingDouble(f)</code></td><td><code>DoubleSummaryStatistics</code></td><td>min/max/avg/count/sum</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<p><em>End of Chapter 4 - Next: Chapter 5: JVM Internals</em></p>
+<hr>
+<p><em>End of Chapter 4: Java 8+ Features</em></p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../Volume1_CoreJava/Chapter3_Collections.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../Volume1_CoreJava/Chapter5_JVM_Internals.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../Volume1_CoreJava/Chapter3_Collections.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../Volume1_CoreJava/Chapter5_JVM_Internals.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-c22b7243.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../custom-877a7a53.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

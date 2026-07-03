@@ -1,0 +1,85 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 760 280" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:760px;display:block;margin:16px 0;">
+<style>
+@keyframes jpaState {
+  0%,5%  { opacity:0; }
+  8%,20% { opacity:1; }
+  25%,37%{ opacity:1; }
+  42%,54%{ opacity:1; }
+  59%,71%{ opacity:1; }
+  76%,90%{ opacity:1; }
+  95%,100%{ opacity:0; }
+}
+@keyframes jpaBlink { 0%,100%{stroke-opacity:0.4} 50%{stroke-opacity:1} }
+</style>
+<rect width="760" height="280" rx="10" fill="#f8fafc"/>
+<text x="380" y="25" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="700" fill="#1e293b">JPA entity lifecycle states</text>
+<defs>
+<marker id="ja" markerWidth="7" markerHeight="6" refX="5.5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="#6366f1"/></marker>
+<marker id="jag" markerWidth="7" markerHeight="6" refX="5.5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="#10b981"/></marker>
+<marker id="jar" markerWidth="7" markerHeight="6" refX="5.5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="#ef4444"/></marker>
+<marker id="jaa" markerWidth="7" markerHeight="6" refX="5.5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="#f59e0b"/></marker>
+</defs>
+
+<!-- State 1: Transient -->
+<rect x="30" y="55" width="155" height="90" rx="8" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+<text x="107" y="78" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#475569">Transient</text>
+<text x="107" y="94" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#64748b">new MyEntity()</text>
+<text x="107" y="107" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#64748b">not in DB · not tracked</text>
+<text x="107" y="120" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#64748b">no @Id value yet</text>
+<text x="107" y="138" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#94a3b8" font-style="italic">No persistence context</text>
+
+<!-- State 2: Managed / Persistent -->
+<rect x="302" y="55" width="155" height="90" rx="8" fill="#dcfce7" stroke="#10b981" stroke-width="2" style="animation:jpaBlink 3s ease-in-out infinite"/>
+<text x="379" y="78" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#065f46">Managed</text>
+<text x="379" y="94" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#047857">tracked by EntityManager</text>
+<text x="379" y="107" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#047857">dirty checking active</text>
+<text x="379" y="120" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#047857">flushed to DB on commit</text>
+<text x="379" y="138" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#10b981" font-style="italic">In persistence context</text>
+
+<!-- State 3: Detached -->
+<rect x="574" y="55" width="155" height="90" rx="8" fill="#fef9c3" stroke="#f59e0b" stroke-width="1.5"/>
+<text x="651" y="78" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#92400e">Detached</text>
+<text x="651" y="94" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#78350f">was managed · now disconnected</text>
+<text x="651" y="107" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#78350f">has @Id · no tracking</text>
+<text x="651" y="120" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#78350f">LazyInitException risk</text>
+<text x="651" y="138" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#f59e0b" font-style="italic">Session closed</text>
+
+<!-- State 4: Removed -->
+<rect x="302" y="185" width="155" height="75" rx="8" fill="#fee2e2" stroke="#ef4444" stroke-width="1.5"/>
+<text x="379" y="207" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#991b1b">Removed</text>
+<text x="379" y="222" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#b91c1c">scheduled for DELETE</text>
+<text x="379" y="235" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#b91c1c">still in context until flush</text>
+<text x="379" y="248" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#ef4444" font-style="italic">DELETE on commit</text>
+
+<!-- Transition arrows -->
+<!-- Transient → Managed: persist() -->
+<path d="M185 90 L302 90" stroke="#10b981" stroke-width="1.5" fill="none" marker-end="url(#jag)"/>
+<text x="243" y="83" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#065f46" font-weight="600">em.persist()</text>
+
+<!-- Managed → Detached: detach() / close() -->
+<path d="M457 90 L574 90" stroke="#f59e0b" stroke-width="1.5" fill="none" marker-end="url(#jaa)"/>
+<text x="515" y="83" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#92400e" font-weight="600">em.detach()</text>
+<text x="515" y="94" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#78350f">/ session.close()</text>
+
+<!-- Detached → Managed: merge() -->
+<path d="M574 115 L457 115" stroke="#6366f1" stroke-width="1.5" fill="none" stroke-dasharray="5,3" marker-end="url(#ja)"/>
+<text x="515" y="112" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#3730a3" font-weight="600">em.merge()</text>
+
+<!-- Managed → Removed: remove() -->
+<path d="M379 145 L379 185" stroke="#ef4444" stroke-width="1.5" fill="none" marker-end="url(#jar)"/>
+<text x="421" y="168" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#991b1b" font-weight="600">em.remove()</text>
+
+<!-- Removed → back to Transient (after flush) -->
+<path d="M302 222 Q170 222 107 160 L107 145" stroke="#94a3b8" stroke-width="1" fill="none" stroke-dasharray="4,3" marker-end="url(#ja)"/>
+<text x="160" y="215" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#64748b">after commit</text>
+<text x="160" y="226" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#64748b">(evicted from ctx)</text>
+
+<!-- DB from Managed -->
+<rect x="302" y="40" width="155" height="14" rx="3" fill="#6366f1" opacity="0.15"/>
+<text x="379" y="51" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#3730a3">flush → DB on tx commit</text>
+
+<!-- find() annotation -->
+<path d="M302 78 L185 78" stroke="#6366f1" stroke-width="1" fill="none" stroke-dasharray="3,2" marker-end="url(#ja)"/>
+<text x="243" y="74" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#4338ca">em.find() / JPQL</text>
+</svg>

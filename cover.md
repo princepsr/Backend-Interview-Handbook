@@ -1,4 +1,4 @@
-<style>.content > main > h1:first-of-type { display: none !important; }</style>
+﻿<style>.content > main > h1:first-of-type { display: none !important; }</style>
 
 <div style="min-height:80vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding: 60px 20px 40px; border-bottom: 1px solid #e2e8f0;">
 
@@ -54,6 +54,8 @@ All code is written for **Java 17** and **Spring Boot 3.x** — production-grade
 
 ---
 
+<div style="display:flex; flex-direction:column; align-items:center; text-align:left;">
+
 ## Quick Start
 
 | Goal | Go to |
@@ -63,3 +65,5 @@ All code is written for **Java 17** and **Spring Boot 3.x** — production-grade
 | Company-specific prep | [Company Guide](COMPANY_GUIDE.md) |
 | Find a topic fast | [Master Index](INDEX.md) |
 | Last-day revision | [Volume 6 — Revision Pack](Volume6_Revision_Pack/Chapter23_CoreJava_Revision.md) |
+
+</div>

@@ -1,4 +1,4 @@
-# Volume 3: Backend Systems
+﻿# Volume 3: Backend Systems
 
 **5 chapters · ~120+ Q&As · Spring Boot 3.x · Kafka · Redis**
 
@@ -18,48 +18,8 @@ This volume covers the distributed systems layer that separates SDE2 from SDE1 c
 
 ---
 
-## Study Plan for This Volume
-
-### 4-Week Plan (Days 8–14 of Week 2)
-
-| Day | Chapter | Focus |
-|-----|---------|-------|
-| Day 8  | Ch9  | REST design principles, idempotency keys, HTTP status code semantics |
-| Day 9  | Ch10 | Circuit breaker (Resilience4j), saga pattern (choreography vs orchestration), distributed tracing |
-| Day 10 | Ch11 | Kafka producer acks, consumer group rebalancing, exactly-once semantics |
-| Day 11 | Ch12 | Cache-aside vs write-through, Redisson distributed lock, Redis Cluster hash slots |
-| Day 12 | Ch13 | OAuth2 flows (auth code + PKCE), JWT validation chain, Spring Security filter order |
-| Day 13 | Review | Ch25 (Backend Systems Revision) |
-| Day 14 | Mock  | Pick 5 random questions from this volume — answer out loud |
-
-> After finishing this volume, validate with **Chapter 25** (Backend Systems Revision) in the Revision Pack.
-
-### Crash Plan (1 week total — Day 3 of 7)
-
-Ch9 + Ch10 + Ch13. These three cover the interview topics that appear in almost every microservices role. Kafka and Redis (Ch11/Ch12) are specialised — only prioritise if the job description mentions them.
-
----
-
-## Company Focus
-
-### Stripe / Payments
-- **Ch9** — Idempotency keys as a first-class API design pattern; exactly-once payment charge design
-- **Ch11** — At-least-once vs exactly-once delivery; Kafka transactions for payment event streams
-- **Ch12** — Distributed lock with Redlock for preventing double-charge race conditions
-- **Ch13** — OAuth2 Authorization Code + PKCE; token rotation; mTLS for service-to-service calls
-- Be prepared to design a payment retry system or an idempotent charge API end-to-end
-
-### Amazon
-- **Ch10** — Service discovery (AWS Cloud Map), circuit breaker + bulkhead patterns, API Gateway integration
-- Expect: "Your downstream service is slow — how do you prevent cascade failure across 15 microservices?"
-
-### Google
-- **Ch10** — Distributed tracing (OpenTelemetry), back-pressure, async event-driven decomposition
-- **Ch13** — JWT claims validation, service mesh (Istio) vs application-layer auth
-
-### Goldman Sachs / FinTech
-- **Ch9** — REST vs gRPC trade-offs for high-frequency trading APIs
-- **Ch13** — Mutual TLS, certificate rotation, Spring Security method-level security (`@PreAuthorize`)
+- [Volume 3 Study Plan](STUDY_GUIDE.md) — 1-week plan, 3-day crash plan, top 10 questions, and daily practice tips.
+- [Volume 3 Company Guide](COMPANY_GUIDE.md) — which companies go deep on Backend Systems and what they specifically test.
 
 ---
 

@@ -1,2034 +1,2457 @@
 ﻿# Volume 5: System Design & LLD
-# Chapter 22: High-Level System Design
-
----
-
-# Chapter 22 — High-Level System Design (Part A)
-### Volume 5: System Design & Low-Level Design
-**Target:** SDE2 / Senior Engineer | FAANG+ interviews
-
----
-
-## Latency Numbers Every Engineer Must Know
-
-| Operation | Latency |
-|---|---|
-| L1 cache reference | 0.5 ns |
-| L2 cache reference | 7 ns |
-| Main memory (RAM) access | 100 ns |
-| SSD random read (4KB) | 150 µs |
-| HDD random read | 10 ms |
-| Send 1 KB over 1 Gbps network | 10 µs |
-| Round trip within same datacenter | 500 µs |
-| Round trip US to Europe | ~150 ms |
-| Read 1 MB sequentially from SSD | 1 ms |
-| Read 1 MB sequentially from HDD | 20 ms |
-| Read 1 MB sequentially from RAM | 250 µs |
-| Mutex lock/unlock | 25 ns |
-| Send packet CA → Netherlands → CA | 150 ms |
-
-**Rules of thumb:**
-- Memory access is ~200x faster than SSD
-- SSD is ~80x faster than HDD
-- Same datacenter round-trip: ~0.5 ms
-- Cross-continent round-trip: ~150 ms
-
----
-
-### Topic 1: System Design Interview Framework
-**Difficulty:** Medium | **Frequency:** Universal | **Companies:** Google, Meta, Amazon, Microsoft, Apple, Uber, Netflix
-
-**Q:** How do you approach an open-ended system design interview question like "Design Twitter" or "Design a ride-sharing system"?
-
-**Short Answer:** A structured framework prevents rambling and signals seniority. The RADIO framework (Requirements, API, Data model, Implementation, Optimizations) gives a repeatable skeleton that works for virtually any system design question in a 45–60 minute interview.
-
-**Deep Explanation:**
-
-The RADIO Framework broken down:
-
-**R — Requirements (5–10 min)**
-Start with clarifying questions. Never assume. Interviewers often intentionally leave the problem vague to see if you gather requirements.
-
-Functional requirements: What should the system do? Core use-cases only. Example for Twitter: post tweets, follow users, view timeline, search.
-
-Non-functional requirements: Scale (DAU, MAU), availability (99.9% vs 99.999%), consistency (strong vs eventual), latency targets (< 200 ms for feed), durability, security.
-
-Out-of-scope: Explicitly state what you are NOT designing (e.g., "I'll skip ads and notifications for now").
-
-Questions to always ask:
-- How many daily active users?
-- Read-heavy or write-heavy?
-- Global or single region?
-- What is the acceptable latency for read/write?
-- Any existing infrastructure constraints?
-
-**A — API Design (5–7 min)**
-Define the public API surface. Use REST-style pseudo-code. This forces you to think about data contracts before jumping to implementation. Mention API versioning and authentication (OAuth2/API keys) briefly.
-
-**D — Data Model (5–10 min)**
-Identify entities, relationships, and which database fits (SQL vs NoSQL). Estimate data size. This is a natural lead-in to schema design and storage choices.
-
-**I — Implementation (15–20 min)**
-This is the bulk of the interview. Draw a high-level architecture with components: clients, CDN, load balancers, API gateway, microservices, caches, message queues, databases. Trace a request flow end-to-end for your primary use case. Discuss trade-offs at each component.
-
-**O — Optimizations (5–10 min)**
-Address bottlenecks you intentionally deferred. Common areas: caching strategy, database sharding, read replicas, async processing with queues, CDN for static assets, geographic distribution.
-
-**Time Allocation for 45-minute interview:**
-
-```
-[ 0–10 min ] Requirements + capacity estimation
-[ 10–17 min ] API design + data model
-[ 17–37 min ] High-level architecture + component deep-dives
-[ 37–45 min ] Optimizations, failure modes, trade-off discussion
-```
-
-**Signals of seniority:**
-- Leads the conversation, doesn't wait to be guided
-- Calls out trade-offs explicitly ("We could use SQL here for strong consistency, but at our write volume we'd need sharding, which adds operational complexity — so I'd prefer Cassandra")
-- Acknowledges uncertainty ("I'd validate this with a load test in practice")
-- Mentions operational concerns: monitoring, alerting, deployment, rollback
-
-**Real-World Example:** Google's design interviews specifically test whether you can operate at the right altitude. A common trap is diving too deep into one component (e.g., spending 20 minutes on database schema) while neglecting the overall system. Senior engineers at Google learn to timebox component depth and keep the end-to-end flow visible.
-
-**Architecture Diagram:**
-
-```
-RADIO Framework Timeline
-========================
-
-|--Requirements--|--API--|--Data Model--|--Implementation (core)--|--Optimizations--|
-0               10      17             22                        37               45
-                                                                             (minutes)
-
-Implementation deep-dive structure:
-  Client --> CDN --> Load Balancer --> API Gateway --> Services --> [Cache / DB / Queue]
-     ^                                                                        |
-     |________________________ response path _________________________________|
-```
-
-**Follow-up Questions:**
-1. How do you handle the case where requirements change mid-interview?
-2. How do you decide when to use SQL vs NoSQL in a design interview context?
-3. What is the difference between availability and consistency — and how does CAP theorem guide your storage choice?
-
-**Common Mistakes:**
-- Jumping straight to drawing boxes without clarifying scale (the design for 1K users looks nothing like the one for 100M)
-- Spending the entire interview on one component and never connecting it to the full system
-- Not asking about read/write ratio — it dramatically changes the architecture
-
-**Interview Traps:**
-- Interviewer says "just assume 1 million users" — this is a trap: always ask read vs write ratio, geographic distribution, and peak-to-average ratio
-- Being too vague with "just add more servers" — the interviewer wants to know WHERE and HOW, with concrete trade-offs
-
-**Quick Revision:** RADIO = Requirements → API → Data model → Implementation → Optimizations; timebox each phase, lead the conversation.
-
----
-
-### Topic 2: Scalability Fundamentals
-**Difficulty:** Medium | **Frequency:** Very High | **Companies:** Amazon, Google, Meta, Stripe, Shopify
-
-**Q:** Explain horizontal vs vertical scaling and when you would choose each. How do stateless services enable horizontal scaling?
-
-**Short Answer:** Vertical scaling adds more power to a single machine (bigger CPU, more RAM); it has a ceiling and creates a single point of failure. Horizontal scaling adds more machines; it requires services to be stateless so any instance can serve any request, which in turn enables load balancing and auto-scaling.
-
-**Deep Explanation:**
-
-**Vertical Scaling (Scale Up)**
-- Increase CPU cores, RAM, storage on one machine
-- Simple — no application changes needed
-- Ceiling: largest available instance type (e.g., AWS u-24tb1.metal has 448 vCPUs, 24 TB RAM — but costs ~$220/hr)
-- Single point of failure
-- Good for: databases (initially), stateful workloads, licensing constraints (Oracle charges per core)
-- Downtime risk: requires restart for hardware changes
-
-**Horizontal Scaling (Scale Out)**
-- Add more instances of the same type
-- Theoretically unbounded — just add more nodes
-- Requires load balancing to distribute traffic
-- Requires stateless application design
-- More complex operationally (service discovery, distributed tracing)
-- Good for: web servers, API servers, microservices, stateless compute
-
-**Stateless Services — the key enabler:**
-A stateless service holds no session or user state in local memory. Every request carries all information needed to process it (via JWT token, session ID pointing to external store, etc.). This means any instance can serve any request — the load balancer can freely route traffic.
-
-State must live outside the service: in a distributed cache (Redis/Memcached), database, or cookie.
-
-Common trap: storing session in memory (HashMap) on a single server — works until you have 2 servers, then 50% of requests go to the wrong server.
-
-**Load Balancing Strategies:**
-
-| Strategy | How It Works | Best For | Weakness |
-|---|---|---|---|
-| Round-robin | Requests distributed evenly in sequence | Homogeneous, stateless services | Ignores server load |
-| Weighted round-robin | Distribute proportionally by server capacity | Mixed instance sizes | Static weights |
-| Least connections | Route to server with fewest active connections | Long-lived connections (WebSocket) | Overhead of tracking state |
-| Least response time | Route to fastest-responding server | Latency-sensitive APIs | Measurement lag |
-| IP hash | Hash client IP to server | Sticky sessions without cookies | Uneven distribution if few clients |
-| Consistent hashing | Hash request key to ring | Distributed caches, microservices | Complexity |
-| Random | Random server selection | Simple homogeneous fleets | Not ideal for long connections |
-
-**Auto-Scaling:**
-Cloud auto-scaling watches metrics (CPU%, memory, custom — e.g., queue depth) and adds/removes instances. Key concepts:
-- Scale-out policy: add instances when CPU > 70% for 2 minutes
-- Scale-in policy: remove instances when CPU < 30% for 10 minutes (with cooldown to avoid thrashing)
-- Predictive scaling: pre-warm instances before expected load spike (e.g., Black Friday)
-- Launch template: pre-baked AMI with your app so new instances are ready in ~90 seconds
-
-**Real-World Example:** Netflix uses horizontal scaling exclusively for its stateless API tier. Every streaming request is stateless — session data is in JWT tokens and viewing state is in Cassandra. Their Chaos Monkey deliberately kills instances to prove the system is resilient. At peak, Netflix serves ~15% of global internet traffic from horizontally scaled pods on AWS.
-
-**Architecture Diagram:**
-
-```
-Vertical Scaling:              Horizontal Scaling:
-=====================          =====================
-      [Big Server]                  [LB]
-      CPU: 64 cores                  |
-      RAM: 512 GB           +--------+--------+
-      Limit: hardware       |        |        |
-      SPOF: yes          [Srv1]  [Srv2]  [Srv3]
-                         small   small   small
-                         stateless instances
-                         Session state --> [Redis]
-```
-
-**Follow-up Questions:**
-1. What happens to in-flight requests when you scale in (remove an instance)?
-2. How do you handle database scaling — horizontal scaling is harder for databases, why?
-3. What is the difference between auto-scaling groups and Kubernetes horizontal pod autoscaling?
-
-**Common Mistakes:**
-- Assuming horizontal scaling is always the right answer — for relational databases, vertical scaling is often the pragmatic first step
-- Forgetting that horizontal scaling requires a load balancer, which itself can become a bottleneck or SPOF
-- Not addressing state management when claiming a service is "horizontally scalable"
-
-**Interview Traps:**
-- "Just scale horizontally" without addressing how state is externalized — interviewer will probe this immediately
-- Vertical vs horizontal is not binary — you often do both (scale up the DB, scale out the API tier)
-
-**Quick Revision:** Stateless + load balancer = horizontal scaling; externalize all state to cache/DB; vertical scaling is simpler but has a hard ceiling.
-
----
-
-### Topic 3: Load Balancer Deep Dive
-**Difficulty:** Medium-High | **Frequency:** High | **Companies:** Google, Cloudflare, Amazon, Meta, Stripe
-
-**Q:** Explain the difference between L4 and L7 load balancers. When would you use each, and what are the trade-offs?
-
-**Short Answer:** L4 load balancers operate at the transport layer (TCP/UDP) and route based on IP and port — they are faster but less intelligent. L7 load balancers inspect HTTP content (headers, URL, cookies) and enable content-based routing, SSL termination, and session stickiness — more powerful but with higher latency overhead.
-
-**Deep Explanation:**
-
-**L4 Load Balancer (Transport Layer)**
-Operates on TCP/UDP. Sees: source IP, destination IP, port. Does NOT see: HTTP headers, URL path, cookies, body content.
-
-How it works: receives a TCP connection, forwards it to a backend server using NAT or IP tunneling. Very fast — minimal processing.
-
-Use cases:
-- Raw TCP traffic (non-HTTP protocols: database proxies, game servers, SMTP)
-- Extremely latency-sensitive applications (microsecond budgets)
-- When you need maximum throughput with minimal overhead
-
-Examples: AWS Network Load Balancer (NLB), HAProxy in TCP mode, Linux IPVS
-
-**L7 Load Balancer (Application Layer)**
-Operates at HTTP/HTTPS. Sees: URL path, HTTP method, headers, cookies, query params, body.
-
-Capabilities:
-- Path-based routing: /api/* → API servers, /static/* → CDN origin
-- Host-based routing: api.example.com → API cluster, admin.example.com → admin cluster
-- Header-based routing: X-Feature-Flag: beta → canary instances
-- SSL/TLS termination (decrypt once at LB, send plaintext to backend)
-- HTTP/2 multiplexing, gRPC routing
-- Session stickiness via cookies
-- Compression (gzip at the LB)
-- Rate limiting, WAF integration
-
-Examples: AWS Application Load Balancer (ALB), Nginx, HAProxy in HTTP mode, Envoy, Traefik
-
-**SSL Termination at L7 LB:**
-Decrypt HTTPS at the load balancer, forward HTTP to backends. Benefits: backends are simpler (no TLS handling), certificate management is centralized, LB can inspect/modify requests. Downside: traffic from LB to backend is unencrypted (mitigated by placing both in a VPC with no external access).
-
-**Sticky Sessions (Session Affinity):**
-Routes the same client to the same backend server. Implemented via:
-- Cookie-based: LB injects a cookie with server ID
-- IP hash: consistent mapping of client IP to server
-
-Problem: breaks horizontal scaling benefits. If server A has 60% of sticky sessions and dies, those users lose their sessions. Best practice: externalize session state to Redis instead of relying on sticky sessions.
-
-**Health Checks:**
-LBs probe backends regularly. Active health check: LB sends HTTP GET /health every 5 seconds; if 3 consecutive failures, mark unhealthy and stop routing. Passive health check: monitor live traffic error rates.
-
-Critical: your /health endpoint must check downstream dependencies (DB connection, cache) — otherwise the LB sends traffic to a server that can't fulfill requests.
-
-**Active-Active vs Active-Passive LB:**
-- Active-Active: two LBs both serve traffic, use BGP Anycast or DNS round-robin to distribute between them. Full capacity, no idle resources, both can fail independently.
-- Active-Passive: one LB serves all traffic; passive standby ready to take over via VIP/Floating IP (e.g., Keepalived VRRP). Simpler failover, but standby capacity is idle.
-
-**Real-World Example:** Netflix uses a multi-tier load balancing architecture: AWS ALB (L7) in front of API services for HTTP routing and SSL termination, and AWS NLB (L4) for their lower-latency data plane. Inside their cluster, they use Envoy as a sidecar L7 proxy for service-to-service routing (part of their service mesh). Eureka (their service registry) provides the list of healthy backends to client-side load balancers (Ribbon/Spring Cloud LoadBalancer).
-
-**Architecture Diagram:**
-
-```
-Internet
-   |
-[DNS / Anycast]
-   |
-+--+--+          +--+--+
-| LB1 |----------| LB2 |   Active-Active pair
-+--+--+          +--+--+
-   |
-+--+---+---+---+
-|      |   |   |
-[A1] [A2] [A3] [A4]   Backend API servers
-                  |
-               [/health endpoint]
-               checks: DB ping, Redis ping
-
-L4 vs L7 inspection:
-  L4: [IP:port] -> route        (fast, ~10 µs overhead)
-  L7: [IP:port + HTTP headers] -> route  (flexible, ~100 µs overhead)
-```
-
-**Follow-up Questions:**
-1. How does a load balancer avoid the thundering herd problem when a backend recovers after being marked unhealthy?
-2. What is connection draining and why is it important for deployments?
-3. How does Envoy differ from Nginx as a load balancer in a Kubernetes service mesh?
-
-**Common Mistakes:**
-- Confusing SSL termination with SSL passthrough (passthrough means LB forwards encrypted traffic to backends, which must handle TLS — no HTTP inspection possible)
-- Using sticky sessions as a substitute for proper session management — sticky sessions are a band-aid
-- Not mentioning health checks — a design without health checks has silent single points of failure
-
-**Interview Traps:**
-- "What happens when the load balancer itself goes down?" — answer: active-active pair, DNS failover, or cloud-managed LB (AWS ALB is regionally redundant by design)
-- Assuming L7 LB is always better — for non-HTTP TCP workloads, L4 is correct and faster
-
-**Quick Revision:** L4 = TCP/IP routing (fast, dumb); L7 = HTTP-aware routing (smart, SSL termination, path-based routing); always add health checks; prefer externalized session state over sticky sessions.
-
----
-
-### Topic 4: CDN & Edge Computing
-**Difficulty:** Medium | **Frequency:** High | **Companies:** Cloudflare, Akamai, Netflix, Amazon, Meta
-
-**Q:** How does a CDN work, and when should you use push vs pull CDN? What is edge computing and how does it extend the CDN model?
-
-**Short Answer:** A CDN is a geographically distributed network of cache servers (Points of Presence / PoPs) that serve content from locations physically closer to users, reducing latency and origin load. Pull CDN fetches content from origin on first request; push CDN requires you to proactively upload content to edge nodes.
-
-**Deep Explanation:**
-
-**CDN Architecture:**
-User request → DNS resolves to nearest CDN PoP (via Anycast or GeoDNS) → PoP checks local cache → Cache HIT: serve immediately → Cache MISS: fetch from origin, cache locally, serve to user.
-
-CDN PoPs are distributed globally (Cloudflare has 300+ locations, Akamai has 4000+). The key benefit: instead of a user in Singapore hitting a server in US-East (150 ms RTT), they hit a Singapore PoP (5 ms RTT).
-
-**Pull CDN:**
-- Origin server is the source of truth
-- CDN fetches content on first cache miss and caches it at the PoP
-- Subsequent requests from same region served from cache
-- TTL (Time-To-Live) in Cache-Control header determines how long cached
-- Pros: simple setup, no manual upload, good for content you update frequently
-- Cons: first request has full origin latency (cache miss), if PoP has never served this asset, it's a miss
-
-**Push CDN:**
-- You proactively upload content to CDN nodes before any user requests it
-- Good for static content that changes infrequently: software binaries, large video files, firmware updates
-- Pros: zero cache miss latency for first request, predictable behavior
-- Cons: you must manage what's uploaded and purged, storage costs even for unused assets, not suitable for dynamic content
-
-**Cache-Control Headers (critical for interviews):**
-
-```
-Cache-Control: max-age=86400, public          // Cache for 24h, shareable by CDN
-Cache-Control: no-cache                        // Must revalidate with origin on every request
-Cache-Control: no-store                        // Never cache (sensitive data)
-Cache-Control: s-maxage=3600                   // CDN-specific TTL (overrides max-age for CDN)
-Cache-Control: stale-while-revalidate=60       // Serve stale content while fetching fresh
-ETag: "abc123"                                 // Fingerprint for conditional requests
-Vary: Accept-Encoding                          // Cache separate copies per encoding
-```
-
-**Cache Invalidation Strategies:**
-- TTL expiry: simple, but stale content until TTL expires
-- URL versioning: /assets/main.a3f4b8.js — fingerprint in filename, new deploy = new URL, old URL cached forever (ideal)
-- API purge: CDN API call to invalidate specific keys (Cloudflare Cache Purge API) — use sparingly, expensive at scale
-- Surrogate keys / Cache tags: tag cached objects, purge all objects with a given tag (e.g., purge all pages tagged product-id:12345)
-
-**Edge Computing:**
-CDN evolved beyond caching static files. Edge compute allows running code at CDN PoPs:
-- Cloudflare Workers: JavaScript running at 300+ PoPs, ~0 cold start
-- AWS Lambda@Edge: runs at CloudFront PoPs (limited regions vs Workers)
-- Fastly Compute@Edge: WebAssembly at edge
-
-Use cases for edge compute:
-- A/B testing (modify response at edge without origin round-trip)
-- Authentication token validation at edge (reject bad requests before hitting origin)
-- Geographic content personalization
-- Request/response transformation (add security headers)
-- Bot detection and WAF logic
-- Dynamic personalization of cached HTML
-
-**When to use CDN:**
-- Static assets: JS, CSS, images, fonts — always
-- Video streaming — always (HLS/DASH segments from CDN)
-- API responses that are cacheable (GET /products — cache for 60 seconds)
-- Protection against DDoS (CDN absorbs volumetric attacks)
-
-**When NOT to use CDN:**
-- Highly personalized responses (cannot be shared across users)
-- Real-time data (stock prices, chat messages)
-- POST/PUT/DELETE (not cacheable)
-
-**Real-World Example:** Netflix built its own CDN called Open Connect. They place physical appliances (servers with 100+ TB SSD storage) inside ISP networks. At peak, Netflix serves ~95% of its traffic from Open Connect appliances within the ISP's network — users never leave their ISP's network to fetch video bytes. This eliminates inter-ISP bandwidth costs and reduces latency dramatically. Netflix uses a push model — they proactively replicate popular titles to edge appliances based on predicted demand.
-
-**Architecture Diagram:**
-
-```
-User (Singapore)                     Origin Server (US-East)
-      |                                      |
-      | DNS lookup                           |
-      v                                      |
-[Anycast/GeoDNS] -------> [Singapore PoP]   |
-                                |            |
-                         Cache HIT? -------> YES --> serve (5 ms)
-                                |
-                               NO
-                                |
-                         Fetch from origin (150 ms round trip)
-                                |
-                         Cache at PoP
-                                |
-                         Serve to user
-
-Push CDN: you --> [origin] --> [upload to all PoPs proactively]
-Pull CDN: user --> [PoP] --cache miss--> [origin] --> [cache] --> [user]
-```
-
-**Follow-up Questions:**
-1. How do you handle cache invalidation for a news website where articles are updated frequently?
-2. What is the difference between CDN and a reverse proxy?
-3. How would you use edge computing to implement personalized content without sacrificing cacheability?
-
-**Common Mistakes:**
-- Assuming CDN is only for static files — modern CDNs cache API responses too
-- Not setting appropriate TTLs — infinite TTL for frequently updated content causes stale data; too short TTL defeats CDN purpose
-- Forgetting cache invalidation strategy in system design answers
-
-**Interview Traps:**
-- "CDN solves all performance problems" — CDN only helps for cacheable, read-heavy, global content; it adds latency for dynamic, personalized content that must hit origin anyway
-- Not distinguishing between CDN for assets vs CDN for API acceleration
-
-**Quick Revision:** CDN = geo-distributed cache; pull = lazy fetch on miss; push = proactive upload; edge compute = code at PoP; use URL versioning + long TTL for static, short TTL + stale-while-revalidate for semi-dynamic.
-
----
-
-### Topic 5: Consistent Hashing in System Design
-**Difficulty:** High | **Frequency:** High | **Companies:** Amazon, Google, Meta, Uber, Redis Labs
-
-**Q:** What is consistent hashing, why is it used in distributed systems, and what problem does it solve compared to simple modulo hashing?
-
-**Short Answer:** Consistent hashing maps both data keys and server nodes onto a circular hash ring; each key is served by the first server clockwise from its hash position. When a node is added or removed, only keys in that node's arc need to be remapped — typically 1/N of all keys — rather than remapping nearly all keys as simple modulo hashing would.
-
-**Deep Explanation:**
-
-**The Problem with Naive Modulo Hashing:**
-server = hash(key) % N
-
-If N changes (server added or removed), almost all keys remap to different servers. In a caching scenario, this means a cache miss storm — every key previously cached hits the origin. For a system with 1 billion cached objects and 10 servers, adding 1 server causes ~91% of keys to remap (from hash(key) % 10 to hash(key) % 11).
-
-**Consistent Hashing — the Hash Ring:**
-1. Hash the address space to a ring [0, 2^32-1] (or [0, 2^64-1])
-2. Hash each server node to a position on the ring
-3. Hash each key to a position on the ring
-4. Each key is owned by the first server encountered moving clockwise from the key's position
-
-Adding a server S_new: only keys between S_new's predecessor and S_new itself need to remigrate. On average, K/N keys (where K = total keys, N = number of servers).
-
-Removing server S: its keys are taken over by the next server clockwise. Only S's keys need to move — average K/N keys.
-
-**Virtual Nodes (vnodes) — solving uneven distribution:**
-With a small number of real servers, positions on the ring can cluster, causing some servers to own much larger arcs (hot spots). Solution: each physical server is represented by V virtual nodes, each mapped to different positions on the ring.
-
-- More uniform key distribution
-- V=150 virtual nodes per server is a common production default (Cassandra default: 256)
-- When a server is added, its virtual nodes steal keys from multiple existing servers — natural load spreading
-- Allows weighting: a more powerful server gets more virtual nodes
-
-**Chord Protocol:**
-Academic consistent hashing foundation (Stoica et al., 2001). Each node maintains a "finger table" of O(log N) other nodes for O(log N) lookup hops. In practice, DHT-based P2P systems (BitTorrent, Kademlia) and distributed databases use variants of this.
-
-**Where consistent hashing is used in production:**
-
-| System | Usage |
-|---|---|
-| Amazon DynamoDB | Partition key hashed to determine which partition owns the data |
-| Apache Cassandra | Partitioner (Murmur3Partitioner) uses consistent hashing to assign rows to nodes |
-| Redis Cluster | 16,384 hash slots distributed across nodes; slot = CRC16(key) % 16384 |
-| Memcached clients | libketama library implements consistent hashing for client-side server selection |
-| Nginx/HAProxy upstream | Consistent hash load balancing for caching proxies |
-| Vimeo, Discord | CDN request routing to cache nodes |
-
-**Hotspot mitigation:**
-Even with virtual nodes, if a specific key gets extreme traffic (celebrity user, viral post), consistent hashing doesn't help — all traffic for that single key still goes to one node. Solutions: application-level key sharding (add random suffix to key), read replicas, local in-process caching for ultra-hot keys.
-
-**Real-World Example:** Amazon DynamoDB Partition Internals — DynamoDB uses consistent hashing with virtual nodes to distribute data across storage nodes. When you add capacity to a DynamoDB table, new partitions are provisioned and the ring rebalances without downtime. The partition key determines the hash ring position. DynamoDB engineers noted in their 2022 paper that they use 100+ virtual nodes per partition server to maintain uniform distribution even during rebalancing events.
-
-**Architecture Diagram:**
-
-```
-Consistent Hash Ring (3 servers, simplified):
-
-              Key "user:123" (hash=45)
-              lands at Server B (next clockwise)
-                       |
-          0            v          2^32
-          |----[A:10]---[B:50]---[C:80]----|  (ring wraps around)
-
-  Adding Server D at position 65:
-    [A:10]---[B:50]---[D:65]---[C:80]
-    Only keys in range (50, 65] move from C to D
-    (approximately 1/N of total keys)
-
-  Virtual Nodes (more realistic):
-    A_1:8,  B_1:22, C_1:35,
-    A_2:48, B_2:55, C_2:70,
-    A_3:85, B_3:92, C_3:98
-    --> Keys are spread much more evenly
-```
-
-**Follow-up Questions:**
-1. How does Redis Cluster differ from pure consistent hashing — why does it use 16,384 fixed hash slots instead?
-2. What happens to in-flight requests to a node that is being removed in a live Cassandra cluster?
-3. How would you implement client-side consistent hashing in Java for a Memcached client pool?
-
-**Common Mistakes:**
-- Confusing the hash ring with a sorted array — the ring is a conceptual model; implementation typically uses a sorted map (TreeMap in Java) with O(log N) lookups
-- Forgetting that virtual nodes solve distribution but not hot individual keys
-- Claiming consistent hashing eliminates all rebalancing — it minimizes it, but 1/N of keys still move
-
-**Interview Traps:**
-- "Consistent hashing solves the thundering herd on cache miss" — NO, it only solves the redistribution problem when topology changes; a cold cache with all misses still thunders to origin
-- Redis Cluster uses hash slots (not a pure ring) — interviewers at Redis Labs will catch you if you say Redis uses a hash ring
-
-**Quick Revision:** Consistent hashing = hash ring; add/remove node remaps only 1/N keys; virtual nodes fix uneven distribution; used in Cassandra, DynamoDB, Redis Cluster.
-
----
-
-### Topic 6: Back-of-Envelope Estimation
-**Difficulty:** Medium | **Frequency:** Universal | **Companies:** All FAANG+, all system design interviews
-
-**Q:** How do you perform back-of-envelope calculations in a system design interview? Walk through a storage and throughput estimation for a large-scale system.
-
-**Short Answer:** Back-of-envelope estimation demonstrates that you can reason about scale before committing to an architecture. Use powers of 2, round aggressively to the nearest order of magnitude, and always state your assumptions explicitly. The goal is "right order of magnitude" — being off by 2x is fine, off by 100x is not.
-
-**Deep Explanation:**
-
-**Powers of 2 — Memory:**
-
-| Power | Approx Value | Name |
-|---|---|---|
-| 2^10 | ~1 thousand | 1 KB |
-| 2^20 | ~1 million | 1 MB |
-| 2^30 | ~1 billion | 1 GB |
-| 2^40 | ~1 trillion | 1 TB |
-| 2^50 | ~1 quadrillion | 1 PB |
-
-**Common conversion shortcuts:**
-- 1 day = 86,400 seconds ≈ 100K seconds
-- 1 month ≈ 2.5 million seconds
-- 1 year ≈ 30 million seconds
-- 1 billion requests/day ≈ 11,600 requests/second ≈ ~12K QPS
-- 1 million requests/day ≈ 12 QPS
-
-**QPS Calculation Template:**
-```
-QPS = DAU × avg_requests_per_user_per_day / 86,400
-Peak QPS ≈ 2× to 5× average QPS (use 3× as default)
-```
-
-**Storage Estimation Template:**
-```
-Storage = DAU × avg_data_generated_per_user_per_day × retention_period
-```
-
-**Worked Example: Design Twitter (or X)**
-
-Assumptions (state these):
-- 300M DAU
-- Average user reads 50 tweets/day, writes 1 tweet/day
-- Average tweet: 140 chars = 140 bytes text + 50 bytes metadata = ~200 bytes
-- 30% of tweets have an image (300KB avg) or video (10MB avg)
-
-QPS calculation:
-```
-Write QPS = 300M × 1 tweet/day / 86,400 = ~3,500 writes/sec
-Read QPS  = 300M × 50 reads/day / 86,400 = ~175,000 reads/sec
-Read:Write ratio = 50:1 (read-heavy -> design for read optimization)
-Peak Write QPS ≈ 3× = ~10,000/sec
-Peak Read QPS  ≈ 3× = ~500,000/sec
-```
-
-Storage calculation:
-```
-Text storage/day  = 300M tweets × 200 bytes = 60 GB/day
-Image storage/day = 300M × 0.30 × 300 KB   = 27 TB/day
-5-year text storage = 60 GB × 365 × 5      = ~110 TB (manageable in a DB)
-5-year media storage = 27 TB × 365 × 5     = ~50 PB (requires object storage like S3)
-```
-
-**Worked Example: Design WhatsApp Messages**
-
-Assumptions:
-- 2B users, 50M DAU
-- Average 40 messages/day per active user
-- Average message: 100 bytes text
-- 20% messages have media: 200 KB avg
-
-QPS:
-```
-Message QPS = 50M × 40 / 86,400 = ~23,000 msg/sec
-Peak = 3× = ~70,000 msg/sec
-```
-
-Storage:
-```
-Text/day = 50M × 40 × 100 bytes = 200 GB/day
-Media/day = 50M × 40 × 0.20 × 200 KB = 80 TB/day
-```
-
-**Bandwidth estimation:**
-```
-Incoming bandwidth = storage_per_day / 86,400 = 80 TB / 86,400 sec ≈ 1 GB/sec incoming
-```
-
-**Cache sizing:**
-80-20 rule: 20% of content generates 80% of requests. Cache the hot 20%.
-```
-Daily active data = 200 GB text/day
-Hot 20% = 40 GB → fits in Redis on a single 64 GB node with room to spare
-```
-
-**Real-World Example:** Jeff Dean's latency numbers (from his 2012 "Building Software Systems at Google" talk) became the industry standard reference. Google engineers are expected to know these numbers cold. The ability to do back-of-envelope estimation is explicitly tested in Google's interview guide — they want to see whether you can quickly determine if a solution is feasible before spending 20 minutes designing something that violates physical limits.
-
-**Architecture Diagram:**
-
-```
-Estimation Workflow:
-====================
-
-1. Get DAU / MAU from interviewer or estimate
-        |
-2. Calculate average QPS
-   QPS = DAU x requests_per_user / 86,400
-        |
-3. Apply peak multiplier (3x default)
-        |
-4. Calculate storage per day
-   Storage = DAU x data_per_user
-        |
-5. Multiply by retention period (5 years typical)
-        |
-6. Derive bandwidth (storage/day / 86,400 = bytes/sec)
-        |
-7. Use to justify architecture choices:
-   QPS > 10K/sec  -> need multiple API servers
-   Storage > 1 TB -> need sharded DB or object store
-   Read:Write > 10:1 -> add read replicas / caching layer
-```
-
-**Follow-up Questions:**
-1. If peak QPS is 500K/sec for reads and each server handles 10K reads/sec, how many servers do you need, and what's your redundancy strategy?
-2. How do you estimate the number of database partitions needed for a given QPS?
-3. At 50 PB of media storage, compare cost of S3 vs building your own storage — when does building your own make sense?
-
-**Common Mistakes:**
-- Not stating assumptions before calculating — interviewer has no idea what numbers you used
-- Being too precise: "3,472 QPS" instead of "~3,500 QPS" — this wastes time and signals you don't understand estimation
-- Forgetting the peak multiplier — systems are designed for peak, not average
-
-**Interview Traps:**
-- Interviewer gives you no numbers — this is intentional, estimate DAU from public knowledge ("Twitter has ~300M DAU, I'll use that")
-- You calculate 50 PB of storage and say "just use a single database" — the interviewer is testing whether storage estimates inform your architecture
-
-**Quick Revision:** QPS = DAU × req/user / 86,400; peak = 3× avg; storage = DAU × data/user × retention; use powers of 2; state assumptions before calculating.
-
----
-
-### Topic 7: Design a URL Shortener (High-Level Design)
-**Difficulty:** Medium | **Frequency:** Very High | **Companies:** Google (goo.gl), Bitly, TinyURL, Twitter, Meta
-
-**Q:** Design a URL shortening service like Bitly or TinyURL. Walk through the full system design.
-
-**Short Answer:** A URL shortener maps a long URL to a short 6-8 character code stored in a database; a redirect service resolves the code and returns a 301/302 to the original URL. The key challenges are: generating unique short codes at scale, low-latency resolution (< 10 ms), analytics tracking, and handling 10:1 redirect-to-create ratios.
-
-**Deep Explanation:**
-
-**Requirements Clarification:**
-
-Functional:
-- POST /shorten(longUrl) → shortUrl
-- GET /{shortCode} → redirect to longUrl
-- Custom aliases (e.g., bit.ly/my-custom-name)
-- Link expiry (TTL)
-- Click analytics (total clicks, geographic distribution, referrer)
-
-Non-functional:
-- 100M new URLs shortened per day
-- 10B redirects per day (100:1 read:write ratio)
-- Availability: 99.99% (URL resolution is critical — links embedded in emails, marketing campaigns)
-- Redirect latency: < 10 ms (P99)
-- Short codes: 6-8 characters
-
-**Capacity Estimation:**
-```
-Write QPS = 100M / 86,400 ≈ 1,160 writes/sec → ~1.2K writes/sec
-Read QPS  = 10B  / 86,400 ≈ 115,740 reads/sec → ~116K reads/sec
-
-Short code length:
-  6-char base62 (a-z, A-Z, 0-9) = 62^6 ≈ 56 billion combinations
-  100M URLs/day × 365 × 10 years = 365 billion → need 7+ chars
-  7-char base62 = 62^7 ≈ 3.5 trillion combinations → sufficient for decades
-
-Storage per URL:
-  longUrl: 2,048 bytes (max URL length), shortCode: 7 bytes, metadata: ~100 bytes
-  Total: ~2.2 KB per record
-  100M records/day × 2.2 KB = ~220 GB/day
-  10 years = 803 TB → needs sharded storage
-```
-
-**API Design:**
-```
-POST /api/v1/shorten
-  Body: { "longUrl": "https://...", "customAlias": "optional", "expiryDate": "optional" }
-  Response: { "shortUrl": "https://short.ly/aB3xYz7" }
-  Auth: API key in header
-
-GET /{shortCode}
-  Response: 301 Redirect to longUrl (301 = permanent, browser caches; 302 = temporary, no browser cache)
-  Note: Use 302 for analytics tracking; 301 reduces server load but you lose click tracking
-
-GET /api/v1/stats/{shortCode}
-  Response: { "clicks": 1234567, "geoDistribution": [...], "referrers": [...] }
-```
-
-**Encoding Algorithm — three approaches:**
-
-1. **Hash-based (MD5/SHA256 + truncation):**
-   - MD5(longUrl) → 128-bit hash → take first 43 bits → base62 encode → 7-char code
-   - Problem: hash collisions (two different URLs produce same first 43 bits)
-   - Collision resolution: append counter and rehash until unique
-   - Stateless: can be generated without DB roundtrip but needs DB check for collision
-
-2. **ID generator + base62 encoding (recommended):**
-   - Use distributed ID generator (Snowflake or database auto-increment) to get a unique 64-bit integer
-   - Base62 encode the integer: 56 billion = 7 chars in base62
-   - No collisions by construction
-   - Predictable? Yes — sequential IDs are incrementing. If this is a concern, scramble bits before encoding
-
-3. **Random code with DB uniqueness check:**
-   - Generate random 7-char base62 string
-   - Check if it exists in DB
-   - Retry on collision (probability very low with 3.5 trillion space)
-
-**Database Schema:**
-
-```
-Table: url_mapping
-  short_code    CHAR(7)  PRIMARY KEY
-  long_url      VARCHAR(2048) NOT NULL
-  user_id       BIGINT   (nullable for anonymous)
-  created_at    TIMESTAMP
-  expires_at    TIMESTAMP (nullable)
-  click_count   BIGINT DEFAULT 0  (approximation only — use separate analytics for precision)
-
-Table: click_events (append-only, write to Kafka → analytics DB)
-  short_code    CHAR(7)
-  clicked_at    TIMESTAMP
-  user_agent    VARCHAR(512)
-  ip_hash       VARCHAR(64)  (hashed for privacy)
-  referrer      VARCHAR(2048)
-```
-
-**Database Choice:**
-- url_mapping: reads dominate (116K QPS reads vs 1.2K writes), simple key-value access pattern → Redis for hot cache, Cassandra or DynamoDB for primary storage (high write throughput, horizontal scaling)
-- Alternatively: MySQL/Postgres with read replicas + Redis cache (simpler operationally for < 100K QPS)
-
-**Caching Layer:**
-```
-Hot URLs (top 20% URLs get 80% of traffic):
-  LRU cache in Redis: cache shortCode → longUrl with TTL=24h
-  Cache hit rate target: > 99% (means < 1,160 reads/sec to DB)
-  Memory: 100M most popular URLs × 2.2 KB = ~220 GB → 3-4 Redis nodes
-```
-
-**Redirect Latency Optimization:**
-```
-Request path with cache:
-  Client → [CDN/Edge] → [API server] → [Redis] → 302 response
-  Latency: ~5-15 ms
-
-Request path without cache:
-  Client → [CDN/Edge] → [API server] → [DB] → 302 response
-  Latency: ~50-100 ms (acceptable but not ideal for hot URLs)
-```
-
-**Analytics Architecture:**
-Do not write analytics to the main DB on each redirect (write amplification, slows down critical read path). Instead:
-1. On each redirect, publish event to Kafka topic `click_events`
-2. Stream consumer (Flink/Spark Streaming) aggregates by time windows
-3. Write aggregated results to Cassandra or ClickHouse for OLAP queries
-4. Real-time dashboard reads from ClickHouse
-
-**Scaling Discussion:**
-- Short code generation: use Zookeeper to hand out ID ranges to each API server (range-based ID allocation) → no single-point ID bottleneck
-- Geo-distribution: deploy in multiple regions; replication of url_mapping across regions; writes go to primary region, reads from local region
-- Custom aliases: check alias availability in DB, store with is_custom=true flag; rate-limit custom alias creation per user
-
-**Real-World Example:** Bitly processes ~10 billion redirects per month. Their architecture evolved from a monolithic PHP app to a distributed Go-based system. They use Cassandra for primary storage (horizontal scale, high availability), Redis for caching hot links, Kafka for click event streaming, and their own in-house analytics pipeline. They open-sourced NSQD, their message queue, which was originally built for exactly this kind of analytics fanout workload.
-
-**Architecture Diagram:**
-
-```
-                    [Client]
-                       |
-              [DNS] --> [CDN Edge]  <-- cache popular 302 redirects at edge
-                       |
-                  [Load Balancer]
-                       |
-              +--------+--------+
-              |        |        |
-           [API-1]  [API-2]  [API-3]   stateless API servers
-              |
-     +--------+--------+
-     |                 |
-  [Redis Cache]    [Cassandra Cluster]
-  hot shortCode     primary storage
-  → longUrl         sharded by shortCode
-
-Shorten flow:
-  POST /shorten → ID Generator → base62 encode → write to Cassandra → return shortUrl
-
-Redirect flow:
-  GET /{code} → check Redis → HIT: 302 redirect
-                           → MISS: check Cassandra → 302 redirect + cache result
-
-Analytics flow:
-  Each redirect → async write to [Kafka] → [Flink] → [ClickHouse] → [Dashboard]
-```
-
-**Follow-up Questions:**
-1. How do you handle custom aliases and prevent collisions with auto-generated codes?
-2. Why use 302 (temporary redirect) instead of 301 (permanent redirect) for analytics — and when would you prefer 301?
-3. How do you design the system to handle a single viral link getting 10 million redirects per minute (thundering herd)?
-
-**Common Mistakes:**
-- Using only a single database without caching — at 116K reads/sec, a single DB node will be saturated
-- Storing click analytics in the main url_mapping table (write contention on hot rows)
-- Not mentioning expiry/cleanup of expired URLs (database grows unboundedly without TTL enforcement)
-
-**Interview Traps:**
-- "Use UUID as short code" — UUIDs are 36 characters, defeating the purpose of a shortener; also UUID v4 is random and non-sequential, causing B-tree fragmentation in SQL DBs
-- 301 vs 302 redirect is a classic interview differentiation question — know the trade-off cold
-
-**Quick Revision:** Hash ring or Snowflake ID → base62 → 7-char code; Redis cache for reads; Cassandra/DynamoDB for storage; async Kafka for analytics; use 302 for analytics tracking.
-
----
-
-### Topic 8: Design a Rate Limiter (High-Level Design)
-**Difficulty:** High | **Frequency:** Very High | **Companies:** Stripe, Cloudflare, Google, Twitter, Uber, AWS
-
-**Q:** Design a rate limiter for a public API. Compare algorithms, discuss distributed implementation, and explain where in the stack to deploy it.
-
-**Short Answer:** A rate limiter controls the rate of incoming requests to protect services from abuse and ensure fair usage. Algorithms differ in memory usage, burst tolerance, and accuracy; Token Bucket is the most widely used in practice. In distributed systems, Redis with atomic Lua scripts is the standard implementation for shared state across multiple API servers.
-
-**Deep Explanation:**
-
-**Requirements Clarification:**
-
-Functional:
-- Limit requests per user/IP/API key within a time window
-- Return 429 Too Many Requests with Retry-After header when limit exceeded
-- Support different limits per endpoint (POST /login: 5/min; GET /data: 1000/min)
-- Per-tenant limits (free tier: 100 req/min; paid tier: 10,000 req/min)
-
-Non-functional:
-- Low overhead: rate limiter should add < 1 ms latency to requests
-- High availability: rate limiter failure should fail-open (allow requests) not fail-closed (block all)
-- Accurate: soft limits acceptable (small over-counts due to race conditions are tolerable)
-- Global: same limit enforced across all API server instances
-
-**Algorithm Comparison:**
-
-**1. Fixed Window Counter:**
-- Divide time into fixed windows (e.g., [00:00-01:00], [01:00-02:00], ...)
-- Count requests per user per window
-- Reset counter at window boundary
-- Pros: simple, low memory (one counter per user)
-- Cons: boundary problem — user can send 2× limit by sending max in last second of window + max in first second of next window
-
-```
-Window [0-60s]: user sends 100 requests in seconds 59-60
-Window [60-120s]: user sends 100 requests in seconds 60-61
-→ 200 requests in 2 seconds, 2× the intended limit
-```
-
-**2. Sliding Window Log:**
-- Store timestamp of every request in a sorted set
-- On new request: remove timestamps older than window, count remaining, compare to limit
-- Pros: exact rate limiting, no boundary problem
-- Cons: high memory — store every timestamp (unbounded if user sends many requests)
-
-**3. Sliding Window Counter (hybrid — recommended):**
-- Combine two fixed windows with weighted interpolation
-- Current window count + previous window count × (overlap percentage)
-- Example: current window at 70% elapsed with 70 requests; previous window had 80 requests
-  → estimated count = 70 + 80 × (1 - 0.70) = 70 + 24 = 94
-- Pros: O(1) memory, no boundary problem, very accurate (< 0.003% error vs sliding log in production tests)
-- Cons: slightly approximate
-
-**4. Token Bucket (industry standard):**
-- Bucket has capacity C tokens
-- Tokens refill at rate R per second
-- Each request consumes 1 token (or more for expensive operations)
-- If bucket empty → reject request
-- Pros: handles bursts (bucket acts as a buffer), simple, memory efficient
-- Cons: two parameters to tune (capacity + refill rate)
-- Used by: Stripe, AWS API Gateway, Uber
-
-```
-Bucket capacity: 100 tokens
-Refill rate: 10 tokens/second
-User sends 100 requests in 1 second → all pass (drains bucket)
-User sends 1 request/second → sustainable indefinitely
-User sends 200 requests in 1 second → first 100 pass, next 100 rejected
-```
-
-**5. Leaky Bucket:**
-- Requests enter a queue; processed at a fixed rate regardless of input rate
-- Smooths bursty traffic into a constant output rate
-- Used for traffic shaping, not just rate limiting
-- Pros: stable output rate, good for downstream services needing predictable load
-- Cons: doesn't allow any bursting; requests queue up
-
-**Algorithm Summary:**
-
-| Algorithm | Memory | Burst Handling | Accuracy | Complexity |
-|---|---|---|---|---|
-| Fixed Window | Low | Poor (boundary spike) | Low | Low |
-| Sliding Window Log | High | Exact | High | Medium |
-| Sliding Window Counter | Low | Good | Very High | Medium |
-| Token Bucket | Low | Excellent | High | Low |
-| Leaky Bucket | Medium | None (smoothed) | High | Low |
-
-**Distributed Rate Limiting — the real challenge:**
-
-Single server: trivial — use in-memory counter.
-
-Multiple API servers: each server has a local counter. If limit = 100/min and you have 10 servers, each server allows 100/min → effective limit = 1000/min. No good.
-
-**Solution 1: Centralized Redis (standard approach)**
-
-Use Redis for shared atomic counters across all API servers.
-
-Redis commands:
-```
-# Fixed window: INCR + EXPIRE
-INCR user:123:2024010112   → returns new count
-EXPIRE user:123:2024010112 60  → set TTL to window size
-# Problem: INCR and EXPIRE are not atomic → race condition
-# Solution: Lua script (atomic in Redis)
-
-# Token bucket: GETSET pattern or Lua script
-# Sliding window: ZRANGEBYSCORE + ZADD + ZREMRANGEBYSCORE (sorted set of timestamps)
-```
-
-Redis Lua Script for Token Bucket (atomic):
-```lua
-local tokens = tonumber(redis.call('GET', KEYS[1]) or ARGV[1])
-local now = tonumber(ARGV[2])
-local last_refill = tonumber(redis.call('GET', KEYS[2]) or now)
-local rate = tonumber(ARGV[3])
-local capacity = tonumber(ARGV[4])
-local elapsed = now - last_refill
-local new_tokens = math.min(capacity, tokens + elapsed * rate)
-if new_tokens >= 1 then
-  redis.call('SET', KEYS[1], new_tokens - 1)
-  redis.call('SET', KEYS[2], now)
-  return 1  -- allowed
-else
-  return 0  -- rejected
-end
-```
-
-**Solution 2: Local + Sync (eventual consistency)**
-Each server maintains local counter; periodically syncs to central store. Allows slight over-counting (within sync interval) but reduces Redis load. Used by Cloudflare for their globally distributed rate limiting.
-
-**Solution 3: Sliding window with Redis Sorted Sets**
-```
-Key: rate_limit:user:123
-ZADD key timestamp timestamp   → add request timestamp
-ZREMRANGEBYSCORE key 0 (now-window)  → remove old entries
-count = ZCARD key
-if count < limit: allow else: reject
-```
-Exact but memory-intensive for high request rates.
-
-**Where to Deploy the Rate Limiter:**
-
-| Location | Pros | Cons |
-|---|---|---|
-| Client-side | Reduces traffic at source | Easily bypassed, not trusted |
-| API Gateway (recommended) | Centralized, before business logic, easy to update limits | Gateway becomes critical dependency |
-| Application middleware | Fine-grained per-endpoint logic | Distributed state problem, latency added to every request |
-| Load balancer | L7 LB can do basic rate limiting (Nginx limit_req) | Limited flexibility |
-| Dedicated service | Full flexibility, decoupled | Extra network hop, additional component to maintain |
-
-**Best practice:** Primary rate limiter at API Gateway (Nginx/Kong/AWS API GW) for coarse-grained global limits + middleware-level rate limiter for per-endpoint business logic limits.
-
-**Headers to return:**
-
-```
-HTTP/1.1 429 Too Many Requests
-X-RateLimit-Limit: 1000
-X-RateLimit-Remaining: 0
-X-RateLimit-Reset: 1704067260  (Unix timestamp when limit resets)
-Retry-After: 60               (seconds until retry)
-```
-
-**Real-World Example:** Stripe's rate limiter uses Token Bucket algorithm implemented in Redis with Lua scripts. Every API request to Stripe goes through their rate limiting middleware before hitting business logic. They use different bucket configurations per API key tier (test vs live, free vs paid). Their 2017 engineering blog post describes how they moved from per-server limits to Redis-based distributed limits after noticing customers were being inconsistently limited across server instances. They also implement "soft limits" where they return warnings in headers before hitting the hard limit, allowing clients to back off gracefully.
-
-**Architecture Diagram:**
-
-```
-Request Flow with Rate Limiter at API Gateway:
-
-Client --> [API Gateway / Load Balancer]
-                    |
-           [Rate Limiter Middleware]
-                    |
-           [Redis Cluster]
-           key: "rate:user:123:minute:2024..."
-           value: current count
-                    |
-           count < limit? --> YES --> forward to [API Server]
-                          --> NO  --> 429 Too Many Requests
-
-Token Bucket Visualization:
-  Capacity: 10 tokens
-  Refill: 2 tokens/sec
-
-  t=0: [##########] 10 tokens  → burst of 10 requests allowed
-  t=1: [##        ]  2 tokens  → 2 refilled after 1 second
-  t=5: [##########] 10 tokens  → full bucket, ready for another burst
-
-Distributed Rate Limiter Architecture:
-  [API Server 1] \
-  [API Server 2] --> [Redis Cluster] <-- shared atomic state
-  [API Server 3] /   (Lua scripts for atomicity)
-```
-
-**Follow-up Questions:**
-1. How do you handle Redis downtime — should the rate limiter fail-open (allow all requests) or fail-closed (reject all)?
-2. How would you implement rate limiting for a multi-tenant SaaS where each tenant has different limits and the limits themselves change dynamically?
-3. What is the difference between rate limiting and throttling — how would you implement graceful degradation vs hard rejection?
-
-**Common Mistakes:**
-- Implementing rate limiting with non-atomic operations — INCR and EXPIRE separately can allow > limit requests due to race conditions between calls
-- Using wall-clock time directly in token bucket without considering time drift across servers — use Redis server time (`TIME` command) not client time
-- Forgetting to return proper headers — clients need `Retry-After` to implement exponential backoff
-
-**Interview Traps:**
-- "Rate limiter should always fail-closed" — NO: if your rate limiter (Redis) goes down, fail-open is usually correct for business continuity; the alternative (fail-closed) means your entire API goes down because of a rate limiting outage
-- "Use a database for rate limit counters" — databases are too slow for per-request counters at scale; Redis (in-memory, sub-millisecond) is the right tool
-
-**Quick Revision:** Token Bucket = most common (burst-tolerant, two params: capacity + refill rate); Redis + Lua for atomic distributed counting; deploy at API Gateway; fail-open on Redis failure; return X-RateLimit-* headers.
-
----
-
-## Chapter 22 Part A — Summary Reference Card
-
-| Topic | Key Concept | Production Example |
-|---|---|---|
-| System Design Framework | RADIO: Requirements → API → Data → Implementation → Optimizations | Google interview guide |
-| Scalability Fundamentals | Stateless + LB = horizontal scale; external session state | Netflix stateless API tier |
-| Load Balancer | L4=TCP/IP, L7=HTTP-aware; SSL termination at LB; health checks | AWS ALB/NLB, Nginx, Envoy |
-| CDN & Edge | Pull vs push; URL versioning; edge compute | Netflix Open Connect, Cloudflare Workers |
-| Consistent Hashing | Hash ring + virtual nodes; 1/N remapping on topology change | Cassandra, DynamoDB, Redis Cluster |
-| Estimation | QPS = DAU × req/user / 86,400; peak = 3×; storage × retention | Jeff Dean's latency numbers |
-| URL Shortener | ID → base62 → 7 chars; Redis cache; 302 for analytics | Bitly, goo.gl |
-| Rate Limiter | Token Bucket + Redis Lua; API Gateway deployment; fail-open | Stripe, Cloudflare |
-
----
-
-*Chapter 22 Part B covers: Consistent Hashing Implementation, Database Sharding Strategies, Design a Key-Value Store, Design a Message Queue, Design a Notification System, Design a Search Autocomplete, Design a Distributed Cache, and Design a News Feed System.*
-
-
----
-
-# Chapter 22 — High-Level System Design: Part B
-### Topics 9–15 + Master Cheat Sheet
-**Target Audience:** SDE2 / FAANG+ interviews
-
+# Chapter 22: System Design — High-Level Design (HLD)
 ---
 
 ## Table of Contents
-
-9. [Design a News Feed (Twitter/Instagram)](#9-design-a-news-feed)
-10. [Design a Notification System](#10-design-a-notification-system)
-11. [Design a Distributed Message Queue (Kafka)](#11-design-a-distributed-message-queue)
-12. [Design a Distributed Cache (Redis)](#12-design-a-distributed-cache)
-13. [Design a Search Autocomplete System](#13-design-a-search-autocomplete-system)
-14. [Design a Distributed ID Generator](#14-design-a-distributed-id-generator)
-15. [Microservices System Design Patterns](#15-microservices-system-design-patterns)
-- [Master Cheat Sheet](#master-cheat-sheet)
+1. [System Design Interview Framework](#topic-1-system-design-interview-framework)
+2. [Scalability Fundamentals](#topic-2-scalability-fundamentals)
+3. [Load Balancer Deep Dive](#topic-3-load-balancer-deep-dive)
+4. [CDN & Edge Computing](#topic-4-cdn--edge-computing)
+5. [Consistent Hashing in System Design](#topic-5-consistent-hashing-in-system-design)
+6. [Back-of-Envelope Estimation](#topic-6-back-of-envelope-estimation)
+7. [Design a URL Shortener (HLD)](#topic-7-design-a-url-shortener-hld)
+8. [Design a Rate Limiter (HLD)](#topic-8-design-a-rate-limiter-hld)
+9. [Design a News Feed (HLD)](#topic-9-design-a-news-feed-hld)
+10. [Design a Notification System (HLD)](#topic-10-design-a-notification-system-hld)
+11. [Design a Distributed Message Queue (Kafka)](#topic-11-design-a-distributed-message-queue-kafka)
+12. [Design a Distributed Cache (Redis)](#topic-12-design-a-distributed-cache-redis)
+13. [Design a Search Autocomplete System](#topic-13-design-a-search-autocomplete-system)
+14. [Design a Distributed ID Generator](#topic-14-design-a-distributed-id-generator)
+15. [Microservices System Design Patterns](#topic-15-microservices-system-design-patterns)
 
 ---
 
-## 9. Design a News Feed
+> **How to read this chapter:** Each topic has three layers — **The Idea** (analogy-first, no prior knowledge assumed), **How It Works** (mechanics + tradeoffs), and **Interview Lens** (fully speakable Q&As). Read The Idea to build intuition, How It Works to understand depth, and drill Interview Lens until you can say each answer aloud without notes.
 
-### Problem Statement
-Design the news feed feature for a social platform (Twitter, Instagram, Facebook) where each user sees posts from the people they follow, ranked by recency or relevance.
+---
 
-### Clarifying Questions to Ask
-- Read/write ratio? (Reads dominate: ~100:1 for consumer apps)
-- Ordered by time or ranked by relevance?
-- How many followers can one user have? (celebrity problem)
-- How many users? (Twitter scale: ~300M DAU)
-- Should deleted/edited posts propagate?
+## Topic 1: System Design Interview Framework
 
-### Capacity Estimation
-```
-Users: 300M DAU
-Posts per day: 50M
-Average following: 200
-Feed reads per day: 300M * 10 = 3B reads/day = ~35K RPS reads
-Feed writes: 50M posts * 200 followers = 10B fanout ops/day
+#### The Idea
 
-Storage:
-  Post size: ~1 KB text + metadata
-  50M posts/day * 1 KB = 50 GB/day
-  Post IDs in feed (8 bytes): 10B * 8 bytes = 80 GB/day fanout writes
-```
+Imagine you are an architect hired to design a new hospital. If you just walked in and started drawing rooms without asking "How many patients per day?", "Do you need an ICU?", "What's the budget?" — you'd waste everyone's time. A system design interview is the same situation: the interviewer gives you a vague prompt like "design Twitter" specifically to see whether you ask the right clarifying questions before touching a whiteboard.
 
-### Core Architecture
+The RADIO framework is a structured checklist that prevents you from jumping to solutions before you understand the problem. It stands for: Requirements, API design, Data model, Implementation, and Optimizations. Think of it as the architectural blueprint process — each phase builds on the previous one, and rushing any phase causes expensive rework later.
 
-#### Approach 1: Fanout on Write (Push Model)
-When a user posts, immediately write to all followers' feed caches.
+Most candidates fail system design interviews not because they lack technical knowledge, but because they dive into implementation (drawing boxes and arrows) before aligning on what the system actually needs to do. RADIO forces you to be the senior engineer in the room who drives the conversation rather than passively answering narrow questions.
+
+#### How It Works
+
+**The Five Phases — Time Budget for a 45-Minute Interview**
 
 ```
-POST /v1/feed/publish
-         |
-         v
-  [Post Service]
-         |
-   Save post to DB
-         |
-         v
-  [Fanout Service]  <-- async
-         |
-    Read follower list
-         |
-    For each follower:
-      ZADD feed:{userId} <timestamp> <postId>   (Redis sorted set)
+Timeline:
+0:00 ─── Requirements + Estimation ──────────── 0:10
+0:10 ─── API Design + Data Model ────────────── 0:17
+0:17 ─── Architecture + Component Deep-dives ── 0:37
+0:37 ─── Optimizations + Failure Modes ──────── 0:45
 ```
 
-**Pros:** Feed reads are O(1) — just read from Redis.
-**Cons:** Fan-out write storm for celebrities (100M followers = 100M Redis writes per post).
+**R — Requirements (5–10 min)**
 
-#### Approach 2: Fanout on Read (Pull Model)
-Feed is assembled at read time by merging timelines of all followed users.
+Split into two categories every time:
 
-```
-GET /v1/feed
-         |
-         v
-  [Feed Service]
-         |
-    Get followee list for user
-         |
-    For each followee: fetch last N posts
-         |
-    Merge + sort + paginate
-         |
-    Return feed
-```
+| Type | What to ask | Example answer |
+|------|-------------|----------------|
+| Functional | What must the system do? | Post tweets, follow users, view timeline, search |
+| Non-functional | At what scale and quality? | 100M DAU, 99.99% availability, <200ms p99 latency |
 
-**Pros:** No write amplification. Simple writes.
-**Cons:** Read is slow — N database queries per feed request. Not scalable at 35K RPS.
+Key clarifying questions to always ask:
+- "How many daily active users?"
+- "Read-heavy or write-heavy?" (Twitter timeline = read-heavy, ~10:1)
+- "Single region or global?"
+- "What are the latency targets?"
+- "Any infrastructure constraints?" (on-prem vs cloud)
 
-#### Approach 3: Hybrid Model (Production Choice)
-- Regular users (< X followers): fanout on write.
-- Celebrity users (> X followers, e.g., 1M+): fanout on read.
-- At read time, merge pre-built feed with celebrity posts.
+Also explicitly state what you are NOT designing: "I'll exclude DM notifications and analytics dashboards for today."
+
+**A — API Design (5–7 min)**
+
+Define the public API surface before drawing boxes. This forces data contract thinking.
 
 ```
-                           User Posts
-                               |
-                  +------------+------------+
-                  |                         |
-          [Regular User]            [Celebrity User]
-                  |                         |
-          Fanout Service             No fanout write
-          (push to followers)        Post stored normally
-                  |                         |
-          Write postId to               Celebrity
-          feed:{followerIds}           Post Cache
-          in Redis ZADD                    |
-                                           |
-                                +----------+
-                                |
-              GET /v1/feed  (user requests feed)
-                                |
-                     [Feed Read Service]
-                          |           |
-                 Read from        Fetch recent
-               feed:{userId}    celebrity posts
-               (Redis ZADD)     (for each celebrity
-                                 the user follows)
-                          |           |
-                          +----+------+
-                               |
-                          Merge & Sort
-                               |
-                       Hydrate post details
-                       from Post DB / Cache
-                               |
-                          Return Feed
+// REST pseudocode — not real code
+POST /v1/tweets
+  Auth: Bearer <token>
+  Body: { text: String(max 280), media_ids?: String[] }
+  Returns: { tweet_id, created_at, author_id }
+
+GET /v1/timeline/{user_id}?cursor=<token>&limit=20
+  Returns: { tweets: Tweet[], next_cursor }
+
+POST /v1/users/{user_id}/follow
+  Body: { target_user_id }
+  Returns: 204 No Content
 ```
 
-### Data Model
+Mention versioning (`/v1/`) and auth mechanism (OAuth2 / API keys) — it signals production awareness.
 
-**Post Table (Cassandra / DynamoDB)**
-```
-post_id      BIGINT (Snowflake ID)  PK
-user_id      BIGINT
-content      TEXT
-media_urls   LIST<TEXT>
-created_at   TIMESTAMP
-like_count   COUNTER
-```
+**D — Data Model (5–10 min)**
 
-**Feed Table (Redis Sorted Set)**
-```
-Key:   feed:{user_id}
-Score: Unix timestamp (nanoseconds for ordering)
-Value: post_id
+Identify entities, relationships, and make the SQL vs NoSQL call with justification:
 
-Commands:
-  ZADD feed:123 1700000000000 post_456  -- O(log N)
-  ZREVRANGE feed:123 0 19              -- top 20 posts O(log N + M)
-  ZREMRANGEBYSCORE feed:123 0 <30d ago -- TTL cleanup
+```
+Users:     user_id (PK), username, email, created_at
+Tweets:    tweet_id (PK), author_id (FK), text, created_at, like_count
+Follows:   follower_id, followee_id, created_at  ← composite PK
+
+Estimation:
+  100M DAU × 5 tweets/day = 500M tweets/day
+  500M × 300 bytes = 150 GB/day write throughput
+  → NoSQL (Cassandra/DynamoDB) for tweets at scale
+  → Relational (PostgreSQL) for Users + Follows (strong consistency needed)
 ```
 
-### Timeline Generation Deep Dive
+**I — Implementation (15–20 min)**
 
-**Pagination with cursor:**
+Trace one request end-to-end through your architecture:
+
 ```
-GET /v1/feed?cursor=<last_seen_post_id>&limit=20
-  - cursor encodes (timestamp, post_id)
-  - ZREVRANGEBYSCORE feed:{uid} cursor_ts -inf LIMIT 0 20
-  - stateless, safe for re-requests
+Client
+  → CDN (static assets)
+  → API Gateway (auth, rate limiting, routing)
+  → Load Balancer
+  → Tweet Service (stateless, horizontally scaled)
+  → Message Queue (Kafka) ← fan-out to followers' timelines
+  → Timeline Service (reads pre-computed timelines from Redis)
+  → Object Storage (S3) for media
+  → Tweet DB (Cassandra)
 ```
 
-**Feed hydration:**
-1. Read 20 post IDs from Redis sorted set.
-2. Batch-fetch post objects from post cache (Redis Hash or Memcached).
-3. Cache miss → fetch from Cassandra.
-4. Return hydrated post objects.
+**O — Optimizations (5–10 min)**
 
-### Celebrity Problem Solutions
-1. **Hybrid model** (above) — most practical.
-2. **Lazy fanout** — fan out to top-N online followers immediately; rest get it at read time.
-3. **Separate celebrity timeline cache** — ZADD celebrity_timeline:{celebId} with TTL.
+Only suggest optimizations after the base design is solid:
+- Caching timelines in Redis (pre-computed fan-out on write)
+- Read replicas for User DB
+- CDN for media
+- Geo-distributed deployments
+- Async processing for non-critical paths (notifications, analytics)
 
-### Key Trade-offs
-| Approach | Write Cost | Read Cost | Freshness | Best For |
+**The real Java gotcha — seniority signal:**
+
+```java
+// Seniority signal: mention operational concerns, not just architecture
+// Bad answer: "We'd use Kafka for the message queue."
+// Senior answer: includes these concerns in your design narrative:
+
+/*
+  Operational considerations I'd raise:
+  1. Observability: distributed tracing (Jaeger), metrics (Prometheus), alerting
+  2. Deployment: blue-green or canary for Tweet Service rollouts
+  3. Rollback: feature flags (LaunchDarkly) to kill new fanout logic instantly
+  4. SLO: tweet post p99 < 500ms, timeline load p99 < 200ms
+  5. Failure mode: if Kafka is down, tweet still persists to DB (sync write),
+     fan-out degrades gracefully (pull model fallback)
+*/
+```
+
+#### Interview Lens
+
+> **How to read this section:** The questions below mirror real interview exchanges. Read the "Full answer" out loud — it should sound like natural spoken explanation, not a written essay. The delivery notes tell you how to pace and gesture.
+
+*Quick orientation: System design interviews test your ability to run a structured conversation under time pressure. The framework matters less than showing you think like a senior engineer — proactively raising tradeoffs and operational concerns.*
+
+**Q1: Walk me through how you'd structure a 45-minute system design interview.**
+*Question type: Concept Check*
+
+**One-line answer:** Use RADIO — Requirements, API, Data model, Implementation, Optimizations — and budget time explicitly for each phase.
+
+**Full answer:**
+I'd open by spending the first ten minutes on requirements. I'd split those into functional requirements — the core use cases only — and non-functional requirements like scale, availability, latency targets, and whether we're building for a single region or globally. I'd also explicitly call out what I'm not designing today to prevent scope creep. I'd ask the interviewer: "How many daily active users are we targeting?", "Is this read-heavy or write-heavy?", and "What's our latency target?"
+
+From there I'd spend about seven minutes defining the API surface in REST pseudocode — before drawing any architecture. This forces me to think about data contracts before boxes and arrows. Then I'd spend five to ten minutes on the data model: identifying entities, estimating data volumes, and justifying my SQL versus NoSQL choice with numbers.
+
+The bulk of the time — fifteen to twenty minutes — goes to the implementation: drawing the high-level architecture and tracing at least one request end-to-end, from the client through the CDN, load balancer, application services, queues, caches, and databases. I'd close with five to ten minutes on optimizations and failure modes.
+
+*Say this in the first two minutes of any system design question. State the framework, then say "before I start, let me ask a few clarifying questions." This immediately signals seniority.*
+
+> **Gotcha follow-up:** What's the most common mistake candidates make in system design interviews?
+> The most common mistake is jumping straight to architecture without aligning on requirements. Candidates start drawing microservices boxes in the first minute before anyone has agreed on the scale or the core use cases. The second most common mistake is over-engineering — adding Kafka, Elasticsearch, and a CDN to a system that serves 10,000 users. Always right-size the solution to the stated constraints.
+
+**Q2: How do you handle it when the interviewer keeps adding requirements mid-design?**
+*Question type: Design Scenario*
+
+**One-line answer:** Acknowledge the new requirement, explicitly assess its impact on the current design, and decide whether to extend or redesign a component — never silently absorb changes.
+
+**Full answer:**
+When a new requirement comes in mid-design, I treat it like a change request in a real project. I'd say out loud: "That's an interesting addition — let me think about what it changes." I'd first assess whether it's a scope extension that fits into my existing architecture or whether it fundamentally challenges a design decision I already made.
+
+For example, if I've designed a system assuming write-light workload and the interviewer says "actually users can send a million messages per second," I wouldn't just add a bigger queue. I'd say: "This changes the data model and the fan-out strategy significantly. With this write volume, we'd need to reconsider whether we can pre-compute timelines at all, or whether we need a pull model with aggressive caching instead." Then I'd adjust.
+
+The goal is to demonstrate that I understand the cause-and-effect relationships in my own design — not just to produce a diagram.
+
+*Pause after hearing the new requirement. Say "Let me think about what that changes" rather than immediately modifying your diagram. The thinking-out-loud part is what they're evaluating.*
+
+> **Gotcha follow-up:** How do you decide what to prioritize when you're running out of time?
+> I prioritize the data model and the core request flow above everything else. If I have to skip something, I'd skip optimizations — I'd say "given time, I'd cover caching strategy and sharding, but let me note those as things we can deep-dive." An incomplete design with correct fundamentals beats a "complete" design with a broken data model.
+
+**Q3: What's a seniority signal that separates a senior engineer answer from a mid-level answer?**
+*Question type: Concept Check*
+
+**One-line answer:** Senior engineers proactively raise operational concerns — monitoring, deployment, rollback, failure modes — without being asked.
+
+**Full answer:**
+Mid-level engineers describe the happy path: "we'd use Kafka for fan-out, Redis for caching, Cassandra for storage." Senior engineers describe the system's behavior under failure: "if Kafka is down, the tweet still persists synchronously to the database — we degrade gracefully to a pull model rather than failing the write."
+
+The other signal is explicitly calling out tradeoffs rather than presenting one option as obviously correct. A senior engineer doesn't say "we'd use Cassandra." They say: "For the tweets table, I'd choose Cassandra over PostgreSQL because we need horizontal write scaling and we don't need strong consistency here — eventual consistency is acceptable for timelines. The tradeoff is that Cassandra doesn't support joins, so we'd need to denormalize our data model."
+
+Finally, senior engineers acknowledge uncertainty: "I'm not certain about the exact Redis eviction policy I'd choose here — I'd want to benchmark LRU versus LFU for our access pattern before committing."
+
+*This is the answer to give if an interviewer ever asks "how do you think you did?" — it reframes your self-assessment around demonstrated behaviors, not just correct answers.*
+
+> **Gotcha follow-up:** What does it mean to "lead the conversation" in a system design interview?
+> It means setting the agenda rather than waiting to be prompted. You announce the framework at the start, you ask the clarifying questions you need, you call out when you're moving from one phase to the next ("Okay, I have enough on requirements — let me define the API surface"), and you explicitly flag tradeoffs rather than waiting for the interviewer to challenge you. The interviewer's job becomes easier because they don't have to drag information out of you.
+
+---
+**Common Mistakes:**
+- **Mistake:** Starting to draw the architecture in the first two minutes → **Why it fails:** You waste time on a design that might be completely wrong for the scale or use case the interviewer had in mind. You signal that you can't gather requirements.
+- **Mistake:** Treating non-functional requirements as an afterthought → **Why it fails:** Availability target (99.9% vs 99.999%) and consistency model (strong vs eventual) are architectural drivers. Getting them wrong means your entire storage and replication strategy is wrong.
+- **Mistake:** Never mentioning failure modes or operational concerns → **Why it fails:** Real systems fail. If you design only the happy path, you reveal that you haven't shipped and operated production systems.
+
+---
+**Quick Revision:** RADIO = Requirements → API → Data model → Implementation → Optimizations; always ask "DAU, read/write ratio, latency target?" before drawing a single box.
+
+---
+
+## Topic 2: Scalability Fundamentals
+
+#### The Idea
+
+Imagine you own a coffee shop. When it gets busy, you have two options: buy a bigger, faster espresso machine (vertical scaling), or hire more baristas and add more machines (horizontal scaling). The first approach has a ceiling — there is only so large a single machine can get, and if that machine breaks, the whole shop stops. The second approach can theoretically grow without limit, but it requires that baristas can work independently without stepping on each other's feet.
+
+Scalability in software systems is the exact same tradeoff. A single powerful server can handle a lot — until it can't. And when it fails, everything goes down with it. Distributing work across many servers gives you both capacity and resilience, but it requires that each server can operate without holding shared state locally.
+
+The invisible prerequisite for horizontal scaling is stateless service design. This is the concept most developers understand intellectually but violate in practice by doing something as simple as storing a user's session in a Java `HashMap` instead of Redis. Everything else in distributed systems builds on this foundation: if your services are stateless, you can add and remove instances freely; if they're not, every scaling decision becomes a nightmare.
+
+#### How It Works
+
+**Vertical vs Horizontal — The Core Tradeoff**
+
+```
+Vertical Scaling (Scale Up):
+┌──────────────────┐
+│  Server          │  →  ┌──────────────────────┐
+│  8 vCPU, 32 GB   │     │  Server               │
+│  $500/mo         │     │  64 vCPU, 256 GB      │
+└──────────────────┘     │  $4,000/mo            │
+                         └──────────────────────┘
+  Ceiling: AWS u-24tb1.metal — 448 vCPU, 24 TB RAM, ~$220/hr
+  SPOF: one machine fails → total outage
+  Good for: Oracle DB (per-core licensing), stateful legacy apps
+
+Horizontal Scaling (Scale Out):
+┌──────────┐
+│ Server 1 │
+├──────────┤   ← Load Balancer distributes requests
+│ Server 2 │
+├──────────┤
+│ Server N │  ← theoretically unbounded
+└──────────┘
+  Requires: stateless services + load balancer
+  Good for: web/API servers, microservices, stateless compute
+```
+
+**Stateless Services — the Enabler**
+
+```
+// The trap: storing session in local memory
+// Works with 1 server. Breaks immediately with 2.
+
+// BAD — stateful service
+class UserSessionService {
+    private Map<String, Session> sessions = new HashMap<>(); // ← in-memory state
+
+    public void login(String userId) {
+        sessions.put(userId, new Session(userId)); // stored in THIS server's RAM
+    }
+    // If load balancer sends next request to Server 2, session not found → user logged out
+}
+
+// GOOD — stateless service
+class UserSessionService {
+    private RedisClient redis; // shared external store
+
+    public void login(String userId) {
+        String token = generateJWT(userId); // stateless token OR
+        redis.set("session:" + userId, serialize(session), TTL_30_MIN); // external store
+    }
+    // Any server can handle any request — they all read from the same Redis
+}
+```
+
+**Load Balancing Strategies**
+
+| Strategy | How it works | Best for | Weakness |
+|----------|-------------|----------|----------|
+| Round-robin | Request 1→S1, 2→S2, 3→S3, cycle | Even, uniform requests | Ignores actual server load |
+| Weighted round-robin | S1 gets 2x traffic if 2x capacity | Mixed instance sizes | Static weights |
+| Least connections | Route to server with fewest open connections | Long-lived connections (WebSocket, gRPC) | Overhead of tracking connections |
+| Least response time | Route to fastest-responding server | Latency-sensitive APIs | Requires active measurement |
+| IP hash | `hash(client_IP) % N` → same server | Sticky sessions without cookies | Uneven distribution if few clients; breaks on server add/remove |
+| Consistent hashing | See Topic 5 | Distributed caches, service meshes | Slightly more complex |
+
+**Auto-Scaling — Responding to Demand**
+
+```
+Auto-scaling policy (AWS ASG example in pseudocode):
+
+scale_out_policy:
+  trigger: CPU > 70% for 2 consecutive minutes
+  action: add 2 instances
+  cooldown: 300 seconds  ← prevent oscillation
+
+scale_in_policy:
+  trigger: CPU < 30% for 10 consecutive minutes
+  action: remove 1 instance
+  cooldown: 300 seconds
+
+predictive_scaling:
+  mode: pre-warm before known traffic spike
+  example: NFL Super Bowl — scale out 30 min before kickoff
+           based on historical traffic pattern
+
+launch_template: pre-baked AMI + startup script
+  cold start time: ~90 seconds (why pre-warming matters)
+```
+
+**Real-world: Netflix architecture**
+Netflix serves approximately 15% of global internet traffic using horizontal scaling exclusively. User sessions live in JWT tokens (no server-side session state). Viewing history and progress live in Apache Cassandra (distributed, horizontally scaled). Chaos Monkey randomly terminates EC2 instances in production to verify that the system is truly resilient to instance loss — if it hurts when Chaos Monkey kills an instance, you have a hidden statefulness problem.
+
+#### Interview Lens
+
+> **How to read this section:** Questions here target your ability to reason about scaling decisions in context — not just list the options, but explain why a specific choice fits a specific scenario. The gotcha questions test whether you understand the failure modes, not just the happy path.
+
+*Quick orientation: Almost every system design question involves a scaling decision. The examiner is listening for: do you know when vertical scaling is actually the right call, do you understand why stateless design is the prerequisite for horizontal scaling, and can you pick a load balancing strategy that matches the traffic pattern?*
+
+**Q1: When would you choose vertical scaling over horizontal scaling?**
+*Question type: Tradeoff Question*
+
+**One-line answer:** Choose vertical scaling for stateful workloads, per-core licensed software, or when the cost and complexity of distributing the workload exceeds the benefit.
+
+**Full answer:**
+Horizontal scaling is almost always the right answer for stateless compute — web servers, API services, background workers. But vertical scaling has legitimate use cases. The most common is relational databases early in a product's life. A single large PostgreSQL instance on a 64-core, 256 GB server can handle enormous read and write throughput, and adding read replicas is simpler to operate than sharding. You avoid all the distributed consistency headaches until you genuinely need to.
+
+The second case is per-core licensed software. Oracle Database licenses by the physical core. Doubling your server count doubles your license cost. A single larger server is dramatically cheaper in that scenario.
+
+The third case is genuinely stateful legacy applications — systems that were written with the assumption of a single process, using in-process caches, file locks, or local file system state. Horizontalizing those requires refactoring that can be more expensive than just buying a bigger machine while you work on the modernization.
+
+The honest framing is: vertical scaling is a tactical choice that buys you time. Horizontal scaling is the strategic end state for any system that needs to grow beyond what one machine can provide.
+
+*Draw the ceiling analogy: "vertical scaling has a hardware ceiling — AWS's largest instance is 448 vCPUs and 24 TB of RAM at $220/hour. Horizontal scaling has no theoretical ceiling."*
+
+> **Gotcha follow-up:** If a stateless service is so simple to scale horizontally, why do engineers still end up with stateful services by accident?
+> The most common accident is storing something in a local variable or instance field that should be in an external store. The classic example is an in-memory session HashMap. It works perfectly in development — you run one server locally. It breaks in staging as soon as you spin up a second instance, because the load balancer might send the login request to Server 1 and the next request to Server 2, which has no record of the session. The fix is always the same: push state out of the process into Redis, a database, or a signed token that the client carries.
+
+**Q2: A service's CPU is averaging 85% and users are reporting slow responses. Your manager says "add more servers." What do you actually do first?**
+*Question type: Design Scenario*
+
+**One-line answer:** Diagnose before scaling — high CPU might be a code bug, a missing index, or a cache miss storm, not a capacity problem.
+
+**Full answer:**
+My first step is to understand what's consuming the CPU, not just add instances. High CPU can be caused by very different root causes that have very different fixes.
+
+I'd start by looking at distributed traces and profiling data. If the CPU spike is happening inside a specific service and is correlated with a specific endpoint, I'd look at whether there's an N+1 query problem, a missing database index, or an expensive computation that could be cached. Adding more servers to a service with a missing index just means the database gets hammered by more servers simultaneously — it makes things worse.
+
+If the profiling shows the service is doing legitimate work and the load has genuinely grown, then horizontal scaling is the right call. I'd check whether the service is actually stateless — can I add instances without any coordination work? I'd also check whether the load balancer has health checks configured correctly so new instances only receive traffic once they're fully warmed up.
+
+The auto-scaling trigger of "CPU > 70% for 2 minutes → add instances" is correct for a known-good service at normal load. But during an incident, I'd want to understand the cause before treating the symptom.
+
+*This is a "don't jump to the solution" question. The correct answer starts with "I'd investigate before I acted."*
+
+> **Gotcha follow-up:** What's the risk of scaling in (removing instances) too aggressively?
+> The main risk is that you remove instances before in-flight requests have completed. If you terminate an instance immediately, you drop those requests. The correct approach is graceful shutdown: when a scale-in event triggers, stop sending new requests to the instance (deregister from the load balancer), wait for in-flight requests to complete (connection draining, typically 30 seconds), then terminate. The auto-scaling cooldown period also matters — if you remove instances and load immediately spikes again, you need the cooldown to prevent rapid oscillation between scaling out and scaling in.
+
+---
+**Common Mistakes:**
+- **Mistake:** Assuming stateless services are the default → **Why it fails:** Most legacy codebases have hidden statefulness in local caches, file handles, or connection pools that aren't safe to share across instances. Always verify before declaring a service horizontally scalable.
+- **Mistake:** Using round-robin load balancing for WebSocket or gRPC connections → **Why it fails:** These are long-lived connections. Round-robin distributes new connections evenly but doesn't rebalance as connections become idle. Least-connections is the correct strategy for long-lived connections.
+- **Mistake:** Setting auto-scaling cooldown too short → **Why it fails:** Without a cooldown period, a traffic spike triggers scale-out, then a momentary dip triggers scale-in, then the traffic recovers and triggers scale-out again — thrashing that can destabilize the cluster.
+
+---
+**Quick Revision:** Horizontal scaling requires stateless services; state lives in Redis/DB, not in-process memory. Pick load balancing strategy by connection type: round-robin for short HTTP, least-connections for WebSocket.
+
+---
+
+## Topic 3: Load Balancer Deep Dive
+
+<img src="../images/load_balancer.svg" alt="Load balancer L4 vs L7 routing" style="width:100%;max-width:760px;display:block;margin:16px 0;">
+
+#### The Idea
+
+Imagine a hospital with many doctors. A receptionist at the front desk decides which doctor each patient sees. A simple receptionist might just cycle through doctors in order (round-robin). A smarter receptionist would look at which doctors are currently free (least connections). An even smarter one might check whether the patient needs a specialist and route them to the right department (content-based routing).
+
+Load balancers are that receptionist, but at two very different levels of awareness. An L4 load balancer (Layer 4 = Transport layer in the OSI model) knows only the networking address — which IP address and port the request came from and where it's going. An L7 load balancer (Layer 7 = Application layer) can actually read the request content — the URL path, HTTP headers, cookies, even the request body. More awareness costs more processing time, but enables smarter routing decisions.
+
+The practical implication: if you are routing raw TCP traffic — a database connection, a game server, an email relay — you use L4 because you want the lowest possible latency and you don't need to read the content. If you are routing HTTP traffic and need features like path-based routing, SSL termination, or canary deployments, you use L7 because the content awareness is worth the extra cost.
+
+#### How It Works
+
+**L4 vs L7 — Capability Comparison**
+
+```
+OSI Model reference:
+  Layer 7 — Application (HTTP, gRPC, WebSocket)   ← L7 LB lives here
+  Layer 6 — Presentation (TLS/SSL)
+  Layer 5 — Session
+  Layer 4 — Transport (TCP, UDP)                  ← L4 LB lives here
+  Layer 3 — Network (IP)
+  Layer 2 — Data Link
+  Layer 1 — Physical
+```
+
+| Feature | L4 Load Balancer | L7 Load Balancer |
+|---------|-----------------|-----------------|
+| Sees | Source IP, destination IP, port | Full HTTP: URL, method, headers, cookies, body |
+| Latency overhead | ~10 µs | ~100 µs |
+| SSL termination | No (pass-through) | Yes (decrypts at LB) |
+| Path-based routing | No | Yes (`/api/*` → API service, `/static/*` → CDN) |
+| Host-based routing | No | Yes (`api.example.com` → different backend) |
+| Cookie-based stickiness | No | Yes |
+| Rate limiting, WAF | No | Yes |
+| gRPC / HTTP2 routing | No | Yes |
+| Examples | AWS NLB, HAProxy TCP, Linux IPVS | AWS ALB, Nginx, Envoy, Traefik |
+| Use when | Raw TCP: DB, game server, SMTP | HTTP/gRPC: APIs, microservices |
+
+**SSL Termination — Detailed Flow**
+
+```
+Without SSL termination (pass-through):
+  Client ──[HTTPS]──► LB ──[HTTPS]──► Backend
+                       ↑
+                 LB cannot inspect content
+                 Each backend manages its own cert
+
+With SSL termination at LB:
+  Client ──[HTTPS]──► LB ──[HTTP]──► Backend
+                       ↑
+              LB decrypts, inspects, routes
+              Centralized cert management (one renewal)
+              Backend CPU freed from TLS overhead
+              Risk: LB→Backend is unencrypted
+              Mitigation: place LB and backends in same VPC/private subnet
+```
+
+**Sticky Sessions — The Anti-Pattern and the Fix**
+
+```
+Problem: user logs in, session stored in Server 1 RAM
+         LB sends next request to Server 2 → session not found → logged out
+
+Sticky sessions "fix": route same client always to same server
+  Method 1: IP hash — hash(client_IP) % N
+  Method 2: session cookie — LB sets AWSALB cookie, reads it on future requests
+
+Why sticky sessions are an anti-pattern:
+  ┌──────────────────────────────────────────────────────┐
+  │  If Server 1 dies, all sticky sessions on it are     │
+  │  LOST. Those users experience unexpected logouts.    │
+  │  You've created a soft SPOF for each server.         │
+  └──────────────────────────────────────────────────────┘
+
+Correct fix: externalize session state
+  Session → Redis (TTL 30 min, replicated)
+  Now any server can serve any request
+  Server failure loses nothing
+```
+
+**Health Checks — What to Actually Check**
+
+```
+// Naive health check — this is wrong
+GET /health → 200 OK  (always returns 200, server process is running)
+
+// Problem: server process is up but its DB connection is broken
+// LB thinks server is healthy, routes traffic → 500 errors for every request
+
+// Correct health check — deep health check
+GET /health
+  Checks: DB connection pool (can execute SELECT 1?)
+          Redis connection (can ping?)
+          Downstream dependencies (degraded but functional?)
+  Returns:
+    200 { "status": "healthy", "db": "ok", "redis": "ok" }
+    503 { "status": "unhealthy", "db": "timeout", "redis": "ok" }
+  ← LB marks 503 response as unhealthy after N consecutive failures
+```
+
+Health check config: probe every 5 seconds, 3 consecutive failures → unhealthy, 2 consecutive successes → healthy again.
+
+**Active-Active vs Active-Passive LB**
+
+```
+Active-Active:
+  ┌─────────┐              ┌──────────────┐
+  │  LB-1   │──────────────│  Backends    │
+  │ (live)  │              └──────────────┘
+  ├─────────┤   BGP Anycast / DNS round-robin
+  │  LB-2   │──────────────┤
+  │ (live)  │              └──────────────┘
+  └─────────┘
+  Both serve traffic simultaneously
+  Full capacity from both
+  Either can fail independently
+  More complex to keep config in sync
+
+Active-Passive:
+  ┌─────────┐              ┌──────────────┐
+  │  LB-1   │──────────────│  Backends    │
+  │ (active)│              └──────────────┘
+  ├─────────┤   VIP (Virtual IP) via VRRP/Keepalived
+  │  LB-2   │   LB-1 fails → LB-2 claims the VIP
+  │(standby)│   Failover: ~2 seconds
+  └─────────┘
+  Simpler to operate
+  Standby capacity is wasted while idle
+  Use when simplicity > cost efficiency
+```
+
+**Real-world: Netflix dual-layer load balancing**
+Netflix uses AWS ALB (L7) for the API tier where path-based routing and SSL termination are needed. It uses AWS NLB (L4) for the data plane where raw TCP throughput and ultra-low latency matter. Inside the cluster, Netflix uses Envoy as a sidecar proxy — every service-to-service call goes through a local Envoy that handles load balancing, retries, circuit breaking, and observability.
+
+#### Interview Lens
+
+> **How to read this section:** These questions test whether you can make the L4/L7 choice correctly and whether you understand the operational implications of common LB features like sticky sessions and health checks. Interviewers love to probe SSL termination and health check design.
+
+*Quick orientation: Load balancer questions often appear as part of a larger system design, not as standalone topics. Know which layer to use and why, be able to explain SSL termination trade-offs, and always advocate for externalizing session state over sticky sessions.*
+
+**Q1: An interviewer asks you to design a load balancing layer for a ride-sharing app. Walk me through your decisions.**
+*Question type: Design Scenario*
+
+**One-line answer:** L7 ALB for the API tier with path-based routing and SSL termination; L4 NLB for the real-time driver location streaming tier.
+
+**Full answer:**
+A ride-sharing app has two very different traffic profiles that need different load balancing strategies.
+
+For the REST API tier — booking rides, processing payments, managing user accounts — I'd use an L7 load balancer. I need SSL termination so I can do TLS in one place and not burden every backend service with certificate management. I need path-based routing so I can route `/api/rides/*` to the Rides service and `/api/payments/*` to the Payment service without those services knowing about each other at the network level. I'd also put rate limiting at this layer to protect against burst traffic from misbehaving clients.
+
+For the real-time driver location streaming, I'd use an L4 load balancer. Driver apps maintain persistent WebSocket connections that push GPS coordinates every few seconds. These connections are long-lived and latency-sensitive — I don't need HTTP-layer awareness, I need raw TCP throughput. L4 NLB adds only about 10 microseconds of overhead versus the 100 microseconds of L7, which matters for real-time systems.
+
+In both cases, I would not use sticky sessions. Instead, connection state for drivers lives in Redis — keyed by driver ID, containing current position and status. Any API server can read and update driver state. This means the load balancer can use least-connections for the WebSocket tier without worrying about affinity.
+
+*Draw two separate load balancing tiers on the whiteboard. The separation between the API tier and the real-time tier is a signal that you understand the different traffic patterns.*
+
+> **Gotcha follow-up:** What happens to active WebSocket connections when you do a rolling deployment of your WebSocket servers?
+> If you just terminate the old instances, every active WebSocket connection is dropped and clients have to reconnect. The correct approach is graceful shutdown: when an instance is scheduled for shutdown, you first drain it — stop the load balancer from routing new connections to it, wait for existing connections to close naturally or until a maximum drain timeout (say 30 seconds), then terminate. For long-lived connections like WebSockets, you might also send a server-initiated close frame telling the client to reconnect, which triggers an orderly reconnect spread across other instances rather than a thundering herd reconnect storm all at once.
+
+**Q2: Why is a health check endpoint that just returns 200 OK dangerous?**
+*Question type: Concept Check*
+
+**One-line answer:** A server process can be running fine while its critical dependencies — database, cache — are unreachable, causing every request it serves to fail despite appearing healthy to the load balancer.
+
+**Full answer:**
+The load balancer's health check exists for one purpose: to decide whether this server can successfully fulfill real user requests. If the health check doesn't reflect that, it's useless at best and actively harmful at worst.
+
+Imagine a backend server whose database connection pool has been exhausted — maybe there's a connection leak. The process itself is running, so it responds 200 to the health check. But every real request it handles immediately fails with a database error. The load balancer thinks this server is healthy and keeps routing traffic to it. Users see a flood of 500 errors.
+
+The correct health check is a deep or dependency-aware health check. It actively probes the server's ability to do real work: it tries to execute a simple SQL query against the database, it tries to ping Redis, it checks that the connection pool has available connections. If any critical dependency is down, it returns 503. The load balancer sees the 503, marks the server unhealthy after three consecutive failures, and stops routing traffic to it.
+
+The nuance is deciding what counts as critical versus degraded. If the primary database is down, the server should be marked unhealthy. If a non-critical analytics service is down but the server can still serve requests, you might return 200 with a `"status": "degraded"` body — the server stays in rotation, but your monitoring system alerts on the degradation.
+
+*Mention the consequence explicitly: "a naive health check can cause all requests to fail silently while the load balancer believes the fleet is healthy."*
+
+> **Gotcha follow-up:** How do you prevent health check floods from overwhelming the database?
+> Health checks probe every 5 seconds from the load balancer to each backend instance. If you have 50 backend instances each doing a database query on every health check, that's 10 database queries per second purely from health checks. To mitigate: use a lightweight health check query — `SELECT 1` rather than a complex query. Consider caching the health check result in the server for a few seconds so multiple simultaneous probes don't each trigger a DB call. Use connection pool status rather than actually executing a query if the pool has a built-in health indicator.
+
+---
+**Common Mistakes:**
+- **Mistake:** Using L7 load balancer for raw database connections → **Why it fails:** Databases use their own binary protocols (MySQL wire protocol, PostgreSQL wire protocol), not HTTP. An L7 HTTP load balancer cannot parse these protocols. Use L4 for database proxy load balancing.
+- **Mistake:** Recommending sticky sessions as a solution for session management → **Why it fails:** Sticky sessions tie users' sessions to specific servers. When that server dies or is removed during scaling, all those sessions are lost. Externalizing session state to Redis solves the problem correctly and enables true horizontal scaling.
+- **Mistake:** Not mentioning SSL termination when asked to design an HTTPS API tier → **Why it fails:** SSL termination is one of the most important LB responsibilities in production. Missing it suggests you haven't thought about how TLS certificates are managed or how the LB can perform content inspection.
+
+---
+**Quick Revision:** L4 sees IP+port only (~10µs), L7 sees full HTTP (~100µs); use L7 for HTTP routing/SSL, L4 for raw TCP; never use sticky sessions — externalize session state to Redis instead.
+
+---
+
+## Topic 4: CDN & Edge Computing
+
+#### The Idea
+
+Imagine you have a bookstore in New York, and a customer in Singapore wants to buy a book. One option: every time someone in Singapore wants a book, they order from New York, and it ships across the Pacific. This takes days. The better option: keep a copy of your most popular books in a Singapore warehouse. When a Singapore customer orders, they get it from nearby in hours, and the New York headquarters is only involved when the Singapore warehouse runs out of stock.
+
+A Content Delivery Network (CDN) is that Singapore warehouse, replicated across hundreds of cities worldwide. Instead of books, it stores web assets — images, JavaScript files, CSS, videos, even entire API responses. When a user in Singapore requests your website, they get the content from a nearby CDN node (called a Point of Presence, or PoP) rather than waiting for a round-trip to your origin server in the US.
+
+The latency numbers make this concrete: a request from Singapore to US-East has a round-trip time of about 150 milliseconds. The same request to a Singapore CDN PoP takes about 5 milliseconds. For a webpage that makes 50 such requests to load, that's the difference between a 7.5-second load time and a 0.25-second load time. This is why CDNs are not optional for globally distributed applications.
+
+#### How It Works
+
+**CDN Architecture — Request Flow**
+
+```
+User (Singapore) requests https://example.com/logo.png
+
+Step 1: DNS resolution
+  User's DNS query → CDN's GeoDNS / Anycast routing
+  → DNS returns IP of nearest PoP (Singapore PoP)
+
+Step 2: Request reaches Singapore PoP
+  ┌─────────────────────────────────────────────────────┐
+  │  Singapore PoP                                       │
+  │  Cache HIT:  serve immediately (~5ms to user)        │
+  │  Cache MISS: fetch from origin (US-East, 150ms RTT) │
+  │              cache locally, serve, future=HIT        │
+  └─────────────────────────────────────────────────────┘
+
+Scale:
+  Cloudflare: 300+ PoPs worldwide
+  Akamai:     4,000+ PoPs worldwide
+  AWS CloudFront: 400+ PoPs
+```
+
+**Pull CDN vs Push CDN**
+
+| Dimension | Pull CDN | Push CDN |
+|-----------|----------|----------|
+| How content gets to PoPs | On first cache miss (lazy) | Proactively uploaded before requests arrive |
+| First request latency | Full origin latency (cold start) | Near-zero (already cached) |
+| Setup complexity | Simple — just point CDN at origin | Must manage uploads, purges, and versions |
+| Good for | Frequently changing content, long-tail assets | Large static binaries, firmware, video files |
+| Storage cost | Only for cached content | Pay for all uploaded content, even if unused |
+
+**Cache-Control Headers — The Full Vocabulary**
+
+```http
+# Cache for 24 hours, shareable by CDN and browsers
+Cache-Control: max-age=86400, public
+
+# Never serve stale; always revalidate with origin first
+Cache-Control: no-cache
+
+# Never cache at all (sensitive data: auth tokens, payment pages)
+Cache-Control: no-store
+
+# CDN-specific TTL (overrides max-age for CDN only, not browser)
+Cache-Control: s-maxage=3600, max-age=86400
+
+# Serve stale content while fetching fresh in background
+Cache-Control: stale-while-revalidate=60
+
+# Conditional request fingerprint (CDN sends If-None-Match: "abc123")
+ETag: "abc123"
+# Origin returns 304 Not Modified if unchanged → CDN serves cached copy
+```
+
+**Cache Invalidation Strategies**
+
+```
+Strategy 1: TTL expiry
+  max-age=3600 → stale after 1 hour
+  Simple, no action required
+  Problem: content may be stale for up to TTL duration
+
+Strategy 2: URL versioning (best practice for static assets)
+  /assets/main.js          ← mutable URL, hard to cache long
+  /assets/main.a3f4b8.js   ← hash in filename, immutable
+  max-age=31536000 (1 year) ← cache forever
+  New deploy → new hash → new URL → cache miss → fresh content
+  Old URL still cached indefinitely (no users are requesting it anymore)
+  ✓ Zero cache invalidation needed
+
+Strategy 3: API purge
+  CDN API call: DELETE /purge?url=/api/products
+  Invalidates specific content immediately
+  Expensive at scale, use for urgent corrections only
+
+Strategy 4: Surrogate keys / Cache tags
+  Origin sets: Surrogate-Key: product-123 category-electronics
+  CDN stores tag → cached URL mapping
+  Purge by tag: DELETE /purge?tag=product-123
+  Useful for CMS: update an article → invalidate all pages that show it
+```
+
+**Edge Computing — Running Code at PoPs**
+
+```
+Traditional flow:
+  User → CDN (static only) → Origin server (dynamic logic)
+
+Edge computing flow:
+  User → CDN PoP (static + edge function) → Origin (only if needed)
+
+Edge function examples:
+
+// A/B testing at the edge — no round-trip to origin
+addEventListener('fetch', event => {
+  const variant = Math.random() < 0.5 ? 'A' : 'B';
+  const url = new URL(event.request.url);
+  url.pathname = `/experiment-${variant}${url.pathname}`;
+  event.respondWith(fetch(url));
+});
+
+// Auth token validation at edge — reject bad tokens before origin
+// Geo-based content personalization — different hero image per country
+// Bot detection — block scraper patterns at edge
+
+Platforms:
+  Cloudflare Workers:  JS/WASM at 300+ PoPs, ~0ms cold start, 1ms CPU limit per request
+  AWS Lambda@Edge:     Node.js/Python at CloudFront PoPs, ~1-50ms cold start
+```
+
+**When to Use and Not Use CDN**
+
+| Use CDN | Do NOT use CDN |
+|---------|----------------|
+| Static assets: JS, CSS, images (always) | Highly personalized API responses |
+| Video streaming (always) | Real-time data: stock prices, chat, live scores |
+| Cacheable GET API responses (`GET /products`: 60s TTL) | POST / PUT / DELETE (state-mutating) |
+| DDoS protection (absorb attack at edge) | Data that must always be fresh (bank balance) |
+
+**Real-world: Netflix Open Connect**
+Netflix doesn't just use a commercial CDN — they built their own. Netflix Open Connect consists of physical appliances deployed inside ISP networks. These boxes contain 100+ TB of SSD storage, pre-loaded with popular content. At peak hours, approximately 95% of Netflix traffic is served directly from within the ISP's own network — the video bytes never traverse the public internet. Netflix uses a push model, proactively replicating content to PoPs based on predicted demand from viewing patterns in each region.
+
+#### Interview Lens
+
+> **How to read this section:** CDN questions in interviews usually appear as part of a system design for a media platform, e-commerce site, or global API. The interviewer wants to see that you understand cache invalidation strategies and can reason about when CDN caching breaks down.
+
+*Quick orientation: The critical insight is that CDN is not just for static files. It's also for DDoS protection, latency reduction for cacheable API responses, and running edge logic. Know the cache invalidation strategies by name and explain URL versioning as the gold standard for static assets.*
+
+**Q1: How would you design the caching strategy for a large e-commerce site's product catalog?**
+*Question type: Design Scenario*
+
+**One-line answer:** URL-versioned static assets cached forever; product API responses cached at CDN with short TTL and surrogate keys for targeted invalidation when products change.
+
+**Full answer:**
+I'd break the caching strategy into two layers: static assets and API responses.
+
+For static assets — JavaScript, CSS, product images — I'd use URL versioning with content-hash filenames, like `main.a3f4b8.js`. These files get a Cache-Control header of `max-age=31536000` — one year. Since the URL changes whenever the content changes (the hash changes), there's no staleness problem. The CDN caches them indefinitely. No purge API calls needed. This is the gold standard for static asset caching.
+
+For the product API — `GET /api/products/{id}` — I'd set `Cache-Control: s-maxage=300, stale-while-revalidate=60`. This tells the CDN to cache product data for 5 minutes, and during the 60-second revalidation window, to serve the stale response while fetching fresh data in the background. Users get fast responses even during the update.
+
+When a product's price or availability changes, I need to invalidate the CDN cache immediately — 5 minutes of staleness is not acceptable for pricing. I'd use surrogate keys: the origin server sets `Surrogate-Key: product-{id}` on every product API response. When a product is updated in our database, the update triggers a CDN purge by tag: invalidate all responses tagged with `product-{id}`. This invalidates exactly the right cached responses without doing a full CDN purge.
+
+For cart and checkout pages, I'd use `Cache-Control: no-store` — those are personalized and cannot be cached.
+
+*Mention the three types of content explicitly: static assets (URL versioning), cacheable API (short TTL + surrogate keys), personalized content (no-cache).*
+
+> **Gotcha follow-up:** What happens to CDN cache performance during a flash sale when 10 million users simultaneously request the sale landing page for the first time?
+> The first request from each region is a cache miss — it goes all the way to the origin. If 10 million users in the US-East region all hit the CDN simultaneously with a cache-miss, the origin gets hammered by all those misses at once. This is called a thundering herd or cache stampede. To mitigate: pre-warm the CDN before the sale by making requests to the CDN yourself (or using CDN pre-seeding APIs), so the cache is populated before real users arrive. Cloudflare and Fastly support "request coalescing" — when multiple requests arrive simultaneously for the same uncached resource, the CDN holds the duplicate requests and makes only one request to the origin, then serves the single response to all waiting requests. This dramatically reduces origin load during a cache miss storm.
+
+**Q2: When would you use Cloudflare Workers (edge computing) instead of just CDN caching?**
+*Question type: Tradeoff Question*
+
+**One-line answer:** Use edge computing when you need dynamic logic — auth validation, personalization, A/B testing — without the latency of a round-trip to your origin server.
+
+**Full answer:**
+Pure CDN caching works beautifully for static content and cacheable API responses. But it falls apart for anything dynamic — content that varies by user, session, or request attributes that can't be expressed in a cache key.
+
+Edge computing fills that gap. Instead of "cache this file at the edge," it's "run this JavaScript at the edge, potentially without contacting the origin at all."
+
+The most compelling use case is auth token validation. Without edge computing, every request hits your origin for JWT validation before doing any real work. With a Cloudflare Worker, you can validate the JWT signature at the edge — reject invalid tokens in under 1 millisecond at the PoP, 300ms closer to the user than your origin. Only valid requests continue to the origin.
+
+A/B testing at the edge is another strong case. Instead of your origin randomly assigning users to experiments (requiring an origin hit), the edge function reads a cookie or uses a consistent hash on the user ID to assign the variant, then rewrites the URL or response before it ever reaches the origin.
+
+The constraint is that edge functions have tight resource limits — Cloudflare Workers give you 1ms of CPU time per request. They're not for complex business logic. Anything that needs database access, complex computation, or external API calls should stay at the origin.
+
+*The framing I use: CDN = cache static output; Edge computing = execute lightweight logic closer to users.*
+
+> **Gotcha follow-up:** What are the risks of moving auth logic to edge functions?
+> Two main risks. First, edge function code is harder to test and deploy than server-side code — it runs in a constrained runtime with limited libraries and debugging tools. A bug in your JWT validation logic could either block all legitimate users or allow all invalid ones, both catastrophic. You need a robust testing and staged rollout process. Second, edge functions at different PoPs may have slightly different versions of your code during a rolling deploy — there's a brief window where the Singapore PoP is running v2 of your auth logic and the US-East PoP is running v1. For most logic this is fine, but for security-critical code you need to ensure the deploy is consistent.
+
+---
+**Common Mistakes:**
+- **Mistake:** Caching API responses without setting appropriate Cache-Control headers → **Why it fails:** CDNs may cache responses indefinitely or not at all depending on their default behavior. Always explicitly set `Cache-Control: s-maxage=N` for CDN caching and `Cache-Control: no-store` for sensitive responses.
+- **Mistake:** Using time-based TTL as the only cache invalidation strategy → **Why it fails:** If a product goes out of stock, users may see "In Stock" for up to the full TTL duration. Use surrogate keys for content that needs immediate invalidation.
+- **Mistake:** Assuming CDN only applies to static files → **Why it fails:** Cacheable GET API responses (product catalogs, public content) benefit enormously from CDN caching. A product catalog API cached for 60 seconds at a CDN absorbs massive read load from the origin database.
+
+---
+**Quick Revision:** Pull CDN = lazy fetch on miss; Push CDN = proactive upload. URL versioning = forever cache for static assets. Surrogate keys = targeted invalidation for API responses. Edge functions = lightweight dynamic logic at the PoP.
+
+---
+
+## Topic 5: Consistent Hashing in System Design
+
+#### The Idea
+
+Imagine you manage a warehouse with 10 storage bays, and you assign items to bays using a simple formula: item number modulo 10. Item 23 goes to bay 3, item 47 goes to bay 7, and so on. Now you open an 11th bay. Every item's bay number changes — item 23 now goes to bay 1 (23 mod 11), item 47 goes to bay 3 (47 mod 11). You have to physically move almost every item to a different bay. If your warehouse is a distributed cache, this is a cache miss storm: suddenly almost all cache lookups miss because the item is on the wrong server.
+
+Consistent hashing solves this by changing the mental model from a numbered list of bins to a circular ring. Instead of "items are assigned to bins by position in a list," items and servers are both placed on a circle, and each item belongs to the nearest server clockwise from it on the circle. When you add a new server, it takes over only the items between itself and its nearest neighbor — a small fraction of total items. When a server leaves, its items smoothly migrate to the next server. Most items never move.
+
+This is not just a theoretical trick — it is the actual mechanism inside Cassandra, DynamoDB, Redis Cluster, and virtually every major distributed caching system. Understanding it is necessary for any distributed systems discussion.
+
+#### How It Works
+
+**Why Naive Modulo Hashing Fails**
+
+```
+Scenario: 10 servers, item key "user:12345"
+  hash("user:12345") = 7,654,321,099
+  server = 7,654,321,099 % 10 = 9  → Server 9
+
+Add 1 server (now 11 servers):
+  server = 7,654,321,099 % 11 = 0  → Server 0  ← DIFFERENT SERVER
+
+Cache miss! The item is on Server 9 but we look on Server 0.
+
+How many keys remap when adding 1 server to N servers?
+  From N=10 to N=11: approximately (N-1)/N × 100% ≈ 91% of keys remap
+  From N=100 to N=101: approximately 99% of keys remap
+
+This causes a cache miss storm: DB gets hammered by all requests
+that suddenly miss cache simultaneously.
+```
+
+**The Hash Ring**
+
+```
+Consistent hashing ring (address space [0, 2^32-1] mapped to circle):
+
+                    0 / 2^32
+                       │
+               ┌───────┴───────┐
+          S3   │               │   S1
+         ●─────┤               ├─────●
+               │               │
+    ─── ─── ───┼───────────────┼─── ─── ───
+               │               │
+         ●─────┤               ├─────●
+          S2   │               │   S4
+               └───────┬───────┘
+                        │
+                    2^31
+
+Each server hashed to a ring position.
+Key K → hashed to ring position → first server clockwise = owner.
+
+Example:
+  Ring: ──── S1(pos 100) ── K1(pos 140) ── S2(pos 200) ── K2(pos 250) ──
+  K1 (pos 140) → first server clockwise = S2 (pos 200) ✓
+  K2 (pos 250) → first server clockwise = S1 (pos 100, wraps around) ✓
+
+Adding server S_new at position 160:
+  ──── S1(100) ── K1(140) ── S_new(160) ── S2(200) ──
+  K1 (pos 140) → first clockwise = S_new (160) ← remapped
+  K2 (pos 250) → first clockwise = S1 (100) ← unchanged
+
+Only keys between S1 (100) and S_new (160) move. That's K/N keys on average.
+```
+
+**Virtual Nodes — Solving Uneven Distribution**
+
+```
+Problem with few physical servers on the ring:
+  If you hash 3 servers to the ring, their positions may cluster:
+  ──── S1(10) ──────────────── S2(900M) ── S3(950M) ────────
+                  S1 owns 90% of the ring (hot spot!)
+
+Solution: virtual nodes (vnodes)
+  Each physical server → V virtual positions on the ring
+
+  Physical:  S1               S2               S3
+  Virtual:   S1a S1b S1c   S2a S2b S2c   S3a S3b S3c
+
+  Ring: ── S1a ─ S2b ─ S3a ─ S1c ─ S2a ─ S3c ─ S1b ─ S2c ─ S3b ──
+                    (evenly distributed, each server owns ~1/N of ring)
+
+Cassandra default: 256 virtual nodes per physical node
+Benefits:
+  1. Uniform key distribution across nodes
+  2. Adding a new node: its virtual nodes steal from many existing nodes
+     → smooth, parallel data migration
+  3. Weighted nodes: more powerful server → more virtual nodes
+     → proportionally more traffic
+```
+
+**Java Implementation — The Must-Know Gotcha**
+
+```java
+// Consistent hashing with virtual nodes using TreeMap
+// TreeMap = sorted map, O(log N) lookup via ceilingKey()
+import java.util.SortedMap;
+import java.util.TreeMap;
+
+public class ConsistentHashRing {
+    private final SortedMap<Long, String> ring = new TreeMap<>();
+    private final int virtualNodes;
+
+    public ConsistentHashRing(int virtualNodes) {
+        this.virtualNodes = virtualNodes;
+    }
+
+    public void addServer(String server) {
+        for (int i = 0; i < virtualNodes; i++) {
+            long hash = hash(server + "#" + i); // e.g., "server1#0", "server1#1"
+            ring.put(hash, server);
+        }
+    }
+
+    public void removeServer(String server) {
+        for (int i = 0; i < virtualNodes; i++) {
+            ring.remove(hash(server + "#" + i));
+        }
+    }
+
+    public String getServer(String key) {
+        if (ring.isEmpty()) return null;
+        long hash = hash(key);
+        // Find first server clockwise from key's position
+        SortedMap<Long, String> tail = ring.tailMap(hash);
+        Long serverHash = tail.isEmpty() ? ring.firstKey() : tail.firstKey(); // wrap around
+        return ring.get(serverHash);
+    }
+
+    private long hash(String key) {
+        // In production: MurmurHash3 or MD5 first 8 bytes
+        return (long) key.hashCode() & 0xFFFFFFFFL; // simplified
+    }
+}
+// Key insight: TreeMap.ceilingKey() is O(log N) — efficient even with thousands of vnodes
+```
+
+**Where Consistent Hashing Is Used in Production**
+
+| System | How it uses consistent hashing |
+|--------|-------------------------------|
+| Amazon DynamoDB | Partition key → hash → which partition node owns the data |
+| Apache Cassandra | Murmur3Partitioner assigns rows to nodes; 256 vnodes default |
+| Redis Cluster | 16,384 hash slots; `CRC16(key) % 16384` → slot → node |
+| Memcached (libketama) | Client-side consistent hashing across Memcached nodes |
+| Nginx/HAProxy | Consistent hash upstream module for caching proxy affinity |
+
+Note on Redis Cluster: it uses a pre-defined slot table (16,384 slots) rather than a continuous ring, but the concept is equivalent. Each node owns a range of slots, and rebalancing moves slot ownership between nodes without remapping all keys.
+
+**The Hotspot Problem — Consistent Hashing Doesn't Help Here**
+
+```
+Consistent hashing solves: distributing keys across nodes uniformly
+It does NOT solve: a single key receiving disproportionate traffic
+
+Example: Celebrity post (Taylor Swift tweets)
+  - Post ID hashes to Server 7
+  - 10 million users all request this post simultaneously
+  - All 10M requests hit Server 7 regardless of ring
+  - Server 7 is overwhelmed
+
+Solutions:
+  1. Application-level key sharding:
+     Instead of cache key "post:12345", use "post:12345:shard:X"
+     where X = random(0, 9) — read from any of 10 shards
+     Write side updates all 10 shards (fan-out write)
+     Read side picks a random shard (fan-out read)
+
+  2. Local in-process cache:
+     Hot keys cached in L1 (application memory, 100ms TTL)
+     Most requests served from process memory, not Redis
+
+  3. Read replicas:
+     Multiple read-only copies of the hot data
+     Distribute reads across replicas
+```
+
+#### Interview Lens
+
+> **How to read this section:** Consistent hashing questions appear frequently in caching, database sharding, and distributed systems topics. The examiner wants to see that you understand the problem it solves (rebalancing cost), the mechanism (the ring and vnodes), and its limits (hotspot keys). The Java TreeMap implementation is the code block to know.
+
+*Quick orientation: If a system design question involves caching (memcached, Redis) or distributed storage (Cassandra, DynamoDB), consistent hashing is the mechanism under the hood. Mention it proactively with the problem it solves, not just as a buzzword.*
+
+**Q1: Why is modulo hashing not suitable for distributed caches, and how does consistent hashing fix it?**
+*Question type: Concept Check*
+
+**One-line answer:** Modulo hashing remaps nearly all keys when the server count changes, causing a cache miss storm; consistent hashing remaps only K/N keys on average, where K is total keys and N is server count.
+
+**Full answer:**
+With modulo hashing, the formula is `server = hash(key) % N`. This works perfectly with a fixed N. The problem is that N is never truly fixed in a real system — servers fail, and we add capacity. When N changes from 10 to 11, a key that was on server 9 via `hash % 10` might now map to server 0 via `hash % 11`. The mathematical reality is that adding one server to a 10-server cluster causes approximately 91% of keys to remap to different servers. Those cache misses hit the database simultaneously — a cache miss storm that can cause a cascading failure.
+
+Consistent hashing fixes this by placing both servers and keys on a circular ring using the same hash function. Each key belongs to the first server clockwise from it on the ring. When you add a server, it lands at some point on the ring and takes ownership of the keys between it and its predecessor. That's on average K divided by N keys — one server's worth — rather than all keys. When you remove a server, its keys move to the next server clockwise. Again, only one server's worth of keys move.
+
+In practice, consistent hashing is combined with virtual nodes to prevent hotspots from uneven ring positions. Each physical server maps to 150 to 256 virtual positions on the ring, ensuring that keys are distributed uniformly even with a small number of physical servers.
+
+*Draw the ring on the whiteboard. Show the before and after of adding a server — mark the arc of keys that move versus the arcs that stay. This visual makes the O(K/N) remapping claim intuitive.*
+
+> **Gotcha follow-up:** If consistent hashing distributes keys uniformly across nodes, why does Cassandra still get hotspots in production?
+> There are two types of hotspots that consistent hashing doesn't prevent. First, if the partition key has low cardinality — for example, if you partition by country and one country has 80% of your users — consistent hashing dutifully sends 80% of traffic to one partition. The ring distributes keys uniformly only if keys are uniformly distributed in the hash space. Second, temporal hotspots: a time-based partition key like `created_at` means all current writes go to the same partition (the current time range), while older partitions are cold. Cassandra documentation explicitly warns against monotonically increasing partition keys. The fix is to add a random bucket suffix to the partition key, creating N synthetic partitions that can be spread across nodes.
+
+**Q2: How does Redis Cluster implement sharding, and how does it handle adding a new node?**
+*Question type: Concept Check*
+
+**One-line answer:** Redis Cluster uses 16,384 fixed hash slots assigned to nodes; adding a node migrates specific slot ranges from existing nodes to the new node without downtime.
+
+**Full answer:**
+Redis Cluster pre-divides the key space into 16,384 hash slots. Every key is assigned a slot via `CRC16(key) % 16384`. Each Redis node in the cluster owns a contiguous range of slots — for example, in a 3-node cluster, Node 1 might own slots 0–5460, Node 2 slots 5461–10922, Node 3 slots 10923–16383.
+
+This is conceptually similar to a consistent hash ring with 16,384 pre-defined positions. The advantage is predictability — the slot count never changes, and the cluster's routing table is a simple mapping from slot ranges to nodes.
+
+When you add a new node to the cluster, you use the `CLUSTER REBALANCE` or manual `MIGRATE` commands to move specific slot ranges from existing nodes to the new one. Key migration is atomic at the key level — Redis moves each key one at a time using the `MIGRATE` command, which atomically removes the key from the source node and inserts it on the destination. During migration, clients querying a moved key receive a `MOVED` redirect pointing to the new node. The client caches this redirect and updates its local routing table.
+
+The important operational point is that slot migration in Redis Cluster is online — the cluster continues to serve requests during the migration. But migration does add latency for keys that are in the process of moving, and it's CPU-intensive on the source node. In production, rebalancing should be done during low-traffic periods.
+
+*Mention the MOVED redirect — it's the mechanism that makes the client routing table eventually consistent. Redis clients like Jedis and Lettuce handle MOVED redirects transparently.*
+
+> **Gotcha follow-up:** What happens to a write that arrives at a Redis node for a key that is currently being migrated to another node?
+> Redis handles this atomically using the MIGRATING and IMPORTING states. When a slot is being migrated from Node A to Node B, Node A is in MIGRATING state for that slot and Node B is in IMPORTING state. If a write arrives at Node A for a key in that slot and the key hasn't been migrated yet, Node A handles it normally. If the key has already been migrated to Node B, Node A returns an ASK redirect — different from MOVED — telling the client to try Node B. The ASK redirect is temporary (only for that request), while MOVED is permanent (update your routing table). This ensures that in-flight writes during migration are not lost.
+
+---
+**Common Mistakes:**
+- **Mistake:** Recommending consistent hashing as a solution for all hotspot problems → **Why it fails:** Consistent hashing solves key distribution across nodes. It does nothing for a single key that receives extreme traffic (viral content, celebrity accounts). That requires application-level sharding of the hot key or local in-process caches.
+- **Mistake:** Not mentioning virtual nodes when explaining consistent hashing → **Why it fails:** Without virtual nodes, a small cluster (3–5 servers) will have highly uneven arc sizes on the ring, causing some nodes to own far more data than others. Virtual nodes are not an optional optimization — they are the standard implementation in every production system.
+- **Mistake:** Implementing the hash ring with a linear scan instead of a sorted data structure → **Why it fails:** A naive implementation iterates through all ring positions to find the nearest server clockwise, which is O(N × V) per lookup. Using a TreeMap with `ceilingKey()` makes it O(log(N × V)) — the difference between 256 microseconds and 5 microseconds at scale.
+
+---
+**Quick Revision:** Consistent hashing = ring + clockwise ownership; adding one server remaps only K/N keys (not all); virtual nodes prevent uneven distribution; TreeMap + ceilingKey() = O(log N) lookup.
+
+---
+
+## Topic 6: Back-of-Envelope Estimation
+
+#### The Idea
+
+Imagine you are about to build a bridge. Before drawing blueprints, the engineer scribbles on a napkin: "width of river × average depth × current speed — okay, our pylons need to hold X tons." That napkin calculation takes five minutes and saves months of misdesign. Back-of-envelope estimation is the software engineer's napkin calculation.
+
+In a system design interview the interviewer is not testing your arithmetic. They are testing whether you can turn vague numbers into concrete constraints — "50 TB a day means I cannot use a single MySQL server, I need object storage." The estimate drives every subsequent decision: database choice, caching tier, number of servers, whether you need a CDN.
+
+The skill rests on two things: memorising a handful of magnitudes (powers of two, seconds in a day, request volumes) and applying two reusable templates — one for QPS, one for storage. Once those are second nature, you can size any system in under five minutes.
+
+#### How It Works
+
+**Anchor numbers — memorise these:**
+
+| Unit | Value |
+|---|---|
+| 2^10 | ~1 KB |
+| 2^20 | ~1 MB |
+| 2^30 | ~1 GB |
+| 2^40 | ~1 TB |
+| 2^50 | ~1 PB |
+| Seconds in a day | 86,400 ≈ 100 K |
+| 1 B requests/day | ≈ 12 K QPS |
+| 1 M requests/day | ≈ 12 QPS |
+
+**Template 1 — QPS:**
+```
+QPS = DAU × avg_requests_per_user_per_day / 86,400
+Peak QPS ≈ 3 × average QPS
+```
+
+**Template 2 — Storage:**
+```
+Storage = DAU × avg_data_per_user_per_day × retention_days
+```
+
+**Worked example: Design Twitter**
+
+Assumptions: 300 M DAU, 1 tweet/write per day, 50 reads per day, 200 bytes/tweet, 30% images at 300 KB average.
+
+```
+Write QPS  = 300M × 1  / 86,400 ≈   3,500 /sec   → Peak ≈  10K /sec
+Read  QPS  = 300M × 50 / 86,400 ≈ 175,000 /sec   → Peak ≈ 500K /sec
+Read : Write ratio = 50:1  →  design must optimise for reads (cache tier essential)
+
+Text  storage/day  = 300M × 200 B           = 60  GB/day
+Image storage/day  = 300M × 0.30 × 300 KB   = 27  TB/day
+
+5-year text   = 60 GB × 365 × 5 ≈  110 TB  (fits in a relational DB cluster)
+5-year media  = 27 TB × 365 × 5 ≈   50 PB  (must use S3 / object storage)
+```
+
+**Worked example: WhatsApp**
+
+50 M DAU, 40 messages/day, 100 bytes/text, 20% media at 200 KB average.
+
+```
+Message QPS  = 50M × 40 / 86,400 ≈ 23K /sec   → Peak ≈ 70K /sec
+Text/day     = 50M × 40 × 100 B  = 200 GB/day
+Media/day    = 50M × 40 × 0.20 × 200 KB = 80 TB/day
+Bandwidth    = 80 TB / 86,400 sec ≈ 1 GB/sec incoming
+```
+
+**Cache sizing — 80/20 rule:**
+Hot 20% of content receives 80% of requests. For Twitter text: 200 GB/day × 20% = 40 GB → fits in a single Redis 64 GB node.
+
+```
+if hot_data_size < 64 GB:
+    single Redis node suffices
+elif hot_data_size < 512 GB:
+    Redis cluster (sharded)
+else:
+    Memcached cluster or tiered caching
+```
+
+**Tradeoffs at a glance:**
+- Rounding aggressively (100 K instead of 86,400) is intentional — precision beyond one significant figure is false confidence.
+- Always state your assumptions aloud before calculating; if the interviewer has different numbers, they will correct you early.
+- Peak = 3× average is a rule of thumb; real systems plan for 5–10× if traffic is spiky (holiday flash sales, celebrity tweet).
+
+#### Interview Lens
+
+> **How to read this section:** These questions are asked in the first five minutes of every HLD interview. Nail the template, then plug in the numbers the interviewer gives you — do not memorise one set of numbers.
+
+*Quick orientation: estimation is a communication exercise. Show your working, not just your answer.*
+
+**Q1: Walk me through how you would estimate the QPS and storage for a system like Instagram.**
+*Design Scenario*
+
+**One-line answer:** Apply the QPS template (DAU × requests / 86 400) and the storage template (DAU × data/user × retention), then separate hot text storage from cold media storage.
+
+**Full answer:**
+I would start by nailing down the assumptions. I'd say: "Let me assume 500 million DAU, each user views 20 posts per day and uploads 1 photo every two days. A photo is about 3 MB after compression." Then I'd calculate read QPS: 500 M × 20 / 86 400 ≈ 116 K reads per second, peak around 350 K. Write QPS: 500 M × 0.5 / 86 400 ≈ 2 900 writes per second, peak around 9 K. That's a read-to-write ratio of roughly 40:1, which immediately tells me I need aggressive caching and a CDN for media.
+
+For storage: text metadata is tiny — maybe 500 bytes per post — so 500 M × 0.5 × 500 B ≈ 125 GB/day, manageable in a relational database. Media is 500 M × 0.5 × 3 MB ≈ 750 TB/day — that cannot live in a database; it goes straight to object storage like S3. Over five years that's roughly 1.4 exabytes of media, confirming we need a tiered storage strategy with hot/warm/cold tiers.
+
+*Say this in about 60 seconds. Write QPS and storage on the whiteboard as you speak — the interviewer wants to see structure, not mental arithmetic.*
+
+> **Gotcha follow-up:** How would your estimates change if 10% of users are celebrities with 10 M followers each?
+> The write QPS number doesn't change — celebrities post at the same rate. What changes is fanout: a celebrity post triggers 10 M feed updates instead of a few hundred. That turns a 2 900 write-QPS system into one that must handle 2 900 × some amplification factor — possibly millions of downstream writes per second. I'd flag this as the celebrity problem and note it requires a hybrid fanout strategy rather than pure push.
+
+---
+
+**Q2: Why is Peak QPS = 3× average, and when would you use a higher multiplier?**
+*Concept Check*
+
+**One-line answer:** 3× is a rule of thumb for normally distributed daily traffic; use 5–10× for flash-sale, sports-event, or celebrity-driven workloads.
+
+**Full answer:**
+Average QPS is a mean over 24 hours, but traffic is not flat — most systems see a double hump (morning and evening). The ratio of peak hour to daily average is roughly 3–4× for consumer apps. I use 3× as a safe default because it is easy to remember and holds for most social or e-commerce apps.
+
+If the system has predictable spikes — a Black Friday sale, a World Cup final, a celebrity dropping a surprise album — I would use 10× and design for horizontal auto-scaling. I'd also ask: can we shed load gracefully (rate limiting, graceful degradation) if we underestimate? If yes, 3× is fine and we scale reactively. If a missed request has real cost (payment, booking), I'd over-provision and use 10×.
+
+*Keep this answer to 30 seconds. The point is showing you understand the tradeoff between cost of over-provisioning and cost of under-provisioning.*
+
+> **Gotcha follow-up:** How do you account for cold-start traffic when a new feature launches?
+> New feature launches are unpredictable. I'd recommend load-testing against 5× the estimated steady-state QPS before launch and using feature flags to roll out to 1%, 5%, 25%, 100% of users. Each step gives real traffic data before full exposure.
+
+---
+
+**Common Mistakes:**
+- **Mistake:** Spending 10 minutes on precise arithmetic. → **Why it fails:** The interview moves on before you design anything. Round aggressively; the order of magnitude is what matters.
+- **Mistake:** Giving one storage number without separating text from media. → **Why it fails:** Text fits in a database; media requires object storage. Lumping them together leads to the wrong architecture.
+- **Mistake:** Forgetting to state assumptions before calculating. → **Why it fails:** If your DAU figure is wrong, all downstream numbers are wrong and the interviewer cannot help you course-correct.
+
+---
+**Quick Revision:** QPS = DAU × req/day ÷ 86 400; peak = 3×; media storage → object store always.
+
+---
+
+## Topic 7: Design a URL Shortener (HLD)
+
+#### The Idea
+
+When you paste a 200-character Amazon product URL into a tweet, the tweet eats half your character limit. A URL shortener — like bit.ly or TinyURL — takes that long URL and hands you back something like `bit.ly/3xQ9vR`. When anyone clicks that short link, they get silently redirected to the original long URL.
+
+Think of it like a coat check at a restaurant. You hand over your coat (the long URL), get a numbered ticket (the short code), and anyone who shows the ticket later gets your coat back. The coat check counter holds the mapping: ticket number → coat location.
+
+What makes this interesting at scale is the asymmetry: you might create a short URL once, but that URL might be clicked billions of times over years. The system must be optimised almost entirely for reads. And the short code — that six- or seven-character string — must be unique across trillions of combinations without collisions.
+
+#### How It Works
+
+**Capacity planning:**
+
+```
+Write QPS  = 100M new URLs / 86,400 ≈  1,200 /sec
+Read  QPS  = 10B redirects / 86,400 ≈ 116,000 /sec
+Read : Write = 100:1
+
+Short code space:
+  6-char base62 = 62^6 ≈ 56 B combinations  (not enough for 10-year projection)
+  7-char base62 = 62^7 ≈ 3.5 T combinations  (sufficient)
+
+Storage per record ≈ 2.2 KB (2048 B URL + metadata)
+Storage/day = 100M × 2.2 KB = 220 GB/day
+10-year total ≈ 803 TB
+```
+
+**Encoding algorithms — three options:**
+
+```
+Option 1: Hash-based
+  hash = MD5(longUrl)          // 128-bit hash
+  shortCode = base62(first_43_bits_of_hash)  // 7 chars
+  collision? → append counter → rehash → retry
+  ↑ Simple but collisions possible; must check DB on every write
+
+Option 2: ID + base62 (recommended)
+  id = snowflakeId()           // globally unique 64-bit int, time-ordered
+  shortCode = toBase62(id)     // deterministic, 7 chars, no collision by construction
+  ↑ No DB lookup needed; slightly predictable (sequential IDs)
+
+Option 3: Random
+  shortCode = randomBase62(7)
+  if DB.exists(shortCode): retry
+  ↑ Unpredictable; retry loop needed; low collision probability at 7 chars
+```
+
+**API design:**
+
+```
+POST /api/v1/shorten
+  Body: { longUrl, customAlias?, expiresAt? }
+  Returns: { shortUrl }
+  HTTP 301 = permanent redirect → browser caches, no analytics tracking
+  HTTP 302 = temporary redirect → every click hits our server → analytics work
+  (Use 302 if analytics matter; 301 if you want to save bandwidth)
+
+GET /{shortCode}
+  → lookup shortCode in cache/DB
+  → HTTP 302 Location: longUrl
+
+GET /api/v1/stats/{shortCode}
+  → { clickCount, topCountries, topReferrers, clicksOverTime }
+```
+
+**Database schema:**
+
+```sql
+-- Primary mapping table
+url_mapping (
+  short_code  VARCHAR(7) PRIMARY KEY,
+  long_url    VARCHAR(2048),
+  user_id     BIGINT,
+  created_at  TIMESTAMP,
+  expires_at  TIMESTAMP
+)
+
+-- Analytics (append-only, write to Kafka → ClickHouse)
+click_events (
+  short_code  VARCHAR(7),
+  clicked_at  TIMESTAMP,
+  user_agent  TEXT,
+  ip_hash     VARCHAR(64),   -- hashed for privacy
+  referrer    TEXT
+)
+```
+
+**Storage choice:**
+url_mapping is accessed at 116 K reads/sec via simple key-value lookup — primary storage should be Cassandra or DynamoDB (wide-column, horizontally scalable). Redis sits in front as a cache with 24h TTL.
+
+**Caching strategy:**
+```
+Cache key: shortCode
+Cache value: longUrl
+TTL: 24 hours (refresh on hit — popular URLs stay hot)
+
+Cache size: top 20% of URLs = 80% of traffic
+100M active URLs × 20% × 2.2KB ≈ 44 GB → fits in 1-2 Redis nodes
+```
+
+**Analytics flow (async — never block on redirect):**
+```
+User clicks → API server → 302 redirect (immediate)
+                         ↓ (async, fire-and-forget)
+                      Kafka topic: click_events
+                         ↓
+                      Flink streaming aggregation
+                         ↓
+                      ClickHouse (columnar, fast analytics queries)
+                         ↓
+                      Dashboard API
+```
+
+**Scaling the ID generator:**
+```
+Problem: single ID generator = single point of failure
+Solution: ZooKeeper assigns each API server a range (e.g. server-1 gets IDs 1-10M)
+Each server generates IDs locally from its range → no central bottleneck
+When range exhausted → request new range from ZooKeeper
+```
+
+ASCII system diagram:
+```
+Client
+  │
+  ▼
+[Load Balancer]
+  │
+  ▼
+[API Servers]  ──── ZooKeeper (ID ranges)
+  │        │
+  │        └──── Kafka (click events) ──► Flink ──► ClickHouse
+  │
+  ├──► Redis Cache (TTL=24h)
+  │
+  └──► Cassandra (primary store)
+         └── short_code → long_url
+```
+
+#### Interview Lens
+
+> **How to read this section:** The interviewer is looking for three things: capacity reasoning before architecture, correct 301 vs 302 understanding, and awareness of the celebrity-URL problem (one short URL getting billions of hits).
+
+*Quick orientation: URL shortener is the "hello world" of HLD. Interviewers use it to test fundamentals — if you nail the tradeoffs here, you get credit for knowing the building blocks.*
+
+**Q1: Why would you choose 302 over 301 for redirects, and what is the cost?**
+*Tradeoff Question*
+
+**One-line answer:** 302 (temporary) keeps every click on your server enabling analytics; 301 (permanent) lets browsers cache the redirect eliminating server load but losing analytics.
+
+**Full answer:**
+I would explain it this way: a 301 response tells the browser "this URL has permanently moved — remember the destination and never ask me again." That is great for server load because repeat visitors go directly to the destination without touching our servers. But it completely breaks click analytics — we never see those repeat visits.
+
+A 302 tells the browser "this is a temporary redirect — ask me again next time." Every single click hits our redirect servers, which lets us count clicks, track geography, measure referrers, and build the analytics dashboard. The cost is real: at 116 K redirects per second, we are handling every single click instead of letting browsers absorb the repeat traffic.
+
+My recommendation is 302 by default. The business model of a URL shortener lives in analytics data. If a customer specifically wants maximum performance with no analytics — say, an internal tool — we can offer 301 as an option.
+
+*Draw the 301 vs 302 flow on the whiteboard: "Browser asks → 302 → browser asks again next time." Versus "Browser asks → 301 → browser skips us forever." 30 seconds.*
+
+> **Gotcha follow-up:** What happens if a hugely popular URL gets 10 million clicks per second — say a news article goes viral?
+> That URL becomes a hot key in Redis — every request reads the same cache entry. Redis is single-threaded per key, so at extreme scale even a Redis read can become a bottleneck. The fix is local in-process caching: each API server holds the top 100 URLs in a local LRU cache (JVM heap). A viral URL is served entirely from memory on each API server without any network hop. We accept stale data of up to 1 minute — fine for a redirect.
+
+---
+
+**Q2: How does base62 encoding work, and why 7 characters instead of 6?**
+*Concept Check*
+
+**One-line answer:** Base62 uses digits 0-9 plus a-z plus A-Z (62 chars) to encode an integer; 6 chars gives 56 B combinations which runs out in under a decade at 100 M URLs/day.
+
+**Full answer:**
+Base62 is the same idea as hexadecimal — hex uses 16 symbols (0-9, a-f) to write big numbers compactly — except base62 uses 62 symbols, which gives even more combinations per character. Each character in a base62 string represents one of 62 possible values.
+
+Six characters: 62^6 ≈ 56 billion combinations. At 100 M new URLs per day, that is 100 M × 365 days × 10 years = 365 billion URLs over a decade. We would exhaust the 6-character space in about 1.5 years. Seven characters: 62^7 ≈ 3.5 trillion combinations — enough for over 90 years at current scale.
+
+So 7 characters is the correct choice. It also gives us room to grow if adoption accelerates without any schema migration.
+
+*Say the math out loud — it shows you can derive rather than memorise.*
+
+> **Gotcha follow-up:** How do you handle hash collisions in the MD5-based approach?
+> MD5 produces a 128-bit hash, and we take only the first 43 bits to make a 7-char base62 string. Two different long URLs could produce the same 43-bit prefix — a collision. The fix is: after encoding, check the database. If the short code already exists and maps to a different long URL, append a counter (longUrl + "1"), rehash, and retry. In practice collisions are rare, but we must handle them. This is why the ID + base62 approach is cleaner — Snowflake IDs are unique by construction, so no collision check is needed.
+
+---
+
+**Common Mistakes:**
+- **Mistake:** Using a relational DB (MySQL) as primary storage for 116 K reads/sec. → **Why it fails:** Relational DBs struggle past ~10 K QPS for single-table lookups; you need Cassandra or DynamoDB for this read volume.
+- **Mistake:** Writing analytics directly to the url_mapping table (incrementing a click_count column). → **Why it fails:** A viral URL creates write contention on a single hot row, bottlenecking the entire redirect path. Analytics must be async via Kafka.
+- **Mistake:** Using 301 by default without discussing the analytics loss. → **Why it fails:** Interviewers expect you to surface this tradeoff — it is the most commonly asked follow-up in URL shortener problems.
+
+---
+**Quick Revision:** 7-char base62 = 3.5T combos; 302 for analytics; Redis cache + Cassandra primary; async Kafka for clicks.
+
+---
+
+## Topic 8: Design a Rate Limiter (HLD)
+
+#### The Idea
+
+Imagine a popular nightclub with a fire-safety limit of 500 people. The bouncer's job is to count how many people enter per hour and turn people away once the limit is hit. That is a rate limiter: a mechanism that enforces "no more than N requests per unit of time" for a given user or IP address.
+
+Without rate limiting, a single misbehaving client — whether a buggy script or a deliberate attacker — can send millions of requests and either crash your service or generate a massive bill. Rate limiting is the first line of defence against both accidents and abuse.
+
+The interesting engineering challenge is that "counting requests" sounds trivial until you have 100 API servers running in parallel. Each server sees only a fraction of the traffic. If you count locally on each server, a user can send N requests to each of your 100 servers for an effective 100× the intended limit. The counter must be global, and updating a global counter on every request adds latency. The algorithms below trade off accuracy, memory, and latency in different ways.
+
+#### How It Works
+
+**Algorithm comparison:**
+
+| Algorithm | Memory | Handles Burst | Accuracy | Complexity |
 |---|---|---|---|---|
-| Fanout on Write | High | O(1) | Immediate | Regular users |
-| Fanout on Read | Low | High | Immediate | Celebrity posts |
-| Hybrid | Medium | Low | Slight delay | Production |
+| Fixed Window Counter | Low | Poor — boundary spike | Low | Low |
+| Sliding Window Log | High | Exact | High | Medium |
+| Sliding Window Counter | Low | Good | Very High (~0.003% error) | Medium |
+| Token Bucket | Low | Excellent | High | Low |
+| Leaky Bucket | Medium | None — smooths to constant rate | High | Low |
 
-### Interview Tips
-- Start with the hybrid model — it shows you know the celebrity problem exists.
-- Mention Redis TTL for feed (keep only 30 days of feed).
-- Discuss ranked feed vs chronological (ML ranking = separate ranking service).
-- Note that ZADD with the same score (same second) needs tiebreaker (post_id).
+**Fixed Window Counter — the simple but flawed baseline:**
+```
+counter[user_id][current_minute] += 1
+if counter > limit: reject
+
+Problem (boundary spike):
+  Limit = 100/min
+  User sends 100 requests at 00:00:59  → all allowed (window 1)
+  User sends 100 requests at 00:01:01  → all allowed (window 2)
+  Net result: 200 requests in 2 seconds. Limit violated.
+```
+
+**Sliding Window Log — exact but memory-hungry:**
+```
+on each request:
+  timestamps[user_id].removeOlderThan(now - window)
+  timestamps[user_id].add(now)
+  if len(timestamps[user_id]) > limit: reject
+  
+Memory: every timestamp stored per user → O(limit × users)
+```
+
+**Sliding Window Counter — the practical hybrid:**
+```
+weight = (elapsed_ms_in_current_window) / window_ms
+effective_count = current_window_count + prev_window_count × (1 - weight)
+if effective_count > limit: reject
+
+Memory: only 2 counters per user per window
+Accuracy: < 0.003% error vs. true sliding window
+```
+
+**Token Bucket — industry standard (Stripe, AWS, Uber):**
+```
+bucket[user_id] = { tokens: capacity, last_refill: now }
+
+on each request:
+  elapsed = now - bucket.last_refill
+  bucket.tokens = min(capacity, bucket.tokens + elapsed × refill_rate)
+  bucket.last_refill = now
+  if bucket.tokens >= 1:
+    bucket.tokens -= 1
+    allow request
+  else:
+    return 429 Too Many Requests
+```
+
+Allows burst up to `capacity` tokens; steady-state rate capped at `refill_rate`. If a user does nothing for 5 minutes, they accumulate up to `capacity` tokens — they can burst on return.
+
+**Leaky Bucket:**
+```
+Requests enter a FIFO queue; a background thread drains at constant rate R.
+If queue full → reject.
+Use case: smoothing bursty upstream traffic into a constant downstream rate.
+Not suitable when bursts are intentional (e.g., batch upload).
+```
+
+**Distributed rate limiting — the critical problem:**
+
+```
+Problem:
+  10 API servers, each with local Token Bucket, limit = 100 req/min
+  User routes through different servers → effective limit = 1000 req/min
+  
+Solution: shared Redis counter (atomic operations)
+```
+
+The must-memorise code block — Redis Lua script for atomic Token Bucket:
+
+```lua
+-- Runs atomically on Redis server; no race condition possible
+local tokens      = tonumber(redis.call('GET', KEYS[1]) or ARGV[1])
+local now         = tonumber(ARGV[2])
+local last_refill = tonumber(redis.call('GET', KEYS[2]) or now)
+local rate        = tonumber(ARGV[3])   -- tokens per second
+local capacity    = tonumber(ARGV[4])
+
+local elapsed     = now - last_refill
+local new_tokens  = math.min(capacity, tokens + elapsed * rate)
+
+if new_tokens >= 1 then
+  redis.call('SET', KEYS[1], new_tokens - 1)
+  redis.call('SET', KEYS[2], now)
+  return 1   -- allowed
+else
+  return 0   -- rejected
+end
+```
+
+Why Lua? Redis executes Lua scripts atomically — no other command runs between the GET and SET. This eliminates the race condition where two concurrent requests both see tokens=1, both pass, and both decrement to 0.
+
+**Deployment location — where does the rate limiter live?**
+
+```
+Option A: Client-side          → trivially bypassed. Never.
+Option B: API Gateway (Kong / Nginx)  → centralised, before business logic,
+                                         easy to update rules. Best for global limits.
+Option C: Application middleware      → fine-grained per-endpoint control,
+                                         but each service needs to share Redis state.
+Option D: Dedicated service           → full flexibility, extra network hop per request.
+
+Best practice: coarse limits at API Gateway + per-endpoint limits in middleware.
+```
+
+**Response headers — tell clients what happened:**
+```
+X-RateLimit-Limit: 1000
+X-RateLimit-Remaining: 0
+X-RateLimit-Reset: 1719000000   ← Unix timestamp when limit resets
+Retry-After: 60                  ← seconds until retry allowed
+```
+
+**Fail-open vs fail-closed:**
+```
+if Redis is unreachable:
+  fail-open  → allow all requests (availability wins; risk of abuse)
+  fail-closed → reject all requests (safety wins; service degraded)
+Default: fail-open for most APIs (UX matters); fail-closed for billing/auth endpoints.
+```
+
+ASCII flow:
+```
+Request
+  │
+  ▼
+[API Gateway] ── coarse limit (e.g. 10K/min per IP) ─► 429 if exceeded
+  │
+  ▼
+[App Middleware] ── per-endpoint limit ──────────────► 429 if exceeded
+  │        │
+  │        └──► Redis (atomic Lua script)
+  ▼
+[Business Logic]
+```
+
+#### Interview Lens
+
+> **How to read this section:** Rate limiter questions test your ability to compare algorithms under constraints and then design a distributed system. Know the Token Bucket deeply — it is the industry answer — but be able to say why the other algorithms exist.
+
+*Quick orientation: start with the algorithm choice, then pivot to distributed state — that is where the real complexity lives.*
+
+**Q1: Which rate limiting algorithm would you choose and why?**
+*Tradeoff Question*
+
+**One-line answer:** Token Bucket for general APIs because it handles bursts naturally and is O(1) in memory; fall back to Sliding Window Counter when exact per-window accuracy matters more than burst allowance.
+
+**Full answer:**
+I would start with Token Bucket because it models real user behaviour accurately: a user who has been inactive for a few minutes has "saved up" allowance and should be permitted a short burst. It is also memory-efficient — two values per user in Redis, not a list of timestamps.
+
+The Fixed Window Counter is simpler to implement but has the boundary spike problem: a user can send double the intended rate by maxing out at the end of one window and immediately maxing out the start of the next. That is a real attack vector, so I would not use it for security-sensitive endpoints.
+
+The Sliding Window Log is mathematically exact — it stores every request's timestamp and counts how many fall within the window. But at 116 K requests per second across millions of users, the memory cost is prohibitive. A user allowed 1 000 requests per minute would have up to 1 000 timestamps stored; across 10 million users that is 10 billion entries.
+
+The Sliding Window Counter is a good middle ground: it uses only two counters but achieves less than 0.003% error compared to the true sliding window. I would use it when the business requires guaranteed per-window limits with minimal memory, such as for API key billing.
+
+*Say this over 60 seconds. Draw the boundary spike diagram for Fixed Window — it makes the problem concrete.*
+
+> **Gotcha follow-up:** How does Cloudflare handle rate limiting at global scale without Redis becoming a bottleneck?
+> Cloudflare uses a hybrid approach: each edge server maintains a local counter and syncs periodically (every few hundred milliseconds) to a distributed store. This allows slight over-counting within the sync interval — a user might get 5-10% more requests than the limit during a sync gap — but it eliminates per-request Redis latency at the edge. For most APIs that trade-off is acceptable. For billing or security-critical limits, you accept the latency cost of synchronous Redis.
 
 ---
 
-## 10. Design a Notification System
+**Q2: A free-tier user has a limit of 100/min, but your API Gateway only supports a single global limit. How do you implement per-tier rate limiting?**
+*Design Scenario*
 
-### Problem Statement
-Design a scalable notification system that delivers messages across multiple channels (push, email, SMS) with reliability guarantees.
+**One-line answer:** Store per-user tier in Redis alongside the counter, and resolve the applicable limit per request in the middleware before the counter check.
 
-### Clarifying Questions
-- Channels: push (iOS/Android), email, SMS, in-app?
-- Volume: ~10M notifications/day? 100M?
-- Latency requirement: real-time vs. best-effort?
-- Delivery guarantee: at-least-once? Exactly-once?
-- User preferences: opt-out per channel, per notification type?
+**Full answer:**
+I would move rate limiting out of the API Gateway's built-in feature and into a thin middleware layer that sits just behind the gateway. The middleware does three things: it reads the user's tier from a Redis hash (O(1) lookup, cached from the database), it resolves the limit — 100/min for free, 10 K/min for paid — and then it runs the Token Bucket logic against a user-scoped Redis key.
 
-### Capacity Estimation
+The per-user key would be something like `rl:{user_id}:tokens` and `rl:{user_id}:last_refill`. The Lua script receives the resolved capacity and rate as parameters, so the algorithm itself is tier-agnostic.
+
+I would also add soft limits: when a user hits 80% of their limit, the response headers return a `X-RateLimit-Warning: true` field. This lets well-behaved clients back off before hitting a hard 429, which improves developer experience and reduces support tickets.
+
+*Keep this answer under 45 seconds — it is a follow-up, not the main question.*
+
+> **Gotcha follow-up:** How do you prevent a user from gaming the system by creating many accounts?
+> Per-account limits can be circumvented by account farming. Complementary defences include: IP-based limits at the gateway as a second layer (many accounts, same IP), device fingerprinting for mobile clients, and anomaly detection (ML-based) that flags accounts with identical usage patterns. The rate limiter is one layer in a defence-in-depth strategy, not the sole protection.
+
+---
+
+**Common Mistakes:**
+- **Mistake:** Implementing per-server local counters without a shared store. → **Why it fails:** With N servers, effective limit becomes N × per-server limit. The rate limiter is trivially bypassed.
+- **Mistake:** Using non-atomic Redis operations (GET then SET in application code). → **Why it fails:** Two concurrent requests both read tokens=1, both pass, both decrement — you allow 2× the intended traffic. Always use a Lua script or Redis transaction.
+- **Mistake:** Choosing Sliding Window Log for a high-traffic API. → **Why it fails:** Memory grows linearly with the limit value × number of active users. At scale this exhausts Redis memory.
+
+---
+**Quick Revision:** Token Bucket = burst-friendly + O(1) memory; atomic Lua for distributed safety; fail-open on Redis down (except billing).
+
+---
+
+## Topic 9: Design a News Feed (Twitter/Instagram)
+
+#### The Idea
+
+When you open Instagram, you see a personalised stream of photos from people you follow — some posted seconds ago, some hours ago, all ranked and sorted. That stream is your news feed. Behind that simple-looking page is one of the hardest read-scaling problems in distributed systems.
+
+Think of it like a personalised newspaper. If a newspaper printed one edition per reader (300 million editions!), each customised to that reader's interests, the printing press would need to run at an impossible speed. Instead, publishers pre-print articles centrally (like celebrity posts) and assemble the final paper at your doorstep (like fetching posts from people you follow). The engineering decision of "when do we assemble the feed" — at write time or read time — is the core tradeoff in this design.
+
+At 300 million daily active users each checking their feed 10 times a day, the system must serve 35 000 feed reads per second. Getting a feed must be fast — under 100 ms. The challenge is that a popular account ("celebrity") might have 100 million followers: writing one post triggers 100 million updates. That is the celebrity problem.
+
+#### How It Works
+
+**Scale numbers:**
 ```
-10M notifications/day = ~115/second average
-Peak: 10x average = 1,150/second
-
-Storage:
-  Notification record: ~500 bytes
-  10M/day * 500 bytes = 5 GB/day
-  Retention: 90 days = 450 GB
-```
-
-### Architecture
-
-```
-          Trigger Sources
-    +-------+--------+--------+
-    |       |        |        |
-  [App]  [Batch]  [Event]  [Admin]
-  Service  Job     Stream   Console
-    |       |        |        |
-    +-------+--------+--------+
-                  |
-         [Notification Service]
-          (API + Validation)
-                  |
-         Persist notification
-         to DB (Cassandra)
-                  |
-          +-------+-------+
-          |               |
-      [Message Queue]  [User Preference
-       (Kafka)          Service / Cache]
-          |
-    +-----+------+------+
-    |            |      |
-[Email        [SMS   [Push
- Worker]      Worker] Worker]
-    |            |      |
-  [SES/        [Twilio] [FCM /
-  SendGrid]             APNs]
-    |            |      |
-    +-----+------+------+
-          |
-   [Delivery Tracking DB]
-   (status: queued/sent/failed)
-          |
-   [Retry Service]
-   (exponential backoff)
+Feed reads = 300M DAU × 10 checks/day / 86,400 = 35,000 RPS
+Post writes = 50M posts/day / 86,400 = 580 writes/sec (trivial)
+Fanout ops = 50M posts × 200 avg followers = 10B ops/day ≈ 115,000 fanout ops/sec
 ```
 
-### Components Deep Dive
+**Three fanout strategies:**
 
-#### Notification Service (Entry Point)
-- Validates request (user exists, channel available, not opted-out).
-- Checks user notification preferences from cache.
-- Publishes to Kafka topic per channel: `notifications.email`, `notifications.sms`, `notifications.push`.
-- Writes notification record with status=QUEUED.
+```
+Approach 1: Fanout on Write (Push Model)
+  When user posts → immediately write postId to each follower's feed cache
+  
+  POST /post → [Post Service] → Kafka → [Fanout Workers]
+                                              │
+                                              ▼
+                                  For each follower_id:
+                                    ZADD feed:{follower_id} <timestamp> <post_id>
+  
+  Pros: Feed reads are O(1) — one Redis ZREVRANGE call
+  Cons: Celebrity with 100M followers = 100M Redis writes per post
+        → 100M × ~1 μs ≈ 100 seconds of write time (unacceptable)
 
-#### Message Queue (Kafka)
-- Each channel = dedicated topic with multiple partitions.
-- Partitioned by `user_id` — ensures ordering per user.
-- Consumer groups: email-workers, sms-workers, push-workers.
+Approach 2: Fanout on Read (Pull Model)
+  Feed assembled at read time by querying all followees
+  
+  GET /feed → for each followee_id in following_list:
+                  fetch latest N posts from user_timeline:{followee_id}
+              → merge, sort by timestamp, return top 20
+  
+  Pros: no write amplification; writes are cheap
+  Cons: if you follow 200 people, that is 200 DB queries per feed load
+        → 200 queries × 35K RPS = 7M DB queries/sec (impossible)
 
-#### Channel Workers
+Approach 3: Hybrid (production choice — Twitter, Instagram)
+  Rule: regular users (< 1M followers) → fanout on write
+        celebrity users (> 1M followers) → fanout on read
+  
+  At feed read time:
+    pre-built feed from Redis (regular followees, already pushed)
+    +
+    on-the-fly fetch of celebrity posts (merged in-memory)
+    =
+    final ranked feed
+```
+
+**Data model:**
+
+```
+Post Table (Cassandra — write-heavy, time-series friendly):
+  post_id     BIGINT (Snowflake ID, sortable by time)  PK
+  user_id     BIGINT
+  content     TEXT
+  media_urls  LIST<TEXT>
+  created_at  TIMESTAMP
+  like_count  COUNTER
+
+Feed Cache (Redis Sorted Set — one set per user):
+  Key:   feed:{user_id}
+  Score: Unix timestamp (higher = newer)
+  Value: post_id
+  
+  ZADD   feed:{user_id} <timestamp> <post_id>   // fanout worker writes
+  ZREVRANGE feed:{user_id} 0 19                  // app reads top 20
+  ZREMRANGEBYSCORE feed:{user_id} 0 <cutoff>     // TTL cleanup (keep 7 days)
+```
+
+**Feed hydration — what happens after reading post IDs from Redis:**
+```
+1. ZREVRANGE feed:{user_id} 0 19         → [post_id_1, post_id_2, ...]
+2. MGET post:{post_id} for all 20 IDs   → batch cache lookup (Redis Hash or Memcached)
+3. Cache miss → Cassandra batch read
+4. Merge with celebrity posts (on-the-fly fetch)
+5. Apply ranking (recency + engagement score)
+6. Return hydrated post objects to client
+```
+
+**Cursor-based pagination (stateless and safe):**
+```
+First request: GET /feed
+  → returns posts + cursor = (timestamp=T, post_id=P)
+
+Next page:     GET /feed?cursor=T,P
+  → ZREVRANGEBYSCORE feed:{user_id} T 0 LIMIT 20
+  → returns next 20 posts older than T
+
+Why not offset pagination?
+  ZRANGE offset 20 → O(offset) — slow for deep pages
+  New posts inserted at top shift offsets → duplicates on next page
+  Cursor is O(log N) and stable across inserts
+```
+
+**Celebrity solutions deep dive:**
+```
+Option A: Hybrid model (above) — standard choice
+Option B: Lazy fanout — fan out to top-N online followers immediately;
+          remaining followers get the post on next feed load (read time)
+Option C: Celebrity timeline cache:
+          ZADD celebrity_timeline:{celebId} <ts> <postId>
+          Every follower's feed read merges this set → no per-follower write
+```
+
+ASCII system flow:
+```
+User Posts
+  │
+  ▼
+[Post Service] ──► Cassandra (post storage)
+  │
+  ▼
+Kafka topic: new_posts
+  │
+  ├─► [Fanout Workers] (regular users)
+  │        │
+  │        └──► Redis: ZADD feed:{follower_id}  (for each follower)
+  │
+  └─► [Celebrity Timeline Cache] (celebrity users)
+           │
+           └──► Redis: ZADD celebrity_timeline:{user_id}
+
+User Reads Feed
+  │
+  ▼
+[Feed Service]
+  ├── ZREVRANGE feed:{user_id}            (pre-built feed)
+  ├── ZREVRANGE celebrity_timeline:{*}   (live merge)
+  └── batch-hydrate post objects from cache/Cassandra
+```
+
+#### Interview Lens
+
+> **How to read this section:** The interviewer wants to see that you understand the fanout problem before designing the solution. State the problem, propose all three approaches, then land on hybrid with a clear explanation of the threshold.
+
+*Quick orientation: every feed design interview reduces to "when do you pay the cost — at write time or read time?" Know the celebrity problem cold.*
+
+**Q1: Explain the fanout problem and how you would solve it.**
+*Design Scenario*
+
+**One-line answer:** Fanout-on-write amplifies writes for high-follower users; the solution is a hybrid that pushes to regular users' Redis feeds but serves celebrity posts lazily at read time.
+
+**Full answer:**
+When a user publishes a post, the system needs to make that post appear in every follower's feed. "Fanout" refers to this one-to-many write amplification — one post fanning out to N follower feeds. For a user with 200 followers, that is 200 Redis writes, which takes microseconds. For a celebrity with 100 million followers, that is 100 million Redis writes — at roughly 1 microsecond each, that is 100 seconds just for one post. A celebrity could not post without causing a system-wide stall.
+
+Pure fanout-on-read solves the write problem but creates a read problem: to assemble your feed, the system queries the timeline of every person you follow. If you follow 200 people, that is 200 database queries every time you open the app. At 35 000 feed requests per second, that is 7 million database queries per second — impossible.
+
+The production solution is a hybrid: identify celebrity accounts — I'd use a threshold like 1 million followers — and treat them differently. Regular-user posts are pushed to follower Redis feeds at write time. Celebrity posts are not pushed; instead, every feed read query fetches the celebrity's timeline on the fly and merges it in-memory with the pre-built feed. The extra read cost for merging a handful of celebrity timelines is trivial compared to the write cost of fanning out to 100 million Redis keys.
+
+*Draw the three-column comparison table on the whiteboard. Say "I'd implement the hybrid with a configurable follower threshold — maybe 1M — that ops can tune." That shows operational thinking.*
+
+> **Gotcha follow-up:** How do you handle a user who follows 10 celebrities with 100 M followers each?
+> The feed read merges up to 10 celebrity timelines in-memory. Each is a ZREVRANGE call on a Redis sorted set — O(log N + K) where K is the number of results. For 10 celebrities × 20 posts each, that is 200 Redis reads in one batch. Redis can serve ~100K simple ops/sec per node, so this is fine. The real concern is latency: 10 serial Redis calls would be slow. I'd batch the celebrity lookups in parallel using a pipeline, then merge results in-memory before returning.
+
+---
+
+**Q2: Why use a Redis Sorted Set for the feed, and how does pagination work?**
+*Concept Check*
+
+**One-line answer:** Sorted Set keeps posts ordered by timestamp automatically (O(log N) insert, O(log N + K) range read) and supports cursor-based pagination via ZREVRANGEBYSCORE.
+
+**Full answer:**
+A Redis Sorted Set is a data structure where every element has a score, and elements are always kept in order by score. I use the post's Unix timestamp as the score, so the set is always sorted newest-first without any sorting step at read time.
+
+For the feed, inserting a new post is `ZADD feed:{user_id} timestamp post_id` — O(log N). Reading the top 20 posts is `ZREVRANGE feed:{user_id} 0 19` — O(log N + 20). This is extremely fast and the right choice for a read-heavy feed.
+
+For pagination, I use cursor-based pagination rather than offset. A cursor is the (timestamp, post_id) of the last seen post. The next page query is `ZREVRANGEBYSCORE feed:{user_id} cursor_timestamp -inf LIMIT 0 20`. This is O(log N + 20) regardless of how deep you paginate, and it is stable: new posts inserted at the top of the feed do not shift the cursor and cause duplicates on the next page. Offset-based pagination — "give me posts 20-40" — has both problems.
+
+*This is a great place to show you know Redis data structures. "ZREVRANGEBYSCORE is the command" is the kind of specificity that signals real experience.*
+
+> **Gotcha follow-up:** What happens to a user's Redis feed if they are offline for 30 days?
+> Fanout workers keep writing to their Redis sorted set while they are offline. After 30 days, the set might hold hundreds of thousands of post IDs. I'd enforce a TTL policy: keep at most 7 days of posts in the feed cache (ZREMRANGEBYSCORE to prune old entries). When a user returns after 30 days, their cache is mostly empty — we fall back to building the feed on-the-fly from Cassandra for the first load, then resume normal fanout. This is acceptable: cold starts are rare and the cost is paid once.
+
+---
+
+**Common Mistakes:**
+- **Mistake:** Applying fanout-on-write to all users including celebrities. → **Why it fails:** 100 M Redis writes per celebrity post stalls the fanout workers and delays regular-user feeds for minutes.
+- **Mistake:** Using offset-based pagination for the feed. → **Why it fails:** Offset pagination is O(offset) in Redis (slow for deep pages) and produces duplicate posts when new content is inserted at the top between page loads.
+- **Mistake:** Storing full post content in the feed Redis set. → **Why it fails:** The feed set should store only post IDs (pointer). Storing full content wastes memory and means updating a post requires touching every follower's feed set.
+
+---
+**Quick Revision:** Push to regular users, pull from celebrities, merge at read time; Redis Sorted Set + cursor pagination; post IDs only in feed cache.
+
+---
+
+## Topic 10: Design a Notification System
+
+#### The Idea
+
+Every time someone likes your photo, follows you, or your flight is delayed, your phone buzzes. Behind each buzz is a notification system — a pipeline that takes a triggering event ("user X liked photo Y"), figures out how to reach the right person across multiple channels (push notification, email, SMS), and delivers it reliably even if third-party providers like Apple's push service or Twilio are temporarily down.
+
+Think of it as a postal sorting office. Packages arrive from many senders (the apps triggering events), get sorted by destination and type (push vs email vs SMS), then dispatched through different courier services (FCM for Android, APNs for iOS, Twilio for SMS, SendGrid for email). The sorting office must guarantee no package is lost, even if one courier is temporarily unavailable.
+
+The engineering challenges are: fan-out to the right channel per user preference, at-least-once delivery with deduplication so a user gets exactly one notification per event, and retry logic that handles third-party provider outages without overwhelming them on recovery.
+
+#### How It Works
+
+**Scale:**
+```
+10M notifications/day / 86,400 = ~115/sec average
+Peak = 10× = 1,150/sec
+Peak is manageable — this is not Twitter-scale fanout
+```
+
+**System architecture:**
+```
+Trigger Sources                 Notification Service        Channel Workers
+─────────────────               ────────────────────        ───────────────
+App Events (like, follow) ──►  │ Validate request    │──►  Email Worker    ──► SES/SendGrid
+Batch jobs (digests)      ──►  │ Check preferences   │──►  Push Worker     ──► FCM / APNs
+Admin broadcasts          ──►  │ Persist to Cassandra│──►  SMS Worker      ──► Twilio
+                               │ Enqueue to Kafka    │──►  In-app Worker   ──► WebSocket
+                               └─────────────────────┘
+                                         │
+                                    Kafka Topics:
+                                  notifications.push
+                                  notifications.email
+                                  notifications.sms
+```
+
+**Why Kafka between the service and workers?**
+Kafka — a distributed message queue that stores events durably on disk and allows consumer groups to process them independently — decouples the trigger rate from the processing rate. If FCM goes down for 10 minutes, push notifications accumulate in the Kafka topic and are processed when FCM recovers. Without Kafka, you would need to synchronously wait for FCM or lose the notification.
+
+Partitioning by `user_id` ensures notifications to the same user are processed in order.
+
+**Channel workers — what each one does:**
 ```
 Email Worker:
-  1. Consume from notifications.email topic
-  2. Fetch template from Template Service
-  3. Render HTML with user data
+  1. Consume from notifications.email
+  2. Fetch template by notification_type
+  3. Render HTML (inject user name, event details)
   4. Call SES/SendGrid API
-  5. Update delivery status in DB
-  6. On failure: dead-letter queue (DLQ)
+  5. Update notification status → SENT
 
 Push Worker:
-  1. Consume from notifications.push topic
-  2. Look up device tokens from Device Token Store
-  3. Call FCM (Android) or APNs (iOS)
-  4. Handle token expiry: remove stale tokens
-  5. Update delivery status
+  1. Consume from notifications.push
+  2. Lookup device token(s) from DynamoDB for user_id
+  3. Call FCM (Android) or APNs (iOS) HTTP API
+  4. Handle token expiry → delete stale token from DynamoDB, skip
+  5. Update status → SENT
 
 SMS Worker:
-  1. Consume from notifications.sms topic
-  2. Call Twilio API with E.164 phone number
-  3. Update delivery status
+  1. Consume from notifications.sms
+  2. Validate E.164 phone number format (+1XXXXXXXXXX)
+  3. Call Twilio REST API
+  4. Update status → SENT
 ```
 
-#### Retry with Exponential Backoff
+**Retry with exponential backoff:**
 ```
 Attempt 1: immediate
-Attempt 2: +30 seconds
-Attempt 3: +2 minutes
-Attempt 4: +10 minutes
+Attempt 2: +30 sec
+Attempt 3: +2 min
+Attempt 4: +10 min
 Attempt 5: +1 hour
-After 5 failures: move to DLQ, alert on-call
+After 5 failures: move to DLQ (Dead Letter Queue)
+                  alert on-call engineer
+                  do not retry automatically
+
+Why backoff? A failing provider is likely overloaded.
+Retrying immediately makes it worse (thundering herd).
+Exponential spacing gives the provider time to recover.
 ```
 
-#### Deduplication
-- Generate idempotency key: `hash(user_id + notification_type + event_id + channel)`.
-- Check Redis cache before processing: `SET dedup:{key} 1 NX EX 86400`.
-- If key exists, skip processing.
+**Deduplication — preventing duplicate notifications:**
 
-### Data Models
+The must-memorise code pattern:
+```java
+// Build a deterministic idempotency key
+String dedupKey = DigestUtils.sha256Hex(
+    userId + ":" + notificationType + ":" + eventId + ":" + channel
+);
 
-**Notification Record (Cassandra)**
-```
-notification_id  BIGINT PK
-user_id          BIGINT
-type             VARCHAR  (ORDER_SHIPPED, FRIEND_REQUEST, etc.)
-channel          VARCHAR  (EMAIL, SMS, PUSH)
-payload          TEXT     (JSON)
-status           VARCHAR  (QUEUED, SENT, FAILED, DELIVERED)
-created_at       TIMESTAMP
-sent_at          TIMESTAMP
-retry_count      INT
-```
+// Atomic check-and-set in Redis (NX = only set if Not eXists, EX = TTL in seconds)
+Boolean isNew = redisTemplate.opsForValue()
+    .setIfAbsent("dedup:" + dedupKey, "1", Duration.ofHours(24));
 
-**User Preferences (MySQL + Redis cache)**
-```
-user_id       BIGINT PK
-channel       VARCHAR
-notif_type    VARCHAR
-enabled       BOOLEAN
+if (Boolean.FALSE.equals(isNew)) {
+    // Already processed — skip silently
+    return;
+}
+// Process notification...
 ```
 
-**Device Tokens (DynamoDB)**
+If the key already exists in Redis, the notification was already sent in the last 24 hours and we skip it. This handles at-least-once Kafka delivery (messages can be re-delivered on consumer restart) without sending duplicate notifications.
+
+**Data models:**
 ```
-user_id     BIGINT PK
-device_id   VARCHAR SK
-platform    VARCHAR  (IOS, ANDROID)
-token       VARCHAR
-updated_at  TIMESTAMP
+Notification record (Cassandra — high write throughput):
+  notification_id UUID (Snowflake) PK
+  user_id         BIGINT
+  type            TEXT (LIKE, FOLLOW, MESSAGE, PROMO)
+  channel         TEXT (PUSH, EMAIL, SMS)
+  payload         TEXT (JSON)
+  status          TEXT (QUEUED | SENT | FAILED | DELIVERED)
+  created_at      TIMESTAMP
+  retry_count     INT
+
+User preferences (MySQL + Redis cache):
+  user_id     BIGINT PK
+  channel     TEXT
+  notif_type  TEXT
+  enabled     BOOLEAN
+
+Device tokens (DynamoDB):
+  PK: user_id
+  SK: device_id
+  platform: ANDROID | IOS | WEB
+  token: TEXT
+  updated_at: TIMESTAMP
 ```
 
-### Third-Party Integration Notes
-| Provider | Platform | Notes |
+**Third-party providers:**
+
+| Provider | Platform | Key detail |
 |---|---|---|
-| FCM (Firebase Cloud Messaging) | Android, Web | HTTP v1 API, project-scoped auth |
-| APNs (Apple Push Notification) | iOS, macOS | HTTP/2 with JWT or certificate auth |
-| Twilio | SMS | REST API, E.164 format required |
-| SendGrid / SES | Email | SMTP or HTTP API, handle bounces |
+| FCM (Firebase Cloud Messaging) | Android, Web | HTTP v1 API; project-scoped OAuth token |
+| APNs (Apple Push Notification service) | iOS, macOS | HTTP/2 + JWT or certificate auth; token must match app bundle |
+| Twilio | SMS | REST API; number must be in E.164 format (+1XXXXXXXXXX) |
+| SendGrid / Amazon SES | Email | Handle bounces and unsubscribes via webhook callbacks |
 
-### Reliability Patterns
-- **At-least-once delivery** via Kafka consumer commit after processing.
-- **Idempotency** at the third-party call layer (use idempotency keys in SES/Twilio).
-- **Circuit breaker** on third-party calls (Hystrix / Resilience4j).
-- **Rate limiting** per user per channel per hour to avoid spam.
+**Reliability patterns:**
+```
+At-least-once delivery:
+  Kafka consumer commits offset AFTER successfully calling provider
+  (not before — if we commit before calling and the call fails, the message is lost)
+
+Circuit breaker (Resilience4j):
+  if FCM failure_rate > 50% in last 10 seconds:
+    open circuit → stop calling FCM → return failure immediately
+    → after 30 seconds: half-open → allow 1 probe request
+    → if probe succeeds: close circuit → resume normal processing
+
+Rate limiting per user per channel:
+  User should not receive more than N push notifications per hour
+  Prevents "notification spam" from misconfigured batch jobs
+```
+
+ASCII flow with retry:
+```
+Kafka: notifications.push
+  │
+  ▼
+[Push Worker]
+  ├── check user preference (Redis cache) → skip if opted out
+  ├── check dedup key (Redis SET NX) → skip if duplicate
+  ├── lookup device token (DynamoDB)
+  ├── call FCM/APNs (with circuit breaker)
+  │     ├── success → commit Kafka offset → update status=SENT
+  │     └── failure → do NOT commit offset → Kafka redelivers
+  │                   retry count++ → if >5 → DLQ + alert
+  └── update notification record status (Cassandra)
+```
+
+#### Interview Lens
+
+> **How to read this section:** Notification system interviews test end-to-end reliability thinking: Kafka for decoupling, deduplication for at-least-once delivery, circuit breakers for third-party failure, and user preference respect. Know all four.
+
+*Quick orientation: the tricky part is not the happy path — it is "what happens when FCM is down for 20 minutes?" Make sure you address that.*
+
+**Q1: How do you guarantee at-least-once delivery without sending duplicate notifications?**
+*Design Scenario*
+
+**One-line answer:** Commit the Kafka offset only after the third-party provider acknowledges delivery, combined with an idempotency key in Redis to deduplicate re-deliveries.
+
+**Full answer:**
+At-least-once delivery means: even if our worker crashes mid-processing, the notification will eventually be delivered. We achieve this through Kafka's offset commit mechanism. Kafka — a distributed log — tracks which messages each consumer has processed via an offset, a number indicating "I have processed up to message N." If our worker processes a message and crashes before committing the offset, Kafka will re-deliver that message to the next worker instance.
+
+The catch is that re-delivery can cause duplicate notifications — the user gets "Alice liked your photo" twice. I prevent this with an idempotency key: a deterministic hash of user ID, notification type, event ID, and channel. Before processing any notification, the worker does a Redis `SET NX` — set this key only if it does not exist — with a 24-hour TTL. If the key already exists, the notification was already sent by a previous worker instance, and we skip it silently. If the key is new, we set it and proceed.
+
+The two mechanisms together give exactly-once semantics from the user's perspective: Kafka ensures we never lose a message (at-least-once), and the Redis idempotency key ensures we never send it twice (deduplication).
+
+*Say: "The commit order matters — commit offset AFTER the provider call succeeds, not before." Draw the failure scenario on the whiteboard.*
+
+> **Gotcha follow-up:** What if the Redis idempotency check itself fails (Redis is down)?
+> If Redis is down, the `SET NX` call throws an exception. I would fail-open: log a warning, skip the dedup check, and proceed with sending. The risk is a duplicate notification. For most notification types, one duplicate in a Redis-down scenario is acceptable. For truly critical notifications — like a payment confirmation — I'd also write the idempotency key to the Cassandra notification record as a fallback check, accepting the higher latency of a DB read.
 
 ---
 
-## 11. Design a Distributed Message Queue
+**Q2: How would you handle a scenario where APNs (Apple's push service) is down for 30 minutes?**
+*Tradeoff Question*
 
-### Problem Statement
-Design a distributed message queue like Apache Kafka — high-throughput, fault-tolerant, persistent, supporting multiple producers and consumers.
+**One-line answer:** The circuit breaker stops calling APNs, messages accumulate safely in Kafka, and the push worker drains the backlog automatically when APNs recovers.
 
-### Clarifying Questions
-- Throughput target? (Kafka does ~1M messages/second per cluster)
-- Message size? (Kafka default max: 1 MB)
-- Retention period? (default 7 days in Kafka)
-- Ordering guarantee? (per-partition or global?)
-- Delivery semantics? (at-least-once, at-most-once, exactly-once)
+**Full answer:**
+I would rely on three layers working together. First, the circuit breaker — a pattern implemented with Resilience4j that monitors the failure rate of calls to APNs. If more than 50% of calls fail in a 10-second window, the circuit "opens" — the worker immediately returns a failure without calling APNs, preventing unnecessary load on both our system and Apple's servers. Every 30 seconds it allows one probe request; if that succeeds, the circuit closes and normal processing resumes.
 
-### Capacity Estimation
-```
-1M messages/second
-Average message size: 1 KB
-Ingestion throughput: 1 GB/second
+Second, Kafka accumulates the unprocessed messages safely during the outage. Because workers are not committing offsets, the messages stay in the topic. Kafka can retain messages for days. When APNs recovers, the circuit closes and workers begin draining the backlog at their normal processing rate.
 
-Storage (7-day retention, 3x replication):
-  1 GB/s * 86400 s/day * 7 days * 3 replicas
-  = ~1.8 PB
+Third, I would monitor the consumer lag — the difference between the latest message in the topic and the last committed offset — and alert the on-call engineer when lag exceeds a threshold (say, 5 minutes of backlog). This gives visibility without requiring manual intervention.
 
-Brokers needed:
-  Each broker handles ~500 MB/s write
-  1 GB/s / 500 MB/s = 2 brokers minimum
-  With replication overhead: 6-10 brokers
-```
+The one risk: users will receive push notifications 30 minutes late. For most use cases, that is acceptable. If timeliness is critical (real-time alerts, OTP codes), I'd add a separate high-priority Kafka topic that gets preferential worker resources and faster retry intervals.
 
-### Core Concepts
+*This answer shows architectural thinking at three levels: client protection (circuit breaker), data durability (Kafka), and operability (alerting). Mention all three.*
 
-**Topic:** Logical stream of messages (like a table name).
-**Partition:** Ordered, immutable append-only log within a topic. Unit of parallelism.
-**Offset:** Monotonically increasing position of a message within a partition.
-**Producer:** Writes to partitions (can specify key for consistent routing).
-**Consumer:** Reads from partitions, tracks its own offset.
-**Consumer Group:** Set of consumers sharing a topic, each partition assigned to one consumer.
-**Broker:** Server that stores partition data and serves producers/consumers.
+> **Gotcha follow-up:** How do you handle device token expiry? APNs invalidates tokens when a user uninstalls the app.
+> APNs returns a specific error code (410 Gone) when a token is invalid. My push worker checks for this response code and, on receiving it, deletes the stale token from DynamoDB. Future notifications for that user skip the deleted device. I'd also run a weekly batch job to purge tokens that have not been used in 90 days as a hygiene measure.
 
-### Architecture
+---
 
-```
-Producers                  ZooKeeper / KRaft
-  |                        (Cluster Metadata,
-  |  Partition by key      Leader Election)
-  v                               |
-+--------+    +--------+    +-----+-----+
-| Prod 1 |    | Prod 2 |    | Controller|
-+--------+    +--------+    +-----+-----+
-     \              /             |
-      \            /         Assigns leaders
-       v          v               |
-   +---+-----------+---+          |
-   |   Kafka Cluster   |<---------+
-   |                   |
-   |  +-------------+  |
-   |  |  Broker 1   |  |
-   |  | Partition 0 |  |  Leader for P0
-   |  | Partition 3 |  |  Replica for P1
-   |  +-------------+  |
-   |                   |
-   |  +-------------+  |
-   |  |  Broker 2   |  |
-   |  | Partition 1 |  |  Leader for P1
-   |  | Partition 4 |  |  Replica for P0
-   |  +-------------+  |
-   |                   |
-   |  +-------------+  |
-   |  |  Broker 3   |  |
-   |  | Partition 2 |  |  Leader for P2
-   |  | Partition 5 |  |  Replica for P3
-   |  +-------------+  |
-   +-------------------+
-           |
-     Consumer Groups
-     /             \
-[Group A]        [Group B]
-C1: P0,P1        C3: P0,P1,P2
-C2: P2,P3        (only one consumer)
-```
+**Common Mistakes:**
+- **Mistake:** Committing the Kafka offset before calling the third-party provider. → **Why it fails:** If the provider call fails after the commit, the message is permanently lost. Always commit only after confirmed delivery.
+- **Mistake:** Writing notification analytics inline to the same database as notification records. → **Why it fails:** High-volume analytics writes compete with the status-update writes from workers, causing contention. Analytics should go to a separate store (ClickHouse, BigQuery) via Kafka.
+- **Mistake:** Not checking user preferences before calling the provider. → **Why it fails:** Sending a notification to a user who has opted out violates their preference, can violate regulations (GDPR, CAN-SPAM), and wastes Twilio/SES budget. Always check preferences first — ideally from a Redis cache backed by MySQL.
 
-### Storage Engine
+---
+**Quick Revision:** Kafka decouples trigger from delivery; commit offset after provider ack; Redis SET NX for dedup; circuit breaker for provider outages.
 
-Each partition is a **segmented append-only log** on disk:
+---
+
+## Topic 11: Design a Distributed Message Queue (Kafka)
+
+#### The Idea
+
+Imagine a very busy post office where thousands of senders are dropping off letters every second and thousands of recipients are picking them up — but the senders and recipients never have to meet, and no letter is ever lost even if the post office temporarily closes one of its counters. That is what a distributed message queue does: it decouples the producers of data from the consumers of data using a persistent, ordered, fault-tolerant log.
+
+Apache Kafka organises messages into **topics** (think of a topic as a named mailbox — "orders", "payments", "clicks"). Each topic is split into **partitions**, which are the actual files on disk. A partition is an append-only, immutable log: messages are written to the end, never in the middle. The position of a message inside a partition is called its **offset** — a monotonically increasing number that never resets. Consumers remember which offset they have processed, so they can resume exactly where they left off.
+
+At the scale of a real system, this means 6–10 broker machines each holding a slice of every topic's partitions, replicas on neighbour machines for fault tolerance, and consumers organised into **consumer groups** so that each partition is read by exactly one consumer in the group at a time — giving you horizontal read parallelism without duplicate processing.
+
+#### How It Works
+
+**Storage engine per partition:**
 
 ```
-Partition 0 data directory:
-  00000000000000000000.log       (segment file, messages)
-  00000000000000000000.index     (sparse offset -> byte position index)
-  00000000000000000000.timeindex (timestamp -> offset index)
-  00000000000001234567.log       (newer segment after rotation)
-  ...
-
-Message format (binary):
-  [offset: 8B][message_size: 4B][CRC: 4B][magic: 1B]
-  [attributes: 1B][timestamp: 8B][key_length: 4B][key]
-  [value_length: 4B][value]
+partition-0/
+  00000000000000000000.log       ← raw message bytes, append-only
+  00000000000000000000.index     ← sparse map: offset → byte position in .log
+  00000000000000000000.timeindex ← sparse map: timestamp → offset
 ```
 
-**Why append-only log is fast:**
-- Sequential disk writes (no seek penalty — SSD or HDD).
-- OS page cache handles read-heavy workloads.
-- Zero-copy transfer: `sendfile()` syscall to send from page cache directly to network socket.
-
-### Replication
-
-- Each partition has one **leader** and N-1 **followers** (replicas).
-- Producers write to leader only.
-- Followers fetch from leader (pull-based replication).
-- **ISR (In-Sync Replicas):** set of replicas within a configurable lag.
-- `acks=all`: producer waits for all ISR replicas to acknowledge.
-- If leader fails, controller elects a new leader from ISR.
-
+Each message on disk:
 ```
-Producer writes to Leader (P0 on Broker 1):
-  Broker 1 (Leader P0)  <-- write
-       |
-       +---> Broker 2 (Follower P0) fetches
-       |
-       +---> Broker 3 (Follower P0) fetches
-
-ISR = {Broker1, Broker2, Broker3} if all in sync
-ISR = {Broker1, Broker2} if Broker3 lags behind
+[offset 8B][size 4B][CRC 4B][magic 1B][attributes 1B][timestamp 8B][key][value]
 ```
 
-### Consumer Groups and Offset Management
+Why append-only is fast: sequential disk writes have no seek penalty. The OS page cache keeps hot segments in RAM. Kafka uses the `sendfile()` syscall (zero-copy) to move data from page cache directly to the network socket without copying into user space.
+
+**Replication flow:**
 
 ```
+Producer ──write──▶ Leader (Broker 1)
+                         │
+              ┌──pull────┴────pull──┐
+              ▼                     ▼
+         Follower (Broker 2)   Follower (Broker 3)
+         (ISR)                 (ISR)
+```
+
+- Producers always write to the **leader** of a partition.
+- Followers **pull** from the leader (pull-based replication).
+- **ISR (In-Sync Replicas):** replicas within a configurable lag threshold. If a follower falls too far behind it is removed from ISR.
+- `acks=all` (or `acks=-1`): producer waits until **all ISR** have acknowledged. Strongest durability, higher latency.
+- If the leader crashes, the Kafka controller elects a new leader from the ISR.
+
+**Consumer groups and offset management:**
+
+```
+Topic "orders" — 6 partitions: P0 P1 P2 P3 P4 P5
 Consumer Group "order-processors":
-  Topic: orders (6 partitions P0-P5)
-  Consumer A -> P0, P1
-  Consumer B -> P2, P3
-  Consumer C -> P4, P5
-
-Each consumer commits its offset to __consumer_offsets topic.
-
-Rebalance triggered when:
-  - New consumer joins group
-  - Consumer crashes / leaves
-  - New partitions added
+  Consumer A → P0, P1
+  Consumer B → P2, P3
+  Consumer C → P4, P5
 ```
 
-### Delivery Semantics
+Offsets are committed to an internal topic `__consumer_offsets`. A **rebalance** is triggered when a consumer joins, crashes, or new partitions are added — partitions are redistributed across surviving consumers.
 
-| Semantic | How | Tradeoff |
+**Delivery semantics:**
+
+| Semantic | Mechanism | Tradeoff |
 |---|---|---|
-| At-most-once | Commit offset before processing | May lose messages on crash |
-| At-least-once | Commit offset after processing | May process message twice |
-| Exactly-once | Transactional API (idempotent producer + atomic commit) | Higher latency, complexity |
+| At-most-once | Commit offset *before* processing | Fast; may lose messages on crash |
+| At-least-once | Commit offset *after* processing | Safe; may process a message twice |
+| Exactly-once | Transactional API (idempotent producer + atomic offset commit) | Strongest guarantee; higher latency |
 
-**Exactly-once implementation:**
+**Exactly-once — must-memorise Java:**
+
+```java
+producer.initTransactions();
+producer.beginTransaction();
+producer.send(record);
+// offset commit is part of the transaction — atomic with the send
+consumer.commitSync(offsetsToCommit);
+producer.commitTransaction(); // or producer.abortTransaction() on error
 ```
-producer.initTransactions()
-producer.beginTransaction()
-  producer.send(record)
-  consumer.commitSync(offsetsToCommit)  // included in transaction
-producer.commitTransaction()
-// OR
-producer.abortTransaction()
-```
 
-### Key Design Decisions
+The idempotent producer assigns each message a producer ID + sequence number; the broker deduplicates retries. The transactional commit fence ensures the offset advance and the new message land together or not at all.
 
-1. **Partition count:** More partitions = more parallelism but more overhead. Rule: partitions >= consumers in the largest consumer group.
-2. **Retention policy:** Time-based (7 days) or size-based (log.retention.bytes). Log compaction for event sourcing (keep last value per key).
-3. **Compaction:** For changelog topics, Kafka retains only the latest message per key.
+**Key design decisions:**
+
+- **Partition count:** more partitions = more parallelism but more open file handles and rebalance cost. Rule of thumb: partitions ≥ consumers in the largest consumer group.
+- **Retention:** `log.retention.hours=168` (7 days) or `log.retention.bytes` per partition.
+- **Log compaction:** for changelog topics (e.g. user profile updates), Kafka keeps only the *latest* message per key, discarding older ones — giving you an eventually consistent key-value view.
+
+**Back-of-envelope:**
+- 1 M messages/sec × 1 KB = 1 GB/sec ingestion
+- 7-day retention × 3× replication × 1 GB/s × 86 400 s ≈ 1.8 PB total storage → 6–10 brokers with large NVMe disks
+
+#### Interview Lens
+
+> **How to read this section:** These questions mirror what interviewers ask when they say "design a message queue" or "how does Kafka work under the hood." The first question tests conceptual grasp; the second tests durability reasoning; the third is a common design-scenario follow-up.
+
+*Quick orientation: Lead with the append-only log and zero-copy I/O when asked why Kafka is fast. Lead with ISR and acks when asked about durability. Lead with consumer groups and offsets when asked about exactly-once.*
 
 ---
 
-## 12. Design a Distributed Cache
+**Q1: Why is Kafka so much faster than a traditional message broker like RabbitMQ?**
+*Concept Check*
 
-### Problem Statement
-Design a distributed in-memory cache like Redis that supports get/set, eviction, sharding across nodes, and high availability.
+**One-line answer:** Kafka uses sequential disk writes to an append-only log and zero-copy `sendfile()` to eliminate data copies between disk and network.
 
-### Clarifying Questions
-- Data size? (fit entirely in RAM across cluster?)
-- Read/write ratio? (typically 10:1 or higher for cache)
-- Consistency requirement? (eventual OK? or strong?)
-- HA required? (Redis Sentinel / Cluster)
-- Which data structures? (strings, hashes, sorted sets, lists)
+**Full answer:**
+I would explain that Kafka's speed comes from three layered decisions. First, every partition is an append-only log — the broker never seeks to a random position on disk to update a message; it only ever writes to the end. Sequential I/O on spinning disks is ten times faster than random I/O, and on SSDs it saturates the bus. Second, the operating system page cache holds recently written segments in RAM automatically. Kafka does not manage its own memory buffer — it delegates that to the OS, which is very good at it. Third, when a consumer fetches, Kafka calls the `sendfile()` system call, which transfers data from page cache directly to the network socket entirely in kernel space. There is no copy into user space, no serialisation step. This zero-copy path is why a single broker can push gigabytes per second to multiple consumers simultaneously without the CPU becoming a bottleneck.
 
-### Capacity Estimation
-```
-Cache: 100 GB total data
-Nodes: 10 nodes * 16 GB RAM = 160 GB (buffer for overhead)
-Throughput: 100K ops/second per node
-Total: 1M ops/second for 10-node cluster
-Replication factor: 2 (each key on 2 nodes)
-```
+*Say this over about 60 seconds. Sketch the path: disk → page cache → sendfile → NIC. Contrast with RabbitMQ, which routes each message through an in-memory queue and ACK protocol.*
 
-### Architecture
-
-```
-         Clients
-         /     \
-     App1      App2
-       |          |
-       v          v
-  +---------+  +---------+
-  | Redis   |  | Redis   |   Cluster Bus
-  | Node 1  |--| Node 2  |---(gossip protocol)
-  | (M)     |  | (M)     |
-  | Slots   |  | Slots   |
-  | 0-5460  |  |5461-10922|
-  +---------+  +---------+
-       |              |
-  +---------+  +---------+
-  | Redis   |  | Redis   |
-  | Node 1  |  | Node 2  |
-  | Replica |  | Replica |
-  +---------+  +---------+
-
-  ... Node 3 (M): slots 10923-16383
-  ... Node 3 (R): replica of Node 3
-```
-
-### Consistent Hashing for Sharding
-
-**Naive sharding (modulo):** `node = hash(key) % N`
-- Problem: When N changes (add/remove node), almost all keys remap.
-
-**Consistent Hashing:**
-- Hash space is a ring 0..2^32.
-- Each node occupies a position on the ring (multiple virtual nodes for balance).
-- Key maps to the first node clockwise on the ring.
-- Adding/removing a node only remaps ~K/N keys (K=total keys, N=nodes).
-
-```
-Hash Ring (0 to 2^32):
-
-         0
-         |
-    +----+----+
-    |         |
-   NodeA     NodeB (1/4 of ring each with vnodes)
-    |         |
-    +----+----+
-         |
-       NodeC
-
-Key K: hash(K) -> position on ring -> clockwise to next node
-```
-
-**Redis Cluster uses hash slots** (not true consistent hashing):
-- 16,384 hash slots total.
-- `slot = CRC16(key) % 16384`
-- Each node owns a range of slots.
-- Migration = move slots between nodes.
-
-### Eviction Policies
-
-| Policy | Description | Use Case |
-|---|---|---|
-| `noeviction` | Return error when memory full | Never lose data |
-| `allkeys-lru` | Evict least recently used from all keys | General purpose cache |
-| `volatile-lru` | LRU only among keys with TTL set | Mixed persistent + cache |
-| `allkeys-lfu` | Evict least frequently used | Skewed access patterns |
-| `volatile-ttl` | Evict key closest to expiry | Time-sensitive data |
-| `allkeys-random` | Random eviction | When access is uniform |
-
-**LRU Implementation (approximate in Redis):**
-- Redis samples a random set of keys and evicts the LRU among the sample.
-- Configurable sample size: `maxmemory-samples 5` (default).
-- True LRU would require O(N) extra memory.
-
-### Cache Invalidation Strategies
-
-**1. TTL (Time-To-Live):** Set expiry at write time.
-```
-SET user:123 {data} EX 3600   -- expires in 1 hour
-```
-Simple, but stale data possible until expiry.
-
-**2. Write-Through:** Update cache and DB atomically.
-```
-write(key, value):
-  DB.update(key, value)    -- synchronous
-  Cache.set(key, value)    -- synchronous
-```
-Always consistent. Higher write latency.
-
-**3. Write-Behind (Write-Back):** Write to cache first, async flush to DB.
-```
-write(key, value):
-  Cache.set(key, value)          -- synchronous
-  async: DB.update(key, value)   -- async (queue)
-```
-Low write latency. Risk of data loss if cache crashes.
-
-**4. Cache-Aside (Lazy Loading):** Application manages cache.
-```
-read(key):
-  val = Cache.get(key)
-  if val == null:
-    val = DB.get(key)       -- cache miss
-    Cache.set(key, val, TTL)
-  return val
-```
-Most common pattern. Stale data risk. Data only loaded when needed.
-
-**5. Event-Driven Invalidation (CDC):**
-```
-DB Change --> CDC (Debezium) --> Kafka --> Cache Invalidation Service --> DEL key
-```
-Most accurate. Complex to operate.
-
-### Cache Stampede (Thundering Herd)
-
-**Problem:** Popular key expires. Thousands of requests hit DB simultaneously.
-
-**Solutions:**
-
-1. **Mutex/Lock:**
-```
-val = Cache.get(key)
-if val == null:
-  if Lock.acquire(key, timeout=5s):
-    val = DB.get(key)
-    Cache.set(key, val, TTL)
-    Lock.release(key)
-  else:
-    val = Cache.get(key)  // retry after lock released
-```
-
-2. **Probabilistic Early Expiry (XFetch):**
-```
-// Recompute with probability increasing as TTL decreases
-current_time = now()
-if current_time - delta * beta * log(random()) > expiry_time:
-    recompute_and_cache()
-```
-
-3. **Background refresh:** Before key expires, a background job refreshes it.
-
-### Replication and High Availability
-
-**Redis Sentinel (1 master, N replicas):**
-```
-        [Sentinel 1]
-       /      |      \
-      /       |       \
-[Master]  [Sentinel 2]  [Sentinel 3]
-    |
-[Replica 1]
-[Replica 2]
-
-Failover: if master unreachable by quorum of sentinels,
-          promote a replica to master.
-```
-
-**Redis Cluster (sharding + HA):**
-- 3 primary + 3 replica minimum.
-- Automatic failover without sentinel.
-- Cross-slot transactions not supported.
+> **Gotcha follow-up:** What happens when the page cache is cold — say, a consumer is reading 3-day-old data?
+> The data is not in page cache and must be read from disk. This is a real operational problem called "consumer lag causing cache thrashing." The fix is to ensure consumers stay close to the head of the log so they benefit from the warm cache, and to provision enough RAM that even older segments stay resident. In extreme cases, you separate old-replay consumers onto different broker nodes so they do not evict the cache that live consumers rely on.
 
 ---
 
-## 13. Design a Search Autocomplete System
+**Q2: How does Kafka guarantee exactly-once delivery?**
+*Tradeoff Question*
 
-### Problem Statement
-Design the autocomplete/typeahead feature that suggests top-K search queries as a user types (e.g., Google search bar).
+**One-line answer:** By combining an idempotent producer (dedup by sequence number) with transactional commits that atomically group the message send and the offset advance.
 
-### Clarifying Questions
-- How many daily active users? (1B for Google scale)
-- Latency requirement? (<100ms from keypress to suggestion)
-- How many suggestions? (5-10)
-- Real-time or near-real-time frequency updates?
-- Personalized suggestions or global?
+**Full answer:**
+I would walk through the three guarantees in order. At-most-once is trivial — commit the offset before you process, and if the consumer crashes after committing but before finishing, the message is skipped. At-least-once is the default safe mode — commit after processing, so a crash means you reprocess. For exactly-once, Kafka adds two mechanisms. The idempotent producer assigns a producer ID and a per-partition sequence number to every message. If the broker receives a duplicate retry, it recognises the sequence number and drops it. Then the transactional API wraps a batch of sends together with the offset commit into an atomic unit — either everything lands or nothing does. I would then note the tradeoff: exactly-once requires the transactional coordinator to do a two-phase-commit-like dance, which adds latency and reduces throughput by roughly 20–30%. For most applications, at-least-once with idempotent consumers is sufficient and cheaper.
 
-### Capacity Estimation
-```
-5B searches/day
-Average query length: 5 words = ~20 chars
-Each keystroke = autocomplete request
+*Spend 30 seconds on the idempotent producer, 30 seconds on the transactional API. Draw the timeline: beginTransaction → send → commitSync(offsets) → commitTransaction.*
 
-Requests: 5B searches * 20 keystrokes = 100B requests/day
-          = 100B / 86400 = ~1.2M requests/second (peak: 5M RPS)
+> **Gotcha follow-up:** Does exactly-once work across services — for example, a Kafka consumer that writes to a database?
+> No — the Kafka transactional API only covers Kafka-to-Kafka flows (producer + consumer offset in one transaction). If the consumer writes to an external database, you are back to at-least-once unless you implement idempotency at the database layer yourself — for example, by using a unique message ID as a primary key so duplicate inserts are ignored.
 
-Storage (trie for top queries):
-  Top 5M unique queries * 30 bytes each = 150 MB per trie
-  With frequency + metadata: ~5 GB total
-  (fits in memory easily)
-```
+---
 
-### Trie Data Structure
+**Q3: A partition's leader broker crashes. Walk me through what happens.**
+*Design Scenario*
 
-```
-Trie storing: "apple", "app", "application", "apply", "apt"
+**One-line answer:** The Kafka controller detects the failure via ZooKeeper/KRaft heartbeat, selects the most up-to-date ISR member as the new leader, and updates the cluster metadata so producers and consumers redirect to the new leader.
 
-          root
-           |
-           a (freq: 500)
-           |
-           p (freq: 500)
-          / \
-         p   t
-        / \   \
-  (app)    l    (apt, freq:50)
- freq:300  |
-    |      i,y
-    e      |  \
-    |    ica  (apply,freq:80)
-   (apple) tion
-  freq:100 (application,freq:120)
+**Full answer:**
+I would describe the sequence step by step. Each broker sends a heartbeat to the controller (in modern Kafka, via KRaft — Kafka's own Raft-based metadata log). When the controller misses heartbeats beyond `replica.lag.time.max.ms`, it marks the broker as dead and starts leader election for every partition that had a leader on that broker. It picks the first replica in the ISR list for each partition — ISR members are by definition within the configured lag threshold, so they have all committed messages. The controller writes the new leader assignment to the metadata log, which is immediately visible to all other brokers and clients via metadata refresh. Producers that hit a `NotLeaderForPartitionException` on the next send call fetch updated metadata and retry to the new leader. The whole process typically completes in under a second with default settings. The one edge case I would flag: if `unclean.leader.election.enable=true`, a broker outside the ISR can be elected — this prevents unavailability but risks message loss, so it should be disabled for durability-critical topics.
 
-Each node stores:
-  - character
-  - children: Map<char, TrieNode>
-  - is_end: boolean
-  - top_k_suggestions: List<(query, frequency)>  ← cached at each node!
-```
+*Say this over 60–75 seconds. Draw the ISR list next to the partition. Mark which replica becomes leader.*
 
-**Why cache top-K at each node?**
-- Without cache: traverse subtree to find top-K = O(subtree size).
-- With cache: return top-K directly = O(1) per node after trie traversal.
-- Trade-off: more memory; updates must propagate up the trie.
+---
+**Common Mistakes:**
+- **Mistake:** Setting `acks=1` (only leader acknowledges) for durable topics → **Why it fails:** if the leader crashes before the follower has replicated, that message is permanently lost even though the producer received a success acknowledgement.
+- **Mistake:** Creating more consumers in a group than there are partitions → **Why it fails:** the extra consumers sit idle — Kafka assigns at most one consumer per partition per group, so you waste resources and get no additional throughput.
+- **Mistake:** Relying on at-least-once delivery without making the consumer idempotent → **Why it fails:** network retries and rebalances guarantee occasional duplicates; if the processing side-effect is not idempotent (e.g. a payment charge), you produce duplicate actions.
 
-### Trie Operations
+---
+**Quick Revision:** Kafka is fast because it is an **append-only log + zero-copy sendfile**; it is durable because of **ISR + acks=all**; it is exactly-once because of **idempotent producer + transactional offset commit**.
 
-**Search for prefix "app":**
-```
-1. Traverse: root -> 'a' -> 'p' -> 'p'
-2. Return node.top_k_suggestions = ["apple", "application", "apply", "app", ...]
-3. O(length of prefix) = O(L)
-```
+---
 
-**Update frequency for query "apple":**
-```
-1. Traverse trie: root -> 'a' -> 'p' -> 'p' -> 'l' -> 'e'
-2. Increment frequency at leaf
-3. Propagate up: update top-K list at each ancestor if "apple" now ranks
-4. O(L * K) where K = top-K size
-```
+## Topic 12: Design a Distributed Cache (Redis)
 
-### System Architecture
+#### The Idea
+
+Think of a distributed cache as a very fast notepad that sits between your application and your slow database. Every time your app needs a piece of information it has recently computed or fetched — say, a user's profile or today's top-selling products — it checks the notepad first. If the answer is already written there, it reads in microseconds. If not, it goes to the database (milliseconds to seconds), writes the answer on the notepad for next time, and returns. Redis is the industry-standard implementation of this idea: a single-threaded, in-memory key-value store that can serve 100,000 operations per second on a single node with sub-millisecond latency.
+
+The challenge at scale is that 100 GB of cached data does not fit on one machine, and one machine is a single point of failure. So you need **sharding** (splitting data across nodes) and **replication** (copying data to standby nodes). Redis solves sharding with a fixed 16,384 **hash slot** system: every key maps to a slot via `CRC16(key) % 16384`, and each node owns a contiguous range of slots. Adding or removing a node means migrating a subset of slots — only K/N keys move rather than all keys.
+
+Equally important is **eviction**: when memory is full, Redis must decide what to throw away to make room. The choice of eviction policy is a design decision with real consequences — the wrong policy can silently drop data your downstream systems depend on.
+
+#### How It Works
+
+**Sharding comparison:**
 
 ```
-         User Types "app..."
-               |
-               v
-        [API Gateway]
-               |
-        [Autocomplete Service]
-        (stateless, horizontally scaled)
-               |
-      +---------+---------+
-      |                   |
-  Cache Hit           Cache Miss
-  (Redis)                 |
-      |           [Trie Service]
-   Return             (in-memory trie
-   top-K              per shard)
-                           |
-                    Return top-K
-                    Store in Redis
-                    (TTL: 1 hour)
+Naive modulo:  node = hash(key) % N
+  → add 1 node → almost every key remaps → cache thundering herd
 
+Consistent hashing:
+  hash ring; add/remove node remaps only K/N keys (where K = keys on ring)
 
-  ---- Trie Build Pipeline ----
-
-  Raw Search Logs
-       |
-  [Log Aggregator] (Kafka)
-       |
-  [Aggregation Service]
-  (Flink / Spark Streaming)
-  Count query frequencies
-  per time window (last 7 days)
-       |
-  [Top Query Store] (S3 or HBase)
-  query -> frequency
-       |
-  [Trie Builder] (weekly/daily batch)
-  Rebuild full trie from top queries
-       |
-  [Trie Servers] (distributed, sharded by prefix)
-  Load new trie (blue/green swap)
+Redis Cluster (what Redis actually uses):
+  16384 hash slots; slot = CRC16(key) % 16384
+  Node A owns slots 0–5460
+  Node B owns slots 5461–10922
+  Node C owns slots 10923–16383
+  Migration = move slot range from A to B; atomic per-slot
 ```
 
-### Distributed Trie (Sharding)
+**Eviction policies:**
+
+| Policy | Behaviour | Best for |
+|---|---|---|
+| `noeviction` | Return error when full | Never discard any data |
+| `allkeys-lru` | Evict least-recently-used across all keys | General-purpose cache |
+| `volatile-lru` | LRU only among keys that have a TTL set | Mix of permanent + cached data |
+| `allkeys-lfu` | Evict least-frequently-used across all keys | Skewed / Zipfian access patterns |
+| `volatile-ttl` | Evict key closest to expiry first | Time-sensitive ephemeral data |
+| `allkeys-random` | Random eviction | Uniform access, don't care which |
+
+Redis uses **approximate LRU**: it samples `maxmemory-samples` random keys (default 5) and evicts the LRU among that sample. True LRU would require a doubly-linked list over all keys — too much memory overhead.
+
+**Cache invalidation strategies:**
+
+```
+1. TTL:           SET key value EX 3600
+   Simple. Stale up to 1 hour. Fine for most read-heavy data.
+
+2. Write-Through: update DB AND cache in the same request
+   Always consistent. Higher write latency. Cache always warm.
+
+3. Write-Behind:  write cache first; async flush to DB later
+   Low write latency. Risk: cache crash before flush = data loss.
+
+4. Cache-Aside:   app checks cache → miss → fetch DB → SET in cache → return
+   Most common pattern. Risk: stale window between DB write and TTL expiry.
+
+5. CDC (Change Data Capture):
+   DB write → Debezium reads binlog → Kafka event → Cache Invalidator → DEL key
+   Most accurate. Complex to operate. Eliminates stale window entirely.
+```
+
+**Cache stampede (thundering herd):**
+
+Problem: a popular key expires at T=0, and 10,000 concurrent requests all get a cache miss simultaneously and hammer the database.
+
+```
+Solutions:
+
+1. Mutex/Lock:
+   First thread gets lock, fetches DB, populates cache, releases lock.
+   Other threads wait, then read from cache.
+   Risk: lock holder crash leaves all waiters blocked.
+
+2. Probabilistic Early Expiry (XFetch):
+   As TTL decreases, increase probability of recomputing early.
+   Formula: recompute if (current_time - delta * beta * log(rand())) > expiry
+   Spreads recomputation before expiry hits; no coordination needed.
+
+3. Background Refresh:
+   A scheduled job refreshes the key before TTL expires.
+   Zero stampede risk; requires knowing which keys are "hot".
+```
+
+**Replication and HA:**
+
+```
+Redis Sentinel (single primary):
+  1 master + N replicas
+  3+ Sentinel processes monitor master
+  Quorum (majority) detects failure → promotes best replica → updates clients via pub/sub
+  Drawback: writes still go to single master
+
+Redis Cluster (sharded + HA):
+  Minimum 3 primary + 3 replica (one replica per primary)
+  Each primary owns a slot range; its replica is the failover candidate
+  Automatic failover in ~10–30 seconds
+  Cross-slot transactions (MULTI/EXEC across keys in different slots) NOT supported
+```
+
+#### Interview Lens
+
+> **How to read this section:** Interviewers want to see that you understand the tradeoffs between eviction policies, can reason about cache invalidation correctness, and can design around the stampede problem. These three questions cover that ground.
+
+*Quick orientation: When asked "design a cache", immediately talk about sharding strategy (Redis Cluster / hash slots), eviction policy choice, and at least one invalidation strategy. These are the three axes the interviewer is probing.*
+
+---
+
+**Q1: What is cache stampede and how do you prevent it?**
+*Concept Check*
+
+**One-line answer:** Cache stampede is when a popular key expires and many concurrent requests simultaneously hit the database; you prevent it with mutex locks, probabilistic early expiry, or background refresh.
+
+**Full answer:**
+I would explain the problem first. Imagine a key like `trending_products` is cached with a 5-minute TTL and receives 5,000 requests per minute. The moment that key expires, all 5,000 requests in the next few milliseconds find a cache miss and each independently queries the database — a sudden 5,000x spike. The database crashes or slows down, which makes the key population even slower, extending the window of misses. The three standard defences are: first, a mutex lock where the first thread to detect the miss acquires a Redis lock with `SET lock NX PX 5000`, fetches and populates the cache, then releases the lock — other threads spin-wait and then read from the now-warm cache. This is simple but creates a latency spike for waiters. Second, probabilistic early expiry (XFetch): rather than waiting for the TTL to hit zero, each cache read checks whether it should speculatively recompute the value based on how close to expiry it is — this spreads the work out smoothly. Third, a background refresh job watches hot keys and refreshes them before they expire. I would choose the mutex for simplicity in most cases, and background refresh for keys I know are always hot, like a homepage feed.
+
+*Deliver this over 60 seconds. Draw the timeline: expiry at T=0, wave of misses, DB spike.*
+
+> **Gotcha follow-up:** What if the thread holding the mutex crashes mid-refresh?
+> The lock has a TTL (set with `PX 5000` — 5 seconds). If the holder crashes, the lock expires and the next waiter acquires it. The risk is a 5-second window where all waiters are blocked, but the cache continues to serve the old stale value if you implement "serve stale while refreshing" — which is a common pattern: keep the old key alive with a separate `_stale` suffix until the new value is ready.
+
+---
+
+**Q2: When would you choose write-through over cache-aside invalidation?**
+*Tradeoff Question*
+
+**One-line answer:** Use write-through when you cannot tolerate any stale reads; use cache-aside when writes are infrequent or stale data is acceptable for a short window.
+
+**Full answer:**
+I would frame this as a consistency vs. complexity tradeoff. Cache-aside is the default for most systems: on a cache miss the application fetches from the database and populates the cache. On a write, the application updates the database and either deletes the cache key or lets the TTL expire. This is simple to implement but has a stale window between the database write and the next cache population. Write-through eliminates that window: every write goes to the database and the cache atomically in the same request. The cache is always warm and always consistent. The downsides are higher write latency (two writes per request), and cache pollution — you cache data that may never be read again. I would use write-through for financial data or session state where stale reads cause incorrect behaviour. I would use cache-aside with short TTLs for product catalogues or recommendation feeds where a few seconds of staleness is invisible to the user. The most accurate option — CDC-based invalidation using Debezium — I would reach for when the cache must reflect the database precisely but I cannot afford to slow down writes, because the invalidation happens asynchronously via Kafka.
+
+*Say this in about 45 seconds. The interviewer is listening for you to articulate the stale window and choose based on domain requirements.*
+
+> **Gotcha follow-up:** Can write-through and cache-aside be used together?
+> Yes — this is actually a common hybrid. You use write-through for a small set of hot, consistency-critical keys (like a user's account balance) and cache-aside for the much larger set of read-heavy, tolerance-for-staleness keys (like product descriptions). The key insight is that cache policy is per-key-type, not per-system.
+
+---
+**Common Mistakes:**
+- **Mistake:** Using `noeviction` policy on a cache that can grow unboundedly → **Why it fails:** when memory fills, every SET returns an error, effectively breaking the cache for all callers.
+- **Mistake:** Using naive modulo sharding (`hash(key) % N`) and adding nodes → **Why it fails:** almost every existing key maps to a different node, causing a massive cold-cache event and thundering herd on the database during the transition.
+- **Mistake:** Caching the result of a write operation and treating the cache as the source of truth → **Why it fails:** if the cache evicts the key before it is written to the database (write-behind crash, or misconfigured write-through), the data is silently lost.
+
+---
+**Quick Revision:** Redis shards via **16,384 hash slots**; evicts via **approximate LRU**; achieves HA via **Sentinel (single primary) or Cluster (sharded)**; invalidates via **TTL / write-through / CDC**.
+
+---
+
+## Topic 13: Design a Search Autocomplete System
+
+#### The Idea
+
+When you type "appl" into Google and it instantly suggests "apple", "apple stock", "application form" — that is a search autocomplete system at work. The core challenge is not just finding words that start with your prefix — it is finding the **most popular** words that start with your prefix, in under 100 milliseconds, for millions of simultaneous users.
+
+The classic data structure for prefix lookups is a **trie** (pronounced "try", from re*trie*val). A trie is a tree where each edge is a character: the path from the root to any node spells out a prefix, and leaf nodes (or marked nodes) represent complete words. To find all words starting with "app" you walk root→a→p→p and then explore everything below. The trick that makes autocomplete fast is storing the **top-K suggestions at every node** — so instead of exploring the entire subtree below "app", you just read the cached list attached to that node. This trades memory for speed.
+
+At 1 billion daily active users typing 20 keystrokes per search, the request volume is roughly 1.2 million RPS at baseline and 5 million at peak. The trie for the top 5 million queries fits in about 5 GB of RAM, which is easily served from an in-memory cache layer.
+
+#### How It Works
+
+**Trie node structure:**
+
+```
+TrieNode {
+    char c
+    Map<char, TrieNode> children
+    boolean is_end
+    List<String> top_k_suggestions   // cached top-K at this node
+    long frequency                    // if is_end
+}
+```
+
+**Lookup pseudocode:**
+
+```
+function search(prefix):
+    node = root
+    for each char c in prefix:
+        if c not in node.children: return []
+        node = node.children[c]
+    return node.top_k_suggestions    // O(1) with cache
+```
+
+Without the top-K cache, returning results would require a BFS/DFS over the entire subtree — O(subtree size), unacceptably slow. With cache, it is O(L) where L is prefix length, dominated by the trie traversal.
+
+**Update propagation:**
+
+```
+function update(query, newFrequency):
+    // walk to leaf
+    node = traverse(root, query)
+    node.frequency = newFrequency
+    // propagate top-K up each ancestor
+    path = [root, ...ancestors of leaf]
+    for node in reversed(path):
+        node.top_k_suggestions = merge_and_trim_top_k(
+            node.top_k_suggestions, query, K
+        )
+    // O(L × K) — acceptable for batch updates, not real-time
+```
+
+**System architecture:**
+
+```
+User types "app"
+      │
+      ▼
+API Gateway (rate limit, auth)
+      │
+      ▼
+Autocomplete Service
+      │
+      ├─── Redis cache hit? ──▶ return immediately
+      │         (key: "autocomplete:app:5", TTL: 1h)
+      │
+      └─── cache miss ──▶ Trie Service (in-memory)
+                               │
+                               ▼
+                          return top-K
+                               │
+                          SET in Redis + return
+```
+
+**Trie build pipeline (offline):**
+
+```
+Raw search logs (Kafka)
+      │
+      ▼
+Flink / Spark Streaming
+  - sliding 7-day window query counts
+  - weight recent queries more heavily
+  - filter stop words ("the", "a", etc.)
+  - top-N reducer per prefix
+      │
+      ▼
+Top Query Store (S3 / HBase)
+      │
+      ▼
+Trie Builder (daily / weekly batch job)
+      │
+      ▼
+Trie Servers — atomic blue/green hot-reload
+  (new trie loaded into "green" cluster; traffic switched; old "blue" drained)
+```
+
+**Distributed trie sharding:**
 
 ```
 Shard by first 2 characters of prefix:
-  Shard 1: aa-am (queries starting with aa..am)
-  Shard 2: an-az
-  Shard 3: ba-bm
+  Shard 1: aa–am
+  Shard 2: an–az
+  Shard 3: ba–bm
   ...
-  Shard 26+: za-zz
-
-Lookup: hash(prefix[0:2]) -> shard -> query shard
+API Gateway routes request to correct shard based on prefix[0:2].
 ```
 
-### Aggregation Pipeline for Frequency
+**Caching strategy:**
 
 ```
-1. Raw Logs: {user_id, query, timestamp, clicked_suggestion}
-2. Kafka: stream raw events
-3. Flink:
-   - Sliding window: count queries over last 7 days
-   - Weighted: recent queries count more
-   - Filter: remove stop words, malformed queries
-   - Top-N reducer per prefix
-4. Write to frequency store
-5. Trie builder reads frequency store, rebuilds trie
-6. Trie servers do hot-reload (atomic swap)
+Key:   autocomplete:{prefix}:{limit}
+Value: ["apple", "apple stock", "application", "apple music", "apple id"]
+TTL:   1 hour  for common prefixes (a, ap, app...)
+       5 min   for rare prefixes (xyz, zzz...)
+Eviction: LFU — hot prefixes ("go", "face", "the") stay resident
 ```
 
-### Caching Frequent Queries
+**Personalisation (optional layer):**
 
 ```
-Redis cache key: autocomplete:{prefix}:{limit}
-Value: JSON array of suggestions
-TTL: 1 hour for common prefixes, 5 min for rare prefixes
-
-Hit rate: Pareto principle -- top 20% of prefixes get 80% of traffic
-  Cache these aggressively (TTL: 24 hours)
-  Use LFU eviction to keep hot prefixes
+final_score(query, user) = 0.7 × personal_frequency(user, query)
+                         + 0.3 × global_frequency(query)
+Re-rank global top-K using personal signal before returning.
 ```
 
-### Personalization Layer (Optional)
+#### Interview Lens
 
-```
-Global suggestions + User history blend:
-  1. Get global top-K for prefix
-  2. Get user's recent queries matching prefix (from user profile service)
-  3. Merge: user_score = 0.7 * personal_freq + 0.3 * global_freq
-  4. Re-rank and return top-K
-```
+> **How to read this section:** Interviewers ask about autocomplete to test your knowledge of trie data structures, your ability to design a read-heavy low-latency system, and your understanding of offline pipelines that feed real-time services. The questions below cover each layer.
+
+*Quick orientation: Lead with the trie and the top-K cache at each node. Then walk through the architecture: API Gateway → Autocomplete Service → Redis → Trie Service. Then describe the offline Flink pipeline. Address personalisation only if asked.*
 
 ---
 
-## 14. Design a Distributed ID Generator
+**Q1: Why do you cache the top-K results at every trie node rather than computing them on the fly?**
+*Concept Check*
 
-### Problem Statement
-Generate globally unique, roughly-sortable 64-bit IDs at high throughput across distributed services without a single point of failure.
+**One-line answer:** Because computing top-K on the fly requires a full subtree traversal — O(subtree size) — which is too slow at 5 million RPS; caching makes every lookup O(prefix length).
 
-### Requirements
-- Globally unique (no collisions across services/datacenters).
-- Sortable by time (IDs generated later should be numerically larger).
-- High throughput (100K+ IDs/second per node).
-- No single point of failure.
-- 64-bit integer (fits in BIGINT, JavaScript safe integer).
+**Full answer:**
+I would explain the latency math first. A trie for 5 million queries has subtrees that can have hundreds of thousands of nodes below a short prefix like "a". Traversing all of them to find the top-5 most popular results would take tens of milliseconds at minimum — far exceeding the 100ms budget, and that is before network time or serialisation. By storing the top-K list directly at each node, the lookup becomes a simple array read at the end of a prefix walk — O(L) total. The tradeoff is memory: every ancestor of a popular query stores a copy of that query in its top-K list, so the trie uses more RAM. With top-5 caching across 5 million queries, the in-memory trie is roughly 5 GB — easily held in RAM on a single 32 GB server, or sharded across a small cluster. The second tradeoff is write cost: when a query's frequency changes, you must propagate the new top-K up through all ancestor nodes — O(L × K) per update. This is why updates happen in batch (daily or from streaming aggregates), not on every user search.
 
-### Option 1: UUID (v4)
+*Say this over 45 seconds. Draw a trie node with a top-K list attached.*
+
+> **Gotcha follow-up:** What happens if a trending query emerges suddenly — say, a celebrity name that gets searched 10 million times in one hour?
+> The daily batch rebuild would catch it the next day, but for real-time trending you add a streaming layer: Flink counts queries in a sliding 1-hour window and pushes top-K deltas to a "trending overrides" store. The autocomplete service merges the global trie top-K with the trending overrides before returning, weighting recent trending items higher. This is exactly how Twitter and Google handle breaking news queries.
+
+---
+
+**Q2: Walk me through the full request path when a user types the letter "g".**
+*Design Scenario*
+
+**One-line answer:** The request hits the API Gateway, routes to the Autocomplete Service, checks Redis for `autocomplete:g:5`, and on a miss fetches from the in-memory Trie Service, caches the result, and returns within 100ms.
+
+**Full answer:**
+I would walk through each hop and its latency budget. The browser fires a debounced HTTP request after 100–200ms of no typing — so we get one RPS per active keystroke, not one per character typed. The request arrives at the API Gateway, which validates the auth token, applies rate limiting per user, and routes to the Autocomplete Service shard responsible for prefix "g". The service constructs the Redis cache key `autocomplete:g:5` and issues a GET. A cache hit returns the pre-computed JSON array immediately — round-trip latency 1–2ms. On a cache miss, the service calls the in-memory Trie Service, which traverses root→g and returns the top-5 suggestions from the cached node list in microseconds. The Autocomplete Service stores the result in Redis with a 1-hour TTL and returns the response. End-to-end, a cache miss path completes in 10–20ms; a cache hit in 5ms. I would also mention the client-side optimisation: the browser caches results per prefix locally for the session duration, so "go" does not re-fire a network request if the user has already typed "goo" and backspaces.
+
+*Deliver over 60 seconds. Sketch the hop diagram on the whiteboard.*
+
+> **Gotcha follow-up:** How does sharding affect this? What if "g" and "go" are on different shards?
+> With prefix sharding by first two characters, "g_" (single-character prefixes) are a special case — you either route them to a dedicated "short prefix" shard or handle them at the API Gateway by fanout-querying all shards that start with "g" and merging results. Short prefixes like single letters are rare enough that a dedicated shard or a pre-computed static response works fine.
+
+---
+**Common Mistakes:**
+- **Mistake:** Rebuilding the trie on every search event in real time → **Why it fails:** trie updates with top-K propagation are O(L × K) and would saturate the trie servers under load; batch rebuilds with streaming trending overlays is the correct architecture.
+- **Mistake:** Not debouncing API calls on the client → **Why it fails:** every keystroke fires a request, multiplying RPS by 5–10x unnecessarily; debouncing to fire only after 150ms of inactivity is a standard frontend optimisation that dramatically reduces backend load.
+- **Mistake:** Using a single global trie without sharding → **Why it fails:** the trie server becomes a bottleneck and a single point of failure; sharding by prefix distributes both load and failure domains.
+
+---
+**Quick Revision:** Autocomplete = **trie with cached top-K at every node** for O(prefix-length) lookup, fed by an **offline Flink frequency pipeline**, cached in **Redis by prefix**, and served behind an **API Gateway with per-prefix sharding**.
+
+---
+
+## Topic 14: Design a Distributed ID Generator
+
+#### The Idea
+
+Every record in a distributed system needs a unique identifier. In a single-server world, a database auto-increment column does this trivially — the DB hands out 1, 2, 3, 4 in order. But in a distributed system with many application servers, many database shards, and no shared state, you need to generate IDs in parallel across many machines without coordination — and ideally the IDs should sort in roughly the order they were created, so that database index insertions remain efficient.
+
+The naive approach — a random UUID — gives you uniqueness but not sortability. The UUID is 128 bits (36 characters as a string), which inflates index sizes and hurts B-tree locality. The database auto-increment approach gives sortability but creates a single bottleneck and a predictable ID sequence that exposes business metrics to competitors.
+
+Twitter's **Snowflake** format solves all of this: a 64-bit integer (fits in a BIGINT column and a JavaScript safe integer) composed of a millisecond timestamp, a machine ID, and a per-millisecond sequence counter. It is time-sortable, unique across 1,024 nodes, and requires no coordination beyond the initial machine ID assignment.
+
+#### How It Works
+
+**Snowflake bit layout:**
 
 ```
-Format: 8-4-4-4-12 hex characters
-Example: 550e8400-e29b-41d4-a716-446655440000
-Size: 128 bits
-
-Pros:
-  - Trivially generated anywhere (no coordination)
-  - No SPOF
-
-Cons:
-  - 128 bits (vs 64-bit BIGINT in DB)
-  - Not sortable by time
-  - Random distribution = bad for B-tree index locality
-  - String representation is 36 bytes
+|  1 bit   |      41 bits         |   10 bits    |   12 bits   |
+| sign (0) | timestamp (ms since  | machine ID   | sequence    |
+|          | custom epoch)        | (DC + node)  | (per ms)    |
+= 64 bits total
 ```
 
-### Option 2: Database Auto-Increment
+- **Sign bit:** always 0 (keeps IDs positive).
+- **Timestamp (41 bits):** milliseconds since a custom epoch (e.g. Jan 1, 2015). `2^41 / (365 × 24 × 3600 × 1000) ≈ 69 years` of range before overflow.
+- **Machine ID (10 bits):** split as 5-bit datacenter ID + 5-bit machine ID = 32 DCs × 32 machines = **1,024 unique nodes**.
+- **Sequence (12 bits):** counter reset to 0 each millisecond. `2^12 = 4,096 IDs per millisecond per node = 4 million IDs/second/node`.
 
-```
-MySQL: AUTO_INCREMENT
-PostgreSQL: SERIAL / BIGSERIAL
+**Snowflake Java implementation — must-memorise:**
 
-Pros: Simple, human-readable, sequential
-
-Cons:
-  - Single server bottleneck
-  - Predictable (security risk)
-  - Schema coupling between services
-
-Multi-master workaround:
-  Server 1: generates 1, 3, 5, 7, ... (odd)
-  Server 2: generates 2, 4, 6, 8, ... (even)
-  
-  Still limited: hard to add new servers, not truly distributed
-```
-
-### Option 3: Twitter Snowflake (Recommended)
-
-```
- 63    63  62          22   21        12  11          0
-  +-----+---------------+------------+---------------+
-  | sign| 41-bit         | 10-bit     | 12-bit        |
-  |  0  | timestamp (ms) | machine ID | sequence      |
-  +-----+---------------+------------+---------------+
-
-Total: 64 bits
-
-Components:
-  - Sign bit (1): always 0 (positive)
-  - Timestamp (41 bits): ms since custom epoch (Jan 1, 2010)
-    Range: 2^41 = 2.2 trillion ms = ~69 years
-  - Machine ID (10 bits): 2^10 = 1024 nodes
-    Split: 5-bit datacenter + 5-bit machine (32 DCs * 32 machines)
-  - Sequence (12 bits): 2^12 = 4096 IDs/ms per node
-    Total: 4096 * 1000 = 4M IDs/second/node
-```
-
-**Snowflake Implementation (Java pseudocode):**
 ```java
 public class SnowflakeIdGenerator {
-    private static final long EPOCH = 1420041600000L; // Jan 1, 2015
-    private static final long MACHINE_BITS = 10L;
-    private static final long SEQUENCE_BITS = 12L;
-    private static final long MAX_MACHINE = ~(-1L << MACHINE_BITS); // 1023
-    private static final long MAX_SEQUENCE = ~(-1L << SEQUENCE_BITS); // 4095
-    private static final long MACHINE_SHIFT = SEQUENCE_BITS;
-    private static final long TIMESTAMP_SHIFT = SEQUENCE_BITS + MACHINE_BITS;
+    private static final long EPOCH          = 1420041600000L; // Jan 1, 2015
+    private static final long MACHINE_BITS   = 10L;
+    private static final long SEQUENCE_BITS  = 12L;
+    private static final long MAX_MACHINE    = ~(-1L << MACHINE_BITS);   // 1023
+    private static final long MAX_SEQUENCE   = ~(-1L << SEQUENCE_BITS);  // 4095
+    private static final long MACHINE_SHIFT  = SEQUENCE_BITS;            // 12
+    private static final long TIMESTAMP_SHIFT = SEQUENCE_BITS + MACHINE_BITS; // 22
 
     private final long machineId;
     private long lastTimestamp = -1L;
@@ -2038,16 +2461,13 @@ public class SnowflakeIdGenerator {
         long currentMs = System.currentTimeMillis();
         if (currentMs == lastTimestamp) {
             sequence = (sequence + 1) & MAX_SEQUENCE;
-            if (sequence == 0) {
-                // Sequence exhausted, wait for next millisecond
-                currentMs = waitNextMillis(currentMs);
-            }
+            if (sequence == 0) currentMs = waitNextMillis(currentMs);
         } else {
             sequence = 0L;
         }
         lastTimestamp = currentMs;
         return ((currentMs - EPOCH) << TIMESTAMP_SHIFT)
-             | (machineId << MACHINE_SHIFT)
+             | (machineId          << MACHINE_SHIFT)
              | sequence;
     }
 
@@ -2059,562 +2479,314 @@ public class SnowflakeIdGenerator {
 }
 ```
 
-**Properties:**
-- Time-sorted: IDs generated later are numerically larger (within same machine).
-- No coordination needed at generation time.
-- Machine ID provisioned at startup (from ZooKeeper or config service).
+Key lines to explain: `~(-1L << N)` is the bitmask idiom for "the N lowest bits set to 1". `(sequence + 1) & MAX_SEQUENCE` wraps the counter at 4095 back to 0. When it wraps, `waitNextMillis` busy-waits until the clock advances — this is the backpressure mechanism that prevents sequence overflow.
 
-**Clock skew problem:**
-- If system clock goes backward, generator throws exception or waits.
-- NTP should prevent large skews; small skews handled by waiting.
-
-### Option 4: UUID v7 (Modern Alternative)
+**Clock skew handling:**
 
 ```
-UUID v7 layout (128 bits):
-  | unix_ts_ms (48 bits) | ver (4) | rand_a (12) | var (2) | rand_b (62) |
-
-Key difference from v4:
-  - First 48 bits = Unix timestamp in milliseconds
-  - Sortable (monotonic within same millisecond with rand_a counter)
-  - Standard (RFC 9562, 2024)
-  - 128-bit (larger than Snowflake but standard)
-
-Use when: you need standard UUID format but want sortability.
-Use Snowflake when: 64-bit is required (DB BIGINT, JavaScript safe integer).
+if (currentMs < lastTimestamp):
+    // clock went backward (NTP correction, VM suspend/resume)
+    option A: throw exception → caller retries after delta ms
+    option B: wait until currentMs >= lastTimestamp (safe if delta is small)
+    option C: use lastTimestamp + epsilon (monotonic, but risks duplicate if
+              two nodes share machineId — never do this)
 ```
 
-### Comparison Table
+NTP typically keeps skew under 1ms. Large backward jumps (VM pause) should throw.
 
-| Approach | Bits | Sortable | Throughput | Coordination | Recommended |
+**Alternatives comparison:**
+
+| Approach | Bits | Sortable | Throughput | Coordination | Use When |
 |---|---|---|---|---|---|
-| UUID v4 | 128 | No | Unlimited | None | Low cardinality |
-| DB Auto-Increment | 64 | Yes | Low | Centralized | Single-node DB |
-| Snowflake | 64 | Yes | 4M/sec/node | Machine ID only | Distributed systems |
-| UUID v7 | 128 | Yes | Unlimited | None | Modern standard |
+| UUID v4 | 128 | No | Unlimited | None | Low-cardinality IDs, no DB index |
+| DB Auto-Increment | 64 | Yes | Low (single node) | Centralized | Single-node DB, low traffic |
+| Snowflake | 64 | Yes (ms) | 4M/sec/node | Machine ID only | Distributed, 64-bit required |
+| UUID v7 | 128 | Yes (ms) | Unlimited | None | Modern standard, 128-bit OK |
 
-### Production Deployment
+**UUID v7 (RFC 9562, 2024):** first 48 bits = Unix timestamp ms → sortable; bits 49–60 = 12-bit counter for monotonicity within ms. Use when you need standard UUID format with sortability. Use Snowflake when you specifically need a 64-bit integer.
+
+**Production machine ID assignment:**
 
 ```
-[ID Generator Service]
-  - Stateless service, horizontally scalable
-  - Machine ID assigned from ZooKeeper node registration
-  - Exposes: GET /v1/id?count=100 (batch generation)
-  - Clients cache batch of IDs locally to reduce latency
-  
-ZooKeeper /snowflake/workers/
-  /workers/datacenter-1/machine-1 = "5" (machine ID)
-  /workers/datacenter-1/machine-2 = "6"
-  ...
-  Ephemeral nodes: released when service dies
+On service start:
+  Register ephemeral ZooKeeper node at /snowflake/workers/{dc}/{machine_id}
+  If already taken → try next ID
+  Hold the lease (heartbeat every 5s)
+  On shutdown → ephemeral node deleted automatically
+
+API surface:
+  GET /v1/id           → returns single ID
+  GET /v1/id?count=100 → returns batch of 100 IDs
+  Clients cache batch locally → reduces network round-trips
 ```
+
+#### Interview Lens
+
+> **How to read this section:** Interviewers ask ID generation to test bit manipulation reasoning, understanding of distributed coordination, and clock failure edge cases. The Snowflake implementation is the centrepiece — know every line.
+
+*Quick orientation: Start with requirements (globally unique, 64-bit, time-sortable, no SPOF), then present Snowflake as the recommended answer, walk through the bit layout, then address clock skew and machine ID assignment. Mention UUID v7 as a modern alternative.*
 
 ---
 
-## 15. Microservices System Design Patterns
+**Q1: Walk me through how a Snowflake ID is generated and why each field is where it is.**
+*Concept Check*
 
-### Problem Statement
-Design the architecture patterns for decomposing a monolith and operating microservices at scale, covering migration, communication, data consistency, and cross-cutting concerns.
+**One-line answer:** A Snowflake ID is a 64-bit integer with timestamp in the high bits for sortability, machine ID in the middle for uniqueness across nodes, and a sequence counter in the low bits for uniqueness within a millisecond.
 
-### Core Microservices Principles
-1. **Single Responsibility:** Each service owns one bounded context.
-2. **Decentralized Data:** Each service owns its database (no shared DB).
-3. **Communication via APIs:** REST, gRPC, or messaging — no direct DB calls.
-4. **Independent deployment:** Each service deploys independently.
-5. **Failure isolation:** One service failure does not cascade.
+**Full answer:**
+I would build the ID from left to right explaining each decision. The sign bit is always zero so the ID is always a positive long — important because some languages or APIs treat the sign bit specially. The 41-bit timestamp field occupies the highest value bits so that IDs generated later always compare as numerically greater — this is what makes Snowflake IDs lexicographically sortable, which means they insert at the end of a B-tree index rather than in random positions, giving you sequential I/O on inserts. The timestamp is milliseconds since a custom epoch — we choose our own epoch rather than Unix epoch to extend the 69-year range into the future. The 10-bit machine ID guarantees that no two nodes generate the same ID even if they generate one at the same millisecond with the same sequence number. In practice this is split into a 5-bit datacenter ID and a 5-bit machine ID for organisational clarity. The 12-bit sequence counter allows up to 4,096 IDs per millisecond per node before the generator must wait for the next millisecond tick. The `synchronized` keyword on `nextId()` ensures thread safety on a single JVM — if you need higher throughput across multiple threads, you can stripe the sequence across threads or use one generator per thread.
 
----
+*Say this over 60–75 seconds. Write the bit layout on the whiteboard: sign | timestamp | machine | sequence.*
 
-### Pattern 1: Strangler Fig Migration
-
-Incrementally migrate monolith to microservices without a big-bang rewrite.
-
-```
-Phase 1: Facade in front of monolith
-          Client
-            |
-         [Facade / API Gateway]
-            |
-         [Monolith]
-
-Phase 2: Extract first service (e.g., User Service)
-          Client
-            |
-         [API Gateway]
-           / \
-    [User   [Monolith]
-    Service] (remaining features)
-
-Phase 3: Extract more services over time
-          Client
-            |
-         [API Gateway]
-        /    |     \    \
-  [User] [Order] [Notif] [Monolith shrinks]
-
-Phase 4: Monolith eventually replaced or residual
-```
-
-**Steps:**
-1. Put a proxy/facade in front of monolith.
-2. Identify bounded context to extract (strangler point).
-3. Build new microservice in parallel.
-4. Redirect traffic to new service via feature flag.
-5. Delete code from monolith.
-6. Repeat.
-
-**Key risks:** Dual-write period, data migration, integration testing complexity.
+> **Gotcha follow-up:** What is the maximum throughput of a single Snowflake node, and what happens if you exceed it?
+> 4,096 IDs per millisecond = roughly 4 million IDs per second per node. If the application calls `nextId()` faster than 4,096 times in one millisecond, the sequence counter overflows to zero. The generator then calls `waitNextMillis()` which busy-waits in a tight loop until `System.currentTimeMillis()` advances to the next millisecond. This is deliberate backpressure — the caller blocks rather than generating a duplicate ID. In practice you would add a second Snowflake generator node rather than saturating a single one, since 4 million IDs/second is already far more than most applications need.
 
 ---
 
-### Pattern 2: API Gateway Patterns
+**Q2: What happens when the system clock goes backward?**
+*Tradeoff Question*
 
-```
-         Clients
-    +------+------+
-    |      |      |
- Mobile  Web   Third-Party
-    |      |      |
-    +------+------+
-           |
-    [API Gateway]
-    - Authentication (JWT/OAuth validation)
-    - Rate limiting (per user, per endpoint)
-    - Request routing (path-based, header-based)
-    - SSL termination
-    - Request/Response transformation
-    - Load balancing
-    - Caching
-    - Circuit breaking
-    - Observability (access logs, tracing)
-           |
-    +------+------+------+------+
-    |      |      |      |      |
- [User] [Order] [Prod] [Search] [...]
- Svc     Svc    Svc     Svc
-```
+**One-line answer:** If the clock goes backward, the generator could produce a duplicate ID with the same timestamp, machine ID, and sequence, so it must either throw an exception, wait for the clock to catch up, or reject the request.
 
-**BFF (Backend for Frontend) Pattern:**
-```
-         [Mobile App]  [Web App]  [Partner API]
-               |           |           |
-         [Mobile BFF]  [Web BFF]  [Partner BFF]
-               |           |           |
-               +-----+-----+-----------+
-                     |
-               [Microservices]
-```
-Each BFF is tailored to its client: mobile BFF returns compressed, minimal data; web BFF returns full JSON.
+**Full answer:**
+I would explain why this matters concretely. Suppose at T=1000ms we generated an ID with sequence=50. The NTP daemon corrects the clock backward to T=998ms. The next call to `nextId()` computes currentMs=998, which is less than lastTimestamp=1000. If we naively used 998 as the timestamp, we could generate the same 64-bit value as an ID generated 2ms ago — a duplicate. The three options are: throw an exception and let the caller retry after the clock drift passes (safest — forces the application to decide how to handle it); wait in a busy loop until currentMs catches up to lastTimestamp (fine for small drifts of 1–2ms, dangerous for large drifts); or use lastTimestamp as the timestamp and keep incrementing the sequence (monotonic but if two generator nodes somehow share the same machineId, this causes duplicates). In production, the right answer is to throw for drifts greater than some threshold (say, 10ms) and simply wait for drifts smaller than that. NTP by design limits slew rate to ~500ppm, so forward corrections come quickly. VM suspend-and-resume can cause large backward jumps — those should throw. The ZooKeeper ephemeral-node lease ensures machine IDs are unique even after a restart, preventing the most dangerous scenario.
+
+*Deliver in 45 seconds. The interviewer wants to hear "throw or wait" and the distinction between small slew vs. large backward jump.*
+
+> **Gotcha follow-up:** Can you generate Snowflake IDs without a ZooKeeper dependency for machine ID assignment?
+> Yes — alternatives include: reading the last octet of the machine's IP address (fragile with containerisation); using a database table to lease machine IDs with TTL-based expiry; or using environment variables injected at deployment time (works well in Kubernetes where pod identity is stable within a StatefulSet). The key property required is that no two running instances share the same machine ID at the same moment — the mechanism for enforcing that is secondary.
+
+---
+**Common Mistakes:**
+- **Mistake:** Using UUID v4 as a primary key in a high-write relational database → **Why it fails:** random UUIDs insert at random positions in the B-tree index, causing constant page splits and fragmentation; sequential IDs (Snowflake, UUID v7, auto-increment) always insert at the rightmost leaf, which is far more cache-friendly.
+- **Mistake:** Not handling the sequence overflow case → **Why it fails:** without `waitNextMillis()`, the sequence wraps to zero within the same millisecond and the generator produces duplicate IDs; this is a correctness bug, not a performance bug.
+- **Mistake:** Hardcoding machine ID as a constant instead of dynamically assigning it → **Why it fails:** when you scale from 3 nodes to 10 nodes or redeploy on different hosts, two nodes can end up with the same machine ID, silently producing duplicate IDs.
+
+---
+**Quick Revision:** Snowflake = **41-bit ms timestamp | 10-bit machine ID | 12-bit sequence** in a 64-bit long; clock goes backward → **throw or wait**; machine ID assigned via **ZooKeeper ephemeral nodes**.
 
 ---
 
-### Pattern 3: Service Mesh
+## Topic 15: Microservices System Design Patterns
 
-Handles service-to-service communication concerns in infrastructure layer, not application code.
+#### The Idea
 
-```
-Pod A                    Pod B
-+------------------+     +------------------+
-| App Container    |     | App Container    |
-+------------------+     +------------------+
-| Sidecar Proxy    |<--->| Sidecar Proxy    |
-| (Envoy)          |     | (Envoy)          |
-+------------------+     +------------------+
+A monolith is a single deployable unit where all code runs in one process. It is easy to develop initially, but as teams and codebases grow, a change to the payment module requires redeploying the entire application — including the user profile module, the search module, and the notification module. A bug in one area can crash the entire service. Microservices break the system into small, independently deployable services, each owning its own data and communicating over well-defined APIs. This brings deployment independence and failure isolation, but introduces an entirely new class of problems: how do services discover each other? How do you keep data consistent across services that each have their own database? How do you migrate from a monolith to microservices safely?
 
-Control Plane (Istio / Linkerd):
-  - Service discovery
-  - Traffic management (canary, blue/green)
-  - mTLS between services (zero-trust networking)
-  - Retry / timeout / circuit breaker policies
-  - Distributed tracing injection
-  - Telemetry collection
+The patterns in this topic are not abstract principles — they are concrete, named solutions to recurring problems that every microservices architect faces. Each pattern exists because a team encountered a specific pain point (split deployment, distributed transactions, cache inconsistency, traffic rollout) and the pattern is the distilled answer.
 
-Data Plane (Envoy sidecars):
-  - Intercepts all inbound/outbound traffic
-  - Enforces policies from control plane
-  - Emits metrics / traces
-```
+Understanding these patterns at the level of naming them, explaining their mechanics, and stating their tradeoffs is the difference between a candidate who has read about microservices and a candidate who has operated them.
 
-**What service mesh solves:**
-- Mutual TLS without code changes.
-- Retries and timeouts configured per route.
-- Traffic splitting for canary deployments.
-- Observability (distributed tracing, service graph).
+#### How It Works
 
----
+**Pattern 1: Strangler Fig Migration**
 
-### Pattern 4: Event-Driven Architecture
-
-Services communicate via events rather than synchronous calls.
+Safely replace a monolith incrementally without a "big bang" rewrite:
 
 ```
-         [Order Service]
-               |
-         Place order event
-               |
-         [Message Broker (Kafka)]
-          /         |        \
-         /          |         \
-[Inventory      [Payment    [Notification
- Service]        Service]    Service]
- Reserve          Charge      Email
- items            customer    customer
-   |                |
- Item reserved    Payment processed
- event            event
-   |                |
-   +-------+--------+
-           |
-    [Order Service]
-    Update order status
+Phase 1: Insert proxy/facade in front of monolith
+         Client → [Proxy] → Monolith (all traffic passes through unchanged)
+
+Phase 2: Extract first service (e.g. User Service)
+         Redirect /users/* via feature flag → User Service
+         All other paths still go to Monolith
+
+Phase 3: Extract more services over time (Orders, Payments, Search...)
+
+Phase 4: Monolith is empty shell → decommission
 ```
 
-**Event types:**
-- **Domain events:** OrderPlaced, PaymentProcessed, ItemShipped.
-- **Integration events:** cross-service events published to broker.
+Risks: dual-write period (same data modified by both monolith and new service), data migration complexity, integration testing between old and new code paths.
 
-**Choreography vs Orchestration:**
-```
-Choreography (decentralized, event-driven):
-  Each service reacts to events and publishes its own.
-  + Loose coupling
-  - Hard to understand overall flow; debugging complexity
+**Pattern 2: API Gateway and BFF**
 
-Orchestration (centralized workflow):
-  [Order Orchestrator / Saga Orchestrator]
-    1. Call Inventory: reserve items
-    2. Call Payment: charge customer
-    3. Call Notification: send email
-  + Clear business flow
-  - Orchestrator knows all services; coupling
-```
-
----
-
-### Pattern 5: CQRS at Scale (Command Query Responsibility Segregation)
-
-Separate the write model (commands) from the read model (queries).
+The API Gateway is the single entry point for all clients. Its responsibilities:
 
 ```
-                Commands (writes)
-                     |
-              [Command Handler]
-                     |
-              [Write Model DB]
-              (normalized, MySQL)
-                     |
-              Domain Events published
-              to Kafka/Event Bus
-                     |
-         +-----------+-----------+
-         |           |           |
-   [Read Model  [Search     [Analytics
-    Updater]    Indexer]     Projector]
-         |           |           |
-   [Read DB      [Elastic-    [Data
-   (denormalized  search]     Warehouse]
-   Cassandra)]
-         |
-    Queries (reads)
-         |
-   [Query Handler]
-         |
-   [Read Model DB]
-   (optimized for UI query patterns)
+Auth (JWT/OAuth) → Rate Limiting → Routing → SSL Termination
+     → Request/Response Transformation → Load Balancing
+     → Circuit Breaking → Caching → Observability (logs/traces)
 ```
 
-**When to use CQRS:**
-- Read and write workloads have very different scaling needs.
-- Complex read views that require joins across multiple aggregates.
-- Event sourcing (write model = event log; read models = projections).
+**BFF (Backend for Frontend):** one gateway per client type:
+
+```
+Mobile App     → Mobile BFF    (compressed, minimal payloads, battery-conscious)
+Web App        → Web BFF       (full JSON, pagination, richer data)
+Partner API    → Partner BFF   (rate-limited, versioned, audited)
+```
+
+Each BFF is tailored to its client's needs — mobile does not need the 40-field JSON object that the web dashboard renders.
+
+**Pattern 3: Service Mesh**
+
+Without a service mesh, every service must implement retries, timeouts, mTLS, and circuit breakers in application code. A service mesh moves this to a **sidecar proxy** (Envoy) injected into every pod:
+
+```
+Service A Pod:                Service B Pod:
+[App Container]               [App Container]
+[Envoy Sidecar]  ──mTLS──▶  [Envoy Sidecar]
+
+Control Plane (Istio):
+- Service discovery
+- Traffic policies (retries, timeouts, circuit breaker per route)
+- mTLS certificate management
+- Traffic splitting (canary: 90% → v1, 10% → v2)
+- Distributed tracing injection
+- Telemetry aggregation
+```
+
+The application code changes zero lines — all network policy is configured in YAML applied to the control plane.
+
+**Pattern 4: Event-Driven Architecture — Choreography vs Orchestration**
+
+```
+Choreography (decentralised):
+OrderService  ──OrderPlaced──▶  Kafka
+                                  ├──▶ InventoryService  ──InventoryReserved──▶ Kafka
+                                  └──▶ NotificationService
+
+Each service reacts to events and publishes its own events.
+Pro: loose coupling; no central coordinator.
+Con: flow is implicit — hard to see the end-to-end business process.
+
+Orchestration (centralised):
+SagaOrchestrator
+  │──1. call InventoryService.reserve()──▶ success
+  │──2. call PaymentService.charge()────▶ success
+  │──3. call ShippingService.ship()─────▶ success
+  └──▶ Order CONFIRMED
+
+Pro: business flow is explicit and easy to trace.
+Con: orchestrator knows all services; becomes a coordination bottleneck.
+```
+
+**Pattern 5: CQRS at Scale**
+
+```
+Write Path:   Command (CreateOrder) → Command Handler → MySQL (normalised)
+                                                       → Publish DomainEvent to Kafka
+
+Read Path:    Kafka Consumer → Update Elasticsearch (denormalised)
+              Query (GetOrderFeed) → Elasticsearch (fast full-text, pre-joined)
+
+When to use: read workload (100K RPS) >> write workload (1K RPS);
+             read and write data shapes are very different.
+```
 
 **Event Sourcing + CQRS:**
+
 ```
-Write model: Append events to event store (never update, never delete)
-  OrderCreated, ItemAdded, PaymentProcessed, OrderShipped
+Write model = append events to Event Store (never UPDATE or DELETE)
+  [OrderPlaced, PaymentProcessed, ItemShipped, OrderDelivered]
 
-Read model: Project events to materialized views
-  SELECT * FROM order_summary WHERE user_id = 123
-  (built by replaying events)
+Read model = project event stream into materialised views
+  (rebuild anytime by replaying events from beginning)
 
-Benefits:
-  - Full audit log
-  - Temporal queries ("what was state at T?")
-  - Replay to rebuild read models
-  - Easy async integration
-
-Costs:
-  - Eventual consistency on read side
-  - Event schema evolution complexity
-  - Read model rebuild time
+Benefits: complete audit log; temporal queries ("what was the state at T?");
+          rebuild read models without data loss.
+Costs:    eventual consistency; event schema evolution complexity;
+          rebuild time for large event stores.
 ```
+
+**Pattern 6: Saga and Outbox Patterns**
+
+Saga — distributed transaction via compensating actions:
+
+```
+Happy path:
+  OrderPlaced → [ReserveInventory: OK] → [ProcessPayment: OK] → Order CONFIRMED
+
+Failure path:
+  OrderPlaced → [ReserveInventory: OK] → [ProcessPayment: FAILED]
+                      │
+                      └──▶ compensating transaction: ReleaseInventory
+                                                    → Order CANCELLED
+```
+
+Compensating transactions must be idempotent (safe to run multiple times).
+
+Outbox Pattern — reliable event publishing without two-phase commit:
+
+```
+Problem:
+  DB transaction commits → crash before Kafka publish → event lost forever
+
+Solution:
+  Same DB transaction:
+    INSERT INTO orders (...)       ← save the order
+    INSERT INTO outbox_table (     ← save the event in the same transaction
+      event_type = 'OrderPlaced',
+      payload = '{"orderId": 123}',
+      status = 'PENDING'
+    )
+
+  Outbox Poller (or Debezium CDC):
+    SELECT * FROM outbox_table WHERE status = 'PENDING'
+    → publish to Kafka
+    → UPDATE outbox_table SET status = 'SENT'
+
+Guarantee: order and event are atomically durable in the DB.
+           Even if Kafka is down for hours, no event is lost.
+```
+
+#### Interview Lens
+
+> **How to read this section:** Microservices pattern questions appear at senior and staff-level system design interviews. The interviewer is testing whether you can name the pattern, explain its mechanics, and know when NOT to use it. The three questions below cover migration strategy, distributed transaction correctness, and observability.
+
+*Quick orientation: When asked a broad "how would you design X as microservices" question, anchor on: service boundaries (bounded contexts), communication style (sync vs async), data ownership, and consistency mechanism (Saga + Outbox). Then address operational concerns (service mesh, observability).*
 
 ---
 
-### Pattern 6: Eventual Consistency Patterns
+**Q1: How would you migrate a monolith to microservices safely?**
+*Design Scenario*
 
-In distributed systems, strong consistency across services is expensive. Accept eventual consistency with compensating mechanisms.
+**One-line answer:** Use the Strangler Fig pattern: put a proxy in front of the monolith, extract one service at a time behind feature flags, redirect traffic incrementally, and decommission monolith code as each service is proven stable.
 
-#### Saga Pattern (Distributed Transactions)
+**Full answer:**
+I would explain that the biggest risk in microservices migration is a big-bang rewrite — rewriting everything at once takes 12–18 months, and at the end you have an untested system replacing a battle-hardened one. The Strangler Fig avoids this entirely. In phase one, you put a reverse proxy in front of the monolith. Every request passes through it unchanged — this is a zero-risk change that gives you a routing control point. In phase two, you identify a bounded context with clear interfaces — typically something like the User Service or the Product Catalogue — build it as a standalone service, and redirect traffic for those endpoints via the proxy. You run both paths in parallel behind a feature flag so you can roll back instantly. In phase three you repeat this for each bounded context, in priority order of team pain, migration risk, and business value. The hardest part is the data layer: during the dual-write period, both the monolith and the new service are writing to different databases representing the same data. You need a synchronisation mechanism — either event sourcing, CDC, or a dedicated migration service — until the old data path is drained. I would recommend starting with the service that has the most read traffic but the fewest writes, to reduce dual-write complexity.
 
-```
-Choreography Saga for "Place Order":
+*Deliver over 60–75 seconds. Draw the proxy in front of the monolith, then show the arrow bending toward the new service.*
 
-OrderService                 InventoryService          PaymentService
-     |                              |                        |
- OrderPlaced -----------------> ReserveInventory            |
-     |                              |                        |
-     |                         InventoryReserved -----> ProcessPayment
-     |                              |                        |
-     |                              |                  PaymentProcessed
-     |                              |                        |
- Update order to CONFIRMED <--------+------------------------+
-
-Failure compensation:
-  PaymentFailed  ---------> ReleaseInventory (compensating transaction)
-                 ---------> OrderCancelled
-```
-
-**Key insight:** Each step publishes a success or failure event. Compensating transactions undo previous steps on failure.
-
-#### Outbox Pattern (Reliable Event Publishing)
-
-**Problem:** How to atomically save to DB AND publish to Kafka?
-
-```
-WRONG:
-  DB.save(order)       // succeeds
-  Kafka.publish(event) // fails! Event lost.
-
-RIGHT (Outbox Pattern):
-
-  BEGIN TRANSACTION
-    DB.save(order)
-    DB.insert(outbox_table, {event_type, payload, status=PENDING})
-  COMMIT TRANSACTION
-
-  [Outbox Poller / CDC] (separate process)
-    Poll outbox_table WHERE status=PENDING
-    Publish to Kafka
-    Update status=SENT
-
-  OR use CDC (Debezium):
-    Capture INSERT on outbox_table from DB binlog
-    Publish to Kafka automatically
-```
+> **Gotcha follow-up:** When should you NOT break a system into microservices?
+> When the team is small (fewer than 10 engineers), the operational overhead of microservices — separate CI/CD pipelines, service mesh, distributed tracing, multiple databases — consumes more engineering capacity than the decomposition saves. The "two-pizza team" heuristic is real: microservices pay off when different teams are blocked from deploying independently because of the monolith. If one team owns everything, a well-structured modular monolith with clear internal boundaries is usually faster to operate and easier to refactor.
 
 ---
 
-### Overall Microservices Architecture
+**Q2: How do you reliably publish an event to Kafka when saving to a database — without risking data loss?**
+*Concept Check*
 
-```
-                        [Client Apps]
-                             |
-                     [API Gateway / BFF]
-                    /    |    |    |    \
-                   /     |    |    |     \
-              [User]  [Order] [Prod] [Search] [Notif]
-              Svc      Svc    Svc    Svc      Svc
-               |        |      |       |        |
-              MySQL   Postgres Mongo  Elastic   Cassandra
-                       |
-                    [Kafka]
-                  (event bus)
-                  /    |    \
-            [Inventory] [Payment] [Analytics]
-            Svc          Svc       Svc
-               \           |
-                +--[Saga Orchestrator]--+
-                
-  Cross-Cutting:
-  [Service Mesh (Istio)]   -- mTLS, tracing, retries
-  [Prometheus + Grafana]   -- metrics
-  [Jaeger / Zipkin]        -- distributed tracing
-  [Vault]                  -- secrets management
-  [Config Service]         -- dynamic configuration
-```
+**One-line answer:** Use the Outbox Pattern: write the event to an `outbox_table` in the same database transaction as the business record, then have a separate poller or CDC process publish from the outbox to Kafka.
+
+**Full answer:**
+I would explain why this problem is hard first. If you save to the database and then publish to Kafka in sequence, you have two failure windows: the application crashes after the DB commit but before the Kafka send — event lost; or the Kafka publish fails transiently and the retry logic has a bug — event lost. You cannot wrap both in a single ACID transaction because the database and Kafka are different systems with no shared transaction coordinator. The Outbox Pattern sidesteps this by making the event durable in the same system as the business data. In the same database transaction that saves the Order, you insert a row into `outbox_table` with the event type and payload. Both inserts either commit or roll back together — atomically. A separate process — either a polling thread that runs `SELECT * FROM outbox_table WHERE status = 'PENDING'` every 100ms, or a Debezium CDC connector that reads the database binlog — reads the outbox, publishes to Kafka, and marks the row as SENT. If Kafka is down, the events accumulate in the outbox table and are published when Kafka recovers. Because the consumer may receive an event more than once (if the outbox poller crashes after publishing but before marking SENT), consumers must be idempotent — typically by using the event ID as a deduplication key.
+
+*Say this over 60 seconds. Draw the single DB transaction containing both inserts, then the separate poller arrow pointing to Kafka.*
+
+> **Gotcha follow-up:** How is the Outbox Pattern different from a Saga?
+> They solve different problems and are often used together. The Saga pattern handles a distributed transaction that spans multiple services — it sequences the calls and defines compensating transactions for rollback. The Outbox pattern handles reliable event publishing from a single service — it ensures the event reaches the message broker even if the broker is temporarily unavailable. In practice, each step of a Saga uses the Outbox pattern internally: the service writes its domain event to the outbox alongside its local DB change, and the Saga's next step is triggered when that event is published.
 
 ---
 
-## Master Cheat Sheet
+**Q3: What does a service mesh solve that an API Gateway does not?**
+*Tradeoff Question*
+
+**One-line answer:** An API Gateway handles north-south traffic (external clients to your cluster); a service mesh handles east-west traffic (service to service inside the cluster) with mTLS, retries, circuit breaking, and observability — without any application code changes.
+
+**Full answer:**
+I would start by distinguishing the traffic flows. An API Gateway sits at the edge: it is the front door for external requests, handling authentication, rate limiting, and routing to the right internal service. It knows nothing about what happens once traffic enters the cluster. A service mesh, by contrast, is entirely about intra-cluster communication — the hundreds of service-to-service calls that happen after the API Gateway has admitted a request. It deploys an Envoy sidecar proxy alongside every pod. All outbound and inbound TCP is intercepted by that sidecar without the application knowing. The control plane — Istio or Linkerd — then pushes policy to every sidecar: "for calls from Order Service to Payment Service, retry on 503 up to 3 times with 100ms backoff; enforce mutual TLS; emit a trace span." None of this requires a single line of application code change. The key capabilities the mesh adds are: mTLS between all services (zero-trust networking); per-route retry and timeout policy; circuit breaking; traffic splitting for canary deployments; and distributed tracing that automatically propagates correlation IDs. The cost is real: each sidecar adds roughly 2–3ms of latency and 50MB of memory per pod, and the control plane adds operational complexity. For small clusters (under 20 services), it is often unnecessary.
+
+*Deliver over 60 seconds. Draw north-south (API Gateway at top) vs east-west (sidecars between services) on the whiteboard.*
+
+> **Gotcha follow-up:** Can you do circuit breaking without a service mesh?
+> Yes — libraries like Resilience4j (Java) or Hystrix implement circuit breaking in application code. The tradeoff is that each team must instrument their own code, configuration is decentralised, and you cannot apply a policy change cluster-wide without redeploying every service. A service mesh centralises the policy with no code changes. For teams with strong Java/Spring discipline and no mesh infrastructure, Resilience4j is a perfectly valid approach. The service mesh shines when you have polyglot services (Java, Go, Python) and want uniform behaviour without per-language library choices.
 
 ---
-
-### 1. Latency Numbers Every Engineer Should Know
-
-| Operation | Approx Latency | Notes |
-|---|---|---|
-| L1 cache reference | 0.5 ns | |
-| L2 cache reference | 7 ns | 14x L1 |
-| Mutex lock/unlock | 25 ns | |
-| Main memory (RAM) reference | 100 ns | 200x L1 |
-| Compress 1 KB with Snappy | 3,000 ns (3 µs) | |
-| Read 4 KB from SSD | 150,000 ns (150 µs) | |
-| Read 1 MB sequentially from RAM | 250 µs | |
-| Round trip within datacenter | 500 µs | |
-| Read 1 MB sequentially from SSD | 1 ms | 4x RAM |
-| Disk seek (HDD) | 10 ms | 20x datacenter RT |
-| Read 1 MB sequentially from HDD | 20 ms | |
-| Send packet CA -> Netherlands -> CA | 150 ms | |
-| DNS lookup | 20-120 ms | varies |
-| Redis GET (network) | ~0.5 ms | |
-| MySQL query (index, local) | 1-5 ms | |
-| MySQL query (full scan, 1M rows) | 1-10 s | avoid |
-
-**Mental Model:**
-- RAM: nanoseconds
-- SSD: microseconds
-- Network (DC): sub-millisecond
-- Network (cross-region): 10-100 ms
-- Disk (HDD): milliseconds to seconds
+**Common Mistakes:**
+- **Mistake:** Having multiple services share a single database → **Why it fails:** it couples the services at the data layer — a schema change in one service requires coordinating deployments across all services that share the table, eliminating deployment independence entirely.
+- **Mistake:** Using synchronous REST calls for every inter-service communication → **Why it fails:** in a chain of 5 services each with 99.9% availability, the end-to-end availability is 0.999^5 ≈ 99.5%; async messaging via Kafka breaks the coupling and allows each service to fail independently without cascading.
+- **Mistake:** Designing compensating transactions that are not idempotent in a Saga → **Why it fails:** if the Saga orchestrator retries a compensation step (e.g. `ReleaseInventory`) because it did not receive an acknowledgement, a non-idempotent implementation releases inventory twice — leaving the system in an inconsistent state that is harder to debug than a simple failure.
 
 ---
-
-### 2. Capacity Estimation Quick Reference
-
-#### Storage Units
-```
-1 KB  = 1,000 bytes      (kilobyte)
-1 MB  = 1,000,000 bytes  (megabyte)
-1 GB  = 10^9 bytes       (gigabyte)
-1 TB  = 10^12 bytes      (terabyte)
-1 PB  = 10^15 bytes      (petabyte)
-
-(Note: 1 KiB = 1,024 bytes, but use 1,000 for estimation simplicity)
-```
-
-#### Time Units
-```
-1 day     = 86,400 seconds  ≈ 10^5 seconds
-1 month   = 2.5M seconds    ≈ 2.5 * 10^6 seconds
-1 year    = 31.5M seconds   ≈ 3 * 10^7 seconds
-```
-
-#### Throughput Formulas
-```
-RPS from DAU:
-  RPS = DAU * actions_per_day / 86,400
-  Peak RPS = average RPS * peak_factor (typically 2-5x)
-
-Storage per year:
-  storage = records_per_second * record_size_bytes * seconds_per_year
-           = RPS * size * 3 * 10^7
-
-Bandwidth:
-  bandwidth = RPS * average_payload_size
-```
-
-#### Common Benchmarks
-```
-Single Web Server:       1,000 - 10,000 RPS
-Single MySQL:            10,000 - 50,000 simple reads/sec
-Single Redis node:       100,000 - 500,000 ops/sec
-Single Kafka broker:     ~1M messages/sec (simple)
-Single Cassandra node:   ~50,000 reads + writes/sec
-
-Network bandwidth (modern server NIC): 10 Gbps = 1.25 GB/s
-SSD sequential read: 500 MB/s - 3.5 GB/s (NVMe)
-SSD random IOPS: 100,000 - 500,000 IOPS
-```
-
-#### Rough Size Estimates
-```
-User profile:        1 KB
-Tweet / short post:  0.3 - 1 KB
-Photo (compressed):  300 KB
-HD Video (1 min):    100 MB
-4K Video (1 min):    400 MB
-
-IPv4 address:        4 bytes
-UUID:                16 bytes (128 bits)
-Snowflake ID:        8 bytes (64 bits)
-Unix timestamp:      8 bytes
-SHA-256 hash:        32 bytes
-```
-
----
-
-### 3. System Design Component Selection Guide
-
-| Use Case | Component | Why |
-|---|---|---|
-| Serve millions of static files | CDN (CloudFront, Akamai) | Edge caching, low latency |
-| Session storage, leaderboard | Redis (sorted sets) | In-memory, sub-ms |
-| Full-text search | Elasticsearch | Inverted index, scoring |
-| Time-series metrics | InfluxDB / Prometheus | Optimized for time-series |
-| Wide-column, write-heavy | Cassandra | LSM tree, partition key design |
-| Relational, ACID transactions | PostgreSQL / MySQL | ACID, joins, FK constraints |
-| Document store, flexible schema | MongoDB | JSON docs, horizontal scale |
-| Graph data (social network) | Neo4j / Amazon Neptune | Relationship traversal |
-| Async task queue | Kafka / RabbitMQ / SQS | Decoupling, buffering |
-| Batch processing (large data) | Spark / Hadoop | Distributed compute |
-| Stream processing | Flink / Kafka Streams | Low-latency real-time |
-| Object storage (files, media) | S3 / GCS | Cheap, durable, scalable |
-| Service discovery | ZooKeeper / Consul / etcd | Coordination primitives |
-| API rate limiting | Redis (token bucket) | Atomic incr + expire |
-| Distributed lock | Redis (Redlock) / ZooKeeper | Leader election, mutex |
-| News feed | Redis ZADD (sorted set) | Score by timestamp |
-| Notification delivery | Kafka + FCM/APNs/Twilio | Async, multi-channel |
-| Autocomplete | Trie + Redis cache | Prefix search, O(L) |
-| Unique ID generation | Twitter Snowflake | Sortable, 64-bit, distributed |
-| Config management | etcd / Consul / AppConfig | Consistent, watchable |
-
----
-
-### 4. Common System Design Trade-offs Reference Table
-
-| Decision | Option A | Option B | When to Choose A | When to Choose B |
-|---|---|---|---|---|
-| Consistency vs Availability | Strong consistency | Eventual consistency | Banking, inventory, auth | Social feeds, analytics, recommendations |
-| SQL vs NoSQL | SQL (MySQL, Postgres) | NoSQL (Cassandra, Mongo) | Complex queries, ACID needed | Massive scale, flexible schema, write-heavy |
-| Sync vs Async communication | Synchronous (REST/gRPC) | Async (Kafka/SQS) | Need immediate response | Decouple producers/consumers, high throughput |
-| Read replica vs Caching | Read replicas | Cache (Redis) | Data freshness critical | Extreme read throughput, computed aggregates |
-| Normalization vs Denormalization | Normalized (3NF) | Denormalized | Write-heavy, data integrity | Read-heavy, query performance critical |
-| Monolith vs Microservices | Monolith | Microservices | Small team, early stage | Large org, independent scaling needed |
-| Push vs Pull (feed) | Fanout on write (push) | Fanout on read (pull) | Regular users, fast reads | Celebrity users, infrequent reads |
-| Single-region vs Multi-region | Single region | Multi-region | Simple, cost-sensitive | High availability, global user base |
-| Stateful vs Stateless services | Stateful | Stateless | Session affinity needed | Horizontal scaling, easier deployment |
-| Pagination: offset vs cursor | Offset pagination | Cursor pagination | Simple, total count needed | Large datasets, real-time data changes |
-| Delivery: at-least-once vs exactly-once | At-least-once | Exactly-once | Idempotent consumers OK | Payment/financial systems |
-| Synchronous replication vs Async | Sync replication | Async replication | Data durability critical | Low write latency required |
-| Vertical vs Horizontal scaling | Scale up | Scale out | Stateful, simple ops | Commodity hardware, internet scale |
-| CDN vs Origin server | CDN | Origin | Static content, global users | Dynamic content, personalized |
-| HTTP/REST vs gRPC | REST | gRPC | External APIs, browser clients | Internal services, high RPC throughput |
-
----
-
-### 5. System Design Interview Checklist
-
-**Scope (5 min):**
-- [ ] Functional requirements (what the system does)
-- [ ] Non-functional requirements (scale, latency, durability)
-- [ ] Out of scope (what you won't design)
-
-**Estimation (5 min):**
-- [ ] DAU / MAU
-- [ ] Read/write RPS
-- [ ] Storage per day/year
-- [ ] Bandwidth
-
-**High-Level Design (10 min):**
-- [ ] Major components and data flow
-- [ ] API design (key endpoints)
-- [ ] Database choice and justification
-
-**Deep Dive (15 min):**
-- [ ] Bottlenecks identified
-- [ ] Scaling each component
-- [ ] Failure modes and resilience
-
-**Wrap-up (5 min):**
-- [ ] Trade-offs discussed
-- [ ] What you'd do differently with more time
-- [ ] Monitoring and alerting
-
----
-
-*End of Chapter 22 Part B — High-Level System Design*
-*Volume 5: System Design & Low-Level Design*
-
-
+**Quick Revision:** Microservices patterns in one line each — **Strangler Fig**: migrate incrementally behind a proxy; **BFF**: one gateway per client type; **Service Mesh**: east-west mTLS + retries via sidecars; **Saga**: distributed transactions via compensating actions; **Outbox**: atomic DB + event via same transaction; **CQRS**: separate read/write models fed by domain events.
 

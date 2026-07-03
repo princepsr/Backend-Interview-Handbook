@@ -1,4 +1,4 @@
-# Volume 1: Core Java
+﻿# Volume 1: Core Java
 
 **6 chapters · ~100+ Q&As · Java 17**
 
@@ -19,47 +19,8 @@ This volume covers the Java fundamentals that appear in virtually every backend 
 
 ---
 
-## Study Plan for This Volume
-
-### 4-Week Plan (Days 1–5 of Week 1)
-
-| Day | Chapter | Focus |
-|-----|---------|-------|
-| Day 1 | Ch1 + Ch2 | Nail polymorphism, immutability, exception hierarchy |
-| Day 2 | Ch3 | HashMap internals — load factor, treeification at 8, ConcurrentHashMap |
-| Day 3 | Ch4 | Streams, Lambdas, CompletableFuture pipelines |
-| Day 4 | Ch5 + Ch6 Part 1 | Thread basics, synchronized, volatile, happens-before |
-| Day 5 | Ch6 Part 2 | ThreadPool tuning, deadlock patterns, virtual threads (Java 21) |
-
-> After finishing this volume, validate with **Chapter 23** (Core Java Revision) in the Revision Pack.
-
-### Crash Plan (1 week total — Day 1 of 7)
-
-Prioritise Ch3 (Collections) and Ch6 (Multithreading). These two chapters alone are tested in the vast majority of backend coding rounds. Skim Ch1/Ch2 if time is tight; they rarely appear as standalone interview topics.
-
----
-
-## Company Focus
-
-### Amazon
-- **Ch3** — HashMap treeification threshold, `ConcurrentHashMap` segment locking vs CAS
-- **Ch6** — Thread pool sizing, `synchronized` vs `ReentrantLock`, deadlock detection
-- Expect operational context: "What happens under contention in a high-throughput order service?"
-
-### Google
-- **Ch4** — Type erasure, bounded wildcards (`? extends T` vs `? super T`), parallel streams pitfalls
-- **Ch5** — G1GC vs ZGC trade-offs, heap sizing for low-latency services
-- **Ch6** — `CountDownLatch`, `Phaser`, `StampedLock` — Google probes concurrency primitives deeply
-- Code quality is scored: clean stream pipelines > verbose loops
-
-### Goldman Sachs / FinTech
-- **Ch6** is the primary differentiator — JMM happens-before rules, `volatile` visibility guarantees
-- Scenario questions: "Two threads update the same account balance — walk me through every failure mode"
-- Correctness over cleverness: they prefer explicit locking with clear reasoning
-
-### Atlassian / Salesforce
-- Ch1 (OOP) + Ch4 (Java 8+) — clean, extensible design is valued
-- Expect: "Refactor this class to be open for extension without modification"
+- [Volume 1 Study Plan](STUDY_GUIDE.md) — 1-week plan, 3-day crash plan, top 10 questions, and daily practice tips.
+- [Volume 1 Company Guide](COMPANY_GUIDE.md) — which companies go deep on Core Java and what they specifically test.
 
 ---
 

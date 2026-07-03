@@ -1,4 +1,4 @@
-<style>.content > main > h1:first-of-type { display: none !important; }</style>
+﻿<style>.content > main > h1:first-of-type { display: none !important; }</style>
 
 <div style="min-height:80vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding: 60px 20px 40px; border-bottom: 1px solid #e2e8f0;">
 
@@ -46,6 +46,8 @@
 
 ---
 
+<div style="display:flex; flex-direction:column; align-items:center; text-align:left;">
+
 ## Quick Start
 
 | Goal | Go to |
@@ -56,3 +58,5 @@
 | DynamoDB &amp; consistent hashing | [Chapter 17 — Distributed Databases](Volume4_Databases/Chapter17_Distributed_DBs.md) |
 | Connection pooling &amp; migrations | [Chapter 18 — Advanced DB Topics](Volume4_Databases/Chapter18_Advanced_DB.md) |
 | Revise this volume fast | [Chapter 26 — Databases Revision](Volume6_Revision_Pack/Chapter26_Databases_Revision.md) |
+
+</div>

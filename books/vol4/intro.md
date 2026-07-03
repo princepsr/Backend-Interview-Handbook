@@ -1,4 +1,4 @@
-# Volume 4: Databases & Performance
+﻿# Volume 4: Databases & Performance
 
 **5 chapters · ~100+ Q&As · SQL · PostgreSQL · Cassandra · DynamoDB**
 
@@ -18,47 +18,8 @@ Databases are a dedicated interview round at most companies. This volume covers 
 
 ---
 
-## Study Plan for This Volume
-
-### 4-Week Plan (Days 15–21 of Week 3)
-
-| Day | Chapter | Focus |
-|-----|---------|-------|
-| Day 15 | Ch14 | Window functions (`ROW_NUMBER`, `RANK`, `LAG`), CTEs, SQL execution order |
-| Day 16 | Ch15 | B-tree structure, composite index column ordering, `EXPLAIN ANALYZE` output reading |
-| Day 17 | Ch16 | MVCC mechanics, isolation levels (Read Committed vs Repeatable Read vs Serializable), phantom reads |
-| Day 18 | Ch17 | Consistent hashing with virtual nodes, Cassandra vs DynamoDB access patterns, CAP in practice |
-| Day 19 | Ch18 | HikariCP pool sizing, online schema migration (pt-online-schema-change / pg_repack), read replica lag |
-| Day 20 | Review | Ch26 (Databases Revision) |
-| Day 21 | SQL practice | Write all 7 SQL patterns from Ch26 Section 6 from memory |
-
-> After finishing this volume, validate with **Chapter 26** (Databases Revision) in the Revision Pack.
-
-### Crash Plan (1 week total — Day 4 of 7)
-
-Ch14 + Ch15 + Ch16. These three are tested at every company and every level. Ch17 (Distributed DBs) is essential for SDE2+ — add it if you're targeting Amazon or Google.
-
----
-
-## Company Focus
-
-### Amazon
-- **Ch14/Ch15** — SQL proficiency expected even for DynamoDB-heavy roles; composite index design
-- **Ch17** — DynamoDB is the key differentiator: GSI vs LSI, single-table design, hot partition avoidance
-- Expect: "Design the DynamoDB schema for an order management system supporting queries by customer, by status, and by date range"
-
-### Google
-- **Ch17** — CAP theorem in practice, Spanner's external consistency model, consistent hashing with virtual nodes
-- **Ch15** — Index selection reasoning — Google probes "why this index, what does the query planner see?"
-
-### Goldman Sachs / FinTech
-- **Ch16** — Transaction correctness is paramount: MVCC, `SELECT FOR UPDATE`, isolation level trade-offs for account balance updates
-- **Ch14** — Window functions for trade P&L calculations, recursive CTEs for hierarchical position data
-- Scenario: "Two concurrent transactions both try to debit the same account — walk through every possible outcome"
-
-### Stripe / Payments
-- **Ch16** — Idempotent DB writes: `INSERT ... ON CONFLICT DO NOTHING`, optimistic locking with version columns
-- **Ch18** — Zero-downtime migration patterns for high-traffic payment tables (add column, backfill, then constraint)
+- [Volume 4 Study Plan](STUDY_GUIDE.md) — 1-week plan, 3-day crash plan, top 10 questions, and daily practice tips.
+- [Volume 4 Company Guide](COMPANY_GUIDE.md) — which companies go deep on Databases and what they specifically test.
 
 ---
 

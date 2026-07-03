@@ -1,0 +1,1568 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Chapter 19 — Design Patterns - Java Backend Interview Handbook</title>
+
+
+        <!-- Custom HTML head -->
+        <script>
+        (function() {
+            var RULES = [
+                { re: /^interview trap/i,     cls: "callout-trap" },
+                { re: /^common mistake/i,     cls: "callout-mistake" },
+                { re: /^quick tip|^pro tip/i, cls: "callout-tip" },
+                { re: /^quick revision/i,     cls: "callout-revision" },
+                { re: /^real.world example/i, cls: "callout-example" },
+                { re: /^follow.up question/i, cls: "callout-tip" },
+            ];
+        
+            function run() {
+                document.querySelectorAll(".content p").forEach(function(p) {
+                    var first = p.querySelector("strong");
+                    if (!first) return;
+                    var txt = first.textContent.trim();
+                    for (var i = 0; i < RULES.length; i++) {
+                        if (RULES[i].re.test(txt)) {
+                            p.classList.add(RULES[i].cls);
+                            var next = p.nextElementSibling;
+                            if (next && (next.tagName === "UL" || next.tagName === "OL")) {
+                                next.classList.add(RULES[i].cls);
+                                next.style.marginTop = "0";
+                                p.style.marginBottom = "0";
+                            }
+                            break;
+                        }
+                    }
+                });
+            }
+        
+            window.applyEnhancements = run;
+        
+            function tryRun() { setTimeout(run, 200); }
+        
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", tryRun);
+            } else {
+                tryRun();
+            }
+        
+            window.addEventListener("hashchange", tryRun);
+            window.addEventListener("popstate", tryRun);
+        
+            // Watch for mdBook replacing the content div
+            var observer = new MutationObserver(function(muts) {
+                for (var i = 0; i < muts.length; i++) {
+                    if (muts[i].addedNodes.length > 0) {
+                        tryRun();
+                        return;
+                    }
+                }
+            });
+        
+            function attachObserver() {
+                var el = document.querySelector(".content");
+                if (el) { observer.observe(el, { childList: true }); }
+            }
+        
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", attachObserver);
+            } else {
+                attachObserver();
+            }
+        })();
+        </script>
+
+        <meta name="description" content="Complete SDE2 interview preparation guide for Java Backend — FAANG+, FinTech &amp; SaaS. Java 17 / Spring Boot 3.x. 27 chapters, 400+ questions.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-0392ca55.css">
+        <link rel="stylesheet" href="../css/chrome-fc474251.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../custom-aab4aca2.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-586974fd.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-e254c042.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Java Backend Interview Handbook</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="volume-5-system-design--lld"><a class="header" href="#volume-5-system-design--lld">Volume 5: System Design &amp; LLD</a></h1>
+<h1 id="chapter-19-design-patterns"><a class="header" href="#chapter-19-design-patterns">Chapter 19: Design Patterns</a></h1>
+<hr>
+<h2 id="table-of-contents"><a class="header" href="#table-of-contents">Table of Contents</a></h2>
+<ul>
+<li>Topic 1: Singleton Pattern</li>
+<li>Topic 2: Factory Method &amp; Abstract Factory</li>
+<li>Topic 3: Builder Pattern</li>
+<li>Topic 4: Prototype Pattern</li>
+<li>Topic 5: Adapter Pattern</li>
+<li>Topic 6: Decorator Pattern</li>
+<li>Topic 7: Facade Pattern</li>
+<li>Topic 8: Proxy Pattern</li>
+<li>Topic 9: Observer Pattern</li>
+<li>Topic 10: Strategy Pattern</li>
+<li>Topic 11: Template Method Pattern</li>
+<li>Topic 12: Command Pattern</li>
+<li>Topic 13: Chain of Responsibility</li>
+<li>Topic 14: State Pattern</li>
+<li>Topic 15: Composite &amp; Iterator Patterns</li>
+</ul>
+<hr>
+<blockquote>
+<p><strong>How to read this chapter:</strong> Each topic has three layers.</p>
+<ul>
+<li><strong>The Idea</strong> — start here, no prior knowledge needed.</li>
+<li><strong>How It Works</strong> — the real mechanism, patterns, and tradeoffs.</li>
+<li><strong>Interview Lens</strong> — what interviewers actually probe.</li>
+</ul>
+<p>Beginners: read all three layers top to bottom.
+SDE2/Senior: skim “The Idea”, focus on “How It Works” and “Interview Lens”.</p>
+</blockquote>
+<hr>
+<h2 id="topic-1-singleton-pattern"><a class="header" href="#topic-1-singleton-pattern">Topic 1: Singleton Pattern</a></h2>
+<h4 id="the-idea"><a class="header" href="#the-idea">The Idea</a></h4>
+<p>Imagine a company has exactly one CEO. No matter how many employees ask “who’s the CEO?”, they all get the same person — there’s no second CEO created for each question. The Singleton pattern does the same for objects: it guarantees that only one instance of a class ever exists in your program, and every caller gets that exact same instance.</p>
+<p>This is useful for things that represent a single shared resource — a database connection pool, a configuration loader, or a logging service. You don’t want two independent config objects with different settings coexisting. You want one authoritative source.</p>
+<p>The tricky part is making this work safely in a multi-threaded world, where two threads might both try to create the “first” instance at the same moment.</p>
+<h4 id="how-it-works"><a class="header" href="#how-it-works">How It Works</a></h4>
+<p>There are four main approaches, roughly from simplest to most robust:</p>
+<pre><code>// 1. Eager init — JVM creates instance at class load time
+// Thread-safe by default, but no lazy loading
+static final X INSTANCE = new X();
+
+// 2. Synchronized method — thread-safe but locks every call
+// Performance bottleneck under high concurrency
+static synchronized X getInstance() { ... }
+
+// 3. Double-Checked Locking (DCL) — fast path avoids lock
+// Check null → sync block → check null again → create
+// Requires volatile (see code block below)
+
+// 4. Enum Singleton — JVM guarantees one instance
+// Serialization-safe, reflection-safe, preferred by Effective Java
+enum Config { INSTANCE; }
+
+// Bill Pugh / Initialization-on-demand holder
+// Lazy + thread-safe via JVM class initialization guarantee, zero sync cost
+class X {
+    private static class Holder {
+        static final X INSTANCE = new X();
+    }
+    public static X getInstance() { return Holder.INSTANCE; }
+}
+</code></pre>
+<p><strong>Why <code>volatile</code> is mandatory in DCL:</strong> Without it, the JVM may reorder instructions as: allocate memory → assign reference → construct object. A second thread sees a non-null reference but reads an unconstructed object. <code>volatile</code> prevents this reordering.</p>
+<pre><code class="language-java">public class ConfigManager {
+    private static volatile ConfigManager instance;
+    private ConfigManager() {}
+    public static ConfigManager getInstance() {
+        if (instance == null) {
+            synchronized (ConfigManager.class) {
+                if (instance == null) {
+                    instance = new ConfigManager();
+                }
+            }
+        }
+        return instance;
+    }
+}
+</code></pre>
+<p><strong>Spring note:</strong> <code>@Scope("singleton")</code> means one instance per <code>ApplicationContext</code>, not per JVM. Two <code>ApplicationContext</code>s = two instances.</p>
+<p><strong>Serialization breaks non-enum Singletons</strong> — fix with <code>readResolve()</code>. Reflection can bypass a private constructor — enum prevents this entirely.</p>
+<h4 id="interview-lens"><a class="header" href="#interview-lens">Interview Lens</a></h4>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. You can read just this section the night before an interview. Every concept is explained inline.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: Lead with the one-line answer first. Pause. Expand only if the interviewer nods.</em></p>
+</blockquote>
+<hr>
+<p><strong>Q1 — Concept Check</strong>
+<strong>“Why do you need <code>volatile</code> in the Double-Checked Locking Singleton?”</strong></p>
+<p><strong>One-line answer:</strong> Without <code>volatile</code>, the JVM can reorder object construction so another thread sees a non-null but partially constructed instance.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“When you write <code>instance = new ConfigManager()</code>, the JVM breaks that into three steps: allocate memory, assign the reference to <code>instance</code>, then run the constructor. Without <code>volatile</code>, the JIT can reorder steps 2 and 3 — so <code>instance</code> becomes non-null before the object is fully built. A second thread passes the first null-check, skips the <code>synchronized</code> block, and reads a broken object. <code>volatile</code> adds a memory barrier that forces happens-before ordering: the constructor must complete before the reference is published.”</p>
+</blockquote>
+<blockquote>
+<p><em>Draw the three-step sequence on a whiteboard if available — it makes the reordering concrete.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“Is there a simpler Singleton implementation that avoids the <code>volatile</code> issue entirely?”</em></p>
+<blockquote>
+<p>“Yes — the Bill Pugh holder idiom. A private static inner class <code>Holder</code> contains <code>static final X INSTANCE = new X()</code>. The JVM only initializes <code>Holder</code> when <code>getInstance()</code> is first called, and class initialization is inherently thread-safe. No <code>synchronized</code>, no <code>volatile</code>, lazy loading, zero overhead.”</p>
+</blockquote>
+<hr>
+<p><strong>Q2 — Tradeoff Question</strong>
+<strong>“When would you choose Enum Singleton over Double-Checked Locking?”</strong></p>
+<p><strong>One-line answer:</strong> Enum is safer against serialization and reflection attacks; DCL is needed when you can’t use an enum (e.g., the class must extend another class).</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“Enum Singleton is the Effective Java recommendation precisely because the JVM provides two guarantees for free: serialization always returns the same instance (no <code>readResolve</code> needed), and reflection cannot create a second instance — attempting to call <code>newInstance()</code> on an enum throws an exception. DCL gives you lazy initialization with a specific superclass, but you have to manually handle both risks. In a security-conscious or persistence-heavy system, I’d default to enum unless inheritance forces my hand.”</p>
+</blockquote>
+<blockquote>
+<p><em>Mention Effective Java Item 3 by name — it signals you read the book.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“Spring’s <code>@Scope("singleton")</code> — is that the same as the GoF Singleton pattern?”</em></p>
+<blockquote>
+<p>“No — they share the name but differ in scope. GoF Singleton is per-JVM-classloader. Spring singleton is per <code>ApplicationContext</code>. If you load two <code>ApplicationContext</code>s in the same JVM — common in tests or multi-tenant setups — you get two bean instances. Spring doesn’t prevent you from instantiating the class directly either.”</p>
+</blockquote>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li><strong>Omitting <code>volatile</code> in DCL:</strong> leads to subtle, rarely-reproducible bugs on multi-core CPUs under heavy load.</li>
+<li><strong>Assuming Spring singleton = JVM singleton:</strong> breaks in test suites that create multiple contexts.</li>
+<li><strong>Forgetting <code>readResolve()</code>:</strong> deserialization creates a second instance, silently breaking the guarantee.</li>
+</ul>
+<p><strong>Quick Revision:</strong> Four impls — eager, sync method, DCL+volatile, enum; prefer enum or Bill Pugh holder; Spring singleton is per-ApplicationContext not per-JVM.</p>
+<hr>
+<h2 id="topic-2-factory-method--abstract-factory"><a class="header" href="#topic-2-factory-method--abstract-factory">Topic 2: Factory Method &amp; Abstract Factory</a></h2>
+<h4 id="the-idea-1"><a class="header" href="#the-idea-1">The Idea</a></h4>
+<p>Imagine a staffing agency. A client says “I need a software engineer” — they don’t specify which engineer, just the role. The agency (the factory) decides which specific person to send. Tomorrow the client might say “I need a designer” — same agency, different specialist. The client never needs to know how to hire; that knowledge lives in the agency.</p>
+<p>Factory Method extends this: each type of “agency” (subclass) specialises in a different kind of hire. Abstract Factory goes further — it’s not one specialist but a coordinated team: frontend engineer, backend engineer, and designer who are all guaranteed to work well together.</p>
+<p>The payoff is the Open/Closed Principle: when you need a new product type, you add a new factory subclass rather than editing existing code.</p>
+<h4 id="how-it-works-1"><a class="header" href="#how-it-works-1">How It Works</a></h4>
+<pre><code>// Factory Method: subclasses decide which concrete product to create
+interface DocumentParser { Document parse(InputStream in); }
+class PdfParserFactory  { DocumentParser create() { return new PdfParser(); } }
+class WordParserFactory { DocumentParser create() { return new WordParser(); } }
+
+// Static factory shorthand (common in practice):
+// ParserFactory.create("PDF") → concrete parser
+
+// Abstract Factory: interface creates a FAMILY of related products
+interface UIFactory {
+    Button   createButton();
+    Checkbox createCheckbox();
+}
+class MacUIFactory     implements UIFactory { ... }
+class WindowsUIFactory implements UIFactory { ... }
+// All products are guaranteed compatible within one factory
+</code></pre>
+<p><strong>Key difference in one line:</strong> Factory Method creates one product type; Abstract Factory creates a suite of compatible products.</p>
+<p><strong>Adding a new product type to Abstract Factory requires changing the interface</strong> — that breaks every existing implementation. Factory Method avoids this: just add a new subclass.</p>
+<pre><code class="language-java">@Service
+public class NotificationService {
+    private final Map&lt;String, NotificationFactory&gt; factories;
+    public NotificationService(Map&lt;String, NotificationFactory&gt; factories) {
+        this.factories = factories;
+    }
+    public void notify(String channel, String recipient, String message) {
+        factories.get(channel).createSender().send(recipient, message);
+    }
+}
+</code></pre>
+<p>Spring auto-collects all beans implementing <code>NotificationFactory</code> into a map keyed by bean name — adding a new channel means adding a new <code>@Component</code>, zero changes to <code>NotificationService</code>.</p>
+<p><strong>Spring ApplicationContext = Abstract Factory:</strong> creates <code>DataSource</code>, <code>Service</code>, <code>Repository</code>, <code>Controller</code> — all properly wired. <code>@Configuration</code> with <code>@Bean</code> methods is an Abstract Factory.</p>
+<h4 id="interview-lens-1"><a class="header" href="#interview-lens-1">Interview Lens</a></h4>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. You can read just this section the night before an interview. Every concept is explained inline.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: Lead with the one-line answer first. Pause. Expand only if the interviewer nods.</em></p>
+</blockquote>
+<hr>
+<p><strong>Q1 — Concept Check</strong>
+<strong>“What is the difference between Factory Method and Abstract Factory?”</strong></p>
+<p><strong>One-line answer:</strong> Factory Method creates one product type via a subclass override; Abstract Factory creates a family of related products via a multi-method interface.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“Factory Method defines one <code>createProduct()</code> method; subclasses override it to return a specific concrete type. It answers: ‘which exact class do I instantiate?’ Abstract Factory has multiple <code>create*()</code> methods — <code>createButton()</code>, <code>createCheckbox()</code>, etc. — and one concrete factory implements the whole suite. The guarantee is compatibility: everything from one Abstract Factory works together. Factory Method is simpler but single-product; Abstract Factory coordinates a product family but is harder to extend — adding a new product type means adding a method to the interface, which breaks all existing implementations.”</p>
+</blockquote>
+<blockquote>
+<p><em>Use the Mac/Windows UI example to make it concrete: <code>MacFactory</code> returns <code>MacButton</code> and <code>MacCheckbox</code>, which share styling.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“How does Spring’s <code>ApplicationContext</code> relate to Abstract Factory?”</em></p>
+<blockquote>
+<p>“<code>ApplicationContext</code> is an Abstract Factory for the application’s object graph. It creates and wires <code>DataSource</code>, repositories, services, controllers — a whole compatible family. A <code>@Configuration</code> class with multiple <code>@Bean</code> methods is the concrete Abstract Factory implementation. Spring resolves dependencies so you get a consistent, properly-wired set of collaborators.”</p>
+</blockquote>
+<hr>
+<p><strong>Q2 — Design Scenario</strong>
+<strong>“Design a notification system that supports Email, SMS, and Push channels, with more channels added in future.”</strong></p>
+<p><strong>One-line answer:</strong> Map channel name to a <code>NotificationFactory</code> bean; Spring auto-wires new channels with zero changes to the service.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“I define a <code>NotificationFactory</code> interface with <code>createSender()</code>. Each channel — <code>EmailNotificationFactory</code>, <code>SmsNotificationFactory</code>, <code>PushNotificationFactory</code> — is a <code>@Component</code> implementing it. Spring collects all <code>NotificationFactory</code> beans into a <code>Map&lt;String, NotificationFactory&gt;</code> injected into <code>NotificationService</code>. To add Slack: create <code>SlackNotificationFactory</code>, annotate it <code>@Component("slack")</code>, done — the service never changes. This is the Factory Method pattern composed with Spring’s dependency injection for runtime dispatch.”</p>
+</blockquote>
+<blockquote>
+<p><em>This answer demonstrates OCP — open for extension, closed for modification — which is what interviewers are probing for.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“What happens if an unknown channel name is passed?”</em></p>
+<blockquote>
+<p>“The map lookup returns null, and calling <code>createSender()</code> on null throws <code>NullPointerException</code>. I’d add an explicit check: if the factory isn’t found, throw a descriptive <code>IllegalArgumentException</code> or return a no-op sender, depending on whether an unknown channel is a programming error or a user-input case.”</p>
+</blockquote>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li><strong>Conflating the two patterns:</strong> Factory Method = single product + subclass; Abstract Factory = product family + interface.</li>
+<li><strong>Breaking OCP in Abstract Factory:</strong> adding a new product type forces interface changes across all implementations.</li>
+<li><strong>Using <code>if/else</code> or <code>switch</code> on type strings:</strong> defeats the pattern; use a registry map or Spring bean map instead.</li>
+</ul>
+<p><strong>Quick Revision:</strong> Factory Method → one product, subclass decides; Abstract Factory → product suite, one interface; Spring bean map = runtime factory dispatch with zero modification.</p>
+<hr>
+<h2 id="topic-3-builder-pattern"><a class="header" href="#topic-3-builder-pattern">Topic 3: Builder Pattern</a></h2>
+<h4 id="the-idea-2"><a class="header" href="#the-idea-2">The Idea</a></h4>
+<p>Picture ordering a custom sandwich. You don’t hand the chef a list of 15 ingredients where you leave most blank — that’s the “telescoping constructor” problem. Instead you say: “sourdough, turkey, no onions, extra cheese” — only what you care about, in any order, and the chef assembles it correctly at the end. That’s the Builder pattern.</p>
+<p>The deeper benefit over regular setters is that an object built via setters can exist in an invalid intermediate state — you’ve set the URL but not the method yet; what happens if someone uses the object now? Builder holds all values in the builder object, validates everything in <code>build()</code>, and hands you a fully valid, immutable result.</p>
+<h4 id="how-it-works-2"><a class="header" href="#how-it-works-2">How It Works</a></h4>
+<pre><code>// Telescoping constructor problem
+new HttpRequest(url, null, null, null, 5000, false, null)  // which nulls are which?
+
+// Builder solution
+HttpRequest request = new HttpRequest.Builder(url)
+    .method("POST")
+    .timeoutMs(3000)
+    .build();   // ← validation happens here, object is immutable after this
+</code></pre>
+<pre><code class="language-java">public final class HttpRequest {
+    private final String url;
+    private final String method;
+    private final int timeoutMs;
+
+    private HttpRequest(Builder b) {
+        this.url = b.url; this.method = b.method; this.timeoutMs = b.timeoutMs;
+    }
+
+    public static final class Builder {
+        private final String url;
+        private String method = "GET";
+        private int timeoutMs = 5000;
+
+        public Builder(String url) { this.url = url; }
+        public Builder method(String m) { this.method = m; return this; }
+        public Builder timeoutMs(int t) { this.timeoutMs = t; return this; }
+
+        public HttpRequest build() {
+            if ("POST".equals(method) &amp;&amp; body == null)
+                throw new IllegalStateException("POST requires body");
+            return new HttpRequest(this);
+        }
+    }
+}
+</code></pre>
+<p><strong>Lombok shortcuts:</strong> <code>@Builder</code> generates the entire Builder class. <code>@Builder.Default</code> sets default field values. <code>toBuilder = true</code> enables copy-with-modification. <code>@SuperBuilder</code> handles inheritance. <strong>JPA caveat:</strong> Lombok <code>@Builder</code> removes the no-arg constructor — you must add <code>@NoArgsConstructor</code> + <code>@AllArgsConstructor</code> alongside <code>@Builder</code> for JPA entities.</p>
+<p>Cross-field validation (e.g., POST requires body) belongs in <code>build()</code>, not in the setter methods — setters don’t know the full state yet.</p>
+<h4 id="interview-lens-2"><a class="header" href="#interview-lens-2">Interview Lens</a></h4>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. You can read just this section the night before an interview. Every concept is explained inline.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: Lead with the one-line answer first. Pause. Expand only if the interviewer nods.</em></p>
+</blockquote>
+<hr>
+<p><strong>Q1 — Concept Check</strong>
+<strong>“Why use Builder instead of just setters?”</strong></p>
+<p><strong>One-line answer:</strong> Setters allow invalid intermediate state and prevent immutability; Builder validates all fields atomically in <code>build()</code> and produces a fully immutable object.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“With setters, the moment you call <code>new HttpRequest()</code>, you have an object that exists but is incomplete — URL not set, method not set. Any code that gets a reference before you finish calling setters can observe invalid state. Builder avoids this: the <code>Builder</code> object accumulates all parameters, <code>build()</code> validates cross-field constraints like ‘POST requires a body’, and only then constructs the product. Since all fields are final on the product, the result is immutable — safe to share across threads. Setters also force you to expose mutation on the final object; Builder lets you make the class completely final.”</p>
+</blockquote>
+<blockquote>
+<p><em>Mention that this eliminates the ‘what if someone calls the object before it’s ready?’ class of bugs.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“What’s the JPA problem with Lombok’s <code>@Builder</code>?”</em></p>
+<blockquote>
+<p>“Lombok <code>@Builder</code> generates a package-private all-args constructor and no no-arg constructor. JPA requires a no-arg constructor to instantiate entities when loading from the database. The fix is to add <code>@NoArgsConstructor</code> and <code>@AllArgsConstructor</code> alongside <code>@Builder</code> — <code>@AllArgsConstructor</code> gives Lombok the constructor it needs to build from, and <code>@NoArgsConstructor</code> satisfies JPA.”</p>
+</blockquote>
+<hr>
+<p><strong>Q2 — Tradeoff Question</strong>
+<strong>“When is Builder overkill?”</strong></p>
+<p><strong>One-line answer:</strong> When the class has two or fewer parameters, a simple constructor or static factory is cleaner.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“Builder adds a static inner class, multiple setter-style methods, and a <code>build()</code> call — meaningful boilerplate for a simple value object with one or two fields. The threshold I use: three or more parameters, especially if some are optional or of the same type (where positional confusion is a real risk), is when Builder pays off. For a <code>Point(x, y)</code> class, a constructor is cleaner. For an <code>HttpRequest</code> with URL, method, headers, timeout, retry count, and body, Builder is clearly better — the positional argument problem alone justifies it.”</p>
+</blockquote>
+<blockquote>
+<p><em>Effective Java Item 2 frames this precisely — cite it if you can.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“Where does cross-field validation go in a Builder?”</em></p>
+<blockquote>
+<p>“In <code>build()</code>, not in the individual setter methods. Each setter sees only one field in isolation — it can’t know whether a constraint involving two fields is violated yet. <code>build()</code> is the one place where all fields are known simultaneously, so it’s the right place to throw <code>IllegalStateException</code> for constraints like ‘startDate must be before endDate’ or ‘POST requires body’.”</p>
+</blockquote>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li><strong>Putting cross-field validation in setters:</strong> setters see partial state; constraints involving multiple fields will fire incorrectly.</li>
+<li><strong>Forgetting <code>@NoArgsConstructor</code> with Lombok <code>@Builder</code> on JPA entities:</strong> causes <code>InstantiationException</code> at runtime when JPA tries to load rows.</li>
+<li><strong>Mutable product fields:</strong> if the product class has non-final fields, you’ve built an immutable API wrapper around a mutable object — defensive copies are still needed for collections.</li>
+</ul>
+<p><strong>Quick Revision:</strong> Builder = accumulate in builder, validate in <code>build()</code>, produce immutable product; Lombok <code>@Builder</code> + JPA = must add <code>@NoArgsConstructor</code> + <code>@AllArgsConstructor</code>.</p>
+<hr>
+<h2 id="topic-4-prototype-pattern"><a class="header" href="#topic-4-prototype-pattern">Topic 4: Prototype Pattern</a></h2>
+<h4 id="the-idea-3"><a class="header" href="#the-idea-3">The Idea</a></h4>
+<p>Think of a rubber stamp. You carve one master stamp, then press copies onto paper as fast as you like — each impression is independent; writing on one copy doesn’t affect another. The Prototype pattern does this for objects: instead of building a new instance from scratch (which may be expensive — reading config files, calling databases, doing complex setup), you copy an existing one.</p>
+<p>The critical distinction is shallow vs deep copy. A shallow copy is like photocopying a page that contains a sticky note pointing to a filing cabinet — your copy has the same sticky note pointing to the same cabinet. A deep copy recreates the cabinet too, so each copy is fully independent.</p>
+<h4 id="how-it-works-3"><a class="header" href="#how-it-works-3">How It Works</a></h4>
+<pre><code>// Shallow clone: primitive fields copied by value,
+// reference fields still point to the SAME nested objects
+// → mutating clone.sections affects original.sections
+
+// Deep clone: all nested objects are also copied
+// → clone and original are fully independent
+
+// Java's Cloneable pitfalls:
+// - marker interface with no method
+// - Object.clone() is protected — must override and make public
+// - shallow by default
+// - final fields incompatible with clone()
+// - throws CloneNotSupportedException
+// - constructor not called (can break invariants)
+// → Prefer copy constructor instead
+</code></pre>
+<pre><code class="language-java">public class ReportTemplate {
+    private final String name;
+    private final List&lt;Section&gt; sections;
+
+    // Copy constructor — explicit deep copy
+    public ReportTemplate(ReportTemplate other) {
+        this.name = other.name;
+        this.sections = other.sections.stream()
+            .map(Section::new)  // Section copy constructor
+            .collect(Collectors.toCollection(ArrayList::new));
+    }
+}
+</code></pre>
+<p><strong>Why copy constructor beats <code>Cloneable</code>:</strong> explicit, works with <code>final</code> fields, no checked exception, no reflection magic, self-documenting.</p>
+<p><strong>Spring <code>@Scope("prototype")</code>:</strong> not a clone — Spring creates a fresh instance via constructor for every injection point. Unrelated to the GoF Prototype pattern despite the name.</p>
+<p><strong>Serialization-based deep clone:</strong> works if all fields are <code>Serializable</code>, but is expensive (serialize to bytes, deserialize back) and ties your cloneability to your serialization contract.</p>
+<h4 id="interview-lens-3"><a class="header" href="#interview-lens-3">Interview Lens</a></h4>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. You can read just this section the night before an interview. Every concept is explained inline.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: Lead with the one-line answer first. Pause. Expand only if the interviewer nods.</em></p>
+</blockquote>
+<hr>
+<p><strong>Q1 — Concept Check</strong>
+<strong>“What’s wrong with Java’s <code>Cloneable</code> interface?”</strong></p>
+<p><strong>One-line answer:</strong> It’s a broken API — marker interface with no method, <code>Object.clone()</code> is protected, shallow by default, incompatible with <code>final</code> fields, and skips the constructor.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“<code>Cloneable</code> was a design mistake acknowledged in Effective Java. First, it’s a marker interface — it has no <code>clone()</code> method to implement; you have to override <code>Object.clone()</code> which is <code>protected</code>, call <code>super.clone()</code>, cast the result, and handle <code>CloneNotSupportedException</code>. Second, the default behavior is a shallow copy — reference fields point to the same nested objects, so modifying the clone’s list modifies the original’s list. Third, <code>final</code> fields can’t be reassigned after <code>super.clone()</code>, so deep copying an object with <code>final</code> mutable fields is impossible via <code>clone()</code>. Fourth, <code>Object.clone()</code> doesn’t call the constructor, which means any invariants established in the constructor are bypassed. A copy constructor solves all of these: explicit, works with <code>final</code> fields, no exceptions, calls the constructor normally.”</p>
+</blockquote>
+<blockquote>
+<p><em>Cite Effective Java Item 13 if you know it.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“Is Spring’s <code>@Scope("prototype")</code> related to the Prototype design pattern?”</em></p>
+<blockquote>
+<p>“They share the name but the mechanism is different. Spring prototype scope creates a fresh instance via the constructor every time a bean is requested — it doesn’t clone an existing object. The GoF Prototype pattern copies an existing instance to avoid expensive re-initialization. Spring’s naming is a conceptual analogy — ‘give me a new one from the prototype definition’ — not an implementation of the pattern.”</p>
+</blockquote>
+<hr>
+<p><strong>Q2 — Tradeoff Question</strong>
+<strong>“When would you use Prototype over just calling <code>new</code>?”</strong></p>
+<p><strong>One-line answer:</strong> When constructing an object is expensive and you already have a valid instance whose state you want to start from.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“The classic case is an object whose initialization involves I/O — reading a config file, loading a template from a database, pre-computing a large data structure. Once you have one valid instance, cloning it is far cheaper than rebuilding from scratch. A concrete example: a <code>ReportTemplate</code> that parses a large XML schema on construction. If you need 50 report instances from the same template, copy-constructing from one parsed instance avoids 49 XML parse operations. The alternative — calling <code>new</code> 50 times — would hit disk or network 50 times.”</p>
+</blockquote>
+<blockquote>
+<p><em>Contrast with Builder: Builder is about assembling from parameters; Prototype is about duplicating from an existing valid state.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“What’s the danger of returning a shallow copy from a <code>clone()</code> method?”</em></p>
+<blockquote>
+<p>“Any caller that modifies a mutable field on their copy — like adding an element to a list — also modifies the original, because both references point to the same underlying object. This breaks the independence guarantee that callers expect from a copy. The bug is particularly insidious because it appears only when the clone is mutated, which may happen long after it was created and in a completely different part of the code.”</p>
+</blockquote>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li><strong>Implementing <code>Cloneable</code> and not doing a deep copy:</strong> mutable nested fields are shared, leading to aliasing bugs.</li>
+<li><strong>Assuming <code>@Scope("prototype")</code> is a GoF Prototype:</strong> Spring creates fresh instances; it does not clone.</li>
+<li><strong>Using serialization-based clone without checking <code>Serializable</code> on all fields:</strong> throws <code>NotSerializableException</code> at runtime, often on a third-party field you don’t control.</li>
+</ul>
+<p><strong>Quick Revision:</strong> Prototype = copy existing instance; prefer copy constructor over <code>Cloneable</code>; shallow copy shares references (dangerous for mutable fields); Spring <code>@Scope("prototype")</code> = new instance, not a clone.</p>
+<hr>
+<h2 id="topic-5-adapter-pattern"><a class="header" href="#topic-5-adapter-pattern">Topic 5: Adapter Pattern</a></h2>
+<h4 id="the-idea-4"><a class="header" href="#the-idea-4">The Idea</a></h4>
+<p>Picture a traveller from the US plugging a US-socket device into a UK wall outlet. The voltage and plug shape are different — they’re incompatible interfaces. A travel adapter sits in between: it accepts the UK socket on one side and presents a US socket on the other. Neither the device nor the wall changes; the adapter translates between them.</p>
+<p>That’s exactly the Adapter pattern. You have a client that expects one interface and a class (often a third-party library) that provides a different interface. You write an adapter that implements the interface the client expects, and internally delegates to the incompatible class.</p>
+<h4 id="how-it-works-4"><a class="header" href="#how-it-works-4">How It Works</a></h4>
+<pre><code>// Object Adapter (preferred in Java — uses composition)
+// Implements the Target interface the client expects.
+// Holds the Adaptee as a field.
+// Delegates to Adaptee, translating types along the way.
+
+// Class Adapter: uses multiple inheritance
+// Not idiomatic in Java (no multiple class inheritance) — avoid.
+
+interface PaymentProcessor {
+    PaymentResponse processPayment(PaymentRequest request);
+}
+
+class LegacyPaymentGateway {
+    // Different method name, different parameter types
+    String charge(String customerId, double amount, String currency);
+}
+</code></pre>
+<pre><code class="language-java">public class LegacyPaymentAdapter implements PaymentProcessor {
+    private final LegacyPaymentGateway gateway;  // composition
+
+    public LegacyPaymentAdapter(LegacyPaymentGateway gateway) {
+        this.gateway = gateway;
+    }
+
+    @Override
+    public PaymentResponse processPayment(PaymentRequest request) {
+        // Translate: new API → legacy API
+        String chargeId = gateway.charge(
+            request.customerId(),
+            request.amount().doubleValue(),   // BigDecimal → double
+            request.currency()
+        );
+        // Translate: legacy response → domain object
+        return new PaymentResponse(chargeId, "SUCCESS", request.amount());
+    }
+}
+</code></pre>
+<p><strong>Adapter vs Facade:</strong> Adapter changes an interface (translation between two incompatible interfaces). Facade simplifies multiple interfaces (hides complexity behind one clean entry point). A Facade doesn’t require an existing incompatible interface — it just makes things easier.</p>
+<p><strong>Spring’s <code>HandlerAdapter</code>:</strong> <code>DispatcherServlet</code> calls the uniform <code>handle()</code> method; separate adapters translate that into <code>@Controller</code> method invocation, <code>HttpRequestHandler.handleRequest()</code>, and <code>Servlet.service()</code>. Spring adds support for new handler types without changing <code>DispatcherServlet</code> — OCP in action.</p>
+<p><strong>Rule:</strong> Adapters should only translate — no business logic. If you’re doing calculation or validation inside the adapter, that logic belongs elsewhere.</p>
+<h4 id="interview-lens-4"><a class="header" href="#interview-lens-4">Interview Lens</a></h4>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. You can read just this section the night before an interview. Every concept is explained inline.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: Lead with the one-line answer first. Pause. Expand only if the interviewer nods.</em></p>
+</blockquote>
+<hr>
+<p><strong>Q1 — Concept Check</strong>
+<strong>“What is the Adapter pattern and when would you use it?”</strong></p>
+<p><strong>One-line answer:</strong> Adapter wraps an incompatible class behind an interface the client expects, enabling integration without modifying either side.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“Adapter is the go-to pattern when you’re integrating a third-party library or legacy system whose API doesn’t match your domain model. You define or use an existing interface that your application code depends on, then write an adapter class that implements that interface and delegates to the external library, translating types along the way. Neither your code nor the library changes — the adapter bridges them. A real example: a legacy payment gateway that takes <code>double amount</code> but our system uses <code>BigDecimal</code>. The adapter converts <code>BigDecimal</code> to <code>double</code> on the way in and maps the legacy string response to our <code>PaymentResponse</code> domain object on the way out.”</p>
+</blockquote>
+<blockquote>
+<p><em>Emphasise composition over inheritance: hold the adaptee as a field, don’t extend it.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“What’s the difference between Adapter and Facade?”</em></p>
+<blockquote>
+<p>“Adapter’s purpose is translation — making an incompatible interface compatible. There’s always a specific target interface the client already expects, and the adapter conforms to it. Facade’s purpose is simplification — it provides a clean, high-level API that hides the complexity of several subsystems working together. A Facade doesn’t need an incompatible interface to exist; it just makes things easier. You might use both: an Adapter to wrap a third-party library into your domain interface, and a Facade to orchestrate several such adapters for a use case.”</p>
+</blockquote>
+<hr>
+<p><strong>Q2 — Design Scenario</strong>
+<strong>“How does Spring’s <code>DispatcherServlet</code> use the Adapter pattern?”</strong></p>
+<p><strong>One-line answer:</strong> <code>HandlerAdapter</code> bridges <code>DispatcherServlet</code>’s uniform <code>handle()</code> call to the varied invocation mechanisms of different handler types.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“<code>DispatcherServlet</code> needs to invoke handlers — but handlers come in different forms: a method annotated with <code>@RequestMapping</code>, an <code>HttpRequestHandler</code> implementation, a plain <code>Servlet</code>. Each has a different invocation API. Spring defines a <code>HandlerAdapter</code> interface with a <code>handle(request, response, handler)</code> method. Concrete adapters — <code>RequestMappingHandlerAdapter</code>, <code>HttpRequestHandlerAdapter</code>, <code>SimpleServletHandlerAdapter</code> — each know how to invoke one type of handler. <code>DispatcherServlet</code> picks the right adapter for the handler and calls <code>handle()</code> uniformly. Adding support for a new handler type means writing a new <code>HandlerAdapter</code> implementation — <code>DispatcherServlet</code> never changes. That’s OCP delivered via Adapter.”</p>
+</blockquote>
+<blockquote>
+<p><em>This demonstrates you understand how a real framework applies the pattern, not just the textbook definition.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“Should an Adapter contain business logic?”</em></p>
+<blockquote>
+<p>“No. An Adapter’s job is purely translation — mapping method signatures, converting types, re-naming parameters. Business logic inside an adapter is invisible to the domain layer, untestable in isolation, and violates single responsibility. If I find myself writing conditional logic in an adapter, that’s a smell that the logic belongs in a domain service or the caller, not in the translation layer.”</p>
+</blockquote>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li><strong>Adding business logic to the adapter:</strong> makes it invisible to the domain layer and hard to test in isolation.</li>
+<li><strong>Using class adapter (inheritance) in Java:</strong> couples the adapter to the adaptee’s implementation and breaks if the adaptee isn’t extensible.</li>
+<li><strong>Confusing Adapter with Facade:</strong> Adapter = translate one interface to another; Facade = simplify multiple subsystems behind one API.</li>
+</ul>
+<p><strong>Quick Revision:</strong> Adapter = composition + implement target interface + delegate to adaptee; object adapter preferred over class adapter; no business logic inside; Spring <code>HandlerAdapter</code> is the canonical real-world example.</p>
+<hr>
+<h2 id="topic-6-decorator-pattern"><a class="header" href="#topic-6-decorator-pattern">Topic 6: Decorator Pattern</a></h2>
+<h4 id="the-idea-5"><a class="header" href="#the-idea-5">The Idea</a></h4>
+<p>Imagine you order a plain coffee. You can add milk, then sugar, then whipped cream — each addition wraps the previous drink without replacing it. You still have a coffee at the core; you just layered behaviour on top. That is exactly what the Decorator pattern does to objects.</p>
+<p>The alternative would be to create a subclass for every combination: MilkCoffee, SugarCoffee, MilkSugarCoffee, WhippedMilkSugarCoffee… The moment you have N add-ons and M base drinks, the class count explodes. Decorator sidesteps this by composing wrappers at runtime — any combination, no new subclass.</p>
+<p>The wrapper and the wrapped object share the same interface. The outer object delegates to the inner one, doing its extra work before or after. Callers never know how many layers are present — they just call the interface.</p>
+<h4 id="how-it-works-5"><a class="header" href="#how-it-works-5">How It Works</a></h4>
+<pre><code>interface Component { void operation(); }
+
+class ConcreteComponent implements Component { ... }
+
+abstract class Decorator implements Component {
+    private final Component wrapped;
+    Decorator(Component c) { this.wrapped = c; }
+    public void operation() { wrapped.operation(); }  // default: pure delegation
+}
+
+class LoggingDecorator extends Decorator {
+    public void operation() {
+        log("before"); super.operation(); log("after");
+    }
+}
+</code></pre>
+<p><strong>Java I/O is the canonical example.</strong> <code>InputStream</code> is the Component; <code>FileInputStream</code> is the Concrete Component; <code>FilterInputStream</code> is the abstract Decorator base; <code>BufferedInputStream</code> and <code>GZIPInputStream</code> are Concrete Decorators. You compose them: <code>new GZIPInputStream(new BufferedInputStream(new FileInputStream("f.gz")))</code>.</p>
+<p><strong>Spring AOP</strong> acts as an invisible Decorator: <code>@Transactional</code>, <code>@Cacheable</code>, and <code>@Secured</code> cause Spring to wrap your bean in a CGLIB or JDK proxy that intercepts calls and adds behaviour before/after delegating to your real method.</p>
+<p><strong>Order of decorators matters.</strong> Placing <code>RateLimitDecorator</code> outside <code>RetryDecorator</code> means each retry counts against the rate limit. Swap the order and retries are transparent to the rate limiter — two very different behaviours from one ordering decision.</p>
+<p><strong>Decorator vs AOP:</strong> Use Decorator when the consumer explicitly opts in to a pipeline they construct. Use AOP when the concern must apply transparently across many classes without touching any of them.</p>
+<pre><code class="language-java">NotificationService base = new EmailNotificationService();
+// Compose: rate limit wraps retry wraps logging wraps base
+NotificationService pipeline = new RateLimitNotificationDecorator(
+    new RetryNotificationDecorator(
+        new LoggingNotificationDecorator(base), 3),
+    100);
+pipeline.send("user@example.com", "Your order shipped!");
+// Adding a new concern = add one class, one wrapping line — no existing code modified
+</code></pre>
+<h4 id="interview-lens-5"><a class="header" href="#interview-lens-5">Interview Lens</a></h4>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. Read the question, attempt a mental answer, then check the full answer. Treat the italic delivery notes as coaching, not script.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: Lead with the one-line answer first, then layer in detail. Interviewers want signal fast.</em></p>
+</blockquote>
+<hr>
+<p><strong>Q1 — Concept check</strong>
+<strong>“What is the Decorator pattern and how does it differ from inheritance?”</strong></p>
+<p><strong>One-line answer:</strong> Decorator wraps an object implementing the same interface to add behaviour at runtime, avoiding the class explosion that inheritance causes when combining N features with M base types.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“Inheritance bakes behaviour in at compile time. If I have three logging levels and four transport types, inheritance gives me twelve classes minimum — and I haven’t handled combinations yet. Decorator flips this: each concern is its own wrapper class. At runtime I compose exactly the wrappers I need around the core object. The consumer talks to the outermost wrapper; it has no idea how many layers exist. Java’s I/O streams are the textbook example — BufferedInputStream wrapping FileInputStream wrapping whatever — and Spring AOP does the same thing invisibly with @Transactional proxies.”</p>
+</blockquote>
+<blockquote>
+<p><em>Draw the wrapping chain on a whiteboard if available. Visualising layers lands faster than words alone.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“Does decorator order matter?”</em></p>
+<blockquote>
+<p>“Absolutely. If RateLimitDecorator is outermost and RetryDecorator is inside it, every retry attempt counts against the rate limit quota. Swap them and retries are invisible to the rate limiter. The interface is identical either way — the behaviour is not.”</p>
+</blockquote>
+<hr>
+<p><strong>Q2 — Spring application</strong>
+<strong>“How does Spring AOP relate to the Decorator pattern?”</strong></p>
+<p><strong>One-line answer:</strong> Spring wraps your bean in a proxy (CGLIB subclass or JDK dynamic proxy) that intercepts method calls to add cross-cutting behaviour — structurally identical to Decorator, but generated transparently at container startup.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“When you annotate a method @Transactional, Spring doesn’t modify your class. It creates a proxy object that sits in front of your bean. When a caller invokes the method, the proxy begins a transaction, delegates to your real method, then commits or rolls back. That is Decorator: same interface, extra behaviour layered on top. The difference from hand-written Decorator is that Spring builds the wrapping chain automatically from annotations, using CGLIB to subclass your bean at bytecode level. The caller — and often the developer — never sees the proxy.”</p>
+</blockquote>
+<blockquote>
+<p><em>Mention CGLIB vs JDK proxy distinction if the role is Spring-heavy — it shows depth.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“What breaks when you call a @Transactional method from within the same class?”</em></p>
+<blockquote>
+<p>“Self-invocation bypasses the proxy entirely. The internal call goes directly to <code>this</code>, not through the proxy, so the transaction interceptor never fires. Fix it by restructuring into a separate bean, or by fetching the proxy reference via AopContext.currentProxy() — though that couples your code to Spring internals.”</p>
+</blockquote>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li><strong>Ignoring decorator order:</strong> Assuming wrappers are commutative; they are not — rate-limit-outside-retry and retry-outside-rate-limit behave completely differently.</li>
+<li><strong>Skipping the abstract decorator base:</strong> Writing boilerplate delegation in every concrete decorator; the abstract base delegates by default so subclasses override only what they change.</li>
+<li><strong>Confusing Decorator with Proxy:</strong> Decorator is about adding behaviour the client chooses; Proxy is about controlling access to the underlying object (laziness, security, caching).</li>
+</ul>
+<p><strong>Quick Revision:</strong> Decorator = same-interface wrapper that adds behaviour at runtime; order matters; Java I/O and Spring AOP proxies are canonical real-world examples.</p>
+<hr>
+<h2 id="topic-7-facade-pattern"><a class="header" href="#topic-7-facade-pattern">Topic 7: Facade Pattern</a></h2>
+<h4 id="the-idea-6"><a class="header" href="#the-idea-6">The Idea</a></h4>
+<p>Think of a concierge at a hotel. You say “I need a table for two at 7 pm.” Behind the scenes the concierge calls the restaurant, checks availability, makes a reservation, logs it in the hotel system, and maybe arranges a taxi. You made one request; a dozen subsystem interactions happened. You never touched any of them directly.</p>
+<p>In software, a Facade is that concierge. It sits in front of a complex cluster of subsystems — repositories, external API clients, event publishers — and exposes one clean method. Callers ask for the outcome; the Facade handles all the orchestration.</p>
+<p>Without a Facade, controllers end up coordinating repositories, payment clients, inventory services, and notification clients directly. Every controller becomes a coordinator, business logic leaks everywhere, and any change to a subsystem ripples out to every controller that used it.</p>
+<h4 id="how-it-works-6"><a class="header" href="#how-it-works-6">How It Works</a></h4>
+<pre><code>// Without Facade — controller does orchestration (bad)
+// Controller calls: inventoryRepo → paymentClient → orderRepo → notifier
+
+// With Facade — controller calls ONE method
+OrderService.placeOrder(request)
+  └─ inventoryClient.reserveItems(...)
+  └─ paymentClient.charge(...)
+  └─ orderRepo.save(...)
+  └─ notificationClient.sendConfirmation(...)
+</code></pre>
+<p><strong>Facade vs Adapter:</strong> Adapter translates one interface into another (impedance matching). Facade simplifies many interfaces into one (complexity hiding). Different goals.</p>
+<p><strong>Facade vs Mediator:</strong> Facade is one-directional — clients talk to the Facade, the Facade talks to subsystems. Mediator coordinates peer objects that talk to each other via the mediator; the flow is bidirectional.</p>
+<p><strong>Law of Demeter (“Don’t Talk to Strangers”):</strong> Controllers should only call the Service layer. If a controller imports a Repository directly, that is a design smell — the Facade layer is being bypassed.</p>
+<p><strong>Avoid the God Service:</strong> A Facade that absorbs every concern becomes unmaintainable. Split by subdomain — <code>OrderService</code>, <code>InventoryService</code>, <code>PaymentService</code> — rather than one <code>ApplicationService</code> that does everything.</p>
+<p><strong>Return DTOs, not JPA entities.</strong> The Facade is the boundary. Leaking entities out couples callers to your persistence model.</p>
+<pre><code class="language-java">@Service
+@Transactional
+public class OrderService {  // FACADE — one entry point
+    // All subsystems injected
+    private final OrderRepository orderRepo;
+    private final InventoryClient inventoryClient;
+    private final PaymentClient paymentClient;
+    private final NotificationClient notificationClient;
+
+    public Order placeOrder(PlaceOrderRequest req) {
+        // Orchestrates all subsystems — caller sees none of this
+        if (!inventoryClient.reserveItems(req.productId(), req.quantity()))
+            throw new InsufficientInventoryException(req.productId());
+        var payment = paymentClient.charge(req.customerId(), req.totalAmount());
+        var order = orderRepo.save(Order.from(req, payment.transactionId()));
+        notificationClient.sendConfirmation(req.email(), order.getId());
+        return order;
+    }
+}
+</code></pre>
+<h4 id="interview-lens-6"><a class="header" href="#interview-lens-6">Interview Lens</a></h4>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. Read the question, attempt a mental answer, then check the full answer. Treat the italic delivery notes as coaching, not script.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: Lead with the one-line answer first, then layer in detail. Interviewers want signal fast.</em></p>
+</blockquote>
+<hr>
+<p><strong>Q1 — Concept check</strong>
+<strong>“What problem does the Facade pattern solve?”</strong></p>
+<p><strong>One-line answer:</strong> Facade hides the complexity of coordinating multiple subsystems behind a single, simple interface so callers don’t need to know about or depend on the internals.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“Without a Facade, every caller has to orchestrate subsystems directly. A controller placing an order would need to know about the inventory client, the payment client, the order repository, and the notification service — plus the correct sequence and error handling for each. Any change to any subsystem breaks every caller. A Facade absorbs that orchestration into one method. The controller calls placeOrder and gets back an Order; it never sees the subsystems. In Spring, the @Service layer is the natural Facade — @Transactional wraps the entire coordination in one transaction, and the controller stays clean.”</p>
+</blockquote>
+<blockquote>
+<p><em>Use the hotel concierge analogy if the interviewer looks puzzled — concrete analogies reset understanding fast.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“How do you prevent a Facade from becoming a God object?”</em></p>
+<blockquote>
+<p>“Split by subdomain. Instead of one OrderApplicationService that handles orders, inventory, payments, and notifications, have an OrderService, a PaymentService, and an InventoryService, each with a focused scope. A Facade should orchestrate things that naturally belong together. If you find yourself needing to inject ten different repositories, that is a sign the subdomain boundary is drawn too broadly.”</p>
+</blockquote>
+<hr>
+<p><strong>Q2 — Design</strong>
+<strong>“Should a controller ever call a repository directly?”</strong></p>
+<p><strong>One-line answer:</strong> No — that violates the Law of Demeter and bypasses the Facade layer, leaking orchestration and transaction management concerns into the presentation layer.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“The controller’s job is to translate HTTP to a service call and back to HTTP. If it calls a repository directly, it becomes an orchestrator: it has to manage transactions, coordinate multiple data sources, handle business validation. Now every controller that touches that data is a partial reimplementation of business logic, and they’ll drift. The Service layer is the correct Facade: it knows the transaction boundary, the correct sequencing, and the business rules. Controllers should be thin — one method call down, one DTO back up.”</p>
+</blockquote>
+<blockquote>
+<p><em>This is often a follow-on to architecture questions. Connecting it to testability (services are easier to mock than repositories injected into controllers) adds depth.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“What should a Facade return — entities or DTOs?”</em></p>
+<blockquote>
+<p>“DTOs. Returning a JPA entity from a Facade leaks the persistence model to callers. If the schema changes, every caller breaks. A DTO is a stable contract; the mapping from entity to DTO happens inside the Facade, which is the right place for it.”</p>
+</blockquote>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li><strong>God Service:</strong> Injecting every repository and client into one service class; split by subdomain instead.</li>
+<li><strong>Leaking entities:</strong> Returning JPA entities from service methods exposes persistence details to callers.</li>
+<li><strong>Bypassing the Facade:</strong> Controllers importing repositories directly, duplicating orchestration logic across layers.</li>
+</ul>
+<p><strong>Quick Revision:</strong> Facade = one clean method hiding multi-subsystem orchestration; Spring @Service is the canonical Facade; keep it focused, return DTOs, never let callers reach past it.</p>
+<hr>
+<h2 id="topic-8-proxy-pattern"><a class="header" href="#topic-8-proxy-pattern">Topic 8: Proxy Pattern</a></h2>
+<h4 id="the-idea-7"><a class="header" href="#the-idea-7">The Idea</a></h4>
+<p>A celebrity’s agent is a proxy. You cannot call the celebrity directly — you call the agent. The agent decides whether to put the call through, may add conditions, logs who called, and handles some requests entirely without disturbing the celebrity at all. The caller talks to the same “person” regardless.</p>
+<p>In software, a Proxy sits in front of a real object, sharing its interface, intercepting every call. It can defer creation until the object is actually needed (Virtual Proxy), add security checks (Protection Proxy), cache results (Caching Proxy), or log every invocation (Logging Proxy). The caller has no idea a proxy is involved.</p>
+<p>This is different from Decorator: Decorator adds behaviour the client consciously stacks. Proxy controls access to an underlying object, usually transparently. The client rarely chooses the proxy explicitly — it is installed by a framework.</p>
+<h4 id="how-it-works-7"><a class="header" href="#how-it-works-7">How It Works</a></h4>
+<pre><code>// Static proxy — hand-written, one class per interface
+class LoggingUserService implements UserService {
+    private final UserService delegate;
+    public User findById(long id) {
+        log("findById " + id);
+        return delegate.findById(id);
+    }
+}
+
+// JDK Dynamic Proxy — runtime-generated, requires interface
+// CGLIB — bytecode subclass, works without interface, cannot proxy final classes/methods
+</code></pre>
+<p><strong>Spring AOP proxy selection:</strong></p>
+<ul>
+<li>Target implements an interface → JDK dynamic proxy (pre-Boot 2.0 default)</li>
+<li>Spring Boot 2+ → CGLIB always by default</li>
+<li><code>@EnableAspectJAutoProxy(proxyTargetClass=true)</code> forces CGLIB</li>
+</ul>
+<p><strong>Self-invocation is the classic gotcha.</strong> When a method inside a Spring bean calls another method on <code>this</code>, it bypasses the proxy. <code>@Transactional</code> on the inner method does nothing. Fix: inject the bean into itself, or fetch the proxy via <code>AopContext.currentProxy()</code>, or restructure into two beans.</p>
+<p><strong>Hibernate lazy loading</strong> is a Virtual Proxy in practice: <code>entity.getOrders()</code> returns a CGLIB subclass proxy of the collection; the first time you call a method on it, Hibernate fires the SQL.</p>
+<pre><code class="language-java">UserService proxy = (UserService) Proxy.newProxyInstance(
+    UserService.class.getClassLoader(),
+    new Class&lt;?&gt;[]{ UserService.class },
+    (proxyObj, method, args) -&gt; {
+        System.out.println("[PROXY] " + method.getName());
+        long start = System.nanoTime();
+        Object result = method.invoke(realService, args);
+        System.out.println("[PROXY] took " + (System.nanoTime() - start) / 1000 + "μs");
+        return result;
+    }
+);
+// Spring Boot 2+: AopUtils.isCglibProxy(bean) → true even for interface-backed beans
+</code></pre>
+<h4 id="interview-lens-7"><a class="header" href="#interview-lens-7">Interview Lens</a></h4>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. Read the question, attempt a mental answer, then check the full answer. Treat the italic delivery notes as coaching, not script.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: Lead with the one-line answer first, then layer in detail. Interviewers want signal fast.</em></p>
+</blockquote>
+<hr>
+<p><strong>Q1 — Spring internals</strong>
+<strong>“How does Spring implement @Transactional under the hood?”</strong></p>
+<p><strong>One-line answer:</strong> Spring wraps the bean in a proxy (CGLIB or JDK dynamic) that intercepts the method call, opens a transaction before delegating to your real method, then commits or rolls back after it returns.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“At startup, Spring’s BeanPostProcessor detects @Transactional annotations and replaces the bean in the application context with a proxy. For Spring Boot 2+, that proxy is a CGLIB subclass by default. When a caller invokes a @Transactional method, the proxy intercepts the call, checks whether a transaction is already active based on the propagation setting, opens one if needed, delegates to the real method, and then commits or rolls back depending on whether an exception escaped. The caller never knows it’s talking to a proxy — it asked for a UserService bean and got one, just with transactional behaviour baked in by the container.”</p>
+</blockquote>
+<blockquote>
+<p><em>Saying “BeanPostProcessor” and “CGLIB subclass” signals you understand the mechanism, not just the annotation.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“Why doesn’t @Transactional work when you call the method from within the same class?”</em></p>
+<blockquote>
+<p>“Because self-invocation calls <code>this.method()</code> directly — it bypasses the proxy entirely. The proxy wraps the bean externally; internal calls go straight to the real object. The transaction interceptor never fires. The fix is to restructure so the transactional method is called through the proxy — either by splitting into a separate bean, or by fetching the proxy reference from AopContext.currentProxy().”</p>
+</blockquote>
+<hr>
+<p><strong>Q2 — JDK vs CGLIB</strong>
+<strong>“What is the difference between a JDK dynamic proxy and a CGLIB proxy?”</strong></p>
+<p><strong>One-line answer:</strong> JDK dynamic proxy is runtime-generated and requires the target to implement an interface; CGLIB generates a bytecode subclass at runtime and works on any non-final class without needing an interface.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“JDK proxies use java.lang.reflect.Proxy to generate a class at runtime that implements the same interfaces as the target. Every method call goes through an InvocationHandler you supply. The constraint is that the target must implement at least one interface — the proxy can only implement what the interface declares. CGLIB takes a different approach: it generates a subclass of your target class by manipulating bytecode. Because it is a subclass, it can proxy concrete classes with no interface. The constraint is that the class and the methods you want to intercept must not be final. Spring Boot 2+ defaults to CGLIB even when an interface exists, because CGLIB proxies tend to be more predictable in edge cases.”</p>
+</blockquote>
+<blockquote>
+<p><em>Mentioning the final class/method limitation for CGLIB is the gotcha interviewers look for.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“Can you proxy a final class with Spring AOP?”</em></p>
+<blockquote>
+<p>“Not with CGLIB, because CGLIB needs to subclass it. If the class is final, the only option is a JDK dynamic proxy — which requires an interface. If neither is available, you cannot use Spring AOP on it. Consider refactoring to extract an interface, or use AspectJ compile-time weaving, which operates at the bytecode level before the JVM loads the class.”</p>
+</blockquote>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li><strong>Self-invocation:</strong> Calling a @Transactional or @Cacheable method from within the same bean and expecting the proxy to intercept — it will not.</li>
+<li><strong>Proxying final classes with CGLIB:</strong> Forgetting that CGLIB must subclass the target; final prevents subclassing.</li>
+<li><strong>Confusing Proxy with Decorator:</strong> Proxy controls access transparently; Decorator adds behaviour the client explicitly composes.</li>
+</ul>
+<p><strong>Quick Revision:</strong> Proxy = surrogate controlling access; JDK proxy needs interface, CGLIB subclasses concrete types; self-invocation bypasses Spring proxies; Hibernate lazy loading is a Virtual Proxy.</p>
+<hr>
+<h2 id="topic-9-observer-pattern"><a class="header" href="#topic-9-observer-pattern">Topic 9: Observer Pattern</a></h2>
+<h4 id="the-idea-8"><a class="header" href="#the-idea-8">The Idea</a></h4>
+<p>Think of a newspaper subscription. The newspaper (the Subject) does not need to know anything specific about its readers (the Observers). When a new edition is printed, every subscriber gets it automatically. Subscribers can sign up or cancel at any time without the newspaper changing anything about how it publishes.</p>
+<p>In software, the Subject maintains a list of Observers and notifies them when its state changes. The classic benefit: the Subject and Observer are loosely coupled. The Subject does not know what the Observer does with the notification — it just broadcasts.</p>
+<p>As systems grow distributed, Kafka takes this pattern beyond a single JVM: the topic is the Subject, consumer groups are Observers, and events are durable so latecoming Observers can replay history. The same mental model, massively scaled.</p>
+<h4 id="how-it-works-8"><a class="header" href="#how-it-works-8">How It Works</a></h4>
+<pre><code>// Push model — Subject sends data payload in notification (observer is passive)
+interface Observer { void onEvent(EventPayload payload); }
+
+// Pull model — Observer holds Subject reference, queries only what it needs
+interface Observer { void notifyChanged(); }  // Observer then calls subject.getState()
+
+// Spring: ApplicationEventPublisher decouples publisher from listeners entirely
+// Listeners are @EventListener beans — publisher holds no references to them
+</code></pre>
+<p><strong>@TransactionalEventListener(phase=AFTER_COMMIT)</strong> is the critical Spring gotcha. If you publish an event inside a @Transactional method using a plain @EventListener, the listener fires even if the transaction later rolls back. Use AFTER_COMMIT to guarantee the event fires only when the DB change is permanent.</p>
+<p><strong>@Async + @EventListener:</strong> Moves notification off the calling thread — the HTTP request returns before observers finish processing. Requires @EnableAsync.</p>
+<p><strong>Memory leak warning:</strong> In plain Java Observer implementations, failing to unsubscribe leaves the Subject holding a reference to the Observer, preventing garbage collection. Use WeakReference or rely on container-managed listeners (Spring handles registration and cleanup).</p>
+<pre><code class="language-java">@Service
+public class OrderService {
+    private final ApplicationEventPublisher eventPublisher;
+
+    @Transactional
+    public Order placeOrder(PlaceOrderRequest req) {
+        Order order = orderRepository.save(Order.from(req));
+        // Published AFTER commit — no phantom notifications on rollback
+        eventPublisher.publishEvent(new OrderPlacedEvent(order.getId(), order.getAmount()));
+        return order;
+    }
+}
+
+@Component
+public class InventoryListener {
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onOrderPlaced(OrderPlacedEvent event) {
+        reserveInventory(event.orderId());  // Only runs if order was actually saved
+    }
+}
+</code></pre>
+<h4 id="interview-lens-8"><a class="header" href="#interview-lens-8">Interview Lens</a></h4>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. Read the question, attempt a mental answer, then check the full answer. Treat the italic delivery notes as coaching, not script.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: Lead with the one-line answer first, then layer in detail. Interviewers want signal fast.</em></p>
+</blockquote>
+<hr>
+<p><strong>Q1 — Spring application</strong>
+<strong>“Why use @TransactionalEventListener instead of @EventListener for post-order notifications?”</strong></p>
+<p><strong>One-line answer:</strong> @TransactionalEventListener(phase=AFTER_COMMIT) fires only after the transaction commits, so side effects like sending emails or reserving inventory never happen for orders that were rolled back.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“If I publish an event inside a @Transactional method using a plain @EventListener, the listener runs in the same transaction context — or immediately if there is no ongoing transaction — which means it can fire before the database change is permanent. If something fails and the transaction rolls back, the email has already been sent. The inventory has already been decremented. Those side effects cannot be undone. @TransactionalEventListener with phase=AFTER_COMMIT defers execution until the transaction successfully commits. If the transaction rolls back, the listener never runs. For anything with real-world consequences — emails, inventory, payment webhooks — AFTER_COMMIT is the safe default.”</p>
+</blockquote>
+<blockquote>
+<p><em>Lead with the rollback scenario. That concretises why it matters and shows you think about failure modes.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“What happens to the event if the transaction rolls back?”</em></p>
+<blockquote>
+<p>“With @TransactionalEventListener(phase=AFTER_COMMIT), the event is silently dropped — the listener never fires. If you need durable event delivery even across rollbacks, you should use the outbox pattern: write the event to a database table in the same transaction as your domain change, and have a separate process poll the table and publish. That way the event is only ‘sent’ once the row is committed.”</p>
+</blockquote>
+<hr>
+<p><strong>Q2 — Push vs Pull</strong>
+<strong>“What is the difference between push and pull models in Observer?”</strong></p>
+<p><strong>One-line answer:</strong> Push sends the data payload in the notification; pull notifies the Observer that something changed and lets the Observer query only the state it needs.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“In the push model, the Subject packages the relevant data into the event object and passes it to each Observer. The Observer is passive — it receives everything it might need. This is looser coupling because the Observer does not need a reference to the Subject. In the pull model, the notification is minimal — just a signal that state changed. The Observer holds a reference to the Subject and queries for only the data it cares about. This gives finer-grained control but tightens the coupling because the Observer knows about the Subject’s API. Spring’s ApplicationEventPublisher uses push: the event object carries the payload, and listeners never need to reach back into the publisher.”</p>
+</blockquote>
+<blockquote>
+<p><em>Spring examples anchor abstract concepts. Concrete always beats abstract in interviews.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“How does Kafka extend the Observer pattern?”</em></p>
+<blockquote>
+<p>“Kafka’s topic is the Subject, consumer groups are the Observers, and events are durable records rather than transient method calls. Observers can subscribe and unsubscribe by changing their consumer group membership, they can replay historical events by resetting offsets, and they process at their own rate via the consumer poll model. The major addition over in-process Observer is durability and backpressure. The tradeoff is that observers must be idempotent because Kafka guarantees at-least-once delivery — the same event can arrive more than once.”</p>
+</blockquote>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li><strong>Using @EventListener for transactional side effects:</strong> Listener fires before commit; rollback leaves ghost side effects (emails sent, inventory decremented for an order that never existed).</li>
+<li><strong>Memory leak from missing unsubscribe:</strong> Strong Subject-to-Observer reference prevents GC; use WeakReference or container-managed listeners.</li>
+<li><strong>Synchronous observers blocking the main flow:</strong> Use @Async to move expensive observers off the request thread.</li>
+</ul>
+<p><strong>Quick Revision:</strong> Observer = one-to-many notification; always use @TransactionalEventListener(AFTER_COMMIT) for real-world side effects; Kafka is distributed Observer with durability and replay.</p>
+<hr>
+<h2 id="topic-10-strategy-pattern"><a class="header" href="#topic-10-strategy-pattern">Topic 10: Strategy Pattern</a></h2>
+<h4 id="the-idea-9"><a class="header" href="#the-idea-9">The Idea</a></h4>
+<p>Imagine a navigation app that needs to calculate routes. Sometimes the user wants the fastest route; sometimes the cheapest; sometimes the one that avoids tolls. The calculation algorithm changes, but everything else — taking the user’s start and end point, displaying the route — stays the same.</p>
+<p>Rather than a sprawling if-else block (<code>if (mode == FAST) { ... } else if (mode == CHEAP) { ... }</code>), Strategy extracts each algorithm into its own class. The Context (the navigator) holds a reference to whichever Strategy is active and delegates. Swapping the algorithm at runtime is a one-line assignment.</p>
+<p>The deeper value is Open/Closed Principle: adding a new routing strategy means adding one new class. Existing code is untouched. In a Spring application, this extends further — you add a new @Component and the container wires it in automatically.</p>
+<h4 id="how-it-works-9"><a class="header" href="#how-it-works-9">How It Works</a></h4>
+<pre><code>interface ShippingStrategy { Money calculate(Order order); }
+
+class StandardShipping implements ShippingStrategy { ... }
+class ExpressShipping  implements ShippingStrategy { ... }
+class FreeShipping     implements ShippingStrategy { ... }
+
+class ShippingContext {
+    private ShippingStrategy strategy;
+    void setStrategy(ShippingStrategy s) { this.strategy = s; }
+    Money calculate(Order o) { return strategy.calculate(o); }
+}
+
+// Runtime swap
+context.setStrategy(new ExpressShipping());
+</code></pre>
+<p><strong>Spring Map injection</strong> is the idiomatic Spring implementation. Spring automatically collects all beans implementing a Strategy interface into a <code>Map&lt;String, Strategy&gt;</code> keyed by bean name. No factory class, no registration code — just inject and look up.</p>
+<p><strong>Adding a new strategy:</strong> Create a new class, annotate with @Component(“KEY”), done. Zero changes to existing code. The Map is populated at container startup.</p>
+<p><strong>Strategy vs State:</strong> Strategy is client-driven — the caller explicitly selects the algorithm. State is self-driven — the object transitions itself based on internal conditions.</p>
+<p><strong>Strategy vs Template Method:</strong> Strategy uses composition (a separate object holds the algorithm). Template Method uses inheritance (the algorithm skeleton lives in an abstract base class, subclasses fill in steps). Prefer Strategy — composition is more flexible and avoids the fragile base class problem.</p>
+<p><strong>Lambda as Strategy:</strong> If the interface is a @FunctionalInterface, any lambda satisfies it. <code>Comparator</code> is the canonical Java example — every <code>sorted(Comparator.comparing(...))</code> call passes a Strategy as a lambda.</p>
+<pre><code class="language-java">@Service
+public class PaymentService {
+    private final Map&lt;String, PaymentStrategy&gt; strategies;
+
+    // Spring injects ALL PaymentStrategy beans: key = @Component value, bean = implementation
+    public PaymentService(Map&lt;String, PaymentStrategy&gt; strategies) {
+        this.strategies = strategies;
+    }
+
+    public PaymentResult process(PaymentRequest request) {
+        return Optional.ofNullable(strategies.get(request.getProvider()))
+            .orElseThrow(() -&gt; new UnsupportedPaymentProviderException(request.getProvider()))
+            .process(request);
+        // Adding STRIPE: add StripePaymentStrategy @Component("STRIPE") — nothing else changes
+    }
+}
+</code></pre>
+<h4 id="interview-lens-9"><a class="header" href="#interview-lens-9">Interview Lens</a></h4>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. Read the question, attempt a mental answer, then check the full answer. Treat the italic delivery notes as coaching, not script.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: Lead with the one-line answer first, then layer in detail. Interviewers want signal fast.</em></p>
+</blockquote>
+<hr>
+<p><strong>Q1 — Design decision</strong>
+<strong>“How would you implement support for multiple payment providers without a large if-else block?”</strong></p>
+<p><strong>One-line answer:</strong> Define a PaymentStrategy interface, implement one class per provider annotated @Component with the provider name as the bean name, and inject the full set as a Map&lt;String, PaymentStrategy&gt; into the service.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“The naive approach is a switch or if-else on the provider string — readable at first, but every new provider requires touching the switch, which violates Open/Closed Principle and creates a merge conflict magnet. Instead, I’d define a PaymentStrategy interface with a process method, and implement it once per provider: StripePaymentStrategy @Component(‘STRIPE’), PayPalPaymentStrategy @Component(‘PAYPAL’), and so on. Spring collects all beans implementing the interface into a Map&lt;String, PaymentStrategy&gt;, keyed by bean name, and injects it into the service constructor. At runtime, the service does a map lookup on the incoming provider string. Adding a new provider is one new class and one @Component annotation. Nothing else changes — not the service, not the tests for existing providers.”</p>
+</blockquote>
+<blockquote>
+<p><em>Walk through the code mentally before you describe it. The clarity of the explanation tracks directly with how well you know the pattern.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“What happens if someone passes an unsupported provider?”</em></p>
+<blockquote>
+<p>“The map lookup returns null. Wrapping it in Optional.ofNullable and calling orElseThrow gives a clear, typed exception — UnsupportedPaymentProviderException — rather than a NullPointerException three stack frames later. This is also the right place to log the unknown provider string for operational visibility.”</p>
+</blockquote>
+<hr>
+<p><strong>Q2 — Comparison</strong>
+<strong>“What is the difference between Strategy and Template Method?”</strong></p>
+<p><strong>One-line answer:</strong> Strategy uses composition — the algorithm lives in a separate object you inject; Template Method uses inheritance — the algorithm skeleton lives in an abstract base class you extend.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“Template Method defines the steps of an algorithm in an abstract base class and lets subclasses override specific steps. It is stable when the overall structure truly does not change — only the details vary. The problem is it relies on inheritance: you cannot change the algorithm at runtime, and modifying the base class affects every subclass. Strategy avoids inheritance entirely. The algorithm is encapsulated in a separate object behind an interface. You compose the strategy into the context at construction time or swap it at runtime. That makes Strategy far more flexible and testable — you can mock the strategy in isolation, and you can add new algorithms without touching existing code. The general rule is to prefer Strategy over Template Method unless the algorithm structure is genuinely fixed and unlikely to change.”</p>
+</blockquote>
+<blockquote>
+<p><em>Mentioning testability tips the scales — it shows production-code thinking, not just pattern trivia.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“When is Template Method still the right choice?”</em></p>
+<blockquote>
+<p>“When the algorithm skeleton genuinely belongs in a base class and subclasses are only filling in fixed, well-defined hooks. A good example is AbstractApplicationContext in Spring — the refresh() method defines a fixed lifecycle, and specific application context types override narrowly scoped hooks. When the frame is truly stable and shared, inheritance is not wrong. The error is using Template Method when the frame is not stable — that is when Strategy wins.”</p>
+</blockquote>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li><strong>Large if-else over strategy map:</strong> Adding a new provider requires modifying existing code; violates OCP and creates merge conflicts.</li>
+<li><strong>Missing unknown-key handling:</strong> Map lookup returning null without a null check causes confusing NullPointerExceptions far from the origin.</li>
+<li><strong>Confusing Strategy with State:</strong> Strategy is selected by the client; State transitions itself — different ownership of the selection decision.</li>
+</ul>
+<p><strong>Quick Revision:</strong> Strategy = one interface, many implementations, map injection in Spring; adding a new algorithm = one new @Component; prefer over Template Method because composition beats inheritance.</p>
+<hr>
+<h2 id="topic-11-template-method-pattern"><a class="header" href="#topic-11-template-method-pattern">Topic 11: Template Method Pattern</a></h2>
+<h4 id="the-idea-10"><a class="header" href="#the-idea-10">The Idea</a></h4>
+<p>Imagine a recipe book that fixes the cooking steps — preheat oven, mix ingredients, bake, cool — but leaves the exact ingredients and mixing technique up to the chef. The skeleton never changes; only the variable steps do. That is Template Method in a nutshell.</p>
+<p>The base class (the “recipe”) defines the algorithm as a <code>final</code> method so no subclass can reorder or remove steps. Some steps are declared <code>abstract</code> — subclasses <em>must</em> provide them. Others are “hooks” with a default no-op implementation that subclasses <em>may</em> override if they need to.</p>
+<p>This embodies the Hollywood Principle: “Don’t call us, we’ll call you.” The framework (base class) calls your code (subclass), not the other way around. That inversion is the root idea behind Spring’s IoC container.</p>
+<h4 id="how-it-works-10"><a class="header" href="#how-it-works-10">How It Works</a></h4>
+<pre><code>Base class (final template method):
+  step1()           ← fixed, implemented here
+  step2()           ← abstract, subclass must implement
+  hook()            ← default no-op, subclass may override
+  step3()           ← fixed
+
+Subclass:
+  implements step2()
+  optionally overrides hook()
+</code></pre>
+<p>Spring <code>JdbcTemplate</code> is the canonical backend example. The template handles connection acquisition, exception translation, statement creation, and <code>ResultSet</code> closing. You supply the SQL and a <code>RowMapper</code> — those are your “abstract steps.”</p>
+<pre><code class="language-java">@Repository
+public class ProductRepository {
+    private final JdbcTemplate jdbcTemplate;
+
+    public List&lt;Product&gt; findByCategory(String category) {
+        // Template: JdbcTemplate handles connection, statement, ResultSet closing
+        // Hook: you provide SQL and the RowMapper
+        return jdbcTemplate.query(
+            "SELECT id, name, price FROM products WHERE category = ?",
+            (rs, rowNum) -&gt; new Product(          // RowMapper = your hook
+                rs.getLong("id"),
+                rs.getString("name"),
+                rs.getBigDecimal("price")
+            ),
+            category
+        );
+    }
+}
+</code></pre>
+<p><code>@Transactional</code> is another Template Method in disguise: begin transaction → <em>your method body</em> → commit/rollback. The transaction algorithm is fixed; your code fills the abstract step.</p>
+<p><strong>Template Method vs Strategy:</strong> Template Method uses inheritance — the variable step is baked into a subclass. Strategy uses composition — the algorithm is injected at runtime. Prefer Strategy when variation needs to be chosen at runtime; Template Method is fine when the variation is fixed at compile time.</p>
+<h4 id="interview-lens-10"><a class="header" href="#interview-lens-10">Interview Lens</a></h4>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. Read the one-line answer to check if you know it, then rehearse the full answer aloud before an interview.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: Lead with the one-line answer first, then expand. Interviewers reward concision.</em></p>
+</blockquote>
+<hr>
+<p><strong>Q1 — Definition</strong>
+<strong>“What is the Template Method pattern and where does Spring use it?”</strong></p>
+<p><strong>One-line answer:</strong> Template Method fixes an algorithm’s skeleton in a base class and defers variable steps to subclasses; Spring uses it in <code>JdbcTemplate</code>, <code>@Transactional</code>, and <code>RestTemplate</code>.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“Template Method defines the invariant parts of an algorithm in a <code>final</code> method on the base class, then declares the variable parts as abstract methods or hooks that subclasses override. The base class calls those overridden methods — that inversion is the Hollywood Principle and the basis of IoC. In Spring, <code>JdbcTemplate.query()</code> is the template: it acquires the connection, translates exceptions, and closes the <code>ResultSet</code>. I only supply the SQL and a <code>RowMapper</code> lambda — that lambda is my hook. <code>@Transactional</code> is the same idea: Spring wraps my method in a fixed begin/commit/rollback algorithm; my method body is the abstract step.”</p>
+</blockquote>
+<blockquote>
+<p><em>Mention the <code>final</code> keyword on the template method — it signals intentional immutability of the algorithm order.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“Why is <code>@Transactional</code> considered Template Method rather than Decorator?”</em></p>
+<blockquote>
+<p>“Decorator wraps at the object level and can stack multiple decorators independently. <code>@Transactional</code> uses an AOP proxy that replaces the method invocation with a fixed transaction algorithm — it’s not adding behaviour around an existing interface; it’s defining the entire execution skeleton. That maps closer to Template Method.”</p>
+</blockquote>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li><strong>Making template steps public:</strong> Exposes internals; hook and abstract steps should be <code>protected</code>.</li>
+<li><strong>Confusing hooks with abstract steps:</strong> Hooks have a default implementation (optional override); abstract steps have none (mandatory override).</li>
+<li><strong>Using Template Method when runtime variation is needed:</strong> That calls for Strategy instead.</li>
+</ul>
+<p><strong>Quick Revision:</strong> Template Method = <code>final</code> skeleton + abstract/hook steps; Spring’s <code>JdbcTemplate</code> and <code>@Transactional</code> are live examples.</p>
+<hr>
+<h2 id="topic-12-command-pattern"><a class="header" href="#topic-12-command-pattern">Topic 12: Command Pattern</a></h2>
+<h4 id="the-idea-11"><a class="header" href="#the-idea-11">The Idea</a></h4>
+<p>Think of a restaurant order slip. The waiter (Invoker) writes your request on a slip and passes it to the kitchen (Receiver). The slip is the Command — it encapsulates everything needed to fulfil the request. The waiter does not cook; the kitchen does not know who ordered. They are decoupled through the slip.</p>
+<p>That decoupling unlocks three powerful capabilities: you can queue slips (job queue), log them for auditing, and reverse them if something goes wrong (undo/redo). Each Command object carries the state needed to both execute and undo the action.</p>
+<p>In backend systems this shows up as async job queues, transactional outboxes, and saga compensating transactions — all share the same Command shape.</p>
+<h4 id="how-it-works-11"><a class="header" href="#how-it-works-11">How It Works</a></h4>
+<pre><code>Command interface:
+  execute()
+  undo()
+
+Invoker (CommandHistory):
+  undoStack: Deque&lt;Command&gt;
+  redoStack: Deque&lt;Command&gt;
+  execute(cmd) → run + push to undoStack + clear redoStack
+  undo()       → pop undoStack + run undo + push to redoStack
+  redo()       → pop redoStack + run execute + push to undoStack
+</code></pre>
+<pre><code class="language-java">public class CommandHistory {
+    private final Deque&lt;Command&gt; undoStack = new ArrayDeque&lt;&gt;();
+    private final Deque&lt;Command&gt; redoStack = new ArrayDeque&lt;&gt;();
+
+    public void execute(Command command) {
+        command.execute();
+        undoStack.push(command);
+        redoStack.clear();  // New action clears redo history
+    }
+    public void undo() {
+        if (undoStack.isEmpty()) return;
+        Command cmd = undoStack.pop();
+        cmd.undo();
+        redoStack.push(cmd);
+    }
+    public void redo() {
+        if (redoStack.isEmpty()) return;
+        Command cmd = redoStack.pop();
+        cmd.execute();
+        undoStack.push(cmd);
+    }
+}
+</code></pre>
+<p><strong>Transactional Outbox = Command + Persistence:</strong> save the Order AND an <code>OutboxEvent</code> row in the same DB transaction; a poller later publishes pending events to Kafka. The event row is a persisted Command. For idempotency, embed a unique <code>commandId</code> and check a processed-commands store before executing.</p>
+<p><strong>Command vs Strategy:</strong> Strategy decides <em>how</em> to do something (interchangeable algorithm, returns a result). Command encapsulates <em>what</em> to do (state change, optionally undoable, optionally queued).</p>
+<h4 id="interview-lens-11"><a class="header" href="#interview-lens-11">Interview Lens</a></h4>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. Read the one-line answer to check if you know it, then rehearse the full answer aloud before an interview.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: Lead with the one-line answer first, then expand.</em></p>
+</blockquote>
+<hr>
+<p><strong>Q1 — Definition + real usage</strong>
+<strong>“Explain the Command pattern and how it appears in a Spring microservice.”</strong></p>
+<p><strong>One-line answer:</strong> Command encapsulates a request as an object, decoupling sender from receiver, and enabling queuing, logging, and undo.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“Command wraps a request — its parameters, the receiver, and the action — into a single object. The Invoker only calls <code>execute()</code> without knowing what that does. In a Spring microservice I use this in two places: async jobs submitted to a <code>TaskExecutor</code> are Runnable Commands, and the Transactional Outbox pattern stores domain events as rows in the same transaction as the business write. The poller then calls <code>execute()</code> on each unpublished event to push it to Kafka. I add a <code>commandId</code> field for idempotency — if the poller crashes and retries, we skip already-processed commands.”</p>
+</blockquote>
+<blockquote>
+<p><em>The Transactional Outbox angle differentiates you from candidates who only mention undo/redo.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“Why clear the redo stack on a new execute?”</em></p>
+<blockquote>
+<p>“Redo only makes sense along a linear history. If you undo three steps and then perform a new action, the old redo branch is no longer reachable — keeping it would let users redo actions that are now inconsistent with the current state.”</p>
+</blockquote>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li><strong>Mutable Command state:</strong> Commands should capture all needed state at creation; mutating them later makes undo unreliable.</li>
+<li><strong>Forgetting idempotency:</strong> In distributed systems a Command can be delivered more than once; always guard with a <code>commandId</code>.</li>
+<li><strong>Confusing with Strategy:</strong> Strategy returns a value and is stateless; Command encapsulates a state change and carries its own data.</li>
+</ul>
+<p><strong>Quick Revision:</strong> Command = request-as-object; enables queue/undo/log; Transactional Outbox is Command + DB persistence.</p>
+<hr>
+<h2 id="topic-13-chain-of-responsibility"><a class="header" href="#topic-13-chain-of-responsibility">Topic 13: Chain of Responsibility</a></h2>
+<h4 id="the-idea-12"><a class="header" href="#the-idea-12">The Idea</a></h4>
+<p>Airport security has multiple checkpoints: ID check, bag scan, body scan. Each checkpoint handles what it can and waves you on to the next. If the ID check catches a problem it stops you there — the bag scan never runs. That is Chain of Responsibility: a request travels a chain of handlers until one absorbs it or it reaches the end.</p>
+<p>Each handler knows only its own logic and a reference to the next handler. The chain is assembled externally, so you can add, remove, or reorder checkpoints without touching any individual handler. This makes it ideal for cross-cutting concerns like authentication, logging, and rate-limiting.</p>
+<p>In Spring, the Servlet <code>FilterChain</code> and Spring Security’s <code>SecurityFilterChain</code> are both CoR implementations you interact with every day.</p>
+<h4 id="how-it-works-12"><a class="header" href="#how-it-works-12">How It Works</a></h4>
+<pre><code>Handler interface:
+  handle(request, response)
+  setNext(handler) → returns handler (enables fluent chaining)
+
+ConcreteHandler:
+  if (canHandle(request)):
+    process + return          ← absorb
+  else:
+    next.handle(request, response)  ← pass
+</code></pre>
+<pre><code class="language-java">@Component
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+    @Override
+    protected void doFilterInternal(HttpServletRequest req,
+                                    HttpServletResponse res,
+                                    FilterChain chain) throws ServletException, IOException {
+        String header = req.getHeader("Authorization");
+        if (header == null || !header.startsWith("Bearer ")) {
+            chain.doFilter(req, res);  // Pass to next — no token, not our concern
+            return;
+        }
+        try {
+            String userId = jwtService.extractUserId(header.substring(7));
+            // Set authentication in SecurityContext
+            SecurityContextHolder.getContext().setAuthentication(buildAuth(userId));
+        } catch (JwtException e) {
+            res.setStatus(401);
+            return;  // Absorb — invalid token stops the chain
+        }
+        chain.doFilter(req, res);  // Pass to next
+    }
+}
+</code></pre>
+<p><strong>CoR vs Decorator:</strong> Decorator <em>always</em> executes every wrapper; CoR can stop propagation at any handler. Use CoR when short-circuiting is required (auth failure). Use Decorator when every layer must always run (logging, metrics).</p>
+<p><strong>Ordering:</strong> Use <code>addFilterBefore</code>/<code>addFilterAfter</code> in Spring Security rather than <code>@Order</code> for security filters — <code>@Order</code> affects the general filter chain, not the Security filter chain.</p>
+<h4 id="interview-lens-12"><a class="header" href="#interview-lens-12">Interview Lens</a></h4>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. Read the one-line answer to check if you know it, then rehearse the full answer aloud before an interview.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: Lead with the one-line answer first, then expand.</em></p>
+</blockquote>
+<hr>
+<p><strong>Q1 — Spring Security integration</strong>
+<strong>“How does Chain of Responsibility appear in Spring Security, and how do you add a custom filter?”</strong></p>
+<p><strong>One-line answer:</strong> Spring Security’s <code>SecurityFilterChain</code> is a CoR where each <code>Filter</code> either processes and stops or calls <code>chain.doFilter()</code> to pass on.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“Spring Security registers a chain of <code>Filter</code> implementations. Each filter calls <code>chain.doFilter(req, res)</code> to pass the request along, or returns early — absorbing the request — to short-circuit. For a custom JWT filter I extend <code>OncePerRequestFilter</code>, extract the <code>Authorization</code> header, validate the token, and set the <code>Authentication</code> in <code>SecurityContextHolder</code>. If the token is missing I call <code>chain.doFilter</code> — it’s not my concern. If it’s invalid I write a 401 and return, absorbing the request so downstream filters never see it. I register the filter with <code>http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)</code> rather than <code>@Order</code> because Spring Security manages its own ordered list separately from the Servlet filter chain.”</p>
+</blockquote>
+<blockquote>
+<p><em>The <code>addFilterBefore</code> vs <code>@Order</code> nuance is a common interview differentiator.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“What’s the risk of a very long filter chain?”</em></p>
+<blockquote>
+<p>“Every filter adds latency, even if it just passes through. More critically, debugging which filter absorbed or modified a request becomes hard. I instrument each handler with a timer metric tagged with the handler name so I can trace which step added the most latency.”</p>
+</blockquote>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li><strong>Using <code>@Order</code> for Spring Security filters:</strong> It affects the general Servlet chain, not the Security chain; use <code>addFilterBefore</code>/<code>addFilterAfter</code>.</li>
+<li><strong>Calling <code>chain.doFilter</code> after absorbing:</strong> Once you write the response and return, calling <code>chain.doFilter</code> corrupts the response.</li>
+<li><strong>Building deeply nested chains:</strong> More than 5–6 handlers becomes hard to reason about; prefer composing handlers into logical groups.</li>
+</ul>
+<p><strong>Quick Revision:</strong> CoR = each handler passes or absorbs; Spring Security FilterChain is the live example; use <code>addFilterBefore</code> not <code>@Order</code>.</p>
+<hr>
+<h2 id="topic-14-state-pattern"><a class="header" href="#topic-14-state-pattern">Topic 14: State Pattern</a></h2>
+<h4 id="the-idea-13"><a class="header" href="#the-idea-13">The Idea</a></h4>
+<p>An online order behaves very differently depending on where it is in its lifecycle. A PENDING order can be paid or cancelled. A PAID order can be shipped. A SHIPPED order cannot be cancelled. The same object, the same method names, but completely different rules depending on “what it is right now.” That is the State pattern.</p>
+<p>Instead of a giant <code>switch</code> statement that checks the current status on every method call, each state is its own class. The Order context delegates every state-specific method to whichever State object it currently holds. Valid transitions swap the State object; invalid transitions throw immediately — no <code>if</code> chains needed.</p>
+<p>This scales cleanly: adding a REFUNDED state means adding one new class and touching only the states that can transition to REFUNDED, not rewriting a central switch.</p>
+<h4 id="how-it-works-13"><a class="header" href="#how-it-works-13">How It Works</a></h4>
+<pre><code>OrderContext:
+  currentState: OrderState
+  transitionTo(state) → currentState = state; log transition
+
+OrderState interface:
+  pay(ctx), ship(ctx), cancel(ctx), getStateName()
+
+ConcreteState (e.g. PendingState):
+  pay()    → ctx.transitionTo(new PaidState())     ← valid
+  ship()   → throw InvalidStateTransitionException  ← invalid
+  cancel() → ctx.transitionTo(new CancelledState()) ← valid
+</code></pre>
+<pre><code class="language-java">public class PendingState implements OrderState {
+    @Override
+    public void pay(OrderContext ctx) {
+        ctx.transitionTo(new PaidState());  // Valid
+    }
+    @Override
+    public void ship(OrderContext ctx) {
+        throw new InvalidStateTransitionException("Cannot ship unpaid order");
+    }
+    @Override
+    public void cancel(OrderContext ctx) {
+        ctx.transitionTo(new CancelledState());  // Valid
+    }
+    @Override
+    public String getStateName() { return "PENDING"; }
+}
+// Context delegates: public void pay() { currentState.pay(this); }
+// Invalid transitions throw at the object level — no switch/if needed
+</code></pre>
+<p><strong>Persisting state:</strong> Store <code>getStateName()</code> as a string or enum in the DB. On load, reconstruct the State object via a factory: <code>StateFactory.from(order.getStatus())</code>. Spring StateMachine provides a declarative alternative with <code>@EnableStateMachine</code>, guard conditions, and event-driven transitions.</p>
+<p><strong>State vs Strategy:</strong> State = <em>what the object is</em> (identity, lifecycle; states know each other and trigger transitions). Strategy = <em>how the object does something</em> (algorithm, client selects, strategies are unaware of each other).</p>
+<h4 id="interview-lens-13"><a class="header" href="#interview-lens-13">Interview Lens</a></h4>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. Read the one-line answer to check if you know it, then rehearse the full answer aloud before an interview.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: Lead with the one-line answer first, then expand.</em></p>
+</blockquote>
+<hr>
+<p><strong>Q1 — State vs switch</strong>
+<strong>“When would you choose the State pattern over a switch statement for an order lifecycle?”</strong></p>
+<p><strong>One-line answer:</strong> Use State when you have more than four states, complex per-state logic, or expect new states to be added — it removes the need to touch a central switch every time.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“A switch on status works fine at two or three states. Once you have PENDING, PAID, SHIPPED, DELIVERED, CANCELLED, and REFUNDED — each with different valid transitions and business rules — the switch becomes a maintenance hazard: every new state requires touching every existing method. The State pattern gives each state its own class. Valid transitions call <code>ctx.transitionTo()</code>; invalid ones throw immediately at the object level. The Context never needs to know about valid transitions — each State enforces its own rules. I persist the state name as a string column and reconstruct the correct State object on load via a factory. New states are additive — open/closed principle satisfied.”</p>
+</blockquote>
+<blockquote>
+<p><em>Quote the number of states as the tipping point — it shows practical judgment, not blind pattern-worship.</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“How do you prevent illegal transitions without the State pattern?”</em></p>
+<blockquote>
+<p>“You’d need a transition table — a map from <code>(currentState, action)</code> to <code>(nextState, guard)</code> — and check it on every operation. That’s essentially implementing a manual FSM. At some point the State pattern is cleaner because the logic lives with the state itself.”</p>
+</blockquote>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li><strong>States knowing nothing about each other:</strong> The State pattern <em>intentionally</em> couples states through the Context; that’s how they trigger transitions.</li>
+<li><strong>Not persisting state:</strong> If you reconstruct from DB without restoring the State object, you lose the pattern’s enforcement and fall back to switch.</li>
+<li><strong>Using State for simple binary flags:</strong> Overkill for two states; a boolean or enum + guard clause is cleaner.</li>
+</ul>
+<p><strong>Quick Revision:</strong> State = FSM in OO; each state class enforces its own valid transitions; persist state name, reconstruct via factory.</p>
+<hr>
+<h2 id="topic-15-composite--iterator-patterns"><a class="header" href="#topic-15-composite--iterator-patterns">Topic 15: Composite &amp; Iterator Patterns</a></h2>
+<h4 id="the-idea-14"><a class="header" href="#the-idea-14">The Idea</a></h4>
+<p><strong>Composite:</strong> Imagine a file system. A <code>File</code> has a size. A <code>Directory</code> also has a “size” — but it’s the sum of everything inside it, which might include other directories. From the outside, you call <code>getSize()</code> on both and get a number. You do not need to know whether you are holding a file or a directory. That uniform treatment of leaves and composites is the Composite pattern.</p>
+<p><strong>Iterator:</strong> A playlist knows its songs are in an array. A podcast app uses a linked list. A streaming service uses a lazy cursor. You do not want every consumer to know those details — you want a single, consistent way to walk through any collection. Iterator provides <code>hasNext()</code> and <code>next()</code> so the traversal logic is separated from the collection structure.</p>
+<p>Together they are the backbone of every tree-traversal and collection-processing API in Java.</p>
+<h4 id="how-it-works-14"><a class="header" href="#how-it-works-14">How It Works</a></h4>
+<p><strong>Composite tree:</strong></p>
+<pre><code>Component interface: getSize(), accept(Visitor)
+  Leaf (File):      getSize() → own size
+  Composite (Dir):  getSize() → sum of children.getSize()
+                    add/remove children
+
+Client calls root.getSize() — recursive delegation handles the rest.
+</code></pre>
+<p><strong>Iterator internals — fail-fast vs fail-safe:</strong></p>
+<pre><code>Fail-fast (ArrayList, HashMap):
+  modCount incremented on every structural change
+  iterator snapshots expectedModCount at creation
+  next() checks modCount == expectedModCount → throws ConcurrentModificationException if not
+
+Fail-safe (CopyOnWriteArrayList, ConcurrentHashMap):
+  iterates over a snapshot/copy
+  structural changes to original not reflected during iteration
+  no ConcurrentModificationException
+</code></pre>
+<p>The must-memorise pattern for safe removal during iteration:</p>
+<pre><code class="language-java">// Safe removal during iteration — the only correct pattern
+Iterator&lt;String&gt; iter = list.iterator();
+while (iter.hasNext()) {
+    String item = iter.next();
+    if (shouldRemove(item)) {
+        iter.remove();  // CORRECT: syncs expectedModCount, no ConcurrentModificationException
+        // list.remove(item);  // WRONG: increments modCount, throws on next iter.next()
+    }
+}
+// Java 8+ equivalent (safe):
+list.removeIf(item -&gt; shouldRemove(item));
+</code></pre>
+<p><strong>Composite + Iterator:</strong> A <code>DepthFirstIterator</code> traverses a Composite tree using a <code>Deque</code> stack. Push the root; on each <code>next()</code>, pop and push children in reverse order (so left child is processed first).</p>
+<h4 id="interview-lens-14"><a class="header" href="#interview-lens-14">Interview Lens</a></h4>
+<blockquote>
+<p><strong>How to use this section:</strong> Each question below is self-contained. Read the one-line answer to check if you know it, then rehearse the full answer aloud before an interview.</p>
+</blockquote>
+<blockquote>
+<p><em>Tip: Lead with the one-line answer first, then expand.</em></p>
+</blockquote>
+<hr>
+<p><strong>Q1 — Fail-fast mechanism</strong>
+<strong>“What causes a ConcurrentModificationException and how do you safely remove elements during iteration?”</strong></p>
+<p><strong>One-line answer:</strong> <code>ConcurrentModificationException</code> is thrown when the collection’s <code>modCount</code> diverges from the iterator’s <code>expectedModCount</code>; fix it by using <code>iterator.remove()</code> or <code>removeIf()</code>.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“Java’s fail-fast iterators keep an internal <code>expectedModCount</code> snapshot taken when the iterator is created. Every structural change to the collection — add, remove, clear — increments the collection’s <code>modCount</code>. On every call to <code>next()</code>, the iterator compares the two. If they differ it throws <code>ConcurrentModificationException</code> immediately rather than silently returning stale data. The correct fix during a while-iterator loop is to call <code>iter.remove()</code> instead of <code>list.remove(item)</code> — the iterator’s <code>remove()</code> method keeps <code>expectedModCount</code> in sync. In Java 8+ I prefer <code>list.removeIf(predicate)</code> which handles this internally and is more readable. For concurrent access from multiple threads I use <code>CopyOnWriteArrayList</code> — it iterates over a snapshot so structural changes to the live list never affect an in-progress iterator, though the trade-off is that writes are O(n).”</p>
+</blockquote>
+<blockquote>
+<p><em>Always distinguish single-threaded iteration (use <code>iter.remove()</code>) from multi-threaded access (use a thread-safe collection).</em></p>
+</blockquote>
+<p><strong>Gotcha follow-up:</strong> <em>“Does CopyOnWriteArrayList throw ConcurrentModificationException?”</em></p>
+<blockquote>
+<p>“No. Its iterator works on a fixed snapshot taken at iterator creation. You will not see concurrent modifications during iteration, but you also will not see them — the iterator reflects the list state at the moment it was created, not the current state.”</p>
+</blockquote>
+<hr>
+<p><strong>Q2 — Composite use case</strong>
+<strong>“When would you use Composite over a flat list?”</strong></p>
+<p><strong>One-line answer:</strong> Use Composite when data has a natural tree hierarchy and clients should treat leaves and branches uniformly.</p>
+<p><strong>Full answer:</strong></p>
+<blockquote>
+<p>“A flat list works when all elements are at the same level. Once data has parent-child relationships — a file system, a UI component tree, an org chart, a menu with sub-menus — a flat list forces the client to know the depth and recurse manually. Composite encapsulates that recursion inside the component: <code>Directory.getSize()</code> delegates to children, which may themselves be directories. The client just calls <code>root.getSize()</code> and gets the correct answer without any traversal code. I pair it with the Visitor pattern when I need to add new operations — like computing permissions or generating a report — without modifying the component classes.”</p>
+</blockquote>
+<blockquote>
+<p><em>Mentioning Visitor shows you know when Composite alone is insufficient.</em></p>
+</blockquote>
+<hr>
+<p><strong>Common Mistakes</strong></p>
+<ul>
+<li><strong>Calling <code>collection.remove()</code> inside an iterator loop:</strong> Always throws on the next <code>next()</code> call; use <code>iter.remove()</code> or <code>removeIf()</code>.</li>
+<li><strong>Assuming fail-safe means thread-safe writes:</strong> <code>CopyOnWriteArrayList</code> makes <em>reads</em> safe during iteration; concurrent <em>writes</em> still need external coordination if ordering matters.</li>
+<li><strong>Flat list when tree depth is unknown:</strong> If categories can nest arbitrarily deep, a flat list with a <code>parentId</code> column forces recursive queries; Composite avoids that at the model level.</li>
+</ul>
+<p><strong>Quick Revision:</strong> Iterator fail-fast uses <code>modCount</code> — use <code>iter.remove()</code> or <code>removeIf()</code> to stay safe; Composite = uniform leaf/branch interface for tree data.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../Volume4_Databases/Chapter18_Advanced_DB.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../Volume5_SystemDesign_LLD/Chapter20_SOLID_CleanArch.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../Volume4_Databases/Chapter18_Advanced_DB.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../Volume5_SystemDesign_LLD/Chapter20_SOLID_CleanArch.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-c22b7243.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../custom-877a7a53.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

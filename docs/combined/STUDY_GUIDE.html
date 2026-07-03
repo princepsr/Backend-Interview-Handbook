@@ -1,0 +1,888 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Study Plans - Java Backend Interview Handbook</title>
+
+
+        <!-- Custom HTML head -->
+        <script>
+        (function() {
+            var RULES = [
+                { re: /^interview trap/i,     cls: "callout-trap" },
+                { re: /^common mistake/i,     cls: "callout-mistake" },
+                { re: /^quick tip|^pro tip/i, cls: "callout-tip" },
+                { re: /^quick revision/i,     cls: "callout-revision" },
+                { re: /^real.world example/i, cls: "callout-example" },
+                { re: /^follow.up question/i, cls: "callout-tip" },
+            ];
+        
+            function run() {
+                document.querySelectorAll(".content p").forEach(function(p) {
+                    var first = p.querySelector("strong");
+                    if (!first) return;
+                    var txt = first.textContent.trim();
+                    for (var i = 0; i < RULES.length; i++) {
+                        if (RULES[i].re.test(txt)) {
+                            p.classList.add(RULES[i].cls);
+                            var next = p.nextElementSibling;
+                            if (next && (next.tagName === "UL" || next.tagName === "OL")) {
+                                next.classList.add(RULES[i].cls);
+                                next.style.marginTop = "0";
+                                p.style.marginBottom = "0";
+                            }
+                            break;
+                        }
+                    }
+                });
+            }
+        
+            window.applyEnhancements = run;
+        
+            function tryRun() { setTimeout(run, 200); }
+        
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", tryRun);
+            } else {
+                tryRun();
+            }
+        
+            window.addEventListener("hashchange", tryRun);
+            window.addEventListener("popstate", tryRun);
+        
+            // Watch for mdBook replacing the content div
+            var observer = new MutationObserver(function(muts) {
+                for (var i = 0; i < muts.length; i++) {
+                    if (muts[i].addedNodes.length > 0) {
+                        tryRun();
+                        return;
+                    }
+                }
+            });
+        
+            function attachObserver() {
+                var el = document.querySelector(".content");
+                if (el) { observer.observe(el, { childList: true }); }
+            }
+        
+            if (document.readyState === "loading") {
+                document.addEventListener("DOMContentLoaded", attachObserver);
+            } else {
+                attachObserver();
+            }
+        })();
+        </script>
+
+        <meta name="description" content="Complete SDE2 interview preparation guide for Java Backend — FAANG+, FinTech &amp; SaaS. Java 17 / Spring Boot 3.x. 27 chapters, 400+ questions.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-0392ca55.css">
+        <link rel="stylesheet" href="css/chrome-fc474251.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="custom-aab4aca2.css">
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-586974fd.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-e254c042.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Java Backend Interview Handbook</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="backend-interview-handbook--study-guide"><a class="header" href="#backend-interview-handbook--study-guide">Backend Interview Handbook — Study Guide</a></h1>
+<blockquote>
+<p><strong>Who this is for:</strong> Java/Spring backend engineers at SDE1–Staff level, targeting product-based companies. This guide covers all 27 chapters across 6 volumes. Read Section 2 first. Pick your plan. Execute.</p>
+</blockquote>
+<hr>
+<h2 id="table-of-contents"><a class="header" href="#table-of-contents">Table of Contents</a></h2>
+<ol>
+<li><a href="#1-how-to-use-this-handbook">How to Use This Handbook</a></li>
+<li><a href="#2-self-assessment-know-your-starting-point">Self-Assessment: Know Your Starting Point</a></li>
+<li><a href="#3-plan-a--1-week-crash-plan">Plan A — 1-Week Crash Plan</a></li>
+<li><a href="#4-plan-b--4-week-thorough-plan">Plan B — 4-Week Thorough Plan</a></li>
+<li><a href="#5-plan-c--8-week-deep-dive">Plan C — 8-Week Deep Dive</a></li>
+<li><a href="#6-what-interviewers-actually-test">What Interviewers Actually Test</a></li>
+<li><a href="#7-topic-priority-heat-map">Topic Priority Heat Map</a></li>
+<li><a href="#8-daily-practice-rituals">Daily Practice Rituals</a></li>
+<li><a href="#9-chapter-map-quick-reference">Chapter Map Quick Reference</a></li>
+</ol>
+<hr>
+<h2 id="1-how-to-use-this-handbook"><a class="header" href="#1-how-to-use-this-handbook">1. How to Use This Handbook</a></h2>
+<p>This handbook has 27 chapters in 6 volumes. You do not read it cover to cover. You use one of three structured plans based on your timeline and starting point.</p>
+<p><strong>The three plans:</strong></p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Plan</th><th>Timeline</th><th>Daily Commitment</th><th>Best For</th></tr>
+</thead>
+<tbody>
+<tr><td>Plan A</td><td>1 week</td><td>5–6 hrs/day</td><td>Interview in &lt; 2 weeks, already have Java/Spring fundamentals</td></tr>
+<tr><td>Plan B</td><td>4 weeks</td><td>2 hrs/day</td><td>Most candidates — solid preparation without burning out</td></tr>
+<tr><td>Plan C</td><td>8 weeks</td><td>1.5 hrs/day</td><td>Deep preparation, switching domains, or gaps in fundamentals</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>How Vol 6 fits in:</strong> Vol 6 (Ch23–27) is a revision-only volume. It has no new concepts — only Q&amp;As and quick-recall exercises drawn from Vols 1–5. Every plan ends each day or week with specific Vol 6 Q&amp;As. Do not skip these. The Q&amp;A format forces you to retrieve information from memory, which is the only thing that actually prepares you for an interview. Reading passively does not prepare you. Answering out loud does.</p>
+<p><strong>How Interview Lens Q&amp;As work:</strong> Every chapter has Interview Lens questions. These are not comprehension checks — they are simulation questions. When you reach one, close the chapter, answer it out loud or in writing without looking, then re-open and compare. If your answer missed key points, re-read that section and answer again. One honest attempt is worth ten passive reads.</p>
+<hr>
+<h2 id="2-self-assessment-know-your-starting-point"><a class="header" href="#2-self-assessment-know-your-starting-point">2. Self-Assessment: Know Your Starting Point</a></h2>
+<p>Answer these questions honestly. Do not aim for the plan that flatters you — aim for the one that fills your actual gaps.</p>
+<hr>
+<h3 id="profile-1-sde1--fresh-02-years-experience"><a class="header" href="#profile-1-sde1--fresh-02-years-experience">Profile 1: SDE1 / Fresh (0–2 years experience)</a></h3>
+<p><strong>What you likely know:</strong></p>
+<ul>
+<li>Basic Java syntax, OOP principles at the surface level</li>
+<li>Used Spring Boot to build something but don’t know why annotations work</li>
+<li>Written SQL queries but never thought about indexes or execution plans</li>
+<li>Never designed a distributed system from scratch</li>
+</ul>
+<p><strong>Self-assessment questions:</strong></p>
+<ul>
+<li><input disabled="" type="checkbox"> Can you explain why HashMap resizes and what happens to elements during resize?</li>
+<li><input disabled="" type="checkbox"> Can you explain what happens when Spring Boot starts — bean lifecycle, ApplicationContext?</li>
+<li><input disabled="" type="checkbox"> Can you describe what a Kafka consumer group does and why partition count matters?</li>
+<li><input disabled="" type="checkbox"> Can you walk through what happens during a database transaction with two concurrent writers?</li>
+<li><input disabled="" type="checkbox"> Can you design a URL shortener in 30 minutes, explaining every trade-off?</li>
+</ul>
+<p>If you said “no” or “not confidently” to 3 or more: <strong>use Plan C</strong>.
+If 1–2: <strong>use Plan B</strong>, but spend extra time on Vol 1 Ch5 (JVM) and Vol 4 Ch16 (ACID).</p>
+<p><strong>Biggest gap:</strong> Java internals and systems thinking. You know syntax; you do not yet know <em>why</em> things work. Vol 1 Ch5 (JVM), Ch6 (Multithreading), and Vol 4 Ch15–16 will close this gap faster than anything else.</p>
+<hr>
+<h3 id="profile-2-sde2--mid-24-years-experience"><a class="header" href="#profile-2-sde2--mid-24-years-experience">Profile 2: SDE2 / Mid (2–4 years experience)</a></h3>
+<p><strong>What you likely know:</strong></p>
+<ul>
+<li>Java collections, generics, streams — comfortable</li>
+<li>Spring Boot with JPA — built production features</li>
+<li>REST APIs, basic microservices, maybe used Kafka once</li>
+<li>SQL joins, basic indexes — functional but not deep</li>
+</ul>
+<p><strong>Self-assessment questions:</strong></p>
+<ul>
+<li><input disabled="" type="checkbox"> Can you explain ConcurrentHashMap’s internal segment locking vs. HashMap?</li>
+<li><input disabled="" type="checkbox"> Can you explain Spring’s <code>@Transactional</code> propagation levels with a concrete edge case?</li>
+<li><input disabled="" type="checkbox"> Can you explain Kafka’s exactly-once semantics and when it breaks?</li>
+<li><input disabled="" type="checkbox"> Can you explain the difference between optimistic and pessimistic locking and when to use each?</li>
+<li><input disabled="" type="checkbox"> Can you design a distributed rate limiter — what are the trade-offs between token bucket in Redis vs. API gateway?</li>
+</ul>
+<p>If you said “no” to 3 or more: <strong>use Plan B</strong>.
+If 1–2: <strong>use Plan A</strong> only if your interview is genuinely imminent; otherwise Plan B.</p>
+<p><strong>Biggest gap:</strong> Distributed systems depth and trade-off articulation. You have surface-level knowledge of Kafka and Redis. Interviewers at product companies test whether you understand <em>why</em> you’d choose a technology and what breaks. Vol 3 (Ch11–12) and Vol 5 (Ch22) are your highest ROI.</p>
+<hr>
+<h3 id="profile-3-senior--staff-4-years-experience"><a class="header" href="#profile-3-senior--staff-4-years-experience">Profile 3: Senior / Staff (4+ years experience)</a></h3>
+<p><strong>What you likely know:</strong></p>
+<ul>
+<li>Java internals, JVM tuning, concurrency patterns</li>
+<li>Spring ecosystem deeply — AOP, transaction management, bean scopes</li>
+<li>Kafka, Redis, distributed systems — hands-on production experience</li>
+<li>Database performance, query optimization</li>
+</ul>
+<p><strong>Self-assessment questions:</strong></p>
+<ul>
+<li><input disabled="" type="checkbox"> Can you articulate the trade-off between saga choreography vs. orchestration with a concrete example of when each fails?</li>
+<li><input disabled="" type="checkbox"> Can you walk through a full system design for a payments ledger — consistency model, partitioning strategy, failure modes?</li>
+<li><input disabled="" type="checkbox"> Can you critique your own LLD design — which SOLID principle does it violate and why was that an acceptable trade-off?</li>
+<li><input disabled="" type="checkbox"> Can you explain how you’d debug a P99 latency spike in a Spring microservice under load?</li>
+<li><input disabled="" type="checkbox"> Can you explain why a particular index is or isn’t used in a query, given the query and explain plan?</li>
+</ul>
+<p>If you hesitated on 2+: <strong>use Plan B</strong>, focusing on Vol 5 (Ch19–22) and Vol 4 (Ch17–18).
+Confident on all: <strong>use Plan A</strong> for final polish, or cherry-pick from Plan B Week 4.</p>
+<p><strong>Biggest gap:</strong> Trade-off articulation and LLD depth. You have the knowledge. The gap is communicating it under pressure in 45 minutes — making the right call fast, explaining it clearly, and defending your choices. Vol 5 Ch21 (LLD Case Studies) and Ch22 (System Design HLD) are your focus.</p>
+<hr>
+<h2 id="3-plan-a--1-week-crash-plan"><a class="header" href="#3-plan-a--1-week-crash-plan">3. Plan A — 1-Week Crash Plan</a></h2>
+<p><strong>Prerequisite:</strong> You already have working knowledge of Java and Spring. This plan hits the highest-ROI topics only. It does not cover everything — it covers what appears most in interviews.</p>
+<p><strong>Time budget:</strong> 5 hrs/day (2hr morning + 2hr afternoon + 1hr evening revision)</p>
+<blockquote>
+<p><strong>Note:</strong> Items marked ⚡ Skip if short on time are lower-frequency interview topics. Cut these before cutting anything else.</p>
+</blockquote>
+<hr>
+<h3 id="monday--core-java-foundations"><a class="header" href="#monday--core-java-foundations">Monday — Core Java Foundations</a></h3>
+<p><strong>Morning (2hr):</strong> Ch1 OOP — focus on polymorphism, interface vs abstract class, why you’d use each. Ch3 Collections — HashMap internals (hashing, collision, resize), ConcurrentHashMap vs synchronized, when to use LinkedHashMap.</p>
+<p><strong>Afternoon (2hr):</strong> Ch6 Multithreading — synchronized vs ReentrantLock, volatile, thread pools (Executors), CountDownLatch/CyclicBarrier use cases. Ch4 Java8+ — streams, Optional, CompletableFuture basics.</p>
+<p><strong>Evening revision (1hr):</strong> Open Ch23 (Core Java Revision). Answer these Q&amp;As out loud: HashMap vs ConcurrentHashMap, what is memory visibility, explain <code>volatile</code>. Write answers on paper first, then check.</p>
+<p>⚡ Skip if short on time: Ch2 (Strings/Wrappers/Exceptions) — low interview frequency for SDE2+. Ch5 (JVM) — skim only, full depth not needed for crash prep.</p>
+<p><strong>Daily goal check:</strong> Can you explain why HashMap is not thread-safe at the code level? Can you write a simple thread pool using ExecutorService?</p>
+<hr>
+<h3 id="tuesday--spring-ecosystem"><a class="header" href="#tuesday--spring-ecosystem">Tuesday — Spring Ecosystem</a></h3>
+<p><strong>Morning (2hr):</strong> Ch7 Spring Core/Boot — IoC container, bean lifecycle, <code>@Component</code> vs <code>@Bean</code>, ApplicationContext startup sequence. Scope types — singleton vs prototype in multi-threaded context.</p>
+<p><strong>Afternoon (2hr):</strong> Ch7 continued — AOP internals (proxy-based, when <code>@Transactional</code> fails on same-class calls). Ch8 JPA/Hibernate — N+1 problem, fetch types, <code>@Transactional</code> propagation levels (REQUIRED vs REQUIRES_NEW), optimistic vs pessimistic locking.</p>
+<p><strong>Evening revision (1hr):</strong> Ch24 (Spring/JPA Revision). Answer: Why does <code>@Transactional</code> on a private method not work? What is the N+1 problem and three ways to fix it?</p>
+<p>⚡ Skip if short on time: Spring Security basics in Ch13 — cover only if Security round is expected.</p>
+<p><strong>Daily goal check:</strong> Can you explain what happens when Spring’s <code>@Transactional</code> method calls another <code>@Transactional</code> method in the same class?</p>
+<hr>
+<h3 id="wednesday--backend-systems-kafka--redis"><a class="header" href="#wednesday--backend-systems-kafka--redis">Wednesday — Backend Systems: Kafka + Redis</a></h3>
+<p><strong>Morning (2hr):</strong> Ch11 Kafka — topics, partitions, consumer groups, offset management. Why partition count matters. At-most-once vs at-least-once vs exactly-once. When Kafka is the wrong choice.</p>
+<p><strong>Afternoon (2hr):</strong> Ch12 Redis/Caching — data structures and when to use each (String, Hash, Sorted Set, List). Cache-aside vs write-through vs write-behind. Cache stampede and solutions. Redis as distributed lock (Redlock caveats).</p>
+<p><strong>Evening revision (1hr):</strong> Ch25 (Backend Systems Revision). Answer: How would you design a leaderboard using Redis? What happens to Kafka message ordering when you add a partition?</p>
+<p>⚡ Skip if short on time: Ch10 Microservices patterns — skim only the saga pattern section, skip circuit breaker deep dive.</p>
+<p><strong>Daily goal check:</strong> Design a notification system that guarantees at-least-once delivery using Kafka. What can go wrong?</p>
+<hr>
+<h3 id="thursday--databases"><a class="header" href="#thursday--databases">Thursday — Databases</a></h3>
+<p><strong>Morning (2hr):</strong> Ch14 SQL — window functions, CTEs, JOIN types. Practice: write a query to find the second-highest salary per department. Ch15 Indexing — B-tree vs hash index, composite index column order, covering index, when an index is ignored by the optimizer.</p>
+<p><strong>Afternoon (2hr):</strong> Ch16 ACID/Transactions — isolation levels (Read Committed vs Repeatable Read vs Serializable), what phantom read is, when you’d use each level. Ch17 Distributed DBs — CAP theorem (be precise: it’s about partitions, not a permanent trade-off), eventual consistency, read-your-writes.</p>
+<p><strong>Evening revision (1hr):</strong> Ch26 (DB Revision). Answer: What is a phantom read? What isolation level prevents it? Explain CAP theorem in one sentence without mentioning “trade-off between availability and consistency.”</p>
+<p>⚡ Skip if short on time: Ch18 (Advanced DB) — skip entirely in crash prep.</p>
+<p><strong>Daily goal check:</strong> Given a slow query, walk through your debugging process. What do you look at first?</p>
+<hr>
+<h3 id="friday--system-design"><a class="header" href="#friday--system-design">Friday — System Design</a></h3>
+<p><strong>Morning (2hr):</strong> Ch22 System Design HLD — the 5-step framework: requirements → capacity → API design → component design → deep dive. Practice: design a URL shortener. Time yourself: 30 minutes, no notes.</p>
+<p><strong>Afternoon (2hr):</strong> Ch19 Design Patterns — Factory, Singleton (thread-safe impl), Strategy, Observer, Builder. Know when to use, not just definitions. Ch20 SOLID — each principle with a concrete violation example and fix.</p>
+<p><strong>Evening revision (1hr):</strong> Ch27 (System Design/LLD Revision). Answer: Design a rate limiter. What are three different implementation approaches and their trade-offs?</p>
+<p>⚡ Skip if short on time: Ch21 LLD Case Studies — skim one case study (Parking Lot or Library Management), do not attempt all.</p>
+<p><strong>Daily goal check:</strong> Can you design a system under constraints you haven’t prepared for? Try: design a distributed job scheduler in 30 minutes.</p>
+<hr>
+<h3 id="saturday--rest-security-and-microservices"><a class="header" href="#saturday--rest-security-and-microservices">Saturday — REST, Security, and Microservices</a></h3>
+<p><strong>Morning (2hr):</strong> Ch9 REST APIs — HTTP methods, idempotency, status codes (know 200/201/204/400/401/403/404/409/422/500), versioning strategies, pagination. Ch10 Microservices — service discovery, API gateway, circuit breaker pattern, saga pattern (choreography vs orchestration).</p>
+<p><strong>Afternoon (2hr):</strong> Ch13 Security — JWT (what’s in a token, when it expires, how to revoke — this is a common interview trap), OAuth2 flows, HTTPS basics. Ch9 continued — rate limiting in REST context.</p>
+<p><strong>Evening revision (1hr):</strong> Ch25 (Backend Systems Revision). Answer: How do you handle distributed transactions across two microservices without a shared database? What is the saga pattern?</p>
+<p><strong>Daily goal check:</strong> What is the difference between authentication and authorization? How does JWT handle stateless auth, and what is the revocation problem?</p>
+<hr>
+<h3 id="sunday--full-revision--mock"><a class="header" href="#sunday--full-revision--mock">Sunday — Full Revision + Mock</a></h3>
+<p><strong>Morning (2hr):</strong> Re-read your weakest day’s notes. Do not re-read all chapters — pick the 3 topics you hesitated on most. Answer their Vol 6 Q&amp;As again.</p>
+<p><strong>Afternoon (2hr):</strong> Simulate a full interview loop. Pick one of these:</p>
+<ul>
+<li>System design: Design Twitter’s feed system (30 min)</li>
+<li>LLD: Design a parking lot (30 min)</li>
+<li>Verbal: Answer “Tell me about a technical decision you made that you later regretted” — structure: situation, decision, outcome, what you’d do differently</li>
+</ul>
+<p><strong>Evening (1hr):</strong> Review anything you still feel shaky on. Write down 5 questions you’d ask an interviewer about their system. This signals seniority.</p>
+<hr>
+<h2 id="4-plan-b--4-week-thorough-plan"><a class="header" href="#4-plan-b--4-week-thorough-plan">4. Plan B — 4-Week Thorough Plan</a></h2>
+<p><strong>Commitment:</strong> 2 hours/day, 6 days/week (Sunday is light review or rest)</p>
+<p><strong>Structure:</strong> Each day has a reading focus, a practice task, and two end-of-day self-check questions you answer from memory before sleeping. End of each week is a mini self-test.</p>
+<hr>
+<h3 id="week-1--core-java--spring-vol-1--vol-2"><a class="header" href="#week-1--core-java--spring-vol-1--vol-2">Week 1 — Core Java + Spring (Vol 1 + Vol 2)</a></h3>
+<p><strong>Day 1 (Monday):</strong> Read Ch1 OOP. Practice: write a polymorphism example from scratch — interface with default method, abstract class, and concrete implementations. When would you use each?</p>
+<ul>
+<li>Self-check: What is the difference between method overloading and overriding? What is covariant return type?</li>
+</ul>
+<p><strong>Day 2 (Tuesday):</strong> Read Ch2 Strings/Wrappers/Exceptions. Practice: explain String pool and <code>intern()</code>. Write a custom checked exception with a cause chain.</p>
+<ul>
+<li>Self-check: Why is String immutable in Java? What is the difference between <code>throw</code> and <code>throws</code>?</li>
+</ul>
+<p><strong>Day 3 (Wednesday):</strong> Read Ch3 Collections. Practice: implement a simple LRU cache using LinkedHashMap (override <code>removeEldestEntry</code>). Time yourself — 15 minutes.</p>
+<ul>
+<li>Self-check: What is the load factor in HashMap? What is a ConcurrentModificationException and how do you avoid it?</li>
+</ul>
+<p><strong>Day 4 (Thursday):</strong> Read Ch4 Java8+. Practice: write a stream pipeline that filters, maps, and collects; then rewrite the same logic with method references. Add a <code>CompletableFuture</code> that chains two async tasks.</p>
+<ul>
+<li>Self-check: What is the difference between <code>map</code> and <code>flatMap</code>? When does <code>Optional.get()</code> throw?</li>
+</ul>
+<p><strong>Day 5 (Friday):</strong> Read Ch5 JVM. Focus on GC types (G1 vs ZGC), heap vs stack, classloading, and when to tune. Practice: explain what happens to an object from creation to GC.</p>
+<ul>
+<li>Self-check: What is stop-the-world in GC? What is metaspace?</li>
+</ul>
+<p><strong>Day 6 (Saturday):</strong> Read Ch6 Multithreading. Practice: write a producer-consumer using BlockingQueue. Then write the same using wait/notify — understand why BlockingQueue is preferred.</p>
+<ul>
+<li>Self-check: What is a deadlock? Write the four conditions. What is the difference between <code>synchronized</code> and <code>ReentrantLock</code>?</li>
+</ul>
+<p><strong>End of Week 1 Mini Self-Test — Vol 6 Ch23 Q&amp;As:</strong>
+Answer these five from memory before checking:</p>
+<ol>
+<li>Explain HashMap’s internal structure and what happens on hash collision.</li>
+<li>What is the Java memory model and why does it matter for multithreading?</li>
+<li>What are functional interfaces? Name four from <code>java.util.function</code>.</li>
+<li>Explain G1 GC — how does it divide the heap and what is its goal?</li>
+<li>What is a thread-local variable and when would you use it?</li>
+</ol>
+<hr>
+<p><strong>Day 7 (Monday, Week 1 cont):</strong> Read Ch7 Spring Core/Boot. Focus on IoC, bean lifecycle (BeanPostProcessor, InitializingBean), and how ApplicationContext starts. Practice: trace through a Spring Boot startup — what happens before <code>main()</code> returns?</p>
+<ul>
+<li>Self-check: What is the difference between <code>@Component</code>, <code>@Service</code>, <code>@Repository</code>? Are they functionally different?</li>
+</ul>
+<p><strong>Day 8 (Tuesday):</strong> Read Ch7 continued — AOP. Focus on proxy mechanism (JDK dynamic proxy vs CGLIB), pointcut expressions, and why <code>@Transactional</code> fails when called from the same class.</p>
+<ul>
+<li>Self-check: What is an aspect, advice, joinpoint, and pointcut? Give one real use case for AOP beyond transactions.</li>
+</ul>
+<p><strong>Day 9 (Wednesday):</strong> Read Ch8 JPA/Hibernate first-level cache, second-level cache, fetch types. Practice: write a JPQL query that avoids N+1 using JOIN FETCH. Then explain what <code>@EntityGraph</code> does differently.</p>
+<ul>
+<li>Self-check: What is N+1? How does <code>FetchType.LAZY</code> interact with transactions?</li>
+</ul>
+<p><strong>Day 10 (Thursday):</strong> Read Ch8 continued — <code>@Transactional</code> propagation levels. Practice: write a scenario where REQUIRES_NEW causes data inconsistency (a method saves a log entry even when the outer transaction rolls back — is that intentional?).</p>
+<ul>
+<li>Self-check: What is <code>PROPAGATION_REQUIRES_NEW</code> and when is it dangerous? What is optimistic locking and what exception does it throw?</li>
+</ul>
+<p><strong>End of Week 1 Part 2 Mini Self-Test — Vol 6 Ch24 Q&amp;As:</strong></p>
+<ol>
+<li>What is Spring’s bean lifecycle? Name five key stages.</li>
+<li>When does <code>@Transactional</code> not work and why?</li>
+<li>What is the N+1 problem? Show three solutions ranked by preference.</li>
+<li>Explain the difference between first-level and second-level cache in Hibernate.</li>
+<li>What is <code>@EnableAutoConfiguration</code> doing under the hood?</li>
+</ol>
+<hr>
+<h3 id="week-2--backend-systems-vol-3"><a class="header" href="#week-2--backend-systems-vol-3">Week 2 — Backend Systems (Vol 3)</a></h3>
+<p><strong>Day 11 (Monday):</strong> Read Ch9 REST APIs. Focus on idempotency (PUT vs POST), status codes (know the non-obvious ones: 202, 409, 422), and API versioning strategies. Practice: design a REST API for a hotel booking system — routes, status codes, pagination.</p>
+<ul>
+<li>Self-check: What makes an HTTP method idempotent? What is the difference between 401 and 403?</li>
+</ul>
+<p><strong>Day 12 (Tuesday):</strong> Read Ch10 Microservices — service discovery (Eureka, Consul), API gateway responsibilities, circuit breaker (when does it open, half-open state). Practice: draw the request flow for a microservice call with service discovery, load balancing, and circuit breaker.</p>
+<ul>
+<li>Self-check: What is the circuit breaker pattern? What is the difference between a gateway and a reverse proxy?</li>
+</ul>
+<p><strong>Day 13 (Wednesday):</strong> Read Ch10 continued — saga pattern. Practice: design a saga for an e-commerce order flow (inventory reserve → payment → fulfillment). Write out compensating transactions for each step. Do both choreography and orchestration versions.</p>
+<ul>
+<li>Self-check: What is the difference between saga choreography and orchestration? When does choreography fall apart at scale?</li>
+</ul>
+<p><strong>Day 14 (Thursday):</strong> Read Ch11 Kafka. Focus on partition assignment, consumer group rebalancing, offset commit strategies, and exactly-once semantics. Practice: explain what happens when a Kafka consumer crashes mid-processing — what messages are replayed, what can be duplicated?</p>
+<ul>
+<li>Self-check: What is a consumer group? Why does partition count set the max parallelism?</li>
+</ul>
+<p><strong>Day 15 (Friday):</strong> Read Ch11 continued — Kafka producer acks, ISR (in-sync replicas), retention policies. Practice: design a Kafka topology for a real-time order processing system. How many partitions? What’s your consumer group strategy?</p>
+<ul>
+<li>Self-check: What is <code>acks=all</code> and when would you not use it? What is log compaction?</li>
+</ul>
+<p><strong>Day 16 (Saturday):</strong> Read Ch12 Redis/Caching. Practice: design a Redis-based rate limiter using sorted sets. Then design a leaderboard. Then design a distributed lock — and explain why Redlock is controversial.</p>
+<ul>
+<li>Self-check: What is cache stampede? How do you prevent it? What is the difference between cache-aside and write-through?</li>
+</ul>
+<p><strong>Day 17 (Monday, Week 2 cont):</strong> Read Ch13 Security. Focus on JWT structure (header.payload.signature), how validation works, and the revocation problem. OAuth2 — Authorization Code flow step by step. Practice: walk through a JWT-based login flow and explain exactly where a token is invalidated.</p>
+<ul>
+<li>Self-check: How do you revoke a JWT? What is PKCE and why does it exist?</li>
+</ul>
+<p><strong>End of Week 2 Mini Self-Test — Vol 6 Ch25 Q&amp;As:</strong></p>
+<ol>
+<li>Design a URL shortener — API, storage, hash function, and redirect flow.</li>
+<li>What is the saga pattern? When would you choose choreography over orchestration?</li>
+<li>How does Kafka guarantee ordering? What breaks ordering?</li>
+<li>Explain three Redis data structures and a real use case for each.</li>
+<li>What is OAuth2? Walk through Authorization Code flow.</li>
+</ol>
+<hr>
+<h3 id="week-3--databases-vol-4"><a class="header" href="#week-3--databases-vol-4">Week 3 — Databases (Vol 4)</a></h3>
+<p><strong>Day 18 (Monday):</strong> Read Ch14 SQL. Practice: write window function queries (ROW_NUMBER, RANK, DENSE_RANK, LAG, LEAD). Write a CTE that finds all employees whose salary is above their department average.</p>
+<ul>
+<li>Self-check: What is the difference between <code>RANK</code> and <code>DENSE_RANK</code>? When would you use a CTE over a subquery?</li>
+</ul>
+<p><strong>Day 19 (Tuesday):</strong> Read Ch14 continued — JOINs and query optimization basics. Practice: given a slow query, explain your approach. What do you look for in <code>EXPLAIN</code> output?</p>
+<ul>
+<li>Self-check: What is the difference between LEFT JOIN and INNER JOIN? What is a cross join and when is it accidentally used?</li>
+</ul>
+<p><strong>Day 20 (Wednesday):</strong> Read Ch15 Indexing. Focus on B-tree internals, composite index column order (why the leftmost prefix rule matters), covering index, and when the optimizer ignores your index. Practice: given a table with 10M rows and a slow query, design the optimal index.</p>
+<ul>
+<li>Self-check: Why does <code>LIKE '%foo'</code> prevent index use? What is a covering index?</li>
+</ul>
+<p><strong>Day 21 (Thursday):</strong> Read Ch16 ACID/Transactions. Focus on isolation levels — read uncommitted, read committed, repeatable read, serializable. Dirty read, non-repeatable read, phantom read — what each is and which level prevents it. Practice: write a scenario where two concurrent transactions cause a phantom read, then explain how SERIALIZABLE prevents it.</p>
+<ul>
+<li>Self-check: What is a phantom read? What is the default isolation level in MySQL and Postgres?</li>
+</ul>
+<p><strong>Day 22 (Friday):</strong> Read Ch17 Distributed DBs. Focus on CAP theorem (be precise — it’s about what happens during network partition, not a permanent trade-off), eventual consistency, CRDTs, and vector clocks conceptually. Practice: explain why you’d choose AP over CP for a shopping cart but CP over AP for a payments ledger.</p>
+<ul>
+<li>Self-check: What does CAP actually say? What is BASE and how does it relate to CAP?</li>
+</ul>
+<p><strong>Day 23 (Saturday):</strong> Read Ch18 Advanced DB — sharding strategies (range vs hash), read replicas, connection pooling, and common anti-patterns (SELECT *, N+1 at DB level, missing indexes on foreign keys). Practice: design a sharding strategy for a multi-tenant SaaS application.</p>
+<ul>
+<li>Self-check: What is connection pool exhaustion and how do you diagnose it? What is the difference between horizontal and vertical scaling?</li>
+</ul>
+<p><strong>End of Week 3 Mini Self-Test — Vol 6 Ch26 Q&amp;As:</strong></p>
+<ol>
+<li>Explain B-tree index structure. Why is it efficient for range queries?</li>
+<li>What are the four isolation levels? What anomaly does each prevent?</li>
+<li>What is the CAP theorem? Give a concrete example of an AP system and a CP system.</li>
+<li>What is database sharding? What are the problems it introduces?</li>
+<li>How would you debug a suddenly slow query in production?</li>
+</ol>
+<hr>
+<h3 id="week-4--system-design--lld--full-revision-vol-5--vol-6"><a class="header" href="#week-4--system-design--lld--full-revision-vol-5--vol-6">Week 4 — System Design + LLD + Full Revision (Vol 5 + Vol 6)</a></h3>
+<p><strong>Day 24 (Monday):</strong> Read Ch19 Design Patterns. Focus on Factory Method vs Abstract Factory, Singleton (double-checked locking, enum singleton), Strategy, Observer, Decorator. Practice: implement a payment gateway that supports multiple providers using Strategy pattern.</p>
+<ul>
+<li>Self-check: Why is Singleton hard to test? What is the difference between Factory Method and Abstract Factory?</li>
+</ul>
+<p><strong>Day 25 (Tuesday):</strong> Read Ch20 SOLID + Clean Architecture. Practice: take any class you’ve written recently and identify which SOLID principle it violates. Refactor it. Then explain what “dependency inversion” means in the context of Spring’s IoC container.</p>
+<ul>
+<li>Self-check: What is the Open/Closed Principle? What is the difference between the Dependency Inversion Principle and Dependency Injection?</li>
+</ul>
+<p><strong>Day 26 (Wednesday):</strong> Read Ch21 LLD Case Studies. Pick two: Parking Lot, Library Management System, or Hotel Booking. Practice: design one from scratch in 30 minutes — identify entities, relationships, and key design decisions. Then critique your own design.</p>
+<ul>
+<li>Self-check: What is the difference between Association, Aggregation, and Composition? When would you use an interface vs abstract class in your LLD?</li>
+</ul>
+<p><strong>Day 27 (Thursday):</strong> Read Ch22 System Design HLD. Practice the 5-step framework on two systems: (1) a notification service that handles 10M push notifications/day, (2) a ride-sharing matching system.</p>
+<ul>
+<li>Self-check: What is the back-of-the-envelope calculation for 10M notifications/day in terms of write throughput? What is a hotspot in consistent hashing?</li>
+</ul>
+<p><strong>Day 28 (Friday):</strong> Full revision — Vol 6 Ch23 + Ch24. Answer every Q&amp;A you marked as uncertain during Weeks 1–2. Do not re-read chapters — answer from memory, then verify.</p>
+<p><strong>Day 29 (Saturday):</strong> Full revision — Vol 6 Ch25 + Ch26. Same approach.</p>
+<p><strong>Day 30 (Sunday):</strong> Full revision — Vol 6 Ch27. Full mock interview simulation:</p>
+<ul>
+<li>Round 1 (30 min): System design — pick one you haven’t fully practiced</li>
+<li>Round 2 (20 min): LLD — design on paper, time-boxed</li>
+<li>Debrief (10 min): Write what you hesitated on. That list is your final study list.</li>
+</ul>
+<p><strong>End of Week 4 Mini Self-Test — Vol 6 Ch27 Q&amp;As:</strong></p>
+<ol>
+<li>Design a distributed rate limiter. Compare token bucket in Redis vs. API gateway implementations.</li>
+<li>Walk through the LLD for an elevator system. What are the entities? What design patterns apply?</li>
+<li>Design a notification system. How do you handle fan-out for 10M subscribers?</li>
+<li>Explain consistent hashing. Why does virtual node count matter?</li>
+<li>What is the difference between HLD and LLD? What goes into each?</li>
+</ol>
+<hr>
+<h2 id="5-plan-c--8-week-deep-dive"><a class="header" href="#5-plan-c--8-week-deep-dive">5. Plan C — 8-Week Deep Dive</a></h2>
+<p><strong>Commitment:</strong> 1.5 hours/day, 6 days/week</p>
+<p><strong>Structure:</strong> Each week has daily reading + a weekly practice block with three exercises: code a small thing, design a mini system, answer 5 Vol 6 Q&amp;As from the relevant revision chapter.</p>
+<hr>
+<h3 id="weeks-12--core-java-deep-dive-vol-1"><a class="header" href="#weeks-12--core-java-deep-dive-vol-1">Weeks 1–2 — Core Java Deep Dive (Vol 1)</a></h3>
+<p><strong>Week 1 Focus:</strong> Ch1 OOP, Ch2 Strings/Wrappers/Exceptions, Ch3 Collections</p>
+<p><strong>Daily breakdown:</strong></p>
+<ul>
+<li>Day 1: Ch1 OOP — polymorphism internals (vtable conceptually), interface default/static methods, sealed classes (Java 17+)</li>
+<li>Day 2: Ch2 Strings — String pool, <code>intern()</code>, StringBuffer vs StringBuilder threading implications</li>
+<li>Day 3: Ch3 Collections — HashMap internals (hashCode contract, equals contract, why both matter together)</li>
+<li>Day 4: Ch3 continued — TreeMap (Red-Black tree), LinkedHashMap (access order mode), PriorityQueue (heap)</li>
+<li>Day 5: Ch3 continued — ConcurrentHashMap segment locking (Java 7) vs CAS + synchronized (Java 8+), CopyOnWriteArrayList trade-offs</li>
+<li>Day 6: Week 1 practice block (see below)</li>
+</ul>
+<p><strong>Week 1 Practice Block:</strong></p>
+<ol>
+<li><strong>Code:</strong> Implement a thread-safe bounded blocking queue from scratch using <code>ReentrantLock</code> and <code>Condition</code>. Do not use <code>BlockingQueue</code>. Test it with two producer threads and two consumer threads.</li>
+<li><strong>Design:</strong> Design the data structure layer for a Twitter timeline — what collection types would you use for in-memory operations and why?</li>
+<li><strong>Vol 6 Ch23 Q&amp;As:</strong> Answer these five out loud: (1) HashMap vs TreeMap — when to use which? (2) What is the contract between <code>equals()</code> and <code>hashCode()</code>? (3) What is <code>CopyOnWriteArrayList</code> and when is it appropriate? (4) What is String interning? (5) What is the Java memory model’s happens-before relationship?</li>
+</ol>
+<p><strong>Week 2 Focus:</strong> Ch4 Java8+, Ch5 JVM, Ch6 Multithreading</p>
+<ul>
+<li>Day 7: Ch4 — streams, lazy evaluation, parallel streams (when NOT to use them — shared mutable state, ordering cost)</li>
+<li>Day 8: Ch4 — CompletableFuture chaining, thenApply vs thenCompose, exceptionally, allOf/anyOf</li>
+<li>Day 9: Ch5 JVM — heap regions (Eden, Survivor, Old Gen), GC algorithms (G1 region-based, ZGC concurrent marking)</li>
+<li>Day 10: Ch5 — classloading (bootstrap, extension, application), custom classloader use case, memory leaks via classloader</li>
+<li>Day 11: Ch6 — thread states, synchronized monitor internals, ReentrantLock fairness, ThreadLocal use and memory leak</li>
+<li>Day 12: Week 2 practice block</li>
+</ul>
+<p><strong>Week 2 Practice Block:</strong></p>
+<ol>
+<li><strong>Code:</strong> Write a CompletableFuture pipeline that calls three mock APIs in parallel, aggregates results, and handles partial failures — if one API fails, use a cached fallback value.</li>
+<li><strong>Design:</strong> Explain how you’d tune JVM settings for a Spring Boot service under heavy load — heap size, GC choice, thread pool sizing.</li>
+<li><strong>Vol 6 Ch23 Q&amp;As:</strong> (1) What is a parallel stream and what can go wrong? (2) Explain G1 GC’s region layout and evacuation pauses. (3) What is a classloader and how does the delegation model work? (4) What is a ThreadLocal and where can it leak? (5) What is compare-and-swap and how does Java’s <code>AtomicInteger</code> use it?</li>
+</ol>
+<hr>
+<h3 id="week-3--spring-deep-dive-vol-2"><a class="header" href="#week-3--spring-deep-dive-vol-2">Week 3 — Spring Deep Dive (Vol 2)</a></h3>
+<p><strong>Focus:</strong> Ch7 Spring Core/Boot (deep), Ch8 JPA/Hibernate (deep)</p>
+<ul>
+<li>Day 13: Spring IoC — BeanFactory vs ApplicationContext, <code>@Configuration</code> CGLIB proxying, <code>@Import</code></li>
+<li>Day 14: AOP — JDK proxy vs CGLIB proxy internals, when to use each, how <code>@Transactional</code> is implemented as an aspect</li>
+<li>Day 15: Spring Boot autoconfiguration — <code>@EnableAutoConfiguration</code>, <code>META-INF/spring.factories</code>, condition annotations</li>
+<li>Day 16: JPA — entity lifecycle states (transient, managed, detached, removed), cascade types and when they bite you</li>
+<li>Day 17: Hibernate — query cache vs first/second-level cache, <code>@Version</code> for optimistic locking, how <code>PESSIMISTIC_WRITE</code> maps to <code>SELECT FOR UPDATE</code></li>
+<li>Day 18: Practice block</li>
+</ul>
+<p><strong>Week 3 Practice Block:</strong></p>
+<ol>
+<li><strong>Code:</strong> Write a Spring Boot application with a service that has a <code>@Transactional</code> method calling another <code>@Transactional</code> method in the same class. Demonstrate the proxy bypass problem. Then fix it using <code>@Autowired</code> self-injection (and explain why this is a code smell but works).</li>
+<li><strong>Design:</strong> Design the transaction boundary for a banking transfer — debit one account, credit another. What propagation, what isolation level, what happens if the credit step fails?</li>
+<li><strong>Vol 6 Ch24 Q&amp;As:</strong> (1) What is Spring’s bean lifecycle? (2) Why does <code>@Transactional</code> fail on private methods? (3) What is the N+1 problem and three ways to fix it? (4) What is <code>@EntityGraph</code>? (5) Explain Spring Boot autoconfiguration in one minute.</li>
+</ol>
+<hr>
+<h3 id="weeks-45--backend-systems-deep-dive-vol-3"><a class="header" href="#weeks-45--backend-systems-deep-dive-vol-3">Weeks 4–5 — Backend Systems Deep Dive (Vol 3)</a></h3>
+<p><strong>Week 4 Focus:</strong> Ch9 REST, Ch10 Microservices, Ch11 Kafka</p>
+<ul>
+<li>Day 19: REST — idempotency, HATEOAS (know it exists, not widely tested), versioning strategies trade-offs</li>
+<li>Day 20: Ch10 — service mesh (Istio concept), API gateway patterns, strangler fig pattern</li>
+<li>Day 21: Ch10 — saga pattern deep dive: compensating transactions, why they’re hard to test, idempotency of compensating actions</li>
+<li>Day 22: Ch11 Kafka — producer internals (batching, linger.ms, buffer.memory, retries)</li>
+<li>Day 23: Ch11 — consumer internals (partition assignment strategies: range, round-robin, sticky), rebalancing protocol</li>
+<li>Day 24: Week 4 practice block</li>
+</ul>
+<p><strong>Week 4 Practice Block:</strong></p>
+<ol>
+<li><strong>Code:</strong> Write a Kafka consumer in Java that processes messages exactly once using idempotent consumer logic (store processed message IDs in Redis with TTL). Handle the case where Redis is temporarily unavailable.</li>
+<li><strong>Design:</strong> Design a microservices architecture for an e-commerce checkout — identify service boundaries, how the saga flows, and what happens if payment service is down for 2 minutes.</li>
+<li><strong>Vol 6 Ch25 Q&amp;As:</strong> (1) What is exactly-once in Kafka and what does it require from both producer and consumer? (2) Walk through a saga for order placement. (3) What is a circuit breaker’s half-open state? (4) How does service discovery work? (5) What is an API gateway and why is it not just a reverse proxy?</li>
+</ol>
+<p><strong>Week 5 Focus:</strong> Ch12 Redis deep, Ch13 Security</p>
+<ul>
+<li>Day 25: Redis data structures — sorted sets (ZADD/ZRANGE internals: skip list), HyperLogLog, Pub/Sub vs Streams</li>
+<li>Day 26: Redis patterns — rate limiting (fixed window vs sliding window using sorted sets), distributed lock (Redlock algorithm and its critics — Martin Kleppmann’s critique is worth knowing)</li>
+<li>Day 27: Redis — eviction policies (LRU, LFU, noeviction), persistence (RDB vs AOF trade-offs), cluster mode vs sentinel</li>
+<li>Day 28: Ch13 Security — JWT deep dive (why stateless is a double-edged sword), refresh token rotation, PKCE</li>
+<li>Day 29: Ch13 — OAuth2 scopes, resource server validation, common vulnerabilities (SSRF, mass assignment)</li>
+<li>Day 30: Week 5 practice block</li>
+</ul>
+<p><strong>Week 5 Practice Block:</strong></p>
+<ol>
+<li><strong>Code:</strong> Implement a sliding window rate limiter in Java using Redis sorted sets. Make it handle the Redis unavailability case gracefully (fail open or fail closed — justify your choice).</li>
+<li><strong>Design:</strong> Design a caching layer for a product catalog with 1M SKUs. Address cache warmup, invalidation, stampede prevention, and what to do when Redis goes down.</li>
+<li><strong>Vol 6 Ch25 Q&amp;As (continued):</strong> (1) What is Redis Sorted Set and what is its time complexity for ZADD and ZRANGE? (2) Why is Redlock controversial? (3) What is the difference between RDB and AOF persistence? (4) How do you revoke a JWT without a blocklist? (5) What is PKCE and which OAuth2 flow uses it?</li>
+</ol>
+<hr>
+<h3 id="week-6--databases-deep-dive-vol-4"><a class="header" href="#week-6--databases-deep-dive-vol-4">Week 6 — Databases Deep Dive (Vol 4)</a></h3>
+<ul>
+<li>Day 31: Ch14 SQL — advanced window functions, recursive CTEs, explain plan reading (identify full table scans, key lookup operations)</li>
+<li>Day 32: Ch15 Indexing — composite index internals, ICP (Index Condition Pushdown), partial indexes, functional indexes</li>
+<li>Day 33: Ch16 ACID — MVCC (Multi-Version Concurrency Control) in Postgres and MySQL — how they differ, why Postgres has table bloat, vacuum</li>
+<li>Day 34: Ch17 Distributed DBs — Paxos conceptually, Raft (leader election, log replication) — you don’t need to implement it, but know the flow</li>
+<li>Day 35: Ch18 Advanced DB — NewSQL (CockroachDB, TiDB), time-series databases, column-oriented storage for analytics</li>
+<li>Day 36: Practice block</li>
+</ul>
+<p><strong>Week 6 Practice Block:</strong></p>
+<ol>
+<li><strong>Code:</strong> Write 3 SQL queries: (1) find users who purchased in every month of 2024, (2) calculate 7-day rolling average of order value per user, (3) find the most recent order per user without a subquery.</li>
+<li><strong>Design:</strong> Design the database layer for a multi-tenant SaaS application — choose between shared schema, schema-per-tenant, and database-per-tenant. Justify trade-offs for a 10,000-tenant product.</li>
+<li><strong>Vol 6 Ch26 Q&amp;As:</strong> (1) What is MVCC and how does it enable non-blocking reads? (2) What is Raft and what problem does it solve? (3) Explain three sharding strategies and their failure modes. (4) What is a covering index? (5) What is connection pool exhaustion and how do you prevent it?</li>
+</ol>
+<hr>
+<h3 id="week-7--system-design--lld-deep-dive-vol-5"><a class="header" href="#week-7--system-design--lld-deep-dive-vol-5">Week 7 — System Design + LLD Deep Dive (Vol 5)</a></h3>
+<ul>
+<li>Day 37: Ch19 Design Patterns — Decorator, Proxy, Chain of Responsibility, Template Method (focus on where Spring uses these)</li>
+<li>Day 38: Ch20 SOLID + Hexagonal Architecture, Ports and Adapters, and how it relates to testability</li>
+<li>Day 39: Ch21 LLD Case Studies — full walkthrough: Parking Lot (entity design, state machine, concurrency)</li>
+<li>Day 40: Ch21 continued — Library Management or Hotel Booking: identify where SOLID is violated in naive designs</li>
+<li>Day 41: Ch22 HLD — full 45-minute design for a distributed message queue (design Kafka from scratch, roughly)</li>
+<li>Day 42: Practice block</li>
+</ul>
+<p><strong>Week 7 Practice Block:</strong></p>
+<ol>
+<li><strong>Code:</strong> Implement a generic event bus in Java using the Observer pattern. Support synchronous and asynchronous delivery. Handle subscriber exceptions without dropping events for other subscribers.</li>
+<li><strong>Design:</strong> Full HLD for a food delivery platform (like Swiggy/UberEats) — cover order placement, real-time tracking, driver matching, and notification. 45 minutes, think on paper first.</li>
+<li><strong>Vol 6 Ch27 Q&amp;As:</strong> (1) Walk through LLD for a vending machine using a state machine. (2) Design a consistent hashing ring — explain virtual nodes. (3) What is the difference between strong, eventual, and causal consistency? (4) Design a search autocomplete service. (5) What is a bloom filter and when would you use it in system design?</li>
+</ol>
+<hr>
+<h3 id="week-8--full-revision--mock-interview-simulation-vol-6"><a class="header" href="#week-8--full-revision--mock-interview-simulation-vol-6">Week 8 — Full Revision + Mock Interview Simulation (Vol 6)</a></h3>
+<p><strong>Day 43:</strong> Ch23 Core Java Revision — answer every Q&amp;A. Mark confidence: Green (got it), Yellow (partial), Red (missed). Only re-read for Red items.</p>
+<p><strong>Day 44:</strong> Ch24 Spring/JPA Revision — same approach.</p>
+<p><strong>Day 45:</strong> Ch25 Backend Systems Revision — same approach.</p>
+<p><strong>Day 46:</strong> Ch26 DB Revision — same approach.</p>
+<p><strong>Day 47:</strong> Ch27 System Design/LLD Revision — same approach.</p>
+<p><strong>Day 48 (Mock Day):</strong> Simulate a full interview loop over 3 hours:</p>
+<ul>
+<li>Round 1 (45 min): Pick a LLD problem you have not fully designed before. Timer on. Think out loud.</li>
+<li>Round 2 (45 min): Pick a HLD problem. Use the 5-step framework. No notes.</li>
+<li>Round 3 (30 min): Verbal walk-through of your hardest past project — explain it to someone who does not know your domain.</li>
+<li>Debrief (30 min): Write what you said well and what you hesitated on. That hesitation list is your final study list.</li>
+</ul>
+<hr>
+<h2 id="6-what-interviewers-actually-test"><a class="header" href="#6-what-interviewers-actually-test">6. What Interviewers Actually Test</a></h2>
+<h3 id="coding-rounds"><a class="header" href="#coding-rounds">Coding Rounds</a></h3>
+<p>Interviewers are not checking if you solved the problem. They are checking:</p>
+<ul>
+<li><strong>Do you clarify before coding?</strong> Candidates who code immediately after hearing the problem get lower scores, even with correct solutions. Ask: what are the constraints? Is the input sorted? Can values be null?</li>
+<li><strong>Do you talk while coding?</strong> Silent coding signals poor communication skills. Narrate your decisions, especially when you’re choosing between approaches.</li>
+<li><strong>Do you know your data structures?</strong> HashMap, TreeMap, PriorityQueue — if you always reach for a list, interviewers notice. Know when a TreeMap buys you O(log n) sorted order cheaply.</li>
+<li><strong>Do you handle edge cases proactively?</strong> Empty input, null, single element, maximum input size — before submitting, walk through your code with these.</li>
+<li><strong>Is your code readable?</strong> Variable names matter. <code>i</code>, <code>j</code>, <code>k</code> everywhere signals junior thinking. Name things what they are.</li>
+</ul>
+<h3 id="system-design-rounds"><a class="header" href="#system-design-rounds">System Design Rounds</a></h3>
+<p>The most common reasons senior candidates fail system design:</p>
+<ol>
+<li><strong>Jumping to solutions before requirements.</strong> Ask: read-heavy or write-heavy? What is acceptable latency? What is the scale (RPS, data volume)? An interviewer who does not get clarifying questions gives a low score regardless of the design quality.</li>
+<li><strong>Going too deep too fast.</strong> Candidates spend 20 minutes on the database schema and never cover caching, load balancing, or failure modes. The interviewer wanted breadth first, then depth on what they ask about.</li>
+<li><strong>Not quantifying.</strong> “We’ll use Kafka because it’s scalable” is a weak answer. “At 50,000 orders/minute with 4 partitions and 3 consumer replicas, we can sustain 12,500 messages/partition/minute well within Kafka’s throughput ceiling” is a strong answer. Back of the envelope math is not optional at SDE2+.</li>
+<li><strong>No failure discussion.</strong> Every design question has a hidden sub-question: what happens when component X fails? If you do not bring this up before the interviewer does, you are leaving signal on the table.</li>
+</ol>
+<blockquote>
+<p><strong>The 5-minute rule:</strong> In the first 5 minutes of a system design interview, you should have: (1) confirmed functional and non-functional requirements, (2) done a rough capacity estimate, (3) sketched the highest-level API boundary. If you are still asking questions at minute 10, you are behind.</p>
+</blockquote>
+<h3 id="lld-rounds"><a class="header" href="#lld-rounds">LLD Rounds</a></h3>
+<p><strong>The #1 mistake:</strong> Jumping to class diagrams before requirements. LLD interviewers at product companies care about:</p>
+<ul>
+<li>Can you identify the right abstractions? Do you see an interface where one is needed?</li>
+<li>Do you know when NOT to over-engineer? A parking lot does not need a microservices architecture.</li>
+<li>Do you apply SOLID naturally, not as a checklist? Naming a principle without showing it in your design is not enough.</li>
+<li>Can you handle concurrency? “Thread-safe parking spot allocation” — did you think about it or did it come up only when asked?</li>
+</ul>
+<p>Start every LLD round by writing: entities, key relationships, and key behaviors — before any class definitions.</p>
+<h3 id="behavioral-rounds-product-companies-specifically"><a class="header" href="#behavioral-rounds-product-companies-specifically">Behavioral Rounds (Product Companies Specifically)</a></h3>
+<p>Product companies (Google, Flipkart, Razorpay, PhonePe, Swiggy) care about impact and ownership more than service companies. Interviewers are looking for:</p>
+<ul>
+<li><strong>Ownership:</strong> Did you drive the decision or were you assigned a ticket? “I noticed the P99 was degrading and proposed we migrate to async processing” &gt; “I was asked to implement async processing.”</li>
+<li><strong>Trade-off thinking:</strong> Every story should have a moment where you chose between two valid options. If your story has no trade-off, it does not demonstrate engineering judgment.</li>
+<li><strong>Quantified outcomes:</strong> “Reduced API latency by 40%” &gt; “Improved performance.” If you do not track impact, start tracking it now.</li>
+<li><strong>What you would do differently:</strong> This is not a trick question. Interviewers want to see that you reflect. The best answer includes a specific technical decision you would reverse and why.</li>
+</ul>
+<hr>
+<h2 id="7-topic-priority-heat-map"><a class="header" href="#7-topic-priority-heat-map">7. Topic Priority Heat Map</a></h2>
+<p>Must Know = guaranteed to appear | Important = appears in most loops | Good to Know = differentiates senior candidates</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Topic</th><th>Chapter</th><th>SDE1 Priority</th><th>SDE2 Priority</th><th>Senior Priority</th><th>Interview Frequency</th></tr>
+</thead>
+<tbody>
+<tr><td>OOP Fundamentals</td><td>Ch1</td><td>Must Know</td><td>Must Know</td><td>Important</td><td>Very High</td></tr>
+<tr><td>Collections Internals</td><td>Ch3</td><td>Must Know</td><td>Must Know</td><td>Important</td><td>Very High</td></tr>
+<tr><td>Java 8 Streams/Lambda</td><td>Ch4</td><td>Important</td><td>Must Know</td><td>Must Know</td><td>High</td></tr>
+<tr><td>Multithreading Basics</td><td>Ch6</td><td>Must Know</td><td>Must Know</td><td>Must Know</td><td>Very High</td></tr>
+<tr><td>JVM Internals + GC</td><td>Ch5</td><td>Good to Know</td><td>Important</td><td>Must Know</td><td>Medium</td></tr>
+<tr><td>String/Exception internals</td><td>Ch2</td><td>Important</td><td>Good to Know</td><td>Good to Know</td><td>Medium</td></tr>
+<tr><td>Spring IoC/AOP</td><td>Ch7</td><td>Important</td><td>Must Know</td><td>Must Know</td><td>Very High</td></tr>
+<tr><td>JPA/Hibernate N+1</td><td>Ch8</td><td>Important</td><td>Must Know</td><td>Must Know</td><td>High</td></tr>
+<tr><td>REST API Design</td><td>Ch9</td><td>Must Know</td><td>Must Know</td><td>Important</td><td>High</td></tr>
+<tr><td>Microservices Patterns</td><td>Ch10</td><td>Good to Know</td><td>Must Know</td><td>Must Know</td><td>High</td></tr>
+<tr><td>Kafka Internals</td><td>Ch11</td><td>Good to Know</td><td>Must Know</td><td>Must Know</td><td>High</td></tr>
+<tr><td>Redis / Caching Patterns</td><td>Ch12</td><td>Good to Know</td><td>Must Know</td><td>Must Know</td><td>Very High</td></tr>
+<tr><td>Security / JWT / OAuth2</td><td>Ch13</td><td>Good to Know</td><td>Important</td><td>Important</td><td>Medium</td></tr>
+<tr><td>SQL + Window Functions</td><td>Ch14</td><td>Must Know</td><td>Must Know</td><td>Important</td><td>Very High</td></tr>
+<tr><td>DB Indexing</td><td>Ch15</td><td>Important</td><td>Must Know</td><td>Must Know</td><td>Very High</td></tr>
+<tr><td>ACID / Isolation Levels</td><td>Ch16</td><td>Good to Know</td><td>Must Know</td><td>Must Know</td><td>High</td></tr>
+<tr><td>Distributed DBs / CAP</td><td>Ch17</td><td>Good to Know</td><td>Important</td><td>Must Know</td><td>High</td></tr>
+<tr><td>Advanced DB / Sharding</td><td>Ch18</td><td>Good to Know</td><td>Important</td><td>Must Know</td><td>Medium</td></tr>
+<tr><td>Design Patterns</td><td>Ch19</td><td>Important</td><td>Must Know</td><td>Must Know</td><td>High</td></tr>
+<tr><td>SOLID / Clean Arch</td><td>Ch20</td><td>Good to Know</td><td>Important</td><td>Must Know</td><td>Medium</td></tr>
+<tr><td>LLD Case Studies</td><td>Ch21</td><td>Good to Know</td><td>Must Know</td><td>Must Know</td><td>Very High</td></tr>
+<tr><td>System Design HLD</td><td>Ch22</td><td>Good to Know</td><td>Must Know</td><td>Must Know</td><td>Very High</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="8-daily-practice-rituals"><a class="header" href="#8-daily-practice-rituals">8. Daily Practice Rituals</a></h2>
+<p>These are non-negotiable. Not optional exercises — mandatory habits. If your prep has these five, your consistency will beat candidates who study more but practice less.</p>
+<p><strong>1. One Vol 6 Q&amp;A spoken aloud before sleeping (every night, 5 minutes)</strong>
+Pick one question from the Vol 6 chapter most relevant to what you studied that day. Do not read it silently. Say the answer out loud as if you are in an interview. This is uncomfortable at first — that discomfort means it is working.</p>
+<p><strong>2. One system design sketch per day (10 minutes, paper only)</strong>
+Pick a system from your life: how does WhatsApp deliver messages, how does Spotify generate recommendations, how does your bank process a transfer. Sketch the major components, identify the bottleneck, and note one failure mode. You are not designing a production system — you are training your brain to think in systems.</p>
+<p><strong>3. Read one EXPLAIN query plan per week</strong>
+If you are not working in a job with database access, use a free Postgres or MySQL instance (ElephantSQL free tier, PlanetScale free tier). Create a table with 100K rows and run EXPLAIN on a query. Understand what “Seq Scan” vs “Index Scan” vs “Index Only Scan” means. Do this once a week — it is worth more than re-reading Ch15.</p>
+<p><strong>4. After every practice problem, write a one-line “what I missed” note</strong>
+Not a full post-mortem — one line. “Missed the edge case where the array has one element.” “Forgot that HashMap allows null keys.” Keep a running list. Review it every Sunday. Patterns in what you miss reveal your actual weak spots, not the weak spots you think you have.</p>
+<p><strong>5. Time-box every mock design (30 minutes, hard stop)</strong>
+When you practice system design, set a timer. When it goes off, stop. Evaluate: did you cover requirements, capacity, API, components, and at least one failure mode? If not, you know what to practice. Designs that take 90 minutes in practice will take 90 minutes in interviews, and you will not finish.</p>
+<hr>
+<h2 id="9-chapter-map-quick-reference"><a class="header" href="#9-chapter-map-quick-reference">9. Chapter Map Quick Reference</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Chapter</th><th>Volume</th><th>Key Topics</th><th>Best For</th></tr>
+</thead>
+<tbody>
+<tr><td>Ch1 OOP</td><td>Vol 1</td><td>Polymorphism, abstraction, encapsulation, interfaces vs abstract classes</td><td>All levels</td></tr>
+<tr><td>Ch2 Strings/Wrappers/Exceptions</td><td>Vol 1</td><td>String pool, immutability, exception hierarchy, try-with-resources</td><td>SDE1</td></tr>
+<tr><td>Ch3 Collections</td><td>Vol 1</td><td>HashMap internals, ConcurrentHashMap, TreeMap, LinkedHashMap LRU pattern</td><td>SDE1–SDE2</td></tr>
+<tr><td>Ch4 Java 8+</td><td>Vol 1</td><td>Streams, Optional, CompletableFuture, method references</td><td>SDE1–SDE2</td></tr>
+<tr><td>Ch5 JVM</td><td>Vol 1</td><td>GC algorithms, heap regions, classloading, memory model</td><td>SDE2–Senior</td></tr>
+<tr><td>Ch6 Multithreading</td><td>Vol 1</td><td>Thread pools, locks, volatile, concurrent collections, deadlock</td><td>All levels</td></tr>
+<tr><td>Ch7 Spring Core/Boot</td><td>Vol 2</td><td>IoC, AOP, bean lifecycle, autoconfiguration, proxy mechanism</td><td>SDE1–SDE2</td></tr>
+<tr><td>Ch8 JPA/Hibernate</td><td>Vol 2</td><td>N+1, fetch types, caching, <code>@Transactional</code> propagation, optimistic locking</td><td>SDE1–Senior</td></tr>
+<tr><td>Ch9 REST APIs</td><td>Vol 3</td><td>HTTP methods, idempotency, status codes, versioning, pagination</td><td>All levels</td></tr>
+<tr><td>Ch10 Microservices</td><td>Vol 3</td><td>Service discovery, API gateway, circuit breaker, saga pattern</td><td>SDE2–Senior</td></tr>
+<tr><td>Ch11 Kafka</td><td>Vol 3</td><td>Partitions, consumer groups, offsets, exactly-once, ISR</td><td>SDE2–Senior</td></tr>
+<tr><td>Ch12 Redis/Caching</td><td>Vol 3</td><td>Data structures, cache patterns, distributed lock, eviction</td><td>SDE2–Senior</td></tr>
+<tr><td>Ch13 Security</td><td>Vol 3</td><td>JWT, OAuth2, PKCE, common vulnerabilities</td><td>SDE2</td></tr>
+<tr><td>Ch14 SQL</td><td>Vol 4</td><td>Window functions, CTEs, JOIN types, query optimization</td><td>All levels</td></tr>
+<tr><td>Ch15 Indexing</td><td>Vol 4</td><td>B-tree, composite index, covering index, optimizer behavior</td><td>SDE2–Senior</td></tr>
+<tr><td>Ch16 ACID/Transactions</td><td>Vol 4</td><td>Isolation levels, dirty/phantom reads, MVCC</td><td>SDE2–Senior</td></tr>
+<tr><td>Ch17 Distributed DBs</td><td>Vol 4</td><td>CAP theorem, eventual consistency, Raft/Paxos concepts</td><td>Senior</td></tr>
+<tr><td>Ch18 Advanced DB</td><td>Vol 4</td><td>Sharding, read replicas, connection pooling, anti-patterns</td><td>Senior</td></tr>
+<tr><td>Ch19 Design Patterns</td><td>Vol 5</td><td>Factory, Singleton, Strategy, Observer, Decorator, Builder</td><td>SDE2–Senior</td></tr>
+<tr><td>Ch20 SOLID/Clean Arch</td><td>Vol 5</td><td>SOLID principles, hexagonal architecture, dependency inversion</td><td>SDE2–Senior</td></tr>
+<tr><td>Ch21 LLD Case Studies</td><td>Vol 5</td><td>Parking lot, library, hotel booking — entity design, state machines</td><td>SDE2–Senior</td></tr>
+<tr><td>Ch22 System Design HLD</td><td>Vol 5</td><td>HLD framework, capacity estimation, component design, failure modes</td><td>SDE2–Senior</td></tr>
+<tr><td>Ch23 Core Java Revision</td><td>Vol 6</td><td>Q&amp;As covering Vol 1</td><td>All levels (revision only)</td></tr>
+<tr><td>Ch24 Spring/JPA Revision</td><td>Vol 6</td><td>Q&amp;As covering Vol 2</td><td>All levels (revision only)</td></tr>
+<tr><td>Ch25 Backend Systems Revision</td><td>Vol 6</td><td>Q&amp;As covering Vol 3</td><td>All levels (revision only)</td></tr>
+<tr><td>Ch26 DB Revision</td><td>Vol 6</td><td>Q&amp;As covering Vol 4</td><td>All levels (revision only)</td></tr>
+<tr><td>Ch27 System Design/LLD Revision</td><td>Vol 6</td><td>Q&amp;As covering Vol 5</td><td>All levels (revision only)</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<blockquote>
+<p><strong>Final word:</strong> The most dangerous candidate is the one who reads everything and practices nothing. This handbook is dense. You will not remember it by reading. You will remember it by doing — by answering questions out loud, designing systems on paper, writing code without autocomplete. Pick your plan, execute it, and do not switch plans mid-way because you feel behind. Feeling behind is normal. Finishing is what matters.</p>
+</blockquote>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="INDEX.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="COMPANY_GUIDE.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="INDEX.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="COMPANY_GUIDE.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-09f2665d.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-c22b7243.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="custom-877a7a53.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

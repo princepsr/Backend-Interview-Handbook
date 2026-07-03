@@ -1,0 +1,123 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 760 270" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:760px;display:block;margin:16px 0;">
+<style>
+@keyframes lbReq1 { 0%,2%{opacity:0} 5%,30%{opacity:1} 33%,100%{opacity:0} }
+@keyframes lbReq2 { 0%,35%{opacity:0} 38%,63%{opacity:1} 66%,100%{opacity:0} }
+@keyframes lbReq3 { 0%,68%{opacity:0} 71%,95%{opacity:1} 98%,100%{opacity:0} }
+@keyframes lbPulse1 { 0%,5%{fill:#f1f5f9} 10%,30%{fill:#dcfce7} 33%,100%{fill:#f1f5f9} }
+@keyframes lbPulse2 { 0%,38%{fill:#f1f5f9} 43%,63%{fill:#dcfce7} 66%,100%{fill:#f1f5f9} }
+@keyframes lbPulse3 { 0%,71%{fill:#f1f5f9} 76%,95%{fill:#dcfce7} 98%,100%{fill:#f1f5f9} }
+@keyframes lbHbeat { 0%,100%{r:4} 50%{r:6} }
+</style>
+<rect width="760" height="270" rx="10" fill="#f8fafc"/>
+<text x="380" y="24" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="700" fill="#1e293b">Load balancer — L4 vs L7, round-robin routing</text>
+<defs>
+<marker id="lba" markerWidth="7" markerHeight="6" refX="5.5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="#6366f1"/></marker>
+<marker id="lbag" markerWidth="7" markerHeight="6" refX="5.5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="#10b981"/></marker>
+<marker id="lbar" markerWidth="7" markerHeight="6" refX="5.5" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="#6366f1" opacity="0.4"/></marker>
+</defs>
+
+<!-- ── CLIENTS ── -->
+<rect x="14" y="85" width="95" height="100" rx="6" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+<text x="61" y="108" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#475569">Clients</text>
+<rect x="22" y="115" width="79" height="22" rx="3" fill="#e0e7ff" stroke="#6366f1" stroke-width="1"/>
+<text x="61" y="130" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#3730a3">Browser</text>
+<rect x="22" y="142" width="79" height="22" rx="3" fill="#e0e7ff" stroke="#6366f1" stroke-width="1"/>
+<text x="61" y="157" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#3730a3">Mobile app</text>
+<rect x="22" y="168" width="79" height="11" rx="2" fill="#e0e7ff"/>
+<text x="61" y="177" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#4338ca">API client</text>
+
+<!-- ── LOAD BALANCER ── -->
+<rect x="210" y="50" width="150" height="170" rx="8" fill="#ede9fe" stroke="#6366f1" stroke-width="2"/>
+<text x="285" y="73" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#3730a3">Load balancer</text>
+<!-- L4 badge -->
+<rect x="224" y="82" width="55" height="20" rx="10" fill="#6366f1"/>
+<text x="251" y="95" text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="600" fill="#fff">L4 (TCP)</text>
+<!-- L7 badge -->
+<rect x="287" y="82" width="59" height="20" rx="10" fill="#8b5cf6"/>
+<text x="316" y="95" text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="600" fill="#fff">L7 (HTTP)</text>
+<!-- Algorithms -->
+<rect x="220" y="108" width="130" height="100" rx="5" fill="#fff" stroke="#c4b5fd" stroke-width="1"/>
+<text x="285" y="123" text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="600" fill="#5b21b6">Algorithms</text>
+<text x="285" y="137" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#6d28d9">● Round-robin</text>
+<text x="285" y="149" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#6d28d9">● Weighted RR</text>
+<text x="285" y="161" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#6d28d9">● Least connections</text>
+<text x="285" y="173" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#6d28d9">● IP hash</text>
+<text x="285" y="185" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#6d28d9">● Consistent hashing</text>
+<text x="285" y="197" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#6d28d9">● Content-based (L7)</text>
+
+<!-- ── SERVERS ── -->
+<!-- Server 1 -->
+<rect x="490" y="42" width="130" height="55" rx="6" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" style="animation:lbPulse1 9s linear infinite"/>
+<text x="555" y="65" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#475569">Server 1</text>
+<text x="555" y="79" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#64748b">app-01.internal</text>
+<!-- Health dot S1 -->
+<circle cx="613" cy="53" r="5" fill="#10b981">
+  <animate attributeName="r" values="4;6;4" dur="2s" repeatCount="indefinite"/>
+</circle>
+
+<!-- Server 2 -->
+<rect x="490" y="107" width="130" height="55" rx="6" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" style="animation:lbPulse2 9s linear infinite"/>
+<text x="555" y="130" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#475569">Server 2</text>
+<text x="555" y="144" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#64748b">app-02.internal</text>
+<circle cx="613" cy="118" r="5" fill="#10b981">
+  <animate attributeName="r" values="4;6;4" dur="2s" begin="0.7s" repeatCount="indefinite"/>
+</circle>
+
+<!-- Server 3 -->
+<rect x="490" y="172" width="130" height="55" rx="6" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" style="animation:lbPulse3 9s linear infinite"/>
+<text x="555" y="195" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#475569">Server 3</text>
+<text x="555" y="209" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#64748b">app-03.internal</text>
+<circle cx="613" cy="183" r="5" fill="#10b981">
+  <animate attributeName="r" values="4;6;4" dur="2s" begin="1.4s" repeatCount="indefinite"/>
+</circle>
+
+<!-- ── STATIC ARROWS ── -->
+<!-- Client → LB -->
+<path d="M109 135 L210 135" stroke="#6366f1" stroke-width="1.5" fill="none" marker-end="url(#lba)"/>
+<!-- LB → servers (dim) -->
+<path d="M360 90  L490 69"  stroke="#cbd5e1" stroke-width="1" fill="none" marker-end="url(#lbar)"/>
+<path d="M360 135 L490 134" stroke="#cbd5e1" stroke-width="1" fill="none" marker-end="url(#lbar)"/>
+<path d="M360 180 L490 199" stroke="#cbd5e1" stroke-width="1" fill="none" marker-end="url(#lbar)"/>
+
+<!-- ── ANIMATED REQUEST DOTS ── -->
+<!-- Request 1 → Server 1 -->
+<circle r="8" fill="#6366f1" stroke="#fff" stroke-width="2">
+  <animate attributeName="cx" values="160;285;285;420;490;555;490;285;160" keyTimes="0;0.08;0.12;0.18;0.22;0.25;0.28;0.30;0.33" dur="9s" repeatCount="indefinite"/>
+  <animate attributeName="cy" values="135;135;135;90;69;69;69;135;135"    keyTimes="0;0.08;0.12;0.18;0.22;0.25;0.28;0.30;0.33" dur="9s" repeatCount="indefinite"/>
+  <animate attributeName="opacity" values="0;1;1;1;1;1;1;1;0" keyTimes="0;0.02;0.12;0.22;0.25;0.28;0.30;0.32;0.33" dur="9s" repeatCount="indefinite"/>
+</circle>
+<!-- Request 2 → Server 2 (offset 3s) -->
+<circle r="8" fill="#8b5cf6" stroke="#fff" stroke-width="2">
+  <animate attributeName="cx" values="160;285;285;420;490;555;490;285;160" keyTimes="0;0.08;0.12;0.18;0.22;0.25;0.28;0.30;0.33" dur="9s" begin="3s" repeatCount="indefinite"/>
+  <animate attributeName="cy" values="135;135;135;134;134;134;134;135;135" keyTimes="0;0.08;0.12;0.18;0.22;0.25;0.28;0.30;0.33" dur="9s" begin="3s" repeatCount="indefinite"/>
+  <animate attributeName="opacity" values="0;1;1;1;1;1;1;1;0" keyTimes="0;0.02;0.12;0.22;0.25;0.28;0.30;0.32;0.33" dur="9s" begin="3s" repeatCount="indefinite"/>
+</circle>
+<!-- Request 3 → Server 3 (offset 6s) -->
+<circle r="8" fill="#6366f1" stroke="#fff" stroke-width="2">
+  <animate attributeName="cx" values="160;285;285;420;490;555;490;285;160" keyTimes="0;0.08;0.12;0.18;0.22;0.25;0.28;0.30;0.33" dur="9s" begin="6s" repeatCount="indefinite"/>
+  <animate attributeName="cy" values="135;135;135;180;199;199;199;135;135" keyTimes="0;0.08;0.12;0.18;0.22;0.25;0.28;0.30;0.33" dur="9s" begin="6s" repeatCount="indefinite"/>
+  <animate attributeName="opacity" values="0;1;1;1;1;1;1;1;0" keyTimes="0;0.02;0.12;0.22;0.25;0.28;0.30;0.32;0.33" dur="9s" begin="6s" repeatCount="indefinite"/>
+</circle>
+
+<!-- ── SIDE NOTES ── -->
+<rect x="635" y="42" width="112" height="183" rx="6" fill="#fff7ed" stroke="#fed7aa" stroke-width="1.5"/>
+<text x="691" y="59" text-anchor="middle" font-family="sans-serif" font-size="9" font-weight="600" fill="#9a3412">L4 vs L7</text>
+<text x="691" y="73" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#9a3412" font-weight="600">L4 (TCP/UDP)</text>
+<text x="691" y="85" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#78350f">routes by IP+port</text>
+<text x="691" y="96" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#78350f">no content visibility</text>
+<text x="691" y="107" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#78350f">AWS NLB, HAProxy</text>
+<text x="691" y="118" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#78350f">lower latency</text>
+<line x1="641" y1="124" x2="741" y2="124" stroke="#fed7aa" stroke-width="0.8"/>
+<text x="691" y="137" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#9a3412" font-weight="600">L7 (HTTP)</text>
+<text x="691" y="149" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#78350f">reads headers/URL</text>
+<text x="691" y="160" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#78350f">path-based routing</text>
+<text x="691" y="171" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#78350f">SSL termination</text>
+<text x="691" y="182" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#78350f">AWS ALB, nginx</text>
+<text x="691" y="193" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#78350f">header inspection</text>
+<text x="691" y="204" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#78350f">higher CPU cost</text>
+<!-- health check label -->
+<text x="635" y="238" font-family="sans-serif" font-size="8" fill="#10b981">● healthy</text>
+<text x="635" y="251" font-family="sans-serif" font-size="8" fill="#94a3b8">health checks: /actuator/health</text>
+<text x="635" y="262" font-family="sans-serif" font-size="8" fill="#94a3b8">every 5–30 s, auto-evict failed</text>
+</svg>

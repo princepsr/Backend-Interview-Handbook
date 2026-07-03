@@ -79,7 +79,14 @@ Backend Interview Handbook/
 ├── APPENDIX_Tables.md                # 30 consolidated reference tables
 ├── APPENDIX_CodeSnippets.md          # 38 must-know code patterns
 │
-└── images/                           # Local images (partial — see Images section)
+├── images/                           # Animated SVG diagrams (inlined into chapters)
+│   ├── linked_list.svg               # Chapter 3 — LinkedList traverse/insert/delete
+│   ├── hashmap_internals.svg         # Chapter 3 — HashMap put() lifecycle
+│   ├── thread_lifecycle.svg          # Chapter 6 — Java Thread state machine
+│   ├── circuit_breaker.svg           # Chapter 10 — Circuit Breaker 3-state lifecycle
+│   └── kafka_flow.svg                # Chapter 11 — Kafka producer-consumer flow
+│
+└── build.ps1                         # Build script for combined + 6 per-volume books
 ```
 
 ---
@@ -232,16 +239,49 @@ All visual styling lives in **`custom.css`**. Key sections:
 
 ## Images & Diagrams
 
-### Embedded Images (Wikimedia Commons)
-Chapters 3, 5, 15, 17, and 19 contain inline images from Wikimedia Commons SVG URLs:
-```markdown
-![Alt text](https://upload.wikimedia.org/wikipedia/commons/[path]/[file].svg)
-*Caption text*
-```
+### Animated Inline SVGs (preferred approach)
 
-**Note:** Wikimedia rate-limits bulk downloads. If images show as broken:
-- Try from a different IP / network
-- Or download images manually from the Wikimedia Commons pages and save to the `images/` folder, then update the URLs to relative paths: `![Alt](../images/filename.svg)`
+All diagrams are **inline SVGs embedded directly in the chapter Markdown file** — not `<img src>` references. This means:
+- No external file dependency — works in combined book, per-volume builds, and direct file viewing
+- Animated via CSS `@keyframes` — no JavaScript required
+- Light-themed to match the book's default light theme
+
+### Adding a new SVG diagram
+
+Pick a topic where a diagram replaces a paragraph of explanation — state machines, flows, data structures, and hierarchies work best. Then:
+
+1. **Write the SVG inline** in the chapter, immediately after the topic metadata line and before `---`:
+   ```markdown
+   ## Topic N: Topic Name
+
+   **Difficulty:** ... | **Frequency:** ... | **Companies:** ...
+
+   <svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:760px;display:block;margin:16px 0;">
+     ...SVG content...
+   </svg>
+
+   ---
+   ```
+   Do **not** use `<img src="../images/filename.svg">` — the per-volume build copies files into a flat temp directory (`_build/volN/`) and relative paths break.
+
+2. **Optionally save a copy** in `images/` as the source file. The inline version in the chapter is what actually renders.
+
+### SVG design conventions
+
+| Property | Value |
+|---|---|
+| viewBox | `0 0 760 300` (or `760 340`, `760 360` for taller diagrams) |
+| Background | `fill="#f8fafc"` with `rx="10"` — light, matches page |
+| Panel / box fill | `fill="#f1f5f9"` |
+| Box border | `stroke="#cbd5e1"` |
+| Primary accent | `#6366f1` (indigo) for structural arrows and borders |
+| Success / insert | `#10b981` (green) |
+| Warning / delete | `#ef4444` (red) |
+| Highlight / pointer | `#f59e0b` (amber) |
+| Title text | `fill="#1e293b"` |
+| Body / label text | `fill="#64748b"` |
+| Animation | CSS `@keyframes` only — no JS, no SMIL `begin="click"` |
+| Loop | All animations loop with `animation: name Xs linear infinite` |
 
 ### ASCII Architecture Diagrams
 `APPENDIX_Architecture_Diagrams.md` contains 12 full ASCII diagrams for:
@@ -300,6 +340,8 @@ These are pure ASCII — no external dependencies, always render correctly.
 | Version | Date | Changes |
 |---|---|---|
 | 1.0 | July 2026 | Initial release — 27 chapters, 400+ Q&As, mdBook with custom theme |
+| 1.1 | July 2026 | 5 animated inline SVG diagrams added; per-volume build system; light theme |
+| 1.2 | July 2026 | 7 more animated SVGs: JVM memory, Spring Bean lifecycle, JPA entity states, Redis cache flow, B-tree index search, isolation levels matrix, load balancer routing |
 
 ---
 

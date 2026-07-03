@@ -1,4 +1,4 @@
-<style>.content > main > h1:first-of-type { display: none !important; }</style>
+﻿<style>.content > main > h1:first-of-type { display: none !important; }</style>
 
 <div style="min-height:80vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding: 60px 20px 40px; border-bottom: 1px solid #e2e8f0;">
 
@@ -46,6 +46,8 @@
 
 ---
 
+<div style="display:flex; flex-direction:column; align-items:center; text-align:left;">
+
 ## Quick Start
 
 | Goal | Go to |
@@ -56,3 +58,5 @@
 | 4-week study plan | [Study Plans](STUDY_GUIDE.md) |
 | Company-specific prep | [Company Guide](COMPANY_GUIDE.md) |
 | Revise this volume fast | [Chapter 23 — Core Java Revision](Volume6_Revision_Pack/Chapter23_CoreJava_Revision.md) |
+
+</div>

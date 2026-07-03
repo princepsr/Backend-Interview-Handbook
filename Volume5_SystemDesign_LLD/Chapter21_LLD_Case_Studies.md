@@ -1,1956 +1,802 @@
-﻿# Volume 5: System Design & LLD
+﻿# Volume 5: System Design & Low-Level Design
 # Chapter 21: LLD Case Studies
-
----
-
-# Chapter 21 — Low-Level Design (LLD) Case Studies: Part A
-
-> **Target audience:** SDE2 / Senior engineers preparing for FAANG+ interviews.
-> **Java version:** Java 17. **Framework:** Spring Boot 3.x where applicable.
-> **Approach:** Each case study follows Requirements → Entities → Class Design → Patterns → Full Implementation → Interview Q&A.
-
 ---
 
 ## Table of Contents
 
-- [LLD 1: Parking Lot System](#lld-1-parking-lot-system)
-- [LLD 2: URL Shortener](#lld-2-url-shortener)
-- [LLD 3: Rate Limiter](#lld-3-rate-limiter)
+| # | System |
+|---|--------|
+| 1 | Parking Lot System |
+| 2 | URL Shortener (like bit.ly) |
+| 3 | Rate Limiter |
+| 4 | BookMyShow — Movie Ticket Booking |
+| 5 | Splitwise — Expense Sharing |
+| 6 | Elevator System |
 
 ---
 
-# LLD 1: Parking Lot System
+> **How to read this chapter:** Each case study has three layers.
+> - **The Idea** — what problem we're solving, no prior knowledge needed.
+> - **How It Works** — every design decision explained with WHY, not just WHAT. Each decision includes the alternatives considered and the tradeoff accepted.
+> - **Interview Lens** — what interviewers probe, with full speakable answers focused on reasoning.
+>
+> For LLD interviews: always lead with "The key challenge here is X. I chose Y over Z because [reason]."
 
-## 1. Requirements Clarification
+---
 
-### Functional Requirements
+# Chapter 21: LLD Case Studies
 
-| # | Requirement |
+---
+
+## Topic 1: Parking Lot System — LLD Case Study
+
+#### The Idea
+
+Imagine you are the engineer responsible for the software running inside a multi-storey parking garage. Cars, trucks, motorcycles, and electric vehicles pull up at the gate. Your system must instantly tell the gate whether a spot is available, issue a ticket, track where every vehicle is parked, and calculate the fee when the driver leaves. Simple enough for a single-lane garage — but now picture hundreds of cars entering and exiting simultaneously across a dozen floors, with attendants manually overriding spot assignments and payment terminals talking to your system in real time.
+
+The hard part is not the data model — it is the concurrency. Two cars cannot share a spot, and your software is the only thing preventing that. If two threads both see the same "available" spot and both try to park there, one of them wins and one produces a ghost ticket pointing at an occupied spot. Getting this right without grinding the system to a halt with locks is the interesting engineering problem.
+
+There is also an extensibility challenge. Parking lots regularly add new vehicle types (electric SUVs with special charging spots) and new pricing models (surge pricing, monthly passes, flat-rate evenings). If the fee calculation logic is one giant if-else tree, every new rule means touching the exit flow — a recipe for regressions. A well-designed parking lot system makes adding a new vehicle type or fee strategy a matter of writing one new class, not modifying existing code.
+
+---
+
+#### How It Works
+
+**Step 1: Requirements & Clarifying Questions**
+
+| Functional Requirement | Description |
 |---|---|
-| FR-1 | The parking lot has multiple floors, each with multiple spots. |
-| FR-2 | Spots are typed: **Compact**, **Large**, **Handicapped**, **Motorcycle**. |
-| FR-3 | Vehicles are typed: **Car**, **Truck**, **Motorcycle**, **Electric**. |
-| FR-4 | A vehicle can be parked in a spot compatible with its size. |
-| FR-5 | On entry, issue a **Ticket** with entry timestamp, spot, and vehicle info. |
-| FR-6 | On exit, calculate **fee** based on duration and vehicle type, process **Payment**. |
-| FR-7 | An **Admin** can add/remove floors and spots. |
-| FR-8 | A **ParkingAttendant** can manually assign spots. |
-| FR-9 | System must track available spot count per floor per type in real time. |
-| FR-10 | Support multiple **payment methods**: Cash, Credit Card, UPI. |
+| FR-1 | Multiple floors, each with multiple spots |
+| FR-2 | Spot types: Compact, Large, Handicapped, Motorcycle |
+| FR-3 | Vehicle types: Car, Truck, Motorcycle, Electric |
+| FR-4 | Vehicle parks only in a compatible spot type |
+| FR-5 | Entry issues a Ticket (timestamp, spot, vehicle) |
+| FR-6 | Exit calculates fee and processes Payment |
+| FR-7 | Admin can add/remove floors and spots |
+| FR-8 | ParkingAttendant can manually assign spots |
+| FR-9 | Real-time available spot count per floor per type |
+| FR-10 | Multiple payment methods: Cash, Credit Card, UPI |
 
-### Non-Functional Requirements
+**Clarifying questions to ask in an interview:**
 
-| # | Requirement |
-|---|---|
-| NFR-1 | High availability — the lot management service must not be a single point of failure. |
-| NFR-2 | Throughput — handle hundreds of concurrent entry/exit transactions. |
-| NFR-3 | Consistency — spot availability count must never go negative. |
-| NFR-4 | Extensibility — adding a new vehicle or spot type must not require changing core logic. |
-| NFR-5 | Observability — emit events when a spot becomes occupied/free. |
-
-### Clarifying Questions to Ask in an Interview
-
-1. Is this a single-building lot or distributed across locations?
-2. Do electric vehicles need dedicated charging spots or just any large spot?
-3. Is the fee model flat-rate, hourly, or dynamic (surge pricing)?
-4. Should we model monthly passes / reserved spots?
-5. Is payment synchronous (inline with exit) or async (pay-on-foot kiosks)?
+1. *Single building or distributed across multiple locations?* — A single building is one JVM process with shared memory; distributed means services, message queues, and distributed locking. These are architecturally different problems.
+2. *Are EV charging spots a separate type or a flag on an existing spot?* — Determines whether to subclass `ParkingSpot` or add a boolean field; affects the type hierarchy.
+3. *What is the fee model — flat rate, hourly, or dynamic/surge?* — Determines whether fee calculation is a simple multiplication or needs a time-series rate schedule, which changes the Strategy interface signature.
+4. *Do monthly pass holders bypass the ticket flow entirely?* — If yes, you need a fast pre-check before spot assignment; affects the entry gate logic.
+5. *Is payment synchronous (gate stays closed until payment confirmed) or async?* — Synchronous means the gate waits on payment API response; async means the gate opens optimistically and reconciles later. Huge difference for throughput.
 
 ---
 
-## 2. Entities and Class Design
-
-### Core Entities
+**Step 2: Core Entities**
 
 ```
-ParkingLot          — Singleton; top-level aggregate
-ParkingFloor        — One floor; owns a list of ParkingSpot
-ParkingSpot         — Leaf; holds SpotType, status, optional Vehicle
-Vehicle             — Abstract; subtypes Car, Truck, MotorcycleVehicle, ElectricCar
-Ticket              — Issued on entry; links Vehicle ↔ ParkingSpot
-Payment             — Settles a Ticket; amount, method, status
-ParkingAttendant    — Actor; can parkVehicle / unparkVehicle
-Admin               — Actor; can addFloor, addSpot, removeSpot
-ParkingFeeStrategy  — Interface for pluggable fee calculation
-DisplayBoard        — Observer; reflects available spot counts
+ParkingLot (Singleton)
+  └── floors: List<ParkingFloor>
+        └── spotsByType: Map<SpotType, List<ParkingSpot>>
+              └── ParkingSpot
+                    └── parkedVehicle: Vehicle
+
+Vehicle (abstract)
+  ├── Car
+  ├── Truck
+  ├── Motorcycle
+  └── ElectricVehicle
+
+Ticket
+  ├── vehicle
+  ├── spot
+  ├── entryTime / exitTime
+  └── status
+
+Payment
+  ├── ticket
+  ├── amount
+  ├── method: PaymentMethod (CASH, CREDIT_CARD, UPI)
+  └── status
+
+ParkingFeeStrategy (interface)
+  ├── HourlyFeeStrategy
+  ├── FlatRateFeeStrategy
+  └── EVFeeStrategy
 ```
 
-### Key Attributes and Methods
-
-**`ParkingLot` (Singleton)**
-- `String id`, `String name`, `String address`
-- `List<ParkingFloor> floors`
-- `Map<String, Ticket> activeTickets`
-- `+getInstance(): ParkingLot`
-- `+issueTicket(Vehicle): Ticket`
-- `+processExit(String ticketId, PaymentMethod): Payment`
-- `+getAvailableSpots(SpotType): List<ParkingSpot>`
-
-**`ParkingFloor`**
-- `int floorNumber`, `Map<SpotType, List<ParkingSpot>> spotsByType`
-- `Map<SpotType, Integer> availableCount`
-- `+getFirstAvailable(SpotType): Optional<ParkingSpot>`
-- `+notifyObservers(SpotType, int delta)`
-
-**`ParkingSpot`**
-- `String id`, `SpotType type`, `SpotStatus status`, `Vehicle parkedVehicle`
-- `+park(Vehicle): void`
-- `+unpark(): Vehicle`
-- `+isAvailable(): boolean`
-
-**`Vehicle` (Abstract)**
-- `String licensePlate`, `VehicleType type`, `String color`
-- `+getVehicleType(): VehicleType`
-- `+getRequiredSpotType(): SpotType`
-
-**`Ticket`**
-- `String ticketId`, `Vehicle vehicle`, `ParkingSpot spot`, `LocalDateTime entryTime`, `LocalDateTime exitTime`, `TicketStatus status`
-
-**`Payment`**
-- `String paymentId`, `Ticket ticket`, `double amount`, `PaymentMethod method`, `PaymentStatus status`, `LocalDateTime timestamp`
-
-**`ParkingFeeStrategy` (Interface)**
-- `+calculateFee(Ticket): double`
+- **ParkingLot** is a separate entity (not just a list of floors) because it is the global coordination point — it holds active tickets, the Singleton reference, and the entry/exit API.
+- **ParkingFloor** is separate from ParkingLot because floors have their own available-count tracking and future floors can be added/removed without restructuring the lot.
+- **ParkingSpot** is separate from ParkingFloor because spots have identity (ID, type, status), are the unit of locking, and are associated with Tickets directly.
+- **Ticket** is separate from Vehicle because the same vehicle may park multiple times; a Ticket is one parking session, not a permanent property of a vehicle.
+- **Payment** is separate from Ticket because one ticket could eventually support split payments, refunds, or payment retries — coupling them would make that impossible.
+- **ParkingFeeStrategy** is a standalone interface rather than a method on Vehicle because fee rules change independently of vehicle types (a promotion might make all vehicles free on weekends).
 
 ---
 
-## 3. Design Patterns
+**Step 3: Design Decisions**
 
-| Pattern | Where Applied | Why |
-|---|---|---|
-| **Singleton** | `ParkingLot` | One lot instance; global access point for all operations. |
-| **Factory Method** | `VehicleFactory`, `SpotFactory` | Decouple creation of Vehicle/Spot subtypes from business logic. |
-| **Strategy** | `ParkingFeeStrategy` | Swap fee algorithms (hourly, flat, EV discount) without touching exit flow. |
-| **Observer** | `DisplayBoard` observes `ParkingFloor` | Display boards update automatically when spot availability changes. |
+**Decision: Singleton pattern for ParkingLot**
+*Why this over the alternatives:* We could instantiate ParkingLot as a normal object passed through every service. But every actor — gate terminals, attendants, display boards — needs access to the same state. A Singleton ensures there is exactly one shared state object per deployment, and the static accessor makes it reachable without dependency injection wiring. We use double-checked locking with a `volatile` field to avoid the broken-initialization race condition: without `volatile`, the JVM can publish a partially constructed object reference to a second thread.
+*Tradeoff:* Singletons are notoriously hard to test (you cannot swap a fresh instance between tests). Mitigate by also providing a package-private constructor for test use, or by wrapping the Singleton behind an interface for dependency injection in tests.
+
+**Decision: Strategy pattern for ParkingFeeStrategy**
+*Why this over the alternatives:* The naive approach is a switch statement in the exit flow: `if (vehicle instanceof ElectricVehicle) { ... } else if (vehicle instanceof Truck) { ... }`. Every new vehicle type or pricing rule requires modifying the exit controller. The Strategy pattern extracts each fee algorithm into its own class implementing `calculateFee(Ticket ticket)`. The exit flow simply calls `feeStrategy.calculateFee(ticket)` — it never knows which algorithm runs. Adding "weekend flat rate" is a new class, zero modifications to existing code.
+*Tradeoff:* More classes to navigate. The Strategy instance must be resolved somehow (Factory, config, or per-vehicle-type default). This is a small upfront cost that pays off the first time you add a new fee model.
+
+**Decision: synchronized on ParkingSpot.park() to prevent double-parking**
+*Why this over the alternatives:* The find-then-park sequence is a classic Time-Of-Check-To-Time-Of-Use (TOCTOU) race: Thread A finds spot #5 available, Thread B finds spot #5 available, both call park(). Without synchronization, both succeed and you have two tickets for one spot. We could use optimistic locking (compare-and-swap with AtomicReference<Vehicle>): `spot.parkedVehicle.compareAndSet(null, vehicle)` — if it returns false, another thread got there first, retry with the next spot. CAS avoids blocking but introduces retry logic. For a parking system where contention per spot is extremely low (seconds apart), synchronized is simpler and the lock overhead is negligible.
+*Tradeoff:* synchronized creates a bottleneck per spot under extreme contention. In practice, two cars cannot physically reach the same spot simultaneously, so this is theoretical. If this were a purely virtual resource (like a database row), CAS would be the right call.
+
+**Decision: AtomicInteger for available spot count per floor per type**
+*Why this over the alternatives:* We could recompute available count by scanning the spots list on every query — always accurate, never stale. But scanning a 500-spot floor for every display board refresh under high concurrency is wasteful. We could also maintain a plain int counter, but then increment/decrement must be synchronized separately from spot status changes, and they can diverge if an exception fires between the two operations. An AtomicInteger keeps the count consistent without a full scan, and its increment/decrement operations are lock-free CAS under the hood.
+*Tradeoff:* The count and the spot status are still two separate data structures that must be updated together. We wrap both updates in the same synchronized block on ParkingSpot to keep them atomic. This is the smallest safe unit: change status AND update count in one critical section.
+
+**Decision: Strategy + Factory for PaymentProcessor**
+*Why this over the alternatives:* A switch on `PaymentMethod` in the exit controller works for three payment types today but breaks open/closed principle when a fourth type (e.g., crypto) is added. Instead, `PaymentProcessor` is an interface with one method: `charge(amount)`. `CashProcessor`, `CreditCardProcessor`, and `UPIProcessor` implement it. A `PaymentProcessorFactory` maps `PaymentMethod` enum values to implementations. The exit controller calls `factory.get(method).charge(amount)` — completely unaware of which processor runs.
+*Tradeoff:* Requires a factory and one class per payment method. For a system with two payment types this would be over-engineering; for a production parking system expected to add new payment rails, it is the right call.
+
+**Decision: Observer pattern for DisplayBoard**
+*Why this over the alternatives:* Display boards need to show current availability. We could poll: every second, query `floor.getAvailableCount()`. This works but wastes cycles when nothing changes and has up to 1-second lag. With Observer, `ParkingFloor` notifies registered `DisplayBoard` listeners whenever spot status changes. No polling, zero lag, and DisplayBoard is decoupled from ParkingFloor — it only knows about the `AvailabilityListener` interface.
+*Tradeoff:* Synchronous Observer notification means a slow DisplayBoard update (e.g., a network call to a screen) blocks the thread that parked the vehicle. Mitigation: make Observer notifications asynchronous (dispatch to a separate thread pool).
 
 ---
 
-## 4. Complete Java 17 Implementation
+**Step 4: Key Algorithm (pseudocode)**
 
-```java
-// ─────────────────────────────────────────────
-// ENUMS
-// ─────────────────────────────────────────────
-
-package com.interview.lld.parking;
-
-public enum SpotType {
-    MOTORCYCLE, COMPACT, LARGE, HANDICAPPED, ELECTRIC
-}
-
-public enum VehicleType {
-    MOTORCYCLE, CAR, TRUCK, ELECTRIC
-}
-
-public enum SpotStatus {
-    AVAILABLE, OCCUPIED, OUT_OF_SERVICE
-}
-
-public enum TicketStatus {
-    ACTIVE, PAID, LOST
-}
-
-public enum PaymentMethod {
-    CASH, CREDIT_CARD, UPI
-}
-
-public enum PaymentStatus {
-    PENDING, COMPLETED, FAILED, REFUNDED
-}
+```
+function parkVehicle(vehicle, preferredFloor):
+    floors = preferredFloor != null ? [preferredFloor] : lot.getAllFloors()
+    
+    for each floor in floors:
+        compatibleTypes = getCompatibleSpotTypes(vehicle.type)
+        
+        for each spotType in compatibleTypes:
+            spotList = floor.getSpots(spotType)
+            
+            for each spot in spotList:
+                synchronized(spot):
+                    if spot.status == AVAILABLE:
+                        spot.status = OCCUPIED
+                        spot.parkedVehicle = vehicle
+                        floor.decrementAvailable(spotType)   // AtomicInteger
+                        floor.notifyObservers()              // update display boards
+                        
+                        ticket = new Ticket(vehicle, spot, now())
+                        lot.activeTickets.put(vehicle.licensePlate, ticket)
+                        return ticket
+    
+    return NO_SPOT_AVAILABLE
 ```
 
-```java
-// ─────────────────────────────────────────────
-// VEHICLE HIERARCHY
-// ─────────────────────────────────────────────
+---
 
-package com.interview.lld.parking;
-
-public abstract class Vehicle {
-    protected final String licensePlate;
-    protected final VehicleType vehicleType;
-    protected final String color;
-
-    protected Vehicle(String licensePlate, VehicleType vehicleType, String color) {
-        this.licensePlate = licensePlate;
-        this.vehicleType  = vehicleType;
-        this.color        = color;
-    }
-
-    public String getLicensePlate() { return licensePlate; }
-    public VehicleType getVehicleType() { return vehicleType; }
-
-    /** Returns the minimum spot type this vehicle requires. */
-    public abstract SpotType getRequiredSpotType();
-
-    @Override
-    public String toString() {
-        return vehicleType + "[" + licensePlate + "]";
-    }
-}
-
-public class MotorcycleVehicle extends Vehicle {
-    public MotorcycleVehicle(String licensePlate, String color) {
-        super(licensePlate, VehicleType.MOTORCYCLE, color);
-    }
-    @Override public SpotType getRequiredSpotType() { return SpotType.MOTORCYCLE; }
-}
-
-public class Car extends Vehicle {
-    public Car(String licensePlate, String color) {
-        super(licensePlate, VehicleType.CAR, color);
-    }
-    @Override public SpotType getRequiredSpotType() { return SpotType.COMPACT; }
-}
-
-public class Truck extends Vehicle {
-    public Truck(String licensePlate, String color) {
-        super(licensePlate, VehicleType.TRUCK, color);
-    }
-    @Override public SpotType getRequiredSpotType() { return SpotType.LARGE; }
-}
-
-public class ElectricCar extends Vehicle {
-    private final int batteryPercent;
-
-    public ElectricCar(String licensePlate, String color, int batteryPercent) {
-        super(licensePlate, VehicleType.ELECTRIC, color);
-        this.batteryPercent = batteryPercent;
-    }
-    @Override public SpotType getRequiredSpotType() { return SpotType.ELECTRIC; }
-    public int getBatteryPercent() { return batteryPercent; }
-}
-```
+**Step 5: Must-Know Code**
 
 ```java
-// ─────────────────────────────────────────────
-// VEHICLE FACTORY
-// ─────────────────────────────────────────────
-
-package com.interview.lld.parking;
-
-public class VehicleFactory {
-    public static Vehicle create(VehicleType type, String plate, String color) {
-        return switch (type) {
-            case MOTORCYCLE -> new MotorcycleVehicle(plate, color);
-            case CAR        -> new Car(plate, color);
-            case TRUCK      -> new Truck(plate, color);
-            case ELECTRIC   -> new ElectricCar(plate, color, 80);
-        };
-    }
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// PARKING SPOT
-// ─────────────────────────────────────────────
-
-package com.interview.lld.parking;
-
 public class ParkingSpot {
-    private final String spotId;
-    private final SpotType spotType;
-    private SpotStatus status;
-    private Vehicle parkedVehicle;
+    private final String id;
+    private final SpotType type;
+    
+    // AtomicReference allows lock-free CAS as an alternative to synchronized.
+    // We use synchronized here for clarity; in an interview, mention both options.
+    private final AtomicReference<Vehicle> parkedVehicle = new AtomicReference<>(null);
 
-    public ParkingSpot(String spotId, SpotType spotType) {
-        this.spotId   = spotId;
-        this.spotType = spotType;
-        this.status   = SpotStatus.AVAILABLE;
-    }
-
-    public synchronized boolean isAvailable() {
-        return status == SpotStatus.AVAILABLE;
-    }
-
-    public synchronized void park(Vehicle vehicle) {
-        if (!isAvailable()) throw new IllegalStateException("Spot " + spotId + " is not available");
-        this.parkedVehicle = vehicle;
-        this.status        = SpotStatus.OCCUPIED;
-    }
-
-    public synchronized Vehicle unpark() {
-        if (status != SpotStatus.OCCUPIED) throw new IllegalStateException("Spot " + spotId + " is not occupied");
-        Vehicle v          = this.parkedVehicle;
-        this.parkedVehicle = null;
-        this.status        = SpotStatus.AVAILABLE;
-        return v;
-    }
-
-    public String getSpotId()       { return spotId; }
-    public SpotType getSpotType()   { return spotType; }
-    public SpotStatus getStatus()   { return status; }
-    public Vehicle getParkedVehicle() { return parkedVehicle; }
-
-    public void setOutOfService()   { this.status = SpotStatus.OUT_OF_SERVICE; }
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// OBSERVER PATTERN — Display Board
-// ─────────────────────────────────────────────
-
-package com.interview.lld.parking;
-
-public interface SpotAvailabilityObserver {
-    void onAvailabilityChanged(int floorNumber, SpotType type, int available);
-}
-
-public class DisplayBoard implements SpotAvailabilityObserver {
-    private final String boardId;
-
-    public DisplayBoard(String boardId) { this.boardId = boardId; }
-
-    @Override
-    public void onAvailabilityChanged(int floorNumber, SpotType type, int available) {
-        System.out.printf("[DisplayBoard %s] Floor %d | %s spots available: %d%n",
-                boardId, floorNumber, type, available);
-    }
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// TICKET
-// ─────────────────────────────────────────────
-
-package com.interview.lld.parking;
-
-import java.time.LocalDateTime;
-import java.util.UUID;
-
-public class Ticket {
-    private final String ticketId;
-    private final Vehicle vehicle;
-    private final ParkingSpot spot;
-    private final LocalDateTime entryTime;
-    private LocalDateTime exitTime;
-    private TicketStatus status;
-
-    public Ticket(Vehicle vehicle, ParkingSpot spot) {
-        this.ticketId  = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-        this.vehicle   = vehicle;
-        this.spot      = spot;
-        this.entryTime = LocalDateTime.now();
-        this.status    = TicketStatus.ACTIVE;
-    }
-
-    public void markPaid() {
-        this.exitTime = LocalDateTime.now();
-        this.status   = TicketStatus.PAID;
-    }
-
-    public String getTicketId()           { return ticketId; }
-    public Vehicle getVehicle()           { return vehicle; }
-    public ParkingSpot getSpot()          { return spot; }
-    public LocalDateTime getEntryTime()   { return entryTime; }
-    public LocalDateTime getExitTime()    { return exitTime; }
-    public TicketStatus getStatus()       { return status; }
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// PAYMENT
-// ─────────────────────────────────────────────
-
-package com.interview.lld.parking;
-
-import java.time.LocalDateTime;
-import java.util.UUID;
-
-public class Payment {
-    private final String paymentId;
-    private final Ticket ticket;
-    private final double amount;
-    private final PaymentMethod method;
-    private PaymentStatus status;
-    private final LocalDateTime timestamp;
-
-    public Payment(Ticket ticket, double amount, PaymentMethod method) {
-        this.paymentId = UUID.randomUUID().toString();
-        this.ticket    = ticket;
-        this.amount    = amount;
-        this.method    = method;
-        this.status    = PaymentStatus.PENDING;
-        this.timestamp = LocalDateTime.now();
-    }
-
-    /** Simulate payment processing */
-    public boolean process() {
-        // In production: call payment gateway
-        this.status = PaymentStatus.COMPLETED;
+    /**
+     * synchronized ensures that find-and-park is atomic.
+     * Without this, two threads can both observe parkedVehicle == null,
+     * both pass the check, and both park — TOCTOU race condition.
+     */
+    public synchronized boolean park(Vehicle vehicle) {
+        if (parkedVehicle.get() != null) {
+            return false; // already occupied — caller retries with next spot
+        }
+        parkedVehicle.set(vehicle);
+        // Status change and count decrement happen in same synchronized block
+        // so they can never diverge (e.g., count decremented but status not yet changed).
         return true;
     }
 
-    public String getPaymentId()      { return paymentId; }
-    public double getAmount()         { return amount; }
-    public PaymentStatus getStatus()  { return status; }
-    public PaymentMethod getMethod()  { return method; }
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// STRATEGY PATTERN — Fee Calculation
-// ─────────────────────────────────────────────
-
-package com.interview.lld.parking;
-
-import java.time.Duration;
-
-public interface ParkingFeeStrategy {
-    double calculateFee(Ticket ticket);
-}
-
-/** Hourly rate: first hour flat, then per-hour thereafter. */
-public class HourlyFeeStrategy implements ParkingFeeStrategy {
-    private final double firstHourRate;
-    private final double subsequentHourRate;
-
-    public HourlyFeeStrategy(double firstHourRate, double subsequentHourRate) {
-        this.firstHourRate      = firstHourRate;
-        this.subsequentHourRate = subsequentHourRate;
+    public synchronized Vehicle unpark() {
+        Vehicle v = parkedVehicle.getAndSet(null);
+        // Caller is responsible for incrementing floor's available count
+        // after this returns non-null.
+        return v;
     }
 
-    @Override
-    public double calculateFee(Ticket ticket) {
-        Duration duration = Duration.between(ticket.getEntryTime(), ticket.getExitTime());
-        long minutes      = duration.toMinutes();
-        if (minutes <= 60) return firstHourRate;
-        long extraHours = (long) Math.ceil((minutes - 60) / 60.0);
-        return firstHourRate + (extraHours * subsequentHourRate);
+    public boolean isAvailable() {
+        return parkedVehicle.get() == null;
     }
 }
 
-/** Electric vehicle discount: 50% off hourly rate. */
-public class ElectricVehicleFeeStrategy implements ParkingFeeStrategy {
-    private final ParkingFeeStrategy base;
-
-    public ElectricVehicleFeeStrategy(ParkingFeeStrategy base) {
-        this.base = base;
-    }
-
-    @Override
-    public double calculateFee(Ticket ticket) {
-        return base.calculateFee(ticket) * 0.5;
-    }
-}
-
-/** Flat rate for motorcycles regardless of duration. */
-public class MotorcycleFlatRateStrategy implements ParkingFeeStrategy {
-    private final double flatRate;
-
-    public MotorcycleFlatRateStrategy(double flatRate) {
-        this.flatRate = flatRate;
-    }
-
-    @Override
-    public double calculateFee(Ticket ticket) {
-        return flatRate;
-    }
-}
-
-/** Fee strategy resolver — picks the right strategy by vehicle type. */
-public class FeeStrategyResolver {
-    public static ParkingFeeStrategy resolve(VehicleType type) {
-        ParkingFeeStrategy hourly = new HourlyFeeStrategy(20.0, 15.0);
-        return switch (type) {
-            case MOTORCYCLE -> new MotorcycleFlatRateStrategy(10.0);
-            case ELECTRIC   -> new ElectricVehicleFeeStrategy(hourly);
-            default         -> hourly;
-        };
-    }
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// PARKING FLOOR
-// ─────────────────────────────────────────────
-
-package com.interview.lld.parking;
-
-import java.util.*;
-
-public class ParkingFloor {
-    private final int floorNumber;
-    private final Map<SpotType, List<ParkingSpot>> spotsByType = new EnumMap<>(SpotType.class);
-    private final Map<SpotType, Integer> availableCount        = new EnumMap<>(SpotType.class);
-    private final List<SpotAvailabilityObserver> observers     = new ArrayList<>();
-
-    public ParkingFloor(int floorNumber) {
-        this.floorNumber = floorNumber;
-        for (SpotType t : SpotType.values()) {
-            spotsByType.put(t, new ArrayList<>());
-            availableCount.put(t, 0);
-        }
-    }
-
-    public void addObserver(SpotAvailabilityObserver observer) {
-        observers.add(observer);
-    }
-
-    public void addSpot(ParkingSpot spot) {
-        spotsByType.get(spot.getSpotType()).add(spot);
-        if (spot.isAvailable()) {
-            availableCount.merge(spot.getSpotType(), 1, Integer::sum);
-            notifyObservers(spot.getSpotType());
-        }
-    }
-
-    public synchronized Optional<ParkingSpot> getFirstAvailable(SpotType type) {
-        return spotsByType.getOrDefault(type, List.of())
-                .stream()
-                .filter(ParkingSpot::isAvailable)
-                .findFirst();
-    }
-
-    public synchronized void onSpotOccupied(SpotType type) {
-        availableCount.merge(type, -1, Integer::sum);
-        notifyObservers(type);
-    }
-
-    public synchronized void onSpotFreed(SpotType type) {
-        availableCount.merge(type, 1, Integer::sum);
-        notifyObservers(type);
-    }
-
-    private void notifyObservers(SpotType type) {
-        int count = availableCount.get(type);
-        observers.forEach(o -> o.onAvailabilityChanged(floorNumber, type, count));
-    }
-
-    public int getFloorNumber()                      { return floorNumber; }
-    public int getAvailableCount(SpotType type)      { return availableCount.getOrDefault(type, 0); }
-    public Map<SpotType, List<ParkingSpot>> getAllSpots() { return Collections.unmodifiableMap(spotsByType); }
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// PARKING LOT — SINGLETON
-// ─────────────────────────────────────────────
-
-package com.interview.lld.parking;
-
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-
+// ParkingLot Singleton with double-checked locking
 public class ParkingLot {
-
-    // ── Singleton ─────────────────────────────────────────────────────────────
+    // volatile prevents the JVM from publishing a partially constructed instance
+    // to a second thread. Without volatile, the new ParkingLot() assignment
+    // can be reordered: reference published before constructor completes.
     private static volatile ParkingLot instance;
+    
+    private final Map<String, Ticket> activeTickets = new ConcurrentHashMap<>();
+
+    private ParkingLot() {}
 
     public static ParkingLot getInstance() {
-        if (instance == null) {
+        if (instance == null) {                    // first check: avoid lock on every call
             synchronized (ParkingLot.class) {
-                if (instance == null) instance = new ParkingLot("LOT-001", "Main Street Parking");
+                if (instance == null) {            // second check: only one thread constructs
+                    instance = new ParkingLot();
+                }
             }
         }
         return instance;
     }
-
-    // ── State ──────────────────────────────────────────────────────────────────
-    private final String id;
-    private final String name;
-    private final List<ParkingFloor> floors              = new ArrayList<>();
-    private final Map<String, Ticket> activeTickets      = new ConcurrentHashMap<>();
-
-    private ParkingLot(String id, String name) {
-        this.id   = id;
-        this.name = name;
-    }
-
-    public void addFloor(ParkingFloor floor) { floors.add(floor); }
-
-    // ── Entry ──────────────────────────────────────────────────────────────────
-    public Ticket issueTicket(Vehicle vehicle) {
-        SpotType required = vehicle.getRequiredSpotType();
-
-        for (ParkingFloor floor : floors) {
-            Optional<ParkingSpot> spot = floor.getFirstAvailable(required);
-            if (spot.isPresent()) {
-                ParkingSpot ps = spot.get();
-                ps.park(vehicle);
-                floor.onSpotOccupied(required);
-
-                Ticket ticket = new Ticket(vehicle, ps);
-                activeTickets.put(ticket.getTicketId(), ticket);
-                System.out.printf("[ENTRY] %s → Spot %s (Floor %d) | Ticket: %s%n",
-                        vehicle, ps.getSpotId(), floor.getFloorNumber(), ticket.getTicketId());
-                return ticket;
-            }
-        }
-        throw new IllegalStateException("No available spot for " + required);
-    }
-
-    // ── Exit ───────────────────────────────────────────────────────────────────
-    public Payment processExit(String ticketId, PaymentMethod method) {
-        Ticket ticket = activeTickets.get(ticketId);
-        if (ticket == null) throw new IllegalArgumentException("Invalid ticket: " + ticketId);
-
-        ticket.markPaid();
-
-        ParkingFeeStrategy strategy = FeeStrategyResolver.resolve(ticket.getVehicle().getVehicleType());
-        double fee    = strategy.calculateFee(ticket);
-        Payment payment = new Payment(ticket, fee, method);
-        payment.process();
-
-        // Free the spot
-        ParkingSpot spot = ticket.getSpot();
-        spot.unpark();
-        findFloorForSpot(spot).ifPresent(f -> f.onSpotFreed(spot.getSpotType()));
-
-        activeTickets.remove(ticketId);
-        System.out.printf("[EXIT] Ticket %s | Fee: ₹%.2f | Method: %s%n",
-                ticketId, fee, method);
-        return payment;
-    }
-
-    private Optional<ParkingFloor> findFloorForSpot(ParkingSpot target) {
-        return floors.stream()
-                .filter(f -> f.getAllSpots().values().stream()
-                        .flatMap(List::stream)
-                        .anyMatch(s -> s.getSpotId().equals(target.getSpotId())))
-                .findFirst();
-    }
-
-    public List<ParkingFloor> getFloors()  { return Collections.unmodifiableList(floors); }
-    public String getId()                  { return id; }
-    public String getName()                { return name; }
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// ACTORS: Admin, ParkingAttendant
-// ─────────────────────────────────────────────
-
-package com.interview.lld.parking;
-
-public class Admin {
-    private final String adminId;
-    private final String name;
-
-    public Admin(String adminId, String name) {
-        this.adminId = adminId;
-        this.name    = name;
-    }
-
-    public ParkingFloor addFloor(int floorNumber) {
-        ParkingFloor floor = new ParkingFloor(floorNumber);
-        ParkingLot.getInstance().addFloor(floor);
-        System.out.println("[Admin] Floor " + floorNumber + " added.");
-        return floor;
-    }
-
-    public ParkingSpot addSpot(ParkingFloor floor, String spotId, SpotType type) {
-        ParkingSpot spot = new ParkingSpot(spotId, type);
-        floor.addSpot(spot);
-        System.out.println("[Admin] Spot " + spotId + " (" + type + ") added to floor " + floor.getFloorNumber());
-        return spot;
-    }
-
-    public void removeSpot(ParkingSpot spot) {
-        spot.setOutOfService();
-        System.out.println("[Admin] Spot " + spot.getSpotId() + " marked out-of-service.");
-    }
-}
-
-public class ParkingAttendant {
-    private final String attendantId;
-    private final String name;
-
-    public ParkingAttendant(String attendantId, String name) {
-        this.attendantId = attendantId;
-        this.name        = name;
-    }
-
-    public Ticket parkVehicle(Vehicle vehicle) {
-        return ParkingLot.getInstance().issueTicket(vehicle);
-    }
-
-    public Payment unparkVehicle(String ticketId, PaymentMethod method) {
-        return ParkingLot.getInstance().processExit(ticketId, method);
-    }
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// DEMO / MAIN
-// ─────────────────────────────────────────────
-
-package com.interview.lld.parking;
-
-public class ParkingLotDemo {
-
-    public static void main(String[] args) throws InterruptedException {
-        // Setup
-        Admin admin      = new Admin("A001", "Raj");
-        ParkingFloor f1  = admin.addFloor(1);
-        ParkingFloor f2  = admin.addFloor(2);
-
-        // Wire display board (observer)
-        DisplayBoard board = new DisplayBoard("ENTRANCE");
-        f1.addObserver(board);
-        f2.addObserver(board);
-
-        // Add spots
-        admin.addSpot(f1, "F1-M1",  SpotType.MOTORCYCLE);
-        admin.addSpot(f1, "F1-M2",  SpotType.MOTORCYCLE);
-        admin.addSpot(f1, "F1-C1",  SpotType.COMPACT);
-        admin.addSpot(f1, "F1-C2",  SpotType.COMPACT);
-        admin.addSpot(f2, "F2-L1",  SpotType.LARGE);
-        admin.addSpot(f2, "F2-EV1", SpotType.ELECTRIC);
-
-        // Vehicles
-        Vehicle bike  = VehicleFactory.create(VehicleType.MOTORCYCLE, "MH01AB1234", "Red");
-        Vehicle car   = VehicleFactory.create(VehicleType.CAR,        "MH02CD5678", "Blue");
-        Vehicle ev    = VehicleFactory.create(VehicleType.ELECTRIC,   "MH03EF9012", "White");
-        Vehicle truck = VehicleFactory.create(VehicleType.TRUCK,      "MH04GH3456", "Black");
-
-        ParkingAttendant attendant = new ParkingAttendant("AT001", "Suresh");
-
-        // Park
-        Ticket t1 = attendant.parkVehicle(bike);
-        Ticket t2 = attendant.parkVehicle(car);
-        Ticket t3 = attendant.parkVehicle(ev);
-        Ticket t4 = attendant.parkVehicle(truck);
-
-        Thread.sleep(2000); // simulate 2 seconds parked
-
-        // Exit
-        attendant.unparkVehicle(t1.getTicketId(), PaymentMethod.CASH);
-        attendant.unparkVehicle(t2.getTicketId(), PaymentMethod.UPI);
-        attendant.unparkVehicle(t3.getTicketId(), PaymentMethod.CREDIT_CARD);
-        attendant.unparkVehicle(t4.getTicketId(), PaymentMethod.CASH);
-    }
 }
 ```
 
 ---
 
-## 5. Key Interview Questions — Parking Lot
+#### Interview Lens
 
-### Q1. Why is ParkingLot a Singleton? What are the thread-safety concerns?
+> **How to use this section:** Each question below is self-contained. You can read just this section the night before an interview and walk in prepared. Every concept referenced is explained inline.
 
-**Answer:** There is exactly one parking lot per deployment. Making it a Singleton ensures that all actors (attendants, admins, displays) share the same state. Thread-safety is achieved with double-checked locking using `volatile` on the instance field. The `activeTickets` map is a `ConcurrentHashMap`. Spot-level operations use `synchronized` methods on `ParkingSpot` so two threads cannot park in the same spot simultaneously.
-
-### Q2. How would you support multiple payment methods without an if-else chain?
-
-**Answer:** The `PaymentMethod` enum identifies the method, but actual processing is delegated to a **Strategy** or a payment gateway abstraction. In production, define a `PaymentProcessor` interface with implementations `CashProcessor`, `CreditCardProcessor`, `UPIProcessor`, each injected by a factory keyed on `PaymentMethod`. The exit flow calls `processor.charge(amount)` without knowing the method.
-
-### Q3. How do you prevent double-parking (two threads parking in the same spot)?
-
-**Answer:** The `ParkingSpot.park()` method is `synchronized` on the spot instance. The floor's `getFirstAvailable()` is also `synchronized`. However, there is still a TOCTOU (time-of-check-time-of-use) window between finding a free spot and parking in it. The proper fix is to acquire the spot's lock before adding it to the ticket, or to use `compareAndSet` on an `AtomicReference<Vehicle>` inside `ParkingSpot`.
-
-### Q4. How would you scale this to a multi-building, distributed parking system?
-
-**Answer:**
-- Each building runs its own `ParkingLot` service.
-- A central **Aggregator Service** queries all buildings for availability.
-- Spot state changes are published to a message bus (Kafka topic `parking.spot.events`).
-- Display boards subscribe to the topic.
-- Distributed locking (Redis `SETNX`) prevents two users in different regions from claiming the same spot.
-
-### Q5. Where would you add persistence?
-
-**Answer:** `Ticket` and `Payment` are the primary write entities. Use an RDBMS (PostgreSQL) with:
-- `tickets(ticket_id, vehicle_plate, spot_id, entry_time, exit_time, status)`
-- `payments(payment_id, ticket_id, amount, method, status, timestamp)`
-- `spots(spot_id, floor, type, status)` updated on park/unpark events.
-
-Active tickets also live in Redis with a TTL for fast lookup.
-
-### Q6. How would you add a monthly pass feature?
-
-**Answer:** Introduce a `Pass` entity with `userId`, `vehiclePlate`, `validFrom`, `validUntil`, `spotType`. On entry, before assigning a dynamic spot, check if the vehicle has a valid pass. If yes, assign the pre-reserved spot directly and skip fee calculation (or apply flat monthly billing done separately via a scheduler).
+> *Tip: In case study questions, structure your answer as: "The key challenge is X. I chose Y over Z because [reason]. The tradeoff is [cost]." This signals senior-level thinking.*
 
 ---
 
-# LLD 2: URL Shortener (like bit.ly)
+**Concurrency**
+**"Why is ParkingLot a Singleton, and how do you make it thread-safe?"**
 
-## 1. Requirements Clarification
+**One-line answer:** One shared state object for the whole deployment, made thread-safe with volatile double-checked locking and ConcurrentHashMap for active tickets.
 
-### Functional Requirements
+**Full answer:**
+> "ParkingLot is a Singleton because every actor in the system — gate terminals, payment kiosks, attendant screens, display boards — must see the same state. If each created its own ParkingLot instance, an attendant assigning a spot and a gate terminal issuing a ticket would be working with different spot lists. The Singleton ensures a single, shared coordination point. For thread safety, I use double-checked locking with a `volatile` field. The `volatile` keyword matters because without it, the JVM can reorder the assignment: another thread might see a non-null reference to a partially constructed object and skip the synchronized block, reading garbage state. The `volatile` forces a happens-before relationship: the write to `instance` is only visible after the constructor completes. For `activeTickets`, I use `ConcurrentHashMap` rather than `HashMap` with synchronized methods — it uses lock-striping internally, so concurrent reads and writes to different buckets do not block each other."
 
-| # | Requirement |
+> *Lead with why Singleton, then explain volatile before the interviewer asks.*
+
+**Gotcha follow-up:** *"Singletons are hard to unit test — how do you handle that?"*
+> "I make the Singleton implement an interface (e.g., `IParkingLot`) and inject it through the interface in all callers. Tests create a mock or a fresh implementation directly, bypassing the static accessor. The production code uses `ParkingLot.getInstance()`, but nothing forces the static call — it is only the default for production wiring."
+
+---
+
+**Race Condition**
+**"How do you prevent two threads from parking in the same spot?"**
+
+**One-line answer:** Synchronize the entire check-and-assign operation on the ParkingSpot object so no other thread can interleave between finding a spot available and marking it occupied.
+
+**Full answer:**
+> "This is a Time-Of-Check-To-Time-Of-Use problem. If Thread A calls `isAvailable()` and sees true, then Thread B calls `isAvailable()` before Thread A calls `park()`, both threads see the spot as free and both proceed to park — you get two tickets for one spot. The fix is to make the check and the assignment atomic by synchronizing the entire `park()` method on the ParkingSpot instance. Now only one thread can be inside `park()` at a time. The alternative I would mention in an interview is using `AtomicReference<Vehicle>` with `compareAndSet(null, vehicle)`: if it returns false, another thread won the CAS race and this thread retries with the next spot. CAS avoids blocking entirely and is preferable for very high-contention resources. For a parking spot, contention is realistically zero — two physical cars cannot reach the same spot simultaneously — so synchronized is cleaner and equally correct."
+
+> *Always name the TOCTOU pattern explicitly — it shows you recognize the class of problem, not just the specific fix.*
+
+**Gotcha follow-up:** *"Can the available spot counter diverge from the actual spot statuses?"*
+> "Yes, if the counter decrement and the status change happen in separate synchronized blocks. The fix is to do both inside the same critical section: inside `ParkingSpot.park()`, after successfully setting the parkedVehicle reference, call `floor.decrementAvailable(spotType)` before releasing the lock. This way, the count and the status change atomically — no thread can observe a state where the spot is occupied but the count has not yet been decremented."
+
+---
+
+**Design Pattern**
+**"How do you support multiple payment methods without a switch statement?"**
+
+**One-line answer:** Strategy pattern — one interface, one implementation per payment method, resolved by a Factory keyed on the PaymentMethod enum.
+
+**Full answer:**
+> "The naive approach is a switch statement in the exit flow: case CASH: do cash logic; case CREDIT_CARD: do card logic. Every new payment rail means opening the exit controller and adding a case — violating the open/closed principle and risking regression. I use the Strategy pattern instead. `PaymentProcessor` is an interface with one method: `charge(BigDecimal amount)`. `CashProcessor`, `CreditCardProcessor`, and `UPIProcessor` each implement it. A `PaymentProcessorFactory` maps the `PaymentMethod` enum value to the right implementation. The exit flow becomes: `processorFactory.get(paymentMethod).charge(fee)`. Adding a new payment method means writing one new class and one line in the factory map — zero changes to the exit controller. The pattern works because fee collection is a single operation regardless of the method; the interface is cohesive."
+
+> *Connect the pattern name to the specific problem it solves — interviewers want to see the reasoning, not just the name.*
+
+**Gotcha follow-up:** *"How would you extend this to a distributed, multi-building parking network?"*
+> "Each building becomes its own microservice with its own database. A Central Availability Aggregator service queries all building services for their spot counts and caches the results. Spot status changes are published to a Kafka topic; display boards and the aggregator subscribe. For cross-building spot reservations, distributed locking via Redis SETNX prevents two users from booking the same spot. Tickets and payments are still per-building, but a user profile service federates them for billing history."
+
+---
+
+**Extensibility**
+**"How do you add a new vehicle type — say, an e-scooter — without touching existing code?"**
+
+**One-line answer:** Add an EScooter subclass of Vehicle, a new SpotType constant if needed, update the compatibility map, and add an EScooterFeeStrategy — zero changes to the parking or exit flows.
+
+**Full answer:**
+> "The design has three extension points. First, `Vehicle` is abstract — I add `EScooter extends Vehicle` and set its type enum. Second, the compatibility mapping (which vehicle types fit which spot types) is a `Map<VehicleType, List<SpotType>>` loaded at startup from config — I add one entry without touching any logic. Third, fee calculation is a Strategy — I write `EScooterFeeStrategy implements ParkingFeeStrategy` and register it in the fee strategy factory. The parking flow calls `feeStrategy.calculateFee(ticket)` with no awareness of vehicle type. The exit flow does the same. Neither flow needs modification. This is the payoff of the open/closed principle: the system is open for extension via new classes and closed for modification of existing logic."
+
+> *Show you can trace the extension through all three layers: model, mapping, and fee. That completeness is what senior candidates do.*
+
+---
+
+> **Common Mistake — Recomputing available count by scanning all spots:** Computing available count by iterating the spot list on every display board refresh works correctly but causes O(n) scans under high read concurrency. At 500 spots per floor and 10 floors, every refresh scans 5,000 objects. Use an AtomicInteger per floor per spot type, updated in the same synchronized block as the spot status change, so the count is always accurate and queries are O(1).
+
+---
+
+**Quick Revision:** The core challenge in a Parking Lot LLD is the TOCTOU race between finding a free spot and claiming it — solve it by synchronizing the entire check-and-assign on the ParkingSpot object, and use Strategy for fees and payment methods to keep the exit flow closed to modification.
+
+---
+
+---
+
+## Topic 2: URL Shortener — LLD Case Study
+
+#### The Idea
+
+A URL shortener takes a long, unwieldy web address and produces a short code — like turning `https://www.example.com/articles/2024/how-to-design-systems?utm_source=email&campaign=launch` into `shr.ly/aB3dE7`. Users share the short link; when someone clicks it, the shortener looks up the mapping and sends them to the original URL. The whole interaction takes a fraction of a second.
+
+What makes this interesting to design is the extreme asymmetry in access patterns. Creating a new short link happens rarely — maybe millions of times per day across the whole platform. But *redirecting* short links can happen billions of times per day, because every person who clicks a shared link triggers a redirect. Your read path must be blazing fast (under 10 milliseconds), while your write path can tolerate a little more latency. Most system design is symmetric; this one is not.
+
+There is also a subtle correctness problem that trips up candidates: the choice between HTTP 301 and 302. A 301 redirect is "permanent" — browsers cache it and never ask your server again. A 302 redirect is "temporary" — browsers re-request every time. If you choose 301 for speed, you lose all click analytics because subsequent clicks bypass your server entirely. That single decision shapes the entire analytics architecture, and most candidates pick 301 without realizing the consequence.
+
+---
+
+#### How It Works
+
+**Step 1: Requirements & Clarifying Questions**
+
+| Functional Requirement | Description |
 |---|---|
-| FR-1 | Given a long URL, generate a unique short URL (e.g., `https://shr.ly/aB3dE7`). |
-| FR-2 | Redirect from short URL to original long URL (HTTP 301/302). |
-| FR-3 | Support **custom alias** (user provides their own short code). |
-| FR-4 | Support **expiry** — short URLs can expire after N days or a fixed date. |
-| FR-5 | Track **click analytics**: count, timestamp, referrer, geo. |
-| FR-6 | Allow authenticated users to manage their URLs (list, delete, update). |
-| FR-7 | Return an error if a custom alias is already taken. |
+| FR-1 | Long URL → unique short code (e.g. shr.ly/aB3dE7) |
+| FR-2 | Redirect short → long URL (HTTP 301 or 302) |
+| FR-3 | Custom alias (user-chosen short code) |
+| FR-4 | Expiry support (TTL or fixed date) |
+| FR-5 | Click analytics (count, timestamp, referrer, geo) |
+| FR-6 | Authenticated users can manage their own URLs |
 
-### Non-Functional Requirements
+**Clarifying questions to ask in an interview:**
 
-| # | Requirement |
-|---|---|
-| NFR-1 | **Read-heavy**: redirects vastly outnumber creation (100:1 ratio). |
-| NFR-2 | Redirect latency < 10 ms (use cache). |
-| NFR-3 | Short codes must be collision-free and not guessable/enumerable. |
-| NFR-4 | Horizontal scale for both creation and redirect services. |
-| NFR-5 | Analytics write should be async (fire-and-forget, non-blocking). |
-
-### Clarifying Questions
-
-1. What is the expected QPS for redirect vs. creation?
-2. Should deleted/expired URLs return 404 or redirect to an error page?
-3. Are analytics real-time dashboards or eventual-consistency reports?
-4. Do we need click-level deduplication (unique visitors)?
-5. Max length of long URL? (handle URLs > 2000 chars in database, not URL params)
+1. *What are the expected QPS for redirects vs. creation?* — If redirects are 1,000× more frequent than creates, you invest heavily in caching; if they are equal, you optimize writes as much as reads. This is the single biggest number driving architecture.
+2. *301 vs. 302 for redirects?* — Not a preference question — it is a product decision with major engineering consequences. 301 = browser-cached, no analytics. 302 = always hits your server, enables analytics. Asking this shows you know the tradeoff.
+3. *Are analytics real-time or eventual consistency acceptable?* — Real-time analytics requires synchronous writes on the redirect path, adding latency. Eventual is fine for most analytics dashboards and enables async/Kafka write paths.
+4. *Should the same long URL always produce the same short code (dedup), or can two users shorten the same URL independently?* — Dedup is simpler but merges analytics across users, destroying per-user click isolation. Affects the code generation strategy entirely.
 
 ---
 
-## 2. Entities
+**Step 2: Core Entities**
 
 ```
-ShortUrl         — Core entity: shortCode, longUrl, userId, createdAt, expiresAt, customAlias, active
-User             — Authenticated creator of short URLs
-ClickAnalytics   — One record per click: shortCode, clickedAt, ipAddress, referrer, userAgent
+ShortUrl
+  ├── shortCode (PK)
+  ├── longUrl
+  ├── userId (FK → User)
+  ├── createdAt
+  ├── expiresAt
+  ├── active (boolean)
+  └── clickCount
+
+ClickAnalytics
+  ├── id
+  ├── shortCode (FK → ShortUrl)
+  ├── clickedAt
+  ├── ipAddress
+  ├── referrer
+  └── userAgent
+
+User
+  ├── userId (PK)
+  ├── email
+  └── tier (FREE, PRO)
 ```
 
-### Attributes
-
-**`ShortUrl`**
-- `String shortCode` (PK, 6–8 chars, Base62)
-- `String longUrl`
-- `String userId` (nullable for anonymous)
-- `LocalDateTime createdAt`
-- `LocalDateTime expiresAt` (nullable = never expires)
-- `boolean active`
-- `long clickCount` (denormalized for fast display)
-
-**`ClickAnalytics`**
-- `Long id` (auto-increment)
-- `String shortCode`
-- `LocalDateTime clickedAt`
-- `String ipAddress`
-- `String referrer`
-- `String userAgent`
+- **ShortUrl** is the core entity — it owns the mapping, expiry, and ownership. Everything else references it.
+- **ClickAnalytics** is a separate entity rather than a counter on ShortUrl because each click has its own attributes (timestamp, IP, referrer). A counter would tell you how many clicks; a separate row per click tells you *who* clicked, *when*, and *from where* — enabling funnel analysis and geo dashboards.
+- **User** is separate because authentication, tier management, and URL ownership have independent lifecycles and would bloat ShortUrl if inlined.
 
 ---
 
-## 3. Core Algorithm — Base62 Encoding
+**Step 3: Design Decisions**
 
-### Why Base62?
+**Decision: Counter-based code generation (Redis INCR → Base62 encoding)**
+*Why this over the alternatives:* Random 6-character codes are not enumerable (a plus for privacy), but they have collision probability that grows as the database fills. At 50% capacity, ~1 in 2 random codes collides, requiring expensive retry loops. MD5/SHA hash truncation is deterministic (same URL = same code) but has collision probability at truncation. Counter-based is the cleanest: Redis INCR is atomic and returns a globally unique integer every time, zero retries needed. Encode the integer to Base62 (`[0-9a-zA-Z]`): 6 characters = 62^6 = 56.8 billion unique codes, approximately 57 years of capacity at 1 billion URLs per year.
+*Tradeoff:* Sequential counters are enumerable — an attacker can iterate `aAAAAA`, `aAAAAB`, etc. and discover all short URLs. Mitigate by shuffling the character map or XOR-masking the counter before encoding. For most products, this is an acceptable risk; for confidential links, use random generation despite the retry complexity.
 
-Base62 uses characters `[0-9a-zA-Z]` (62 chars). A 6-character code gives 62^6 ≈ **56.8 billion** unique URLs. A 7-character code gives 62^7 ≈ 3.5 trillion.
+**Decision: HTTP 302 redirect (not 301)**
+*Why this over the alternatives:* HTTP 301 means "permanently moved" — browsers cache it and subsequent clicks go directly to the destination without touching your server. This is faster for users but catastrophically breaks analytics: once a browser caches the 301, your click counter never increments again. HTTP 302 means "temporarily moved" — browsers always re-request from your server, allowing you to count the click. The speed penalty (one extra DNS + TCP round trip per click) is mitigated by caching the shortCode→longUrl mapping at the CDN layer. The CDN handles the lookup in <1ms; your server just needs to handle cache misses and analytics writes.
+*Tradeoff:* Every redirect touches your infrastructure (CDN or server), increasing operational cost and adding ~5-10ms latency vs. 301. For a product where analytics is a core feature, this is non-negotiable. If you are building a simple redirect service with no analytics requirements, 301 is correct.
 
-### Approaches Compared
+**Decision: Allow duplicate short codes for the same long URL (no dedup)**
+*Why this over the alternatives:* Deduplication means if User A and User B both shorten `https://example.com/`, they get the same short code and share one analytics stream. This seems efficient but destroys per-user isolation: User A cannot tell which clicks came from their audience vs. User B's audience. By allowing duplicates, each user gets their own code and their own analytics stream. The storage cost is negligible — one extra row per duplicate URL.
+*Tradeoff:* Popular URLs (e.g., a news article shortened by a million users) waste storage with duplicate long URL strings. Mitigate with a separate `LongUrl` content-addressed table and foreign keys, deduplicating the *storage* without deduplicating the *codes*.
 
-| Approach | Pros | Cons |
-|---|---|---|
-| **Counter-based** (auto-increment ID → Base62) | No collision, predictable length | Enumerable — sequential IDs expose traffic volume |
-| **Random 6-char** | Not enumerable | Collision probability increases as dataset grows; need DB uniqueness check |
-| **MD5/SHA hash** | Deterministic — same URL = same code | Collision on truncation; same long URL always maps to same short code (no multi-tenant isolation) |
-| **Counter with padding** (used below) | Combines predictability with non-enumerable output | Slightly more complex |
+**Decision: Async analytics writes (fire-and-forget on redirect path)**
+*Why this over the alternatives:* Writing a ClickAnalytics row on the synchronous redirect path adds database write latency to every user redirect. Users experience this as slow redirects. The user clicking the link does not care about analytics; they care about reaching the destination. By publishing a click event to a Kafka topic (or using Spring's `@Async` event listener) on the redirect path, the redirect returns immediately and the analytics write happens in the background. Analytics dashboards are updated within seconds, which is good enough for every realistic analytics use case.
+*Tradeoff:* Analytics are eventually consistent — a dashboard refresh immediately after a click might not show that click yet. Clicks can be lost if the Kafka consumer crashes before committing the offset (mitigate with at-least-once delivery + idempotent writes keyed on a UUID per click event).
 
-**Best for interviews:** Distributed counter (e.g., Snowflake ID or Redis `INCR`) → convert to Base62. Prevents collisions without retry loops.
+**Decision: Redis cache for shortCode→longUrl lookups**
+*Why this over the alternatives:* The redirect path hits the same hot short codes millions of times per day. Without caching, every redirect queries PostgreSQL. At 100,000 redirects/second, that is 100,000 DB reads/second — expensive and slow. Redis can handle millions of reads per second with sub-millisecond latency. Cache hit rate for popular URLs exceeds 99%. Set TTL = expiry time of the short URL so the cache entry self-expires when the URL does.
+*Tradeoff:* Cache invalidation is needed when a URL is deactivated or its expiry is updated. Two strategies: write-through (update cache on every DB write) or TTL-based expiry (stale entries serve expired URLs for up to TTL seconds). For URL shorteners, TTL-based is acceptable — a few seconds of serving an expired URL is not a safety issue. For instant deactivation (abuse cases), write-through or active cache deletion is required.
+
+---
+
+**Step 4: Key Algorithm (pseudocode)**
 
 ```
-ID: 12345678
-Base62 encoding: 12345678 in base 62 = "FXho"
-Pad to 6 chars: "00FXho"
+function redirect(shortCode, requestContext):
+    // Step 1: Check Redis cache first
+    longUrl = redis.get("url:" + shortCode)
+    
+    if longUrl is null:
+        // Step 2: Cache miss — query database
+        shortUrl = db.findByShortCode(shortCode)
+        
+        if shortUrl is null or shortUrl.active == false:
+            return HTTP 404
+        
+        if shortUrl.expiresAt != null and shortUrl.expiresAt < now():
+            return HTTP 410 GONE  // expired, different from "never existed"
+        
+        longUrl = shortUrl.longUrl
+        redis.set("url:" + shortCode, longUrl, TTL = shortUrl.expiresAt - now())
+    
+    // Step 3: Fire analytics event asynchronously — DO NOT await
+    eventBus.publishAsync(ClickEvent {
+        shortCode: shortCode,
+        clickedAt: now(),
+        ipAddress: requestContext.ip,
+        referrer: requestContext.referer
+    })
+    
+    // Step 4: Return 302 redirect
+    return HTTP 302 Location: longUrl
+
+
+function createShortUrl(longUrl, userId, customAlias, expiresAt):
+    shortCode = customAlias != null
+        ? validateAndReserve(customAlias)
+        : base62Encode(redis.incr("global:url:counter"))
+    
+    db.insert(ShortUrl {
+        shortCode: shortCode,
+        longUrl: longUrl,
+        userId: userId,
+        createdAt: now(),
+        expiresAt: expiresAt,
+        active: true
+    })
+    
+    return "https://shr.ly/" + shortCode
 ```
 
 ---
 
-## 4. Design Patterns
-
-| Pattern | Where Applied | Why |
-|---|---|---|
-| **Strategy** | `IdGenerationStrategy` | Swap between counter-based, random, and hash-based ID generation without touching service. |
-| **Facade** | `UrlShortenerService` | Single entry point hides Redis caching, DB, analytics publisher, expiry checks. |
-| **Builder** | `ShortUrl` construction | Many optional fields (expiry, alias, userId); avoids telescoping constructors. |
-| **Decorator** | Analytics wrapping redirect | `AnalyticsRecordingRedirectService` wraps `BasicRedirectService` transparently. |
-
----
-
-## 5. Complete Java 17 + Spring Boot 3.x Implementation
+**Step 5: Must-Know Code**
 
 ```java
-// ─────────────────────────────────────────────
-// DOMAIN ENTITY
-// ─────────────────────────────────────────────
-
-package com.interview.lld.urlshortener.domain;
-
-import jakarta.persistence.*;
-import java.time.LocalDateTime;
-
-@Entity
-@Table(name = "short_urls")
-public class ShortUrl {
-
-    @Id
-    @Column(name = "short_code", length = 10)
-    private String shortCode;
-
-    @Column(name = "long_url", nullable = false, length = 2048)
-    private String longUrl;
-
-    @Column(name = "user_id")
-    private String userId;
-
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "expires_at")
-    private LocalDateTime expiresAt;
-
-    @Column(name = "active", nullable = false)
-    private boolean active = true;
-
-    @Column(name = "click_count", nullable = false)
-    private long clickCount = 0;
-
-    protected ShortUrl() {} // JPA
-
-    private ShortUrl(Builder b) {
-        this.shortCode  = b.shortCode;
-        this.longUrl    = b.longUrl;
-        this.userId     = b.userId;
-        this.createdAt  = b.createdAt;
-        this.expiresAt  = b.expiresAt;
-        this.active     = true;
-        this.clickCount = 0;
-    }
-
-    public boolean isExpired() {
-        return expiresAt != null && LocalDateTime.now().isAfter(expiresAt);
-    }
-
-    public void incrementClickCount()  { this.clickCount++; }
-    public void deactivate()           { this.active = false; }
-
-    // Getters
-    public String getShortCode()        { return shortCode; }
-    public String getLongUrl()          { return longUrl; }
-    public String getUserId()           { return userId; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public LocalDateTime getExpiresAt() { return expiresAt; }
-    public boolean isActive()           { return active; }
-    public long getClickCount()         { return clickCount; }
-
-    // ── Builder ──────────────────────────────────────────────────────────────
-    public static Builder builder(String shortCode, String longUrl) {
-        return new Builder(shortCode, longUrl);
-    }
-
-    public static final class Builder {
-        private final String shortCode;
-        private final String longUrl;
-        private String userId;
-        private LocalDateTime createdAt = LocalDateTime.now();
-        private LocalDateTime expiresAt;
-
-        private Builder(String shortCode, String longUrl) {
-            this.shortCode = shortCode;
-            this.longUrl   = longUrl;
-        }
-
-        public Builder userId(String userId)             { this.userId    = userId;    return this; }
-        public Builder expiresAt(LocalDateTime exp)      { this.expiresAt = exp;       return this; }
-        public Builder createdAt(LocalDateTime created)  { this.createdAt = created;   return this; }
-        public ShortUrl build()                          { return new ShortUrl(this); }
-    }
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// CLICK ANALYTICS ENTITY
-// ─────────────────────────────────────────────
-
-package com.interview.lld.urlshortener.domain;
-
-import jakarta.persistence.*;
-import java.time.LocalDateTime;
-
-@Entity
-@Table(name = "click_analytics", indexes = {
-    @Index(name = "idx_ca_shortcode", columnList = "short_code"),
-    @Index(name = "idx_ca_clicked",   columnList = "clicked_at")
-})
-public class ClickAnalytics {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(name = "short_code", nullable = false, length = 10)
-    private String shortCode;
-
-    @Column(name = "clicked_at", nullable = false)
-    private LocalDateTime clickedAt;
-
-    @Column(name = "ip_address", length = 45)
-    private String ipAddress;
-
-    @Column(name = "referrer",   length = 512)
-    private String referrer;
-
-    @Column(name = "user_agent", length = 512)
-    private String userAgent;
-
-    protected ClickAnalytics() {}
-
-    public ClickAnalytics(String shortCode, String ipAddress, String referrer, String userAgent) {
-        this.shortCode  = shortCode;
-        this.clickedAt  = LocalDateTime.now();
-        this.ipAddress  = ipAddress;
-        this.referrer   = referrer;
-        this.userAgent  = userAgent;
-    }
-
-    public String getShortCode()          { return shortCode; }
-    public LocalDateTime getClickedAt()   { return clickedAt; }
-    public String getIpAddress()          { return ipAddress; }
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// BASE62 ENCODER
-// ─────────────────────────────────────────────
-
-package com.interview.lld.urlshortener.util;
-
-import org.springframework.stereotype.Component;
-
-@Component
-public class Base62Encoder {
-
-    private static final String ALPHABET =
-            "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    private static final int BASE     = 62;
-    private static final int MIN_LEN  = 6;
-
-    /** Encode a non-negative long to a Base62 string, left-padded to MIN_LEN. */
-    public String encode(long number) {
-        if (number < 0) throw new IllegalArgumentException("Number must be non-negative");
-        if (number == 0) return "0".repeat(MIN_LEN);
-
-        StringBuilder sb = new StringBuilder();
-        while (number > 0) {
-            sb.append(ALPHABET.charAt((int)(number % BASE)));
-            number /= BASE;
-        }
-        sb.reverse();
-
-        // Left-pad with '0' to ensure minimum length
-        while (sb.length() < MIN_LEN) sb.insert(0, '0');
-        return sb.toString();
-    }
-
-    /** Decode a Base62 string back to a long. */
-    public long decode(String code) {
-        long result = 0;
-        for (char c : code.toCharArray()) {
-            result = result * BASE + ALPHABET.indexOf(c);
-        }
-        return result;
-    }
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// STRATEGY PATTERN — ID Generation
-// ─────────────────────────────────────────────
-
-package com.interview.lld.urlshortener.strategy;
-
-public interface IdGenerationStrategy {
-    String generateCode(String longUrl);
-}
-```
-
-```java
-package com.interview.lld.urlshortener.strategy;
-
-import com.interview.lld.urlshortener.util.Base62Encoder;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.stereotype.Component;
-
-@Component("counterStrategy")
-public class CounterBasedStrategy implements IdGenerationStrategy {
-
-    private static final String COUNTER_KEY = "url:shortener:global:counter";
-
-    private final StringRedisTemplate redis;
-    private final Base62Encoder encoder;
-
-    public CounterBasedStrategy(StringRedisTemplate redis, Base62Encoder encoder) {
-        this.redis   = redis;
-        this.encoder = encoder;
-    }
-
-    @Override
-    public String generateCode(String longUrl) {
-        Long id = redis.opsForValue().increment(COUNTER_KEY);
-        if (id == null) throw new IllegalStateException("Redis counter unavailable");
-        return encoder.encode(id);
-    }
-}
-```
-
-```java
-package com.interview.lld.urlshortener.strategy;
-
-import org.springframework.stereotype.Component;
-import java.security.SecureRandom;
-
-@Component("randomStrategy")
-public class RandomCodeStrategy implements IdGenerationStrategy {
-
-    private static final String CHARS  = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    private static final int CODE_LEN  = 6;
-    private final SecureRandom rng     = new SecureRandom();
-
-    @Override
-    public String generateCode(String longUrl) {
-        StringBuilder sb = new StringBuilder(CODE_LEN);
-        for (int i = 0; i < CODE_LEN; i++) sb.append(CHARS.charAt(rng.nextInt(CHARS.length())));
-        return sb.toString();
-    }
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// REPOSITORIES
-// ─────────────────────────────────────────────
-
-package com.interview.lld.urlshortener.repository;
-
-import com.interview.lld.urlshortener.domain.ShortUrl;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
-import java.util.Optional;
-
-public interface ShortUrlRepository extends JpaRepository<ShortUrl, String> {
-    Optional<ShortUrl> findByShortCodeAndActiveTrue(String shortCode);
-
-    @Modifying
-    @Query("UPDATE ShortUrl s SET s.clickCount = s.clickCount + 1 WHERE s.shortCode = :code")
-    void incrementClickCount(String code);
-}
-```
-
-```java
-package com.interview.lld.urlshortener.repository;
-
-import com.interview.lld.urlshortener.domain.ClickAnalytics;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import java.time.LocalDateTime;
-import java.util.List;
-
-public interface ClickAnalyticsRepository extends JpaRepository<ClickAnalytics, Long> {
-
-    @Query("SELECT c FROM ClickAnalytics c WHERE c.shortCode = :code AND c.clickedAt >= :since")
-    List<ClickAnalytics> findByShortCodeSince(String code, LocalDateTime since);
-
-    long countByShortCode(String shortCode);
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// REQUEST / RESPONSE DTOs
-// ─────────────────────────────────────────────
-
-package com.interview.lld.urlshortener.dto;
-
-import java.time.LocalDateTime;
-
-public record ShortenRequest(
-    String longUrl,
-    String customAlias,     // nullable
-    LocalDateTime expiresAt // nullable
-) {}
-
-public record ShortenResponse(
-    String shortCode,
-    String shortUrl,
-    String longUrl,
-    LocalDateTime expiresAt
-) {}
-
-public record AnalyticsResponse(
-    String shortCode,
-    long totalClicks,
-    List<ClickDataPoint> recent
-) {
-    public record ClickDataPoint(LocalDateTime clickedAt, String ipAddress) {}
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// SERVICE — FACADE PATTERN
-// ─────────────────────────────────────────────
-
-package com.interview.lld.urlshortener.service;
-
-import com.interview.lld.urlshortener.domain.*;
-import com.interview.lld.urlshortener.dto.*;
-import com.interview.lld.urlshortener.repository.*;
-import com.interview.lld.urlshortener.strategy.IdGenerationStrategy;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.util.Optional;
-
 @Service
 public class UrlShortenerService {
 
-    private static final String BASE_URL      = "https://shr.ly/";
-    private static final int    MAX_RETRIES   = 5;
+    private static final String BASE62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    private static final String COUNTER_KEY = "global:url:counter";
+    private static final String CACHE_PREFIX = "url:";
 
-    private final ShortUrlRepository urlRepo;
-    private final ClickAnalyticsRepository analyticsRepo;
-    private final IdGenerationStrategy idStrategy;
+    private final RedisTemplate<String, String> redis;
+    private final ShortUrlRepository repository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public UrlShortenerService(
-            ShortUrlRepository urlRepo,
-            ClickAnalyticsRepository analyticsRepo,
-            @Qualifier("counterStrategy") IdGenerationStrategy idStrategy) {
-        this.urlRepo       = urlRepo;
-        this.analyticsRepo = analyticsRepo;
-        this.idStrategy    = idStrategy;
-    }
+    public String createShortUrl(String longUrl, Long userId, String customAlias, Instant expiresAt) {
+        String shortCode;
 
-    // ── CREATE ─────────────────────────────────────────────────────────────
-    @Transactional
-    public ShortenResponse shorten(ShortenRequest req, String userId) {
-        String code = resolveCode(req);
-
-        ShortUrl shortUrl = ShortUrl.builder(code, req.longUrl())
-                .userId(userId)
-                .expiresAt(req.expiresAt())
-                .build();
-
-        urlRepo.save(shortUrl);
-
-        return new ShortenResponse(code, BASE_URL + code, req.longUrl(), req.expiresAt());
-    }
-
-    private String resolveCode(ShortenRequest req) {
-        if (req.customAlias() != null && !req.customAlias().isBlank()) {
-            if (urlRepo.existsById(req.customAlias())) {
-                throw new IllegalArgumentException("Alias already taken: " + req.customAlias());
+        if (customAlias != null) {
+            // Custom aliases must be checked for conflicts before insert.
+            // Use INSERT ... ON CONFLICT DO NOTHING and check rows affected.
+            if (repository.existsByShortCode(customAlias)) {
+                throw new AliasAlreadyTakenException(customAlias);
             }
-            return req.customAlias();
-        }
-        // Counter-based — guaranteed unique; random needs retry loop
-        return idStrategy.generateCode(req.longUrl());
-    }
-
-    // ── REDIRECT ───────────────────────────────────────────────────────────
-    @Cacheable(value = "shortUrls", key = "#code", unless = "#result == null")
-    @Transactional(readOnly = true)
-    public Optional<String> getLongUrl(String code) {
-        return urlRepo.findByShortCodeAndActiveTrue(code)
-                .filter(u -> !u.isExpired())
-                .map(ShortUrl::getLongUrl);
-    }
-
-    /** Fire-and-forget analytics recording — does not block the redirect. */
-    @Async
-    @Transactional
-    public void recordClick(String code, String ip, String referrer, String ua) {
-        analyticsRepo.save(new ClickAnalytics(code, ip, referrer, ua));
-        urlRepo.incrementClickCount(code);
-    }
-
-    // ── DELETE ─────────────────────────────────────────────────────────────
-    @CacheEvict(value = "shortUrls", key = "#code")
-    @Transactional
-    public void deactivate(String code, String requestingUserId) {
-        ShortUrl su = urlRepo.findByShortCodeAndActiveTrue(code)
-                .orElseThrow(() -> new IllegalArgumentException("Not found: " + code));
-        if (!su.getUserId().equals(requestingUserId)) {
-            throw new SecurityException("Not authorized to delete this URL");
-        }
-        su.deactivate();
-        urlRepo.save(su);
-    }
-
-    // ── ANALYTICS ──────────────────────────────────────────────────────────
-    public AnalyticsResponse getAnalytics(String code) {
-        long total = analyticsRepo.countByShortCode(code);
-        var recent = analyticsRepo.findByShortCodeSince(code, LocalDateTime.now().minusDays(7))
-                .stream()
-                .map(c -> new AnalyticsResponse.ClickDataPoint(c.getClickedAt(), c.getIpAddress()))
-                .toList();
-        return new AnalyticsResponse(code, total, recent);
-    }
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// REST CONTROLLER
-// ─────────────────────────────────────────────
-
-package com.interview.lld.urlshortener.controller;
-
-import com.interview.lld.urlshortener.dto.*;
-import com.interview.lld.urlshortener.service.UrlShortenerService;
-import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
-
-import java.net.URI;
-
-@RestController
-public class UrlShortenerController {
-
-    private final UrlShortenerService service;
-
-    public UrlShortenerController(UrlShortenerService service) {
-        this.service = service;
-    }
-
-    /** POST /api/shorten — create a short URL */
-    @PostMapping("/api/shorten")
-    public ResponseEntity<ShortenResponse> shorten(
-            @RequestBody ShortenRequest req,
-            @AuthenticationPrincipal String userId) {
-
-        ShortenResponse response = service.shorten(req, userId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
-
-    /** GET /{code} — redirect to long URL */
-    @GetMapping("/{code}")
-    public ResponseEntity<Void> redirect(
-            @PathVariable String code,
-            HttpServletRequest httpReq) {
-
-        return service.getLongUrl(code)
-                .map(longUrl -> {
-                    // Async analytics — non-blocking
-                    service.recordClick(
-                            code,
-                            httpReq.getRemoteAddr(),
-                            httpReq.getHeader("Referer"),
-                            httpReq.getHeader("User-Agent")
-                    );
-                    // 302 = temporary redirect (allows analytics to keep firing)
-                    // 301 = permanent (browser caches; analytics miss future clicks)
-                    return ResponseEntity.status(HttpStatus.FOUND)
-                            .location(URI.create(longUrl))
-                            .<Void>build();
-                })
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    /** GET /api/analytics/{code} */
-    @GetMapping("/api/analytics/{code}")
-    public ResponseEntity<AnalyticsResponse> analytics(@PathVariable String code) {
-        return ResponseEntity.ok(service.getAnalytics(code));
-    }
-
-    /** DELETE /api/shorten/{code} */
-    @DeleteMapping("/api/shorten/{code}")
-    public ResponseEntity<Void> delete(
-            @PathVariable String code,
-            @AuthenticationPrincipal String userId) {
-        service.deactivate(code, userId);
-        return ResponseEntity.noContent().build();
-    }
-}
-```
-
-```yaml
-# application.yml (Spring Boot 3.x)
-spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/urlshortener
-    username: ${DB_USER}
-    password: ${DB_PASS}
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-  data:
-    redis:
-      host: localhost
-      port: 6379
-  cache:
-    type: redis
-    redis:
-      time-to-live: 3600000   # 1 hour TTL for cached short URLs
-
-server:
-  port: 8080
-```
-
----
-
-## 6. Key Interview Questions — URL Shortener
-
-### Q1. Why use 302 (temporary) redirect instead of 301 (permanent)?
-
-**Answer:** A 301 redirect is cached by the browser indefinitely, meaning future clicks go directly to the long URL without hitting your server. This kills analytics — you never see those clicks. A 302 forces the browser to re-request your shortener on every click, allowing you to count it. The trade-off: 302 adds ~10 ms latency per click. Mitigate this with CDN-level caching of the mapping (not the redirect itself) to cut latency without losing analytics.
-
-### Q2. How do you handle the same long URL being shortened multiple times?
-
-**Answer:** It depends on the product requirement:
-- **Deduplicate** (hash the long URL as lookup key): same long URL always returns same short code. Simpler, but breaks multi-tenant isolation (two users' URLs become shared).
-- **Allow duplicates** (counter-based): each request gets a new code. Cleaner per-user ownership and analytics isolation. Most production systems (bit.ly) allow duplicates.
-
-The counter-based approach in this implementation allows duplicates by design.
-
-### Q3. How would you scale the redirect service to 1 million RPS?
-
-**Answer:**
-1. **Redis cache** for the shortCode → longUrl mapping (TTL = 1 hour). Cache hit rate should be > 99% for popular URLs.
-2. **CDN** (Cloudflare / CloudFront) in front of the redirect endpoint. Cache 302 responses at the edge for URLs where analytics is not needed (or use a server-sent pixel for analytics instead).
-3. **Read replicas** for the PostgreSQL instance.
-4. **Stateless redirect service** — horizontally scale behind a load balancer.
-
-### Q4. How do you prevent short code collisions with the random strategy?
-
-**Answer:** On collision (INSERT fails with unique constraint violation), retry with a new random code up to `MAX_RETRIES` times. If all retries fail, increase code length from 6 to 7 chars. To avoid this entirely, use the counter-based strategy: Redis `INCR` is atomic, so every call gets a globally unique integer which encodes to a unique Base62 string.
-
-### Q5. What is the capacity estimate for a 6-character Base62 code?
-
-**Answer:** Base62 uses characters `[0-9A-Za-z]` (62 symbols), so a 6-character code gives 62^6 = 56,800,235,584 ≈ **56.8 billion unique codes**. At a rate of 1 billion new URLs shortened per year, this namespace lasts roughly 57 years before exhaustion. Extending to 7 characters multiplies capacity to 62^7 ≈ 3.5 trillion codes, effectively eliminating the concern. The trade-off is URL length: 6 characters is the sweet spot between brevity and longevity, which is why services like bit.ly use exactly 6. If you adopt a counter-based ID generation strategy (Redis INCR), IDs are assigned sequentially so you never waste namespace from random collisions.
-
-### Q6. How do you handle URL expiry efficiently without scanning the whole table?
-
-**Answer:** A scheduled job (`@Scheduled(cron = "0 0 * * * *")`) runs hourly and marks expired URLs inactive: `UPDATE short_urls SET active = false WHERE expires_at < NOW() AND active = true`. Add an index on `(active, expires_at)`. Alternatively, store TTLs in Redis — when a key expires, a keyspace notification triggers the deactivation in the DB.
-
-### Q7. What are the security concerns with a URL shortener?
-
-**Answer:**
-1. **Phishing** — short URLs hide the destination. Mitigate: scan long URLs against Google Safe Browsing API on creation.
-2. **Enumeration** — sequential codes leak volume. Mitigate: use random codes or add a hidden salt to the counter before encoding.
-3. **Open redirect abuse** — anyone can redirect to malicious sites. Mitigate: allowlist domains or require CAPTCHA for anonymous creation.
-4. **DDoS via creation** — rate-limit the `/api/shorten` endpoint per IP/user.
-
----
-
-# LLD 3: Rate Limiter
-
-## 1. Requirements Clarification
-
-### Functional Requirements
-
-| # | Requirement |
-|---|---|
-| FR-1 | Limit the number of requests a user/IP can make in a time window. |
-| FR-2 | Return HTTP 429 (Too Many Requests) with a `Retry-After` header when limit is exceeded. |
-| FR-3 | Support per-user, per-IP, and per-API-key limiting. |
-| FR-4 | Support multiple algorithms selectable per endpoint. |
-| FR-5 | Allow configuring different limits for different endpoints or user tiers. |
-| FR-6 | Expose a `RateLimitInfo` header to clients (`X-RateLimit-Remaining`, `X-RateLimit-Reset`). |
-
-### Non-Functional Requirements
-
-| # | Requirement |
-|---|---|
-| NFR-1 | Decision latency < 5 ms (Redis Lua script for atomicity without extra RTT). |
-| NFR-2 | Distributed — multiple service instances share state via Redis. |
-| NFR-3 | Failure mode: if Redis is down, choose between fail-open (allow all) or fail-closed (deny all). |
-| NFR-4 | Accurate — avoid race conditions that let bursts through. |
-
----
-
-## 2. Algorithms
-
-### 2.1 Token Bucket
-
-A bucket holds up to `capacity` tokens. Tokens are added at `refillRate` tokens/second. Each request consumes 1 token. If the bucket is empty, the request is rejected.
-
-- **Pro:** Handles bursts (consume saved tokens), smooths traffic over time.
-- **Con:** Requires precise timestamp bookkeeping for partial refills.
-
-```
-capacity = 10, refillRate = 2/sec
-Time 0s: bucket = 10 tokens. 10 requests → bucket = 0.
-Time 1s: refill 2 → bucket = 2. 2 requests allowed.
-```
-
-### 2.2 Leaky Bucket
-
-Requests enter a queue (the "bucket"). They are processed at a fixed `outflowRate`. If the queue is full, excess requests are dropped.
-
-- **Pro:** Smooth, predictable outflow — no bursts downstream.
-- **Con:** Queuing adds latency; bursts are penalized immediately even if downstream can handle them.
-
-### 2.3 Fixed Window Counter
-
-Divide time into fixed windows (e.g., 1-minute buckets). Count requests per key per window. Reset counter at the start of each new window.
-
-- **Pro:** Simple, memory-efficient.
-- **Con:** Boundary attack: a user can make `2 * limit` requests by sending `limit` at the end of window N and `limit` at the start of window N+1.
-
-```
-limit = 10/min
-Window [00:00–01:00]: 10 requests at 00:59 → ALLOWED
-Window [01:00–02:00]: 10 requests at 01:00 → ALLOWED
-Total 20 requests in 1 second — boundary exploit.
-```
-
-### 2.4 Sliding Window Log
-
-Maintain a sorted log of all request timestamps for each key. On each request, remove timestamps older than the window, then count remaining. Allow if count < limit.
-
-- **Pro:** Accurate, no boundary attack.
-- **Con:** High memory usage — stores every timestamp. Expensive at high QPS.
-
-### 2.5 Sliding Window Counter (Approximate)
-
-Blend the previous window's count with the current window's count using a weighted formula:
-
-```
-weight = (windowSize - timeElapsedInCurrentWindow) / windowSize
-estimate = prevWindowCount * weight + currentWindowCount
-```
-
-- **Pro:** Accurate approximation, O(1) memory, handles boundary issue.
-- **Con:** Approximate (not exact) — allows a small overshoot (~1% at the boundary).
-
-**Recommendation for interviews:** Token Bucket for most APIs (handles burst), Sliding Window Counter for strict per-user quota enforcement.
-
----
-
-## 3. Entities and Class Design
-
-```
-RateLimiter             — Interface: tryConsume(key) → RateLimitResult
-TokenBucketRateLimiter  — In-memory token bucket (single node)
-RedisTokenBucketRateLimiter — Distributed token bucket via Lua script
-SlidingWindowRateLimiter — Sliding window counter via Redis sorted set
-RateLimitResult         — allowed, remaining, resetAt, retryAfter
-RateLimitConfig         — capacity, refillRate, windowSizeSeconds
-RateLimiterFactory      — Creates the right implementation by algorithm name
-RateLimitFilter         — Spring OncePerRequestFilter; decorates all requests
-```
-
----
-
-## 4. Design Patterns
-
-| Pattern | Where Applied | Why |
-|---|---|---|
-| **Strategy** | `RateLimiter` interface + multiple implementations | Swap algorithm (token bucket, sliding window) without changing the filter. |
-| **Decorator** | `RateLimitFilter` wraps the servlet filter chain | Adds rate limiting to any service without modifying its code. |
-| **Factory** | `RateLimiterFactory` | Create the right `RateLimiter` based on config (`algorithm: TOKEN_BUCKET`). |
-| **Template Method** | `AbstractRateLimiter` handles key building; subclasses implement check logic | Avoids code duplication for key construction and header population. |
-
----
-
-## 5. Complete Java 17 Implementation
-
-```java
-// ─────────────────────────────────────────────
-// DOMAIN: Config and Result
-// ─────────────────────────────────────────────
-
-package com.interview.lld.ratelimiter;
-
-import java.time.Instant;
-
-public record RateLimitConfig(
-    int capacity,           // max tokens / max requests per window
-    int refillRatePerSecond,// for token bucket: tokens added per second
-    int windowSizeSeconds,  // for window-based algorithms
-    String algorithm        // TOKEN_BUCKET | FIXED_WINDOW | SLIDING_WINDOW
-) {}
-
-public record RateLimitResult(
-    boolean allowed,
-    long remaining,         // tokens/requests remaining
-    Instant resetAt,        // when the limit resets
-    long retryAfterSeconds  // how long to wait if denied
-) {
-    public static RateLimitResult allow(long remaining, Instant resetAt) {
-        return new RateLimitResult(true, remaining, resetAt, 0);
-    }
-    public static RateLimitResult deny(Instant resetAt, long retryAfter) {
-        return new RateLimitResult(false, 0, resetAt, retryAfter);
-    }
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// INTERFACE
-// ─────────────────────────────────────────────
-
-package com.interview.lld.ratelimiter;
-
-public interface RateLimiter {
-    /**
-     * Attempt to consume one token for the given key.
-     * @param key  rate limit key — e.g. "user:42" or "ip:1.2.3.4"
-     * @return RateLimitResult
-     */
-    RateLimitResult tryConsume(String key);
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// IN-MEMORY TOKEN BUCKET (single-node, thread-safe)
-// ─────────────────────────────────────────────
-
-package com.interview.lld.ratelimiter;
-
-import java.time.Instant;
-import java.util.concurrent.ConcurrentHashMap;
-
-public class TokenBucketRateLimiter implements RateLimiter {
-
-    private final RateLimitConfig config;
-    private final ConcurrentHashMap<String, BucketState> buckets = new ConcurrentHashMap<>();
-
-    public TokenBucketRateLimiter(RateLimitConfig config) {
-        this.config = config;
-    }
-
-    @Override
-    public RateLimitResult tryConsume(String key) {
-        BucketState state = buckets.computeIfAbsent(key, k -> new BucketState(config.capacity()));
-        return state.tryConsume(config);
-    }
-
-    // ── Inner state ────────────────────────────────────────────────────────
-    private static class BucketState {
-        private double tokens;
-        private long lastRefillNanos;
-
-        BucketState(int capacity) {
-            this.tokens          = capacity;
-            this.lastRefillNanos = System.nanoTime();
-        }
-
-        synchronized RateLimitResult tryConsume(RateLimitConfig cfg) {
-            refill(cfg);
-
-            Instant resetAt = Instant.now().plusSeconds(
-                    (long) Math.ceil((cfg.capacity() - tokens) / (double) cfg.refillRatePerSecond()));
-
-            if (tokens >= 1.0) {
-                tokens--;
-                return RateLimitResult.allow((long) tokens, resetAt);
-            } else {
-                long retryAfter = (long) Math.ceil((1.0 - tokens) / cfg.refillRatePerSecond());
-                return RateLimitResult.deny(resetAt, retryAfter);
-            }
-        }
-
-        private void refill(RateLimitConfig cfg) {
-            long nowNanos     = System.nanoTime();
-            double elapsed    = (nowNanos - lastRefillNanos) / 1_000_000_000.0; // seconds
-            double newTokens  = elapsed * cfg.refillRatePerSecond();
-            tokens            = Math.min(cfg.capacity(), tokens + newTokens);
-            lastRefillNanos   = nowNanos;
-        }
-    }
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// REDIS TOKEN BUCKET — ATOMIC via Lua Script
-// ─────────────────────────────────────────────
-
-package com.interview.lld.ratelimiter;
-
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.script.DefaultRedisScript;
-import org.springframework.stereotype.Component;
-
-import java.time.Instant;
-import java.util.List;
-
-/**
- * Distributed token bucket using a Lua script for atomicity.
- * Single Redis call ensures no race between refill-check-decrement.
- */
-@Component
-public class RedisTokenBucketRateLimiter implements RateLimiter {
-
-    private static final String LUA_SCRIPT = """
-            local key            = KEYS[1]
-            local capacity       = tonumber(ARGV[1])
-            local refill_rate    = tonumber(ARGV[2])   -- tokens per second
-            local now            = tonumber(ARGV[3])   -- epoch seconds (float)
-            local requested      = tonumber(ARGV[4])   -- usually 1
-            
-            local data           = redis.call('HMGET', key, 'tokens', 'last_refill')
-            local tokens         = tonumber(data[1]) or capacity
-            local last_refill    = tonumber(data[2]) or now
-            
-            -- Refill
-            local elapsed        = now - last_refill
-            tokens               = math.min(capacity, tokens + elapsed * refill_rate)
-            
-            local allowed        = 0
-            local remaining      = tokens
-            
-            if tokens >= requested then
-                tokens    = tokens - requested
-                remaining = tokens
-                allowed   = 1
-            end
-            
-            local ttl = math.ceil(capacity / refill_rate) + 1
-            redis.call('HSET', key, 'tokens', tokens, 'last_refill', now)
-            redis.call('EXPIRE', key, ttl)
-            
-            return { allowed, math.floor(remaining) }
-            """;
-
-    private final StringRedisTemplate redis;
-    private final RateLimitConfig config;
-    private final DefaultRedisScript<List> script;
-
-    public RedisTokenBucketRateLimiter(StringRedisTemplate redis, RateLimitConfig config) {
-        this.redis  = redis;
-        this.config = config;
-        this.script = new DefaultRedisScript<>(LUA_SCRIPT, List.class);
-    }
-
-    @Override
-    public RateLimitResult tryConsume(String key) {
-        double now = System.currentTimeMillis() / 1000.0;
-
-        List result = redis.execute(
-                script,
-                List.of("ratelimit:" + key),
-                String.valueOf(config.capacity()),
-                String.valueOf(config.refillRatePerSecond()),
-                String.valueOf(now),
-                "1"
-        );
-
-        if (result == null) {
-            // Redis unavailable — fail-open
-            return RateLimitResult.allow(config.capacity(), Instant.now().plusSeconds(config.windowSizeSeconds()));
-        }
-
-        boolean allowed   = ((Number) result.get(0)).intValue() == 1;
-        long remaining    = ((Number) result.get(1)).longValue();
-        Instant resetAt   = Instant.now().plusSeconds(
-                (long) Math.ceil((config.capacity() - remaining) / (double) config.refillRatePerSecond()));
-
-        return allowed
-                ? RateLimitResult.allow(remaining, resetAt)
-                : RateLimitResult.deny(resetAt, (long) Math.ceil(1.0 / config.refillRatePerSecond()));
-    }
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// SLIDING WINDOW COUNTER via Redis Sorted Set
-// ─────────────────────────────────────────────
-
-package com.interview.lld.ratelimiter;
-
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ZSetOperations;
-
-import java.time.Instant;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-
-public class SlidingWindowLogRateLimiter implements RateLimiter {
-
-    private final StringRedisTemplate redis;
-    private final RateLimitConfig config;
-
-    public SlidingWindowLogRateLimiter(StringRedisTemplate redis, RateLimitConfig config) {
-        this.redis  = redis;
-        this.config = config;
-    }
-
-    @Override
-    public RateLimitResult tryConsume(String key) {
-        String redisKey  = "ratelimit:sw:" + key;
-        long nowMs       = System.currentTimeMillis();
-        long windowMs    = config.windowSizeSeconds() * 1000L;
-        long windowStart = nowMs - windowMs;
-
-        ZSetOperations<String, String> zset = redis.opsForZSet();
-
-        // Remove old entries
-        zset.removeRangeByScore(redisKey, 0, windowStart);
-
-        // Count current
-        Long count = zset.zCard(redisKey);
-        if (count == null) count = 0L;
-
-        Instant resetAt = Instant.ofEpochMilli(nowMs + windowMs);
-
-        if (count < config.capacity()) {
-            // Add current request
-            String member = UUID.randomUUID().toString();
-            zset.add(redisKey, member, nowMs);
-            redis.expire(redisKey, config.windowSizeSeconds() + 1, TimeUnit.SECONDS);
-            return RateLimitResult.allow(config.capacity() - count - 1, resetAt);
+            shortCode = customAlias;
         } else {
-            return RateLimitResult.deny(resetAt, config.windowSizeSeconds());
+            // Redis INCR is atomic: guaranteed unique integer across all instances.
+            // No retry loop needed — this is the key advantage over random generation.
+            long counter = redis.opsForValue().increment(COUNTER_KEY);
+            shortCode = toBase62(counter);
         }
+
+        repository.save(new ShortUrl(shortCode, longUrl, userId, Instant.now(), expiresAt, true));
+        return "https://shr.ly/" + shortCode;
+    }
+
+    public String resolveAndRedirect(String shortCode, ClickContext ctx) {
+        // Check cache first — this is the hot path, must be sub-millisecond
+        String cached = redis.opsForValue().get(CACHE_PREFIX + shortCode);
+        if (cached != null) {
+            // Publish analytics event without blocking the redirect response.
+            // @Async means this returns immediately; the event listener writes to DB.
+            eventPublisher.publishEvent(new ClickEvent(shortCode, Instant.now(), ctx.ip(), ctx.referrer()));
+            return cached; // caller returns HTTP 302 to this URL
+        }
+
+        // Cache miss: query DB, validate, cache, then redirect
+        ShortUrl shortUrl = repository.findByShortCode(shortCode)
+                .orElseThrow(() -> new UrlNotFoundException(shortCode));
+
+        if (!shortUrl.isActive()) {
+            throw new UrlNotFoundException(shortCode);
+        }
+        if (shortUrl.getExpiresAt() != null && shortUrl.getExpiresAt().isBefore(Instant.now())) {
+            throw new UrlExpiredException(shortCode); // caller returns HTTP 410
+        }
+
+        // Cache with TTL aligned to URL expiry so cache auto-expires with the URL.
+        Duration ttl = shortUrl.getExpiresAt() != null
+                ? Duration.between(Instant.now(), shortUrl.getExpiresAt())
+                : Duration.ofHours(24); // default TTL for URLs with no expiry
+        redis.opsForValue().set(CACHE_PREFIX + shortCode, shortUrl.getLongUrl(), ttl);
+
+        eventPublisher.publishEvent(new ClickEvent(shortCode, Instant.now(), ctx.ip(), ctx.referrer()));
+        return shortUrl.getLongUrl();
+    }
+
+    // Base62 encoding: maps integer to [0-9a-zA-Z] string.
+    // Equivalent to converting a number to base 62, reading digits right-to-left.
+    private String toBase62(long n) {
+        StringBuilder sb = new StringBuilder();
+        while (n > 0) {
+            sb.append(BASE62.charAt((int)(n % 62)));
+            n /= 62;
+        }
+        return sb.reverse().toString();
     }
 }
 ```
 
-```java
-// ─────────────────────────────────────────────
-// FIXED WINDOW COUNTER
-// ─────────────────────────────────────────────
+---
 
-package com.interview.lld.ratelimiter;
+#### Interview Lens
 
-import org.springframework.data.redis.core.StringRedisTemplate;
+> **How to use this section:** Each question below is self-contained. You can read just this section the night before an interview and walk in prepared. Every concept referenced is explained inline.
 
-import java.time.Instant;
-import java.util.concurrent.TimeUnit;
+> *Tip: In case study questions, structure your answer as: "The key challenge is X. I chose Y over Z because [reason]. The tradeoff is [cost]." This signals senior-level thinking.*
 
-public class FixedWindowRateLimiter implements RateLimiter {
+---
 
-    private final StringRedisTemplate redis;
-    private final RateLimitConfig config;
+**Tradeoff**
+**"Why would you choose 302 over 301 for the redirect response?"**
 
-    public FixedWindowRateLimiter(StringRedisTemplate redis, RateLimitConfig config) {
-        this.redis  = redis;
-        this.config = config;
-    }
+**One-line answer:** 301 is permanently cached by the browser, so subsequent clicks never reach your server and you lose all analytics; 302 forces every click through your server so you can count them.
 
-    @Override
-    public RateLimitResult tryConsume(String key) {
-        long windowId   = System.currentTimeMillis() / (config.windowSizeSeconds() * 1000L);
-        String redisKey = "ratelimit:fw:" + key + ":" + windowId;
+**Full answer:**
+> "This is one of those decisions that looks like a performance question but is actually a product question. A 301 (Moved Permanently) response tells the browser to cache the destination URL forever. The first click goes through your server; every subsequent click from that browser goes directly to the destination, bypassing you entirely. That is great for latency — zero server involvement after the first click. But it kills analytics permanently. A 302 (Found / Moved Temporarily) tells the browser not to cache; it must re-request every time. Every click touches your server, so you can count it, record the timestamp, capture the referrer and IP, and build usage dashboards. For a URL shortener where analytics is a core feature — the whole reason businesses use it — 302 is the correct choice. The latency penalty is real but manageable: CDN caches the shortCode-to-longUrl mapping at an edge node near the user, so the lookup is <1ms even though the request hits 'your infrastructure'."
 
-        Long count = redis.opsForValue().increment(redisKey);
-        if (count == null) count = 1L;
+> *End with the mitigation — showing you know the tradeoff has a solution signals senior-level thinking.*
 
-        if (count == 1) {
-            redis.expire(redisKey, config.windowSizeSeconds(), TimeUnit.SECONDS);
-        }
+**Gotcha follow-up:** *"What if the user deactivates a short URL — how quickly does the CDN cache invalidate?"*
+> "Standard CDN caches respect Cache-Control headers. If I set `Cache-Control: max-age=60` on the 302 response, the CDN may serve the old mapping for up to 60 seconds after deactivation. For most URLs this is acceptable. For abuse cases — a URL serving malware that must be deactivated immediately — I issue a CDN cache purge API call as part of the deactivation flow. Most CDN providers (Cloudflare, Fastly) have a purge-by-tag or purge-by-URL API that propagates within seconds globally."
 
-        Instant resetAt   = Instant.ofEpochMilli(
-                (windowId + 1) * config.windowSizeSeconds() * 1000L);
-        long remaining    = config.capacity() - count;
+---
 
-        if (remaining >= 0) {
-            return RateLimitResult.allow(remaining, resetAt);
-        } else {
-            return RateLimitResult.deny(resetAt, config.windowSizeSeconds());
-        }
-    }
-}
+**Design**
+**"How would you generate short codes without collisions at scale?"**
+
+**One-line answer:** Use an atomic Redis INCR counter, then encode the integer to Base62 — every call gets a unique integer and no retry loop is ever needed.
+
+**Full answer:**
+> "There are three common approaches. Random generation picks a random 6-character alphanumeric code. Simple to implement, but collision probability grows as the database fills. At 50% capacity (28 billion URLs), roughly 1 in 2 random codes collides and you need retry loops. Hash-based generation takes MD5 or SHA256 of the long URL and uses the first 6 characters. Deterministic, but different long URLs can produce the same truncated prefix. Counter-based generation increments a global counter and encodes it to Base62 (the character set `[0-9a-zA-Z]`, 62 characters). The Redis INCR command is atomic — no two calls ever return the same value, even across distributed service instances. A 6-character Base62 code encodes integers up to 62^6, which is approximately 56.8 billion — enough for roughly 57 years at 1 billion URLs per year. I prefer counter-based because it eliminates retries entirely and the capacity math is simple to reason about."
+
+> *Always walk through the capacity math — it shows you can validate your own design choices.*
+
+**Gotcha follow-up:** *"Counter-based codes are sequential and enumerable — is that a security concern?"*
+> "Yes, a sequential counter means an attacker can enumerate `aAAAAA`, `aAAAAB`, and so on to discover all URLs. Mitigations: shuffle the Base62 alphabet (use a private permutation of the 62 characters), or XOR-mask the counter with a secret key before encoding. Neither adds meaningful latency, and both make enumeration computationally infeasible without knowing the key. For truly sensitive links, use a longer random code (8+ characters) and accept the retry complexity."
+
+---
+
+**Scalability**
+**"How would you scale the redirect path to 1 million requests per second?"**
+
+**One-line answer:** Redis cache for sub-millisecond lookups, CDN in front of the redirect endpoint, read replicas for PostgreSQL, and stateless service instances behind a load balancer.
+
+**Full answer:**
+> "The redirect path is a pure read: given a short code, return a long URL. At 1 million RPS, the bottleneck is the lookup. Layer the solution. First layer: Redis cache. Popular short codes are requested millions of times per day. Cache the shortCode-to-longUrl mapping in Redis with a TTL matching the URL expiry. Cache hit rate exceeds 99% for popular links; Redis handles millions of reads per second with sub-millisecond latency. Second layer: CDN. Put a CDN (Cloudflare, Fastly) in front of the redirect endpoint. Cache the 302 response (with short max-age to preserve analytics freshness) at CDN edge nodes globally. For geographically distributed traffic, CDN reduces latency from 50-100ms to 1-5ms by serving from a nearby edge. Third layer: read replicas for PostgreSQL. Cache misses fall through to the database. With read replicas, multiple service instances can query different replicas simultaneously without overwhelming the primary. Fourth layer: horizontal scaling. The redirect service is stateless — it holds no in-process state, only reads from Redis and DB. Add instances behind a load balancer freely."
+
+> *Name the layers in order — it shows you think in tiers, not just 'add Redis'.*
+
+---
+
+**Concurrency / Design**
+**"How do you handle two users simultaneously trying to claim the same custom alias?"**
+
+**One-line answer:** Use a database unique constraint on the shortCode column; the first INSERT wins, the second gets a unique violation and returns an error to the user.
+
+**Full answer:**
+> "Custom aliases are user-chosen short codes. Two users could both type `shr.ly/mycoollink` at the same moment. The naive approach — check if it exists, then insert — has a TOCTOU race: both threads check, both see it absent, both insert, one fails with a DB error in an unexpected code path. The correct approach skips the check entirely and relies on the database's unique constraint on the `short_code` column. Both threads issue `INSERT INTO short_urls (short_code, ...) VALUES ('mycoollink', ...)`. The database serializes the two inserts; the first succeeds, the second raises a unique constraint violation. In Java, this surfaces as a `DataIntegrityViolationException`. Catch it in the service layer and return a clean `AliasAlreadyTakenException` to the caller. This approach requires zero coordination between application threads and is safe under any level of concurrency."
+
+> *The 'check then insert' antipattern is extremely common in interviews — calling it out by name lands well.*
+
+---
+
+> **Common Mistake — Choosing 301 for performance without considering analytics:** Candidates often pick 301 because "it's faster — the browser caches it." This is correct but kills click analytics entirely after the first redirect per browser. Always ask whether analytics is a requirement before choosing the redirect type. In a URL shortener, it almost always is.
+
+---
+
+**Quick Revision:** The core insight of a URL shortener is the 302-vs-301 decision: use 302 so every click reaches your server for analytics, mitigate the latency cost with CDN caching of the mapping lookup, and use Redis INCR + Base62 encoding for collision-free code generation at any scale.
+
+---
+
+---
+
+## Topic 3: Rate Limiter — LLD Case Study
+
+#### The Idea
+
+Imagine your API is a restaurant kitchen. Customers (API callers) place orders continuously. Without any rules, a single customer could place a thousand orders per minute, monopolizing the kitchen and starving everyone else. A rate limiter is the maitre d' at the door: each customer gets a quota — say, 100 requests per minute — and once they hit it, they are politely asked to come back later (HTTP 429: Too Many Requests).
+
+The interesting engineering is not the quota itself — it is making the check fast, accurate, and consistent when your API runs across dozens of servers. If each server tracks its own per-user counter independently, a user can hit 100 requests on each of your 10 servers, making 1,000 total requests and completely defeating the rate limiter. The check must be centralized. Redis is the standard answer for this: a single fast shared counter that all servers query. But then you face a new problem — what if Redis itself goes down?
+
+There is also a subtle correctness challenge called the boundary attack. If your rate limiter resets its counter at the top of every minute, a clever user can send 100 requests at 11:59:59 and another 100 requests at 12:00:01, making 200 requests in two seconds without ever technically "exceeding" the per-minute limit. Choosing the right algorithm determines whether your rate limiter can be gamed this way — and most candidates pick the simplest algorithm without realizing the vulnerability.
+
+---
+
+#### How It Works
+
+**Step 1: Requirements & Clarifying Questions**
+
+| Functional Requirement | Description |
+|---|---|
+| FR-1 | Limit requests per user/IP in a configurable time window |
+| FR-2 | Return HTTP 429 + `Retry-After` header when limit exceeded |
+| FR-3 | Per-user, per-IP, and per-API-key limiting supported |
+| FR-4 | Multiple algorithms selectable per endpoint |
+| FR-5 | Different limits per endpoint or user tier |
+| FR-6 | Return `X-RateLimit-Remaining` and `X-RateLimit-Reset` headers |
+
+**Clarifying questions to ask in an interview:**
+
+1. *What is the granularity of limits — per second, per minute, per hour?* — Per-second limits require very low-latency counters (Redis mandatory); per-hour limits are more forgiving and could even be database-backed. Determines the performance requirements.
+2. *Should burst traffic be tolerated, or must the rate be strictly smooth?* — Burst tolerance → Token Bucket. Strict smoothing → Leaky Bucket. These are architecturally distinct algorithms.
+3. *What is the failure mode when the rate limiter's backing store (Redis) is unavailable — fail-open (allow all) or fail-closed (deny all)?* — Fail-open keeps the API available but unprotected; fail-closed keeps the API protected but breaks it for all users. This is a product decision, not a technical one.
+4. *Do rate limits apply per individual endpoint or globally per user?* — Per-endpoint limits (payment API: 10/min, search API: 200/min) require a composite key; global limits are simpler. Knowing this early determines the key structure.
+
+---
+
+**Step 2: Core Entities**
+
+```
+RateLimiter (interface)
+  ├── TokenBucketRateLimiter
+  ├── SlidingWindowCounterRateLimiter
+  ├── FixedWindowRateLimiter
+  └── SlidingWindowLogRateLimiter
+
+RateLimitConfig
+  ├── capacity (max tokens / max requests)
+  ├── refillRate (tokens per second) or windowSizeMs
+  ├── algorithm: RateLimitAlgorithm enum
+  └── scope: USER, IP, API_KEY
+
+RateLimitResult
+  ├── allowed: boolean
+  ├── remaining: int
+  └── resetAt: Instant
+
+RateLimiterFactory
+  └── creates RateLimiter from RateLimitConfig
+
+RateLimitFilter (Servlet Filter / Spring Interceptor)
+  └── intercepts requests, calls RateLimiter, sets response headers
 ```
 
+- **RateLimiter** is an interface (not a class) because different algorithms have fundamentally different state — Token Bucket tracks token count and last refill time; Sliding Window Log tracks a sorted set of timestamps. A single class cannot represent both cleanly.
+- **RateLimitConfig** is separate from RateLimiter because configuration is data — it can be stored in a database, loaded from a config file, and changed at runtime — while RateLimiter is behavior. Mixing them would make runtime config changes impossible.
+- **RateLimitResult** is a value object rather than a boolean because callers need remaining count and reset time for response headers (`X-RateLimit-Remaining`, `X-RateLimit-Reset`), not just the allow/deny decision.
+- **RateLimitFilter** is separate from RateLimiter because it handles cross-cutting concerns: key extraction (from JWT, IP, API key header), header setting, and failure mode. RateLimiter implementations stay pure: take a key and config, return a result.
+
+---
+
+**Step 3: Design Decisions**
+
+**Decision: Token Bucket as the default algorithm for general-purpose APIs**
+*Why this over the alternatives:* Fixed Window Counter is the simplest — increment a counter per minute, reset at boundary. But it is vulnerable to the boundary attack: 100 requests in the last second of minute N, then 100 requests in the first second of minute N+1 = 200 requests in 2 seconds. Sliding Window Log is perfectly accurate — store every request timestamp, count those within the rolling window — but uses O(requests-in-window) memory, which is expensive at high QPS. Token Bucket fills the gap: each user has a bucket that holds up to `capacity` tokens, refilled at `refillRate` tokens per second. Burst traffic uses saved tokens; sustained traffic is limited to the refill rate. No boundary vulnerability, O(1) memory (just store token count and last refill timestamp), and burst tolerance is usually the right behavior for API clients.
+*Tradeoff:* Token Bucket requires fractional token bookkeeping: if `refillRate = 10/sec` and 300ms has elapsed, the bucket refills by exactly 3 tokens. This requires storing the last-refill timestamp alongside the token count and doing floating-point math in the Lua script. Slightly more complex than a fixed counter, but manageable.
+
+**Decision: Lua script in Redis for atomic token check-and-decrement**
+*Why this over the alternatives:* The Token Bucket check requires multiple Redis operations: GET the current token count, calculate how many tokens to add (based on elapsed time), SET the new count, and return the result. If two requests execute these operations concurrently, both can GET the same count, both add tokens, and both decrement — the decrement effectively happens once, not twice. This is a race condition that allows 2× the intended requests through. We could use a Redis distributed lock (SETNX + EXPIRE) around the multi-step operation, but distributed locks add two extra round trips (acquire + release) and a risk of lock contention under high load. A Lua script is a better solution: Redis is single-threaded, and a Lua script executes atomically — no other command can interleave while the script runs. The entire check-add-decrement completes in one atomic operation with one network round trip.
+*Tradeoff:* Lua scripts are harder to debug and test than application code. Logic errors in the script require careful Redis unit testing. Also, Lua scripts cannot be directly profiled with standard Java tooling — you need Redis SLOWLOG to detect performance issues in the script.
+
+**Decision: Redis for shared rate limit state across distributed instances**
+*Why this over the alternatives:* If each service instance maintains its own in-memory token bucket per user, a user with 100 requests/minute limit hitting a load-balanced cluster of 5 instances can send 100 requests to each instance — 500 total — without any single instance noticing a violation. In-memory per-instance state is fundamentally incompatible with horizontal scaling. Redis provides a single centralized counter accessible to all instances simultaneously. Every token check and decrement goes through Redis, so the limit is enforced globally regardless of which instance receives the request.
+*Tradeoff:* Every rate limit check adds a Redis round trip: typically 1-2ms in a co-located setup. At 100,000 RPS, that is 100,000 Redis operations per second — Redis handles this easily (it supports millions of operations per second), but the latency adds up if Redis is geographically distant. Solution: deploy Redis in the same availability zone as the API servers.
+
+**Decision: Composite Redis key structure: `ratelimit:{userId}:{endpoint}`**
+*Why this over the alternatives:* A key structure of `ratelimit:{userId}` enforces a single global limit per user across all endpoints. This prevents "payment API gets 10 requests while the user can still hammer search API" — they share one bucket. But conflating all endpoints also means a search-heavy user consumes quota needed for payment calls. A composite key `ratelimit:{userId}:{endpoint}` allows independent limits per endpoint: payment endpoint at 10/min, search at 200/min, with separate buckets. The rate limit filter resolves the applicable config by looking up `(endpoint, userTier)` in a config table, falls back to a global per-user config if no endpoint-specific rule exists.
+*Tradeoff:* More Redis keys per user (one per endpoint per user rather than one per user). At 10 endpoints × 1 million users = 10 million Redis keys. Each key is a few dozen bytes — well within Redis's capacity. The operational complexity of managing endpoint-specific configs is real but necessary for fine-grained control.
+
+**Decision: Fail-open for non-critical APIs when Redis is unavailable**
+*Why this over the alternatives:* When Redis is unreachable, the rate limiter cannot make a correct decision. Two options: fail-open (allow all requests as if the limiter does not exist) or fail-closed (deny all requests with HTTP 503). Fail-open prioritizes API availability — users experience no degradation during a Redis outage, but the API is temporarily unprotected from abuse. Fail-closed prioritizes protection — abusive traffic is blocked, but legitimate users also get 503s. The right choice depends on what the rate limiter protects. A public search API → fail-open (a few minutes of unprotected traffic is not dangerous). A payment API where rate limiting is a fraud control → fail-closed (a Redis outage that allows unlimited payment calls is a security incident). Wrap the Redis check in a Resilience4j circuit breaker so the limiter detects Redis failure within milliseconds and triggers the fallback, rather than timing out on every request.
+*Tradeoff:* Fail-open means the rate limiter provides zero protection during outages. Fail-closed means legitimate users experience failures during Redis outages. There is no risk-free option — the product team must decide which failure mode is less harmful.
+
+---
+
+**Step 4: Key Algorithm (pseudocode)**
+
+```
+-- Lua script running inside Redis (executes atomically)
+-- KEYS[1] = rate limit key (e.g., "ratelimit:user123:search")
+-- ARGV[1] = current timestamp in milliseconds
+-- ARGV[2] = bucket capacity (max tokens)
+-- ARGV[3] = refill rate (tokens per millisecond)
+
+local key = KEYS[1]
+local now = tonumber(ARGV[1])
+local capacity = tonumber(ARGV[2])
+local refillRate = tonumber(ARGV[3])
+
+local data = redis.call('HMGET', key, 'tokens', 'lastRefill')
+
+local tokens = tonumber(data[1]) or capacity  -- default full bucket on first call
+local lastRefill = tonumber(data[2]) or now
+
+-- Calculate tokens earned since last request
+local elapsed = now - lastRefill
+local earned = elapsed * refillRate
+tokens = math.min(capacity, tokens + earned)  -- cap at capacity
+
+local allowed = false
+local remaining = math.floor(tokens)
+
+if tokens >= 1 then
+    tokens = tokens - 1
+    remaining = math.floor(tokens)
+    allowed = true
+end
+
+-- Persist updated state; TTL = capacity / refillRate * 2 (auto-expire idle keys)
+redis.call('HMSET', key, 'tokens', tokens, 'lastRefill', now)
+redis.call('PEXPIRE', key, math.ceil(capacity / refillRate * 2000))
+
+return {allowed and 1 or 0, remaining}
+```
+
+---
+
+**Step 5: Must-Know Code**
+
 ```java
-// ─────────────────────────────────────────────
-// FACTORY
-// ─────────────────────────────────────────────
-
-package com.interview.lld.ratelimiter;
-
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.stereotype.Component;
-
 @Component
-public class RateLimiterFactory {
-
-    private final StringRedisTemplate redis;
-
-    public RateLimiterFactory(StringRedisTemplate redis) {
-        this.redis = redis;
-    }
-
-    public RateLimiter create(RateLimitConfig config) {
-        return switch (config.algorithm()) {
-            case "TOKEN_BUCKET"     -> new RedisTokenBucketRateLimiter(redis, config);
-            case "FIXED_WINDOW"     -> new FixedWindowRateLimiter(redis, config);
-            case "SLIDING_WINDOW"   -> new SlidingWindowLogRateLimiter(redis, config);
-            case "LOCAL_TOKEN_BUCKET" -> new TokenBucketRateLimiter(config);
-            default -> throw new IllegalArgumentException("Unknown algorithm: " + config.algorithm());
-        };
-    }
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// SPRING FILTER — DECORATOR PATTERN
-// ─────────────────────────────────────────────
-
-package com.interview.lld.ratelimiter;
-
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.filter.OncePerRequestFilter;
-
-import java.io.IOException;
-
-/**
- * Applies rate limiting transparently to every HTTP request.
- * Implements the Decorator pattern: wraps the filter chain without
- * modifying any business logic.
- */
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private final RateLimiter rateLimiter;
-    private final KeyExtractor keyExtractor;
+    private final RedisTemplate<String, String> redis;
+    private final RateLimitConfigResolver configResolver;
+    
+    // Load the Lua script once at startup; Redis caches it by SHA hash.
+    // Repeated EVAL with the same script text has Redis re-parse it every time.
+    // EVALSHA with the cached SHA is faster and the standard production pattern.
+    private final DefaultRedisScript<List> rateLimitScript;
 
-    public RateLimitFilter(RateLimiter rateLimiter, KeyExtractor keyExtractor) {
-        this.rateLimiter   = rateLimiter;
-        this.keyExtractor  = keyExtractor;
+    public RateLimitFilter(RedisTemplate<String, String> redis,
+                           RateLimitConfigResolver configResolver) {
+        this.redis = redis;
+        this.configResolver = configResolver;
+        this.rateLimitScript = new DefaultRedisScript<>();
+        this.rateLimitScript.setScriptText(loadLuaScript()); // reads from classpath
+        this.rateLimitScript.setResultType(List.class);
     }
 
     @Override
-    protected void doFilterInternal(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            FilterChain chain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain chain) throws ServletException, IOException {
+        
+        String userId = extractUserId(request); // from JWT or session
+        String endpoint = request.getRequestURI();
+        RateLimitConfig config = configResolver.resolve(userId, endpoint);
 
-        String key              = keyExtractor.extract(request);
-        RateLimitResult result  = rateLimiter.tryConsume(key);
+        // Composite key: per-user per-endpoint. Allows different limits per endpoint.
+        String redisKey = "ratelimit:" + userId + ":" + endpoint;
 
-        // Always set informational headers
-        response.setHeader("X-RateLimit-Remaining", String.valueOf(result.remaining()));
-        response.setHeader("X-RateLimit-Reset",     String.valueOf(result.resetAt().getEpochSecond()));
+        try {
+            List<Long> result = redis.execute(
+                rateLimitScript,
+                Collections.singletonList(redisKey),
+                String.valueOf(System.currentTimeMillis()),
+                String.valueOf(config.getCapacity()),
+                String.valueOf(config.getRefillRatePerMs())
+            );
 
-        if (!result.allowed()) {
-            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-            response.setHeader("Retry-After", String.valueOf(result.retryAfterSeconds()));
-            response.setContentType("application/json");
-            response.getWriter().write("""
-                    {"error":"Too Many Requests","retryAfter":%d}
-                    """.formatted(result.retryAfterSeconds()));
-            return;
+            boolean allowed = result.get(0) == 1L;
+            long remaining = result.get(1);
+
+            // Always set rate limit headers so clients know their quota status
+            response.setHeader("X-RateLimit-Remaining", String.valueOf(remaining));
+            response.setHeader("X-RateLimit-Limit", String.valueOf(config.getCapacity()));
+
+            if (!allowed) {
+                // Retry-After tells the client how long to wait before retrying.
+                // Without this, clients retry immediately and amplify load.
+                response.setHeader("Retry-After", String.valueOf(config.getRetryAfterSeconds()));
+                response.sendError(HttpStatus.TOO_MANY_REQUESTS.value(), "Rate limit exceeded");
+                return; // do NOT call chain.doFilter — request is rejected
+            }
+
+        } catch (Exception e) {
+            // Redis is unavailable. Fail-open: log the error but let the request through.
+            // For payment APIs, change this to: response.sendError(503) — fail-closed.
+            log.error("Rate limiter Redis unavailable, failing open", e);
+            // Fall through to chain.doFilter
         }
 
         chain.doFilter(request, response);
@@ -1958,2138 +804,899 @@ public class RateLimitFilter extends OncePerRequestFilter {
 }
 ```
 
-```java
-// ─────────────────────────────────────────────
-// KEY EXTRACTOR — Strategy for key building
-// ─────────────────────────────────────────────
+---
 
-package com.interview.lld.ratelimiter;
+#### Interview Lens
 
-import jakarta.servlet.http.HttpServletRequest;
+> **How to use this section:** Each question below is self-contained. You can read just this section the night before an interview and walk in prepared. Every concept referenced is explained inline.
 
-@FunctionalInterface
-public interface KeyExtractor {
-    String extract(HttpServletRequest request);
-}
-
-/** Extract by authenticated user ID from JWT, fallback to IP. */
-public class UserOrIpKeyExtractor implements KeyExtractor {
-    @Override
-    public String extract(HttpServletRequest request) {
-        String userId = request.getHeader("X-User-Id");
-        if (userId != null && !userId.isBlank()) return "user:" + userId;
-
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (forwardedFor != null && !forwardedFor.isBlank()) {
-            return "ip:" + forwardedFor.split(",")[0].trim();
-        }
-        return "ip:" + request.getRemoteAddr();
-    }
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// SPRING BOOT CONFIGURATION
-// ─────────────────────────────────────────────
-
-package com.interview.lld.ratelimiter;
-
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.core.StringRedisTemplate;
-
-@Configuration
-public class RateLimiterConfig {
-
-    @Bean
-    public RateLimitConfig defaultRateLimitConfig() {
-        // 100 requests per minute per user, token bucket algorithm
-        return new RateLimitConfig(100, 2, 60, "TOKEN_BUCKET");
-    }
-
-    @Bean
-    public RateLimiter rateLimiter(RateLimiterFactory factory, RateLimitConfig config) {
-        return factory.create(config);
-    }
-
-    @Bean
-    public KeyExtractor keyExtractor() {
-        return new UserOrIpKeyExtractor();
-    }
-
-    @Bean
-    public FilterRegistrationBean<RateLimitFilter> rateLimitFilter(
-            RateLimiter rateLimiter,
-            KeyExtractor keyExtractor) {
-
-        FilterRegistrationBean<RateLimitFilter> registration = new FilterRegistrationBean<>();
-        registration.setFilter(new RateLimitFilter(rateLimiter, keyExtractor));
-        registration.addUrlPatterns("/api/*");
-        registration.setOrder(1); // run before other filters
-        return registration;
-    }
-}
-```
-
-```java
-// ─────────────────────────────────────────────
-// UNIT TESTS
-// ─────────────────────────────────────────────
-
-package com.interview.lld.ratelimiter;
-
-import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
-
-class TokenBucketRateLimiterTest {
-
-    @Test
-    void allowsRequestsWithinCapacity() {
-        RateLimitConfig cfg = new RateLimitConfig(5, 1, 60, "LOCAL_TOKEN_BUCKET");
-        RateLimiter limiter = new TokenBucketRateLimiter(cfg);
-
-        for (int i = 0; i < 5; i++) {
-            assertTrue(limiter.tryConsume("user:1").allowed(),
-                    "Request " + (i + 1) + " should be allowed");
-        }
-    }
-
-    @Test
-    void deniesRequestWhenBucketEmpty() {
-        RateLimitConfig cfg = new RateLimitConfig(2, 1, 60, "LOCAL_TOKEN_BUCKET");
-        RateLimiter limiter = new TokenBucketRateLimiter(cfg);
-
-        limiter.tryConsume("user:1");
-        limiter.tryConsume("user:1");
-
-        RateLimitResult result = limiter.tryConsume("user:1");
-        assertFalse(result.allowed(), "Third request should be denied");
-        assertEquals(0, result.remaining());
-    }
-
-    @Test
-    void differentKeysHaveIndependentBuckets() {
-        RateLimitConfig cfg = new RateLimitConfig(1, 1, 60, "LOCAL_TOKEN_BUCKET");
-        RateLimiter limiter = new TokenBucketRateLimiter(cfg);
-
-        assertTrue(limiter.tryConsume("user:1").allowed());
-        assertFalse(limiter.tryConsume("user:1").allowed());
-        assertTrue(limiter.tryConsume("user:2").allowed(), "Different user should have own bucket");
-    }
-
-    @Test
-    void tokensRefillOverTime() throws InterruptedException {
-        RateLimitConfig cfg = new RateLimitConfig(1, 2, 60, "LOCAL_TOKEN_BUCKET");
-        RateLimiter limiter = new TokenBucketRateLimiter(cfg);
-
-        limiter.tryConsume("user:1");
-        assertFalse(limiter.tryConsume("user:1").allowed());
-
-        Thread.sleep(600); // 0.6s * 2 tokens/s = 1.2 tokens refilled
-
-        assertTrue(limiter.tryConsume("user:1").allowed(), "Should be allowed after refill");
-    }
-}
-```
+> *Tip: In case study questions, structure your answer as: "The key challenge is X. I chose Y over Z because [reason]. The tradeoff is [cost]." This signals senior-level thinking.*
 
 ---
 
-## 6. Key Interview Questions — Rate Limiter
+**Concurrency / Correctness**
+**"Why do you need a Lua script for the Redis token bucket? Why not just use regular Redis commands?"**
 
-### Q1. Why use a Lua script for the Redis token bucket instead of multiple Redis commands?
+**One-line answer:** Multiple Redis commands are not atomic — two concurrent requests can both read the same token count, both pass the check, and both decrement, allowing 2× the intended throughput; a Lua script runs atomically on Redis's single thread, eliminating the race.
 
-**Answer:** Redis is single-threaded, but multiple client commands are not atomic as a unit. Without atomicity, two concurrent requests can both read `tokens = 1`, both decide to allow, both decrement — resulting in `tokens = -1`, effectively bypassing the limit. A Lua script runs atomically on the Redis server (no other client commands execute mid-script), eliminating this race condition without needing a distributed lock.
+**Full answer:**
+> "The token bucket check requires multiple steps: read the current token count, calculate tokens earned since the last refill, add them (capped at capacity), check if there is at least one token, decrement if yes, and write back the new state. If two requests run these steps concurrently using separate Redis GET and SET commands, both can read the same starting count — say, 1 token remaining — both see it as allowed, both decrement, and you end up with -1 tokens and both requests passed. Your rate limit is effectively 2×. You could solve this with a Redis distributed lock: SETNX to acquire, do the multi-step logic, DEL to release. But distributed locks add two extra round trips (acquire + release) per request and introduce lock contention under high load. The Lua script is better: Redis executes it as a single atomic unit on its single thread. No other command can interleave. No lock needed. One network round trip for the entire check-and-decrement. This is the standard production pattern for Redis rate limiters."
 
-### Q2. Compare Token Bucket vs. Sliding Window Log for a payment API.
+> *Name the race condition explicitly — 'TOCTOU' or 'read-modify-write race' — before giving the solution.*
 
-**Answer:**
-
-| Criterion | Token Bucket | Sliding Window Log |
-|---|---|---|
-| Burst handling | Allows bursts up to `capacity` | Strict — every request is timestamped |
-| Memory | O(1) per key | O(requests in window) per key |
-| Accuracy | Accurate, continuous time | Perfectly accurate |
-| Best for | Public APIs where occasional burst is OK | Payment/sensitive APIs where exact limits are critical |
-
-For a payment API, use **Sliding Window Log** — the added memory cost is worth the accuracy. For a public search API, **Token Bucket** is preferred.
-
-### Q3. What happens to your rate limiter if Redis goes down?
-
-**Answer:** Two options:
-- **Fail-open** (allow all): Service stays up, protection is temporarily removed. Suitable when availability > security.
-- **Fail-closed** (deny all): Return 503. Suitable when the protected resource is sensitive (financial API).
-
-The `RedisTokenBucketRateLimiter` above uses **fail-open** (`return RateLimitResult.allow(...)` when `result == null`). Add a circuit breaker (Resilience4j) to detect Redis failure quickly and fall back to the in-memory `TokenBucketRateLimiter`.
-
-### Q4. How do you implement tiered rate limits (Free: 100/hr, Pro: 10,000/hr)?
-
-**Answer:** Make `RateLimitConfig` per-user-tier rather than global:
-1. Resolve the user's tier from the JWT claim or a user service lookup.
-2. Key the `RateLimitConfig` lookup by tier: `Map<Tier, RateLimitConfig> tierConfigs`.
-3. In `RateLimitFilter`, call `configResolver.resolve(userId)` to get the appropriate config before calling `rateLimiter.tryConsume(key)`.
-4. Optionally, create separate `RateLimiter` instances per tier or parameterise the Lua script with capacity/rate from the request context.
-
-### Q5. How would you rate-limit by endpoint rather than globally per user?
-
-**Answer:** Use a composite Redis key combining user identity and the endpoint: e.g., `"ratelimit:user:42:POST:/api/payments"`. A `KeyExtractor` interface concatenates the user ID, HTTP method, and normalized path; the `RateLimitFilter` calls it to derive the key before checking the bucket. Configure a `Map<String, RateLimitConfig>` keyed by path pattern (supporting wildcards like `/api/payments/**`) so each endpoint can have its own limit — for example, the payment endpoint allows 10 req/min while the search endpoint allows 200 req/min. The filter matches the incoming request path against the map using longest-prefix wins and falls back to a global per-user default if no endpoint-specific rule is found. This approach is fully additive: adding a new endpoint limit requires only a config entry, not a code change.
-
-### Q6. What is the Leaky Bucket's advantage over Token Bucket for downstream services?
-
-**Answer:** Token Bucket allows bursts — if tokens have accumulated, many requests pass through simultaneously, potentially overwhelming a downstream service. Leaky Bucket enforces a **constant outflow rate**, protecting downstream from spikes. Use Leaky Bucket when the downstream service (e.g., a legacy mainframe) cannot handle variable load.
-
-### Q7. How do you prevent a user from bypassing per-IP rate limiting using proxies?
-
-**Answer:**
-1. Rate-limit by **authenticated user ID** (JWT sub claim) as the primary key — proxies don't help if auth is required.
-2. For unauthenticated endpoints, require CAPTCHA after a soft threshold.
-3. Use **composite keys**: `ip + user-agent + TLS fingerprint` to raise the cost of spoofing.
-4. Integrate with a **fraud detection service** that correlates multiple IPs resolving to the same user pattern.
+**Gotcha follow-up:** *"What if the Lua script has a bug that causes an infinite loop?"*
+> "Redis has a script execution timeout (`lua-time-limit`, default 5 seconds). If a script runs longer than this, Redis returns a BUSY error to callers and accepts only SCRIPT KILL or SHUTDOWN NOSAVE commands. The defense is keeping Lua scripts simple and thoroughly tested in a staging environment. For a token bucket script that is 10-15 lines of arithmetic, an infinite loop is not a realistic risk, but the timeout is the safety net."
 
 ---
 
-*End of Chapter 21 Part A — LLD Case Studies: Parking Lot, URL Shortener, Rate Limiter.*
+**Algorithm**
+**"When would you use Sliding Window Log over Token Bucket for a rate limiter?"**
 
-*Part B will cover: Library Management System, Chess Game, and Elevator System.*
+**One-line answer:** When you need perfect accuracy with no boundary vulnerabilities and the endpoint is low-volume enough that per-request timestamp storage is affordable — like a payment API.
 
+**Full answer:**
+> "Token Bucket is great for most APIs: burst-tolerant, O(1) memory, no boundary attack. But it has approximation: the refill calculation uses elapsed time since last refill, so brief bursts can still exceed the window-average rate. For a payment API where the rate limit is a fraud control, even a brief burst of unauthorized transactions is unacceptable. Sliding Window Log stores every request timestamp in a Redis sorted set. On each request: add current timestamp, remove entries older than the window, count remaining entries. If count < limit, allow and the set now has the new entry; if count >= limit, reject. This is perfectly accurate — no approximation, no boundary vulnerability. The cost is memory: a user sending 1,000 requests per minute stores 1,000 timestamps in Redis. For a payment API allowing 10 requests per minute, the set has at most 10 entries — negligible. The memory cost only becomes a concern at high volume, which is exactly when you would not use Sliding Window Log anyway."
+
+> *Anchor the algorithm choice to a concrete endpoint type — payment APIs vs. search APIs. Interviewers want judgment, not a textbook comparison.*
+
+**Gotcha follow-up:** *"What is the boundary attack on Fixed Window Counter and how does Token Bucket avoid it?"*
+> "Fixed Window Counter resets at clock boundaries — say, the top of every minute. An attacker sends 100 requests at 11:59:55 (within limit) and another 100 at 12:00:05 (new window, counter reset to 0). In a 10-second window straddling midnight they sent 200 requests — 2× the limit — without triggering a violation. Token Bucket avoids this because there is no reset. The bucket refills continuously at a constant rate. To send 200 requests quickly, you need 200 tokens saved up, which takes 200 ÷ refillRate seconds to accumulate. There is no 'window boundary' to exploit."
 
 ---
 
-# Chapter 21 — Part B: LLD Case Studies (BookMyShow, Splitwise, Elevator System)
+**Architecture**
+**"How do you implement different rate limits for Free vs. Pro users?"**
 
-> **Target Audience:** SDE2 / Senior Engineers preparing for FAANG+ backend interviews  
-> **Java Version:** Java 17 + Spring Boot 3.x  
-> **Prerequisites:** Part A (LLD fundamentals, SOLID principles, common patterns)
+**One-line answer:** Resolve the user's tier from their JWT, look up the tier-specific RateLimitConfig from a config store, and pass capacity and refill rate as parameters to the Lua script — the same Redis key structure works for all tiers.
+
+**Full answer:**
+> "The rate limit filter extracts the user ID from the JWT on every request. A `RateLimitConfigResolver` takes the user ID and endpoint, looks up the user's tier (from the JWT claim or a cached user-service call), and returns the appropriate RateLimitConfig: Free tier gets `capacity=100, refillRate=100/hour`; Pro tier gets `capacity=10000, refillRate=10000/hour`. These config values are passed as arguments to the Lua script — the script itself does not know about tiers, it just does arithmetic on capacity and rate. The Redis key remains `ratelimit:{userId}:{endpoint}` regardless of tier, so no key structure change is needed when a user upgrades from Free to Pro. The only change is the config values passed to the script on the next request — the new, higher capacity takes effect immediately."
+
+> *Emphasize that the algorithm is tier-agnostic — tiers are resolved in the application layer, not baked into Redis scripts. This shows clean separation of concerns.*
+
+**Gotcha follow-up:** *"If a user upgrades from Free to Pro mid-day, when does the new limit take effect?"*
+> "If the JWT contains the tier claim and is re-issued on upgrade, the new config takes effect on the next request. If you cache the user-tier lookup (to avoid a user-service call on every request), invalidate the cache entry on upgrade. For the Redis token bucket state itself: when the config changes, the existing bucket state (e.g., 80 tokens remaining at the Free capacity of 100) is still valid. The Lua script enforces the new capacity going forward — tokens will now refill toward 10,000 rather than 100. No manual Redis key cleanup needed."
 
 ---
 
-## LLD 4: BookMyShow — Movie Ticket Booking System
+**Failure Handling**
+**"What happens to your rate limiter when Redis goes down?"**
 
-### 4.1 Requirements
+**One-line answer:** Decide per API: fail-open (allow all traffic, lose protection) for availability-critical APIs, or fail-closed (return 503) for security-critical APIs; wrap Redis calls in a circuit breaker so the fallback triggers in milliseconds, not after a timeout.
 
-**Functional Requirements**
-- Search movies by city, date, genre, language
-- View theatres showing a movie and available shows
-- Select seats on a visual seat map (Silver / Gold / Platinum tiers)
-- Book tickets (single or multiple seats per booking)
-- Process payment (Credit Card, UPI, Wallet)
-- Receive booking confirmation (Email / SMS / Push)
-- Cancel booking and receive refund
+**Full answer:**
+> "When Redis is unreachable, the rate limiter cannot check or update the token count. Every request's Redis call would time out, adding seconds of latency before the failure mode kicks in. The fix for the latency part is a Resilience4j circuit breaker around the Redis call: after a configurable number of failures (e.g., 5 in 10 seconds), the circuit opens and the fallback triggers immediately without waiting for a Redis timeout. For the fallback itself, the choice is product-driven. Fail-open: log the Redis failure, allow the request through. The API remains available; rate limiting is temporarily suspended. Correct for a public search or read API where a few minutes of unprotected traffic is not dangerous. Fail-closed: return HTTP 503 Service Unavailable. The API is unavailable during the Redis outage, but malicious traffic is also blocked. Correct for a payment or authentication API where unprotected traffic is a fraud or security risk. An intermediate option: in-memory per-instance fallback with much stricter limits (e.g., 10% of normal quota). This provides degraded protection without full outage."
 
-**Non-Functional Requirements**
-- Handle 1,000+ concurrent users trying to book the same show
-- Seat must not be double-booked under any circumstances
-- Seat lock must expire (e.g., 10 minutes) if payment is abandoned
+> *Framing this as a product decision, not just a technical one, is the signal of a senior engineer. The interviewer expects you to ask what the API does before recommending fail-open or fail-closed.*
+
+---
+
+> **Common Mistake — Fixed Window Counter without acknowledging the boundary attack:** Many candidates implement Fixed Window Counter because it is the simplest — increment a counter per time window, reset at the boundary. This is acceptable if acknowledged with the caveat that it is vulnerable to the boundary attack (2× burst at window edges). The mistake is proposing it as a complete solution without mentioning the vulnerability. If the interviewer asks "is this accurate?", the correct answer is "no — a user can send 2× the limit by splitting requests across a window boundary; if that matters, use Sliding Window Counter (approximate, O(1)) or Token Bucket."
+
+---
+
+**Quick Revision:** The core insight of a Rate Limiter LLD is that the check-and-decrement must be atomic — use a Lua script in Redis so concurrent requests cannot race past the limit — and the failure mode when Redis is unavailable is a product decision (fail-open for availability, fail-closed for security) that must be made before you write any code.
+
+---
+
+## Topic 4: BookMyShow — Movie Ticket Booking System — LLD Case Study
+
+#### The Idea
+
+Think about what happens when a blockbuster releases and a million people try to buy tickets at 8 AM. Two friends, sitting side by side, both open the app and both tap on seat A1. Without careful design, they could both complete their purchase and arrive at the cinema to find someone else already sitting there. This is the core challenge: a seat can only be sold once, but the internet makes it trivially easy for thousands of people to try to claim the same thing at the same moment.
+
+The second hard problem is abandonment. You have probably held seats in your cart, gone to enter payment details, and then gotten distracted. Those seats are now frozen for everyone else. If the system never releases them, every popular show would appear fully booked within minutes, with most of those "bookings" never actually paid. The system needs a way to automatically reclaim seats that were held but never purchased.
+
+The third challenge is scale under read pressure. When a show goes live, thousands of users are constantly refreshing the seat map to see which seats are still available. If each refresh hits the database, you have a query storm on a table that is changing constantly. This system sits at the intersection of consistency (no double bookings), availability (the seat map must load fast), and time-bounded locks (abandoned carts must expire).
+
+#### How It Works
+
+**Step 1: Requirements & Clarifying Questions**
+
+Functional requirements:
+- Search movies by city, date, genre, and language
+- Browse theatres, shows, and available seats on a visual map
+- Select seats (Silver / Gold / Platinum tiers) and book them
+- Process payment via Credit Card, UPI, or Wallet
+- Receive booking confirmation by Email, SMS, or Push
+- Cancel a booking and receive a refund
+
+Non-functional requirements:
+- Support 1,000+ concurrent users booking the same show
+- A seat must never be double-booked
+- Seat locks expire automatically after 10 minutes if payment is abandoned
 - Sub-second seat availability queries
 
+Clarifying questions:
+
+1. **Can a user book multiple seats in one transaction?** Yes — this matters because the atomicity requirement expands: all seats must be locked together or the entire attempt must fail. Partial locks (some seats locked, others taken by a race) are not acceptable.
+
+2. **What happens if payment fails after seats are locked?** Seats return to AVAILABLE and the booking is marked EXPIRED. This defines the lifecycle states we need and tells us the lock-expiry mechanism is critical, not optional.
+
+3. **How long should a seat lock last?** 10 minutes. This sets the TTL for the expiry job and determines the user-facing countdown timer on the payment page.
+
+4. **Is seat availability displayed in real time or near-real time?** Near-real time (a few seconds of staleness is acceptable). This unlocks the use of a cache layer — if strict real-time were required, we would need WebSocket push instead of polling.
+
+5. **Should we support waiting lists for sold-out shows?** No (out of scope for this interview). This keeps the seat state machine simpler: no WAITLISTED state.
+
 ---
 
-### 4.2 Core Entities
+**Step 2: Core Entities**
 
 ```
-Movie         ──< Show >──  Screen  ──belongs──  Theatre
-                               │
-                            ShowSeat (Silver/Gold/Platinum)
-                               │
-Booking ──holds──> BookingSeat ──references──> ShowSeat
+Movie ──< Show >── Screen ── Theatre
+                      │
+                   ShowSeat  (Silver/Gold/Platinum, @Version for optimistic lock)
+                      │
+Booking ──> BookingSeat ──> ShowSeat
    │
 Payment
    │
-Notification ──sends to──> User
+User
 ```
 
+- **Movie**: stores title, genre, language, duration. Exists separately because the same film plays at many theatres and times.
+- **Show**: a specific screening of a Movie at a Screen on a date/time. The join point between content (Movie) and logistics (Screen).
+- **Screen**: a physical auditorium inside a Theatre. Defines the seat layout once; ShowSeats are generated per Show.
+- **ShowSeat**: represents one physical seat for one specific Show. This is the most important entity — it holds the booking status and the optimistic lock version. It must be per-Show (not per-Screen) because the same seat can be AVAILABLE for Tuesday's show and BOOKED for Wednesday's.
+- **Booking**: tracks the user's overall reservation (PENDING → CONFIRMED → CANCELLED / EXPIRED) and has an `expiresAt = createdAt + 10 min`.
+- **BookingSeat**: join table between Booking and ShowSeat. Exists separately so one Booking can cover multiple seats.
+- **Payment**: tracks method, status, and transaction ID. Separate from Booking because payment processing is an external concern (PSP integration) with its own lifecycle.
+
+---
+
+**Step 3: Design Decisions**
+
+**Decision: Optimistic locking via `@Version` to prevent double-booking**
+*Why this over the alternatives:* The naive approach reads seat status, checks AVAILABLE, then writes LOCKED as two separate operations. Between the read and the write, another thread can do the same read and also see AVAILABLE — both threads then write LOCKED and both believe they succeeded (a classic Time-of-Check / Time-of-Use race). Pessimistic locking (`SELECT FOR UPDATE`) fixes this by holding a row-level DB lock for the entire transaction, but with 1,000 concurrent users on the same seat, every request queues behind the one holding the lock: DB connection pool exhaustion, thread starvation, cascading timeouts. Optimistic locking adds zero overhead when there is no contention (the common case — most users are looking at different seats). When two users race on the same seat, JPA checks the version at commit time: the first writer increments version from 5 to 6; the second writer's `UPDATE ... WHERE version=5` matches zero rows, JPA throws `ObjectOptimisticLockingFailureException`, and Spring rolls back the transaction cleanly.
+*Tradeoff:* The losing user must be told to retry or pick a different seat. This is the right trade — a rare retry is far better than serializing every booking request.
+
+**Decision: Scheduled expiry job to release abandoned seat locks**
+*Why this over the alternatives:* A database row with status LOCKED has no self-expiry mechanism — TTL is a cache concept (Redis), not a relational DB concept. A TTL column in an in-memory cache cannot be the authoritative state because caches can evict entries or restart. The DB is the source of truth. A scheduled job (`@Scheduled(fixedDelay = 60_000)`) that queries `WHERE status = LOCKED AND lockedAt < NOW() - 10 minutes` is simple, auditable (every expiry is a logged DB write), and requires no additional infrastructure.
+*Tradeoff:* Seats may stay locked for up to 10 minutes and 60 seconds (job interval) instead of exactly 10 minutes. This is an acceptable approximation — users are not harmed by a 60-second overrun, and simplicity is worth more than precision here.
+
+**Decision: Cache the seat map with a 5-second TTL, evict on every state change**
+*Why this over the alternatives:* Every page load fetching all seat statuses for a show performs a full table scan on the ShowSeat table. Under high traffic, this is a query storm — thousands of identical reads hitting the DB simultaneously. Caching with `@Cacheable("showSeats")` absorbs the reads. The TTL of 5 seconds is deliberately short because seat availability changes rapidly during peak booking windows. A longer TTL (say, 60 seconds) means users see stale data, attempt to book already-locked seats, and get unnecessary optimistic lock failures. `@CacheEvict` on every booking and lock operation ensures the cache is invalidated immediately on writes.
+*Tradeoff:* Users may see a seat as AVAILABLE for up to 5 seconds after it was locked by someone else, leading to a slightly higher rate of optimistic lock conflicts. This is the correct trade — sub-second queries at scale matter more than perfect freshness.
+
+**Decision: Observer pattern (ApplicationEventPublisher) for post-booking notifications**
+*Why this over the alternatives:* After a booking is confirmed, the service needs to send an email, an SMS, and a push notification. If `BookingService.confirmBooking()` directly calls `EmailService`, `SmsService`, and `PushService`, it is coupled to all three. Adding a WhatsApp channel requires modifying `BookingService`. The Observer pattern decouples the publisher from its subscribers: `BookingService` publishes a `BookingConfirmedEvent`; `EmailNotificationListener`, `SmsNotificationListener`, and `PushNotificationListener` each subscribe independently.
+*Tradeoff:* The flow of control is less obvious — you cannot find all post-booking side effects by reading `BookingService` alone. Debugging notification failures requires checking listener registrations.
+
+**Decision: Strategy pattern for payment methods**
+*Why this over the alternatives:* Without Strategy, `PaymentService` contains `if (method == CREDIT_CARD) { ... } else if (method == UPI) { ... }` — a block that grows with every new payment provider. Strategy pattern defines a `PaymentStrategy` interface; `CreditCardPaymentStrategy`, `UpiPaymentStrategy`, and `WalletPaymentStrategy` implement it. Spring auto-discovers them as `@Component` beans, and `PaymentService` holds a `Map<PaymentMethod, PaymentStrategy>` populated at startup.
+*Tradeoff:* Adds a layer of indirection — tracing a payment flow requires knowing which concrete strategy is in the map.
+
+**Decision: Factory pattern for notification channels**
+*Why this over the alternatives:* When new notification channels are added (WhatsApp, in-app), calling code should not need to change. `NotificationFactory` holds a `Map<String, NotificationChannel>` populated automatically by Spring bean names. Calling code invokes `factory.getChannel("EMAIL")` without depending on the concrete implementation.
+*Tradeoff:* Convention-based (bean names as channel keys) — mistyping a channel name fails at runtime, not compile time.
+
+---
+
+**Step 4: Key Algorithm (pseudocode)**
+
+```
+LOCK SEATS AND CREATE BOOKING:
+
+function createBooking(userId, showId, seatIds):
+    seats = loadSeatsWithOptimisticLock(showId, seatIds)
+
+    unavailable = seats where status != AVAILABLE
+    if unavailable is not empty:
+        throw SeatsUnavailableException
+
+    for each seat in seats:
+        seat.status = LOCKED
+        seat.lockedAt = now()
+    save all seats
+    // At commit: JPA checks version on each seat.
+    // If any version mismatch → ObjectOptimisticLockingFailureException → rollback.
+
+    booking = new Booking(userId, showId, status=PENDING, expiresAt=now()+10min)
+    for each seat: create BookingSeat(booking, seat)
+    save booking
+
+    return booking
+
+EXPIRY JOB (runs every 60 seconds):
+
+function expireAbandonedLocks():
+    expiredSeats = query ShowSeat where status=LOCKED and lockedAt < now()-10min
+    for each seat: seat.status = AVAILABLE
+    save all expired seats
+
+    expiredBookings = query Booking where status=PENDING and expiresAt < now()
+    for each booking: booking.status = EXPIRED
+    save all expired bookings
+
+CONFIRM BOOKING (after payment success):
+
+function confirmBooking(bookingId, paymentDetails):
+    booking = load(bookingId)
+    if booking.expiresAt < now(): throw BookingExpiredException
+
+    payment = processPayment(paymentDetails)   // call PSP
+    if payment fails: releaseSeats(booking); throw PaymentFailedException
+
+    for each seat in booking: seat.status = BOOKED
+    booking.status = CONFIRMED
+    save all
+
+    publish BookingConfirmedEvent(booking)   // async: email + SMS + push
+```
+
+---
+
+**Step 5: Must-Know Code**
+
 ```java
-// ─────────────────────────────────────────────
-// Enumerations
-// ─────────────────────────────────────────────
-
-public enum SeatType   { SILVER, GOLD, PLATINUM }
-public enum SeatStatus { AVAILABLE, LOCKED, BOOKED }
-public enum BookingStatus { PENDING, CONFIRMED, CANCELLED, EXPIRED }
-public enum PaymentStatus { INITIATED, SUCCESS, FAILED, REFUNDED }
-public enum PaymentMethod { CREDIT_CARD, DEBIT_CARD, UPI, WALLET }
-
-// ─────────────────────────────────────────────
-// Domain Entities
-// ─────────────────────────────────────────────
-
+// ShowSeat entity — the @Version field is the entire anti-double-booking mechanism.
 @Entity
-@Table(name = "movies")
-public class Movie {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String title;
-    private String language;
-    private String genre;
-    private int durationMinutes;
-    private LocalDate releaseDate;
-    private String description;
-    // getters/setters omitted for brevity
-}
-
-@Entity
-@Table(name = "theatres")
-public class Theatre {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String name;
-    private String city;
-    private String address;
-
-    @OneToMany(mappedBy = "theatre", cascade = CascadeType.ALL)
-    private List<Screen> screens = new ArrayList<>();
-}
-
-@Entity
-@Table(name = "screens")
-public class Screen {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String name;          // "Screen 1", "Screen 2"
-    private int totalSeats;
-
-    @ManyToOne
-    @JoinColumn(name = "theatre_id")
-    private Theatre theatre;
-
-    @OneToMany(mappedBy = "screen", cascade = CascadeType.ALL)
-    private List<Seat> seats = new ArrayList<>();
-}
-
-@Entity
-@Table(name = "seats")
-public class Seat {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String rowLabel;       // A, B, C …
-    private int seatNumber;        // 1, 2, 3 …
-
-    @Enumerated(EnumType.STRING)
-    private SeatType seatType;
-
-    @ManyToOne
-    @JoinColumn(name = "screen_id")
-    private Screen screen;
-}
-
-@Entity
-@Table(name = "shows")
-public class Show {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private LocalDateTime startTime;
-    private LocalDateTime endTime;
-
-    @ManyToOne @JoinColumn(name = "movie_id")
-    private Movie movie;
-
-    @ManyToOne @JoinColumn(name = "screen_id")
-    private Screen screen;
-
-    @OneToMany(mappedBy = "show", cascade = CascadeType.ALL)
-    private List<ShowSeat> showSeats = new ArrayList<>();
-}
-
-/**
- * ShowSeat represents one physical seat for one specific show.
- * The @Version field enables OPTIMISTIC LOCKING — this is the
- * key mechanism that prevents double-booking.
- */
-@Entity
-@Table(name = "show_seats",
-       indexes = { @Index(columnList = "show_id,status") })
 public class ShowSeat {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Id private Long id;
 
-    @ManyToOne @JoinColumn(name = "show_id")
-    private Show show;
-
-    @ManyToOne @JoinColumn(name = "seat_id")
-    private Seat seat;
-
-    @Enumerated(EnumType.STRING)
-    private SeatStatus status = SeatStatus.AVAILABLE;
-
-    private BigDecimal price;
-
-    /**
-     * OPTIMISTIC LOCK VERSION — incremented on every UPDATE.
-     * If two transactions read version=5 and both try to UPDATE,
-     * one succeeds (version becomes 6) and the other gets
-     * ObjectOptimisticLockingFailureException because it still
-     * holds version=5, which is now stale.
-     */
     @Version
-    private Long version;
+    private Long version;  // JPA increments this on every UPDATE.
+                           // Two concurrent updates with the same version → only one wins.
 
-    private LocalDateTime lockedAt;          // when the lock was acquired
-    private String lockedByBookingId;        // which pending booking holds lock
+    private SeatStatus status;   // AVAILABLE | LOCKED | BOOKED
+    private LocalDateTime lockedAt;
+    // ... tier, seatNumber, etc.
 }
 
-@Entity
-@Table(name = "bookings")
-public class Booking {
-    @Id
-    private String id;            // UUID, used as booking reference
-
-    @ManyToOne @JoinColumn(name = "user_id")
-    private User user;
-
-    @ManyToOne @JoinColumn(name = "show_id")
-    private Show show;
-
-    @Enumerated(EnumType.STRING)
-    private BookingStatus status = BookingStatus.PENDING;
-
-    private BigDecimal totalAmount;
-    private LocalDateTime createdAt;
-    private LocalDateTime expiresAt;   // lock expiry (createdAt + 10 min)
-
-    @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL)
-    private List<BookingSeat> seats = new ArrayList<>();
-
-    @OneToOne(mappedBy = "booking", cascade = CascadeType.ALL)
-    private Payment payment;
-}
-
-@Entity
-@Table(name = "booking_seats")
-public class BookingSeat {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @ManyToOne @JoinColumn(name = "booking_id")
-    private Booking booking;
-
-    @ManyToOne @JoinColumn(name = "show_seat_id")
-    private ShowSeat showSeat;
-}
-
-@Entity
-@Table(name = "payments")
-public class Payment {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @OneToOne @JoinColumn(name = "booking_id")
-    private Booking booking;
-
-    @Enumerated(EnumType.STRING)
-    private PaymentMethod method;
-
-    @Enumerated(EnumType.STRING)
-    private PaymentStatus status = PaymentStatus.INITIATED;
-
-    private BigDecimal amount;
-    private String transactionId;
-    private LocalDateTime processedAt;
-}
-
-@Entity
-@Table(name = "users")
-public class User {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String name;
-    private String email;
-    private String phone;
-}
-```
-
----
-
-### 4.3 Key Design Challenges
-
-#### Challenge 1 — Concurrent Seat Booking (Race Conditions)
-
-**The Problem:** 1,000 users simultaneously try to book seat A1 for the same show.
-
-**Wrong approach:** Read seat status → check if AVAILABLE → update to LOCKED  
-This has a classic TOCTOU (Time-of-Check-Time-of-Use) race condition.
-
-**Correct approach: Optimistic Locking with `@Version`**
-
-```
-User A reads ShowSeat(id=42, status=AVAILABLE, version=5)
-User B reads ShowSeat(id=42, status=AVAILABLE, version=5)
-
-User A updates: SET status=LOCKED, version=6 WHERE id=42 AND version=5  → SUCCESS
-User B updates: SET status=LOCKED, version=6 WHERE id=42 AND version=5  → FAILS (version is now 6)
-  └─> Spring throws ObjectOptimisticLockingFailureException
-  └─> Service layer catches it → returns "Seat no longer available"
-```
-
-**Alternative: Pessimistic Locking** — `SELECT ... FOR UPDATE` locks the row at DB level.  
-Use pessimistic when contention is very high (>80% conflict rate). Use optimistic otherwise (less overhead, better throughput).
-
-#### Challenge 2 — Seat Lock Expiry
-
-When a user selects seats but abandons payment, those seats must be released.
-
-**Solution:** Scheduled job scans for expired locks.
-
-```java
-@Scheduled(fixedDelay = 60_000)   // every 60 seconds
+// In BookingService — the critical section:
 @Transactional
-public void releaseExpiredLocks() {
-    LocalDateTime cutoff = LocalDateTime.now();
-    List<ShowSeat> expired = showSeatRepository
-        .findByStatusAndLockedAtBefore(SeatStatus.LOCKED, cutoff.minusMinutes(10));
-    expired.forEach(seat -> {
-        seat.setStatus(SeatStatus.AVAILABLE);
-        seat.setLockedAt(null);
-        seat.setLockedByBookingId(null);
+public Booking createBooking(Long userId, Long showId, List<Long> seatIds) {
+
+    // Load with OPTIMISTIC lock mode — tells JPA to verify version at commit time.
+    List<ShowSeat> seats = showSeatRepo.findByShowIdAndIdInWithLock(showId, seatIds);
+
+    // Validate ALL seats before mutating ANY — all-or-nothing semantics.
+    List<ShowSeat> unavailable = seats.stream()
+        .filter(s -> s.getStatus() != SeatStatus.AVAILABLE).toList();
+    if (!unavailable.isEmpty()) throw new SeatsUnavailableException(unavailable);
+
+    // Mutate — the version check happens at transaction commit, not here.
+    seats.forEach(s -> {
+        s.setStatus(SeatStatus.LOCKED);
+        s.setLockedAt(LocalDateTime.now());
     });
-    showSeatRepository.saveAll(expired);
+    showSeatRepo.saveAll(seats);
+    // If another transaction already updated a seat's version:
+    //   JPA throws ObjectOptimisticLockingFailureException → Spring rolls back.
 
-    // also expire the bookings themselves
-    bookingRepository.expireOldPendingBookings(cutoff.minusMinutes(10));
-}
-```
-
-#### Challenge 3 — Show Seat Availability (Performance)
-
-Fetching all seat statuses for a show on every request is expensive.
-
-**Solution:** Cache the seat map in Redis with a short TTL (5 seconds). Invalidate on every booking or lock change.
-
-```java
-@Cacheable(value = "showSeats", key = "#showId")
-public List<ShowSeatDTO> getSeatsForShow(Long showId) {
-    return showSeatRepository.findByShowId(showId)
-        .stream()
-        .map(ShowSeatDTO::from)
-        .toList();
-}
-```
-
----
-
-### 4.4 Design Patterns Applied
-
-#### Observer Pattern — Booking Notifications
-
-```java
-// Event published after successful booking
-public record BookingConfirmedEvent(Booking booking) {}
-
-// Publisher in service
-@Autowired ApplicationEventPublisher eventPublisher;
-eventPublisher.publishEvent(new BookingConfirmedEvent(booking));
-
-// Listeners (each notification channel is a separate Observer)
-@Component
-public class EmailNotificationListener {
-    @EventListener
-    public void onBookingConfirmed(BookingConfirmedEvent event) {
-        emailService.sendBookingConfirmation(event.booking());
-    }
+    Booking booking = new Booking(userId, showId, BookingStatus.PENDING,
+                                  LocalDateTime.now().plusMinutes(10));
+    seats.forEach(seat -> booking.addSeat(new BookingSeat(booking, seat)));
+    return bookingRepo.save(booking);
 }
 
-@Component
-public class SmsNotificationListener {
-    @EventListener
-    @Async   // don't block the booking thread
-    public void onBookingConfirmed(BookingConfirmedEvent event) {
-        smsService.sendSms(event.booking().getUser().getPhone(),
-            "Booking confirmed! Ref: " + event.booking().getId());
-    }
-}
-```
-
-#### Strategy Pattern — Payment Processing
-
-```java
-public interface PaymentStrategy {
-    PaymentResult process(Payment payment);
-    PaymentMethod supports();
-}
-
-@Component
-public class CreditCardPaymentStrategy implements PaymentStrategy {
-    @Override
-    public PaymentResult process(Payment payment) {
-        // integrate with Stripe/Razorpay
-        return PaymentResult.success(UUID.randomUUID().toString());
-    }
-    @Override public PaymentMethod supports() { return PaymentMethod.CREDIT_CARD; }
-}
-
-@Component
-public class UpiPaymentStrategy implements PaymentStrategy {
-    @Override
-    public PaymentResult process(Payment payment) {
-        // integrate with UPI gateway
-        return PaymentResult.success(UUID.randomUUID().toString());
-    }
-    @Override public PaymentMethod supports() { return PaymentMethod.UPI; }
-}
-
-@Service
-public class PaymentService {
-    private final Map<PaymentMethod, PaymentStrategy> strategies;
-
-    public PaymentService(List<PaymentStrategy> strategyList) {
-        this.strategies = strategyList.stream()
-            .collect(Collectors.toMap(PaymentStrategy::supports, s -> s));
-    }
-
-    public PaymentResult processPayment(Payment payment) {
-        PaymentStrategy strategy = strategies.get(payment.getMethod());
-        if (strategy == null) throw new UnsupportedPaymentMethodException(payment.getMethod());
-        return strategy.process(payment);
-    }
-}
-```
-
-#### Factory Pattern — Notification Channel
-
-```java
-public interface NotificationChannel {
-    void send(User user, String message);
-}
-
-@Component("EMAIL")
-public class EmailChannel implements NotificationChannel { /* ... */ }
-
-@Component("SMS")
-public class SmsChannel implements NotificationChannel { /* ... */ }
-
-@Component("PUSH")
-public class PushChannel implements NotificationChannel { /* ... */ }
-
-@Service
-public class NotificationFactory {
-    @Autowired
-    private Map<String, NotificationChannel> channels;   // Spring auto-populates by bean name
-
-    public NotificationChannel getChannel(String type) {
-        NotificationChannel channel = channels.get(type.toUpperCase());
-        if (channel == null) throw new IllegalArgumentException("Unknown channel: " + type);
-        return channel;
-    }
-}
-```
-
----
-
-### 4.5 Complete Spring Boot Implementation — Booking Flow
-
-```java
-// ─────────────────────────────────────────────
-// Repository
-// ─────────────────────────────────────────────
-
-@Repository
-public interface ShowSeatRepository extends JpaRepository<ShowSeat, Long> {
-
-    @Lock(LockModeType.OPTIMISTIC)
-    @Query("SELECT s FROM ShowSeat s WHERE s.show.id = :showId AND s.id IN :seatIds")
-    List<ShowSeat> findByShowIdAndIdInWithLock(
-            @Param("showId") Long showId,
-            @Param("seatIds") List<Long> seatIds);
-
-    List<ShowSeat> findByShowId(Long showId);
-
-    List<ShowSeat> findByStatusAndLockedAtBefore(SeatStatus status, LocalDateTime before);
-}
-
-@Repository
-public interface BookingRepository extends JpaRepository<Booking, String> {
-
-    @Modifying
-    @Query("""
-        UPDATE Booking b SET b.status = 'EXPIRED'
-        WHERE b.status = 'PENDING' AND b.expiresAt < :cutoff
-        """)
-    void expireOldPendingBookings(@Param("cutoff") LocalDateTime cutoff);
-}
-
-// ─────────────────────────────────────────────
-// DTOs
-// ─────────────────────────────────────────────
-
-public record BookingRequest(
-    Long showId,
-    List<Long> showSeatIds,
-    PaymentMethod paymentMethod
-) {}
-
-public record BookingResponse(
-    String bookingId,
-    BookingStatus status,
-    BigDecimal totalAmount,
-    String message
-) {}
-
-// ─────────────────────────────────────────────
-// Service — Core booking logic with seat locking
-// ─────────────────────────────────────────────
-
-@Service
-@Slf4j
-public class BookingService {
-
-    private final ShowSeatRepository showSeatRepo;
-    private final BookingRepository bookingRepo;
-    private final ShowRepository showRepo;
-    private final UserRepository userRepo;
-    private final PaymentService paymentService;
-    private final ApplicationEventPublisher eventPublisher;
-
-    public BookingService(ShowSeatRepository showSeatRepo,
-                          BookingRepository bookingRepo,
-                          ShowRepository showRepo,
-                          UserRepository userRepo,
-                          PaymentService paymentService,
-                          ApplicationEventPublisher eventPublisher) {
-        this.showSeatRepo   = showSeatRepo;
-        this.bookingRepo    = bookingRepo;
-        this.showRepo       = showRepo;
-        this.userRepo       = userRepo;
-        this.paymentService = paymentService;
-        this.eventPublisher = eventPublisher;
-    }
-
-    /**
-     * STEP 1 — Lock requested seats (optimistic locking).
-     * STEP 2 — Create a PENDING booking.
-     * STEP 3 — Process payment.
-     * STEP 4 — Confirm booking (or rollback seat locks on failure).
-     */
-    @Transactional
-    public BookingResponse createBooking(Long userId, BookingRequest request) {
-
-        // ── 1. Load the show ──────────────────────────────────────────────
-        Show show = showRepo.findById(request.showId())
-            .orElseThrow(() -> new NotFoundException("Show not found: " + request.showId()));
-
-        User user = userRepo.findById(userId)
-            .orElseThrow(() -> new NotFoundException("User not found: " + userId));
-
-        // ── 2. Lock seats with optimistic locking ─────────────────────────
-        //    findByShowIdAndIdInWithLock uses @Lock(OPTIMISTIC) — JPA will
-        //    add a version-check on flush/commit.
-        List<ShowSeat> seats = showSeatRepo
-            .findByShowIdAndIdInWithLock(request.showId(), request.showSeatIds());
-
-        if (seats.size() != request.showSeatIds().size()) {
-            throw new InvalidRequestException("One or more seats not found for this show");
-        }
-
-        // Validate ALL seats are AVAILABLE (fail fast before any mutation)
-        List<ShowSeat> unavailable = seats.stream()
-            .filter(s -> s.getStatus() != SeatStatus.AVAILABLE)
-            .toList();
-        if (!unavailable.isEmpty()) {
-            throw new SeatsUnavailableException(
-                "Seats already taken: " + unavailable.stream()
-                    .map(s -> s.getSeat().getRowLabel() + s.getSeat().getSeatNumber())
-                    .toList());
-        }
-
-        // ── 3. Create pending booking ─────────────────────────────────────
-        String bookingId = UUID.randomUUID().toString();
-        BigDecimal total = seats.stream()
-            .map(ShowSeat::getPrice)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        Booking booking = new Booking();
-        booking.setId(bookingId);
-        booking.setUser(user);
-        booking.setShow(show);
-        booking.setStatus(BookingStatus.PENDING);
-        booking.setTotalAmount(total);
-        booking.setCreatedAt(LocalDateTime.now());
-        booking.setExpiresAt(LocalDateTime.now().plusMinutes(10));
-        bookingRepo.save(booking);
-
-        // ── 4. Mark seats as LOCKED ──────────────────────────────────────
-        //    If version mismatch occurs here, @Transactional rolls back
-        //    and ObjectOptimisticLockingFailureException propagates.
-        LocalDateTime now = LocalDateTime.now();
-        List<BookingSeat> bookingSeats = new ArrayList<>();
-        for (ShowSeat seat : seats) {
-            seat.setStatus(SeatStatus.LOCKED);
-            seat.setLockedAt(now);
-            seat.setLockedByBookingId(bookingId);
-
-            BookingSeat bs = new BookingSeat();
-            bs.setBooking(booking);
-            bs.setShowSeat(seat);
-            bookingSeats.add(bs);
-        }
-        showSeatRepo.saveAll(seats);
-        booking.setSeats(bookingSeats);
-
-        // ── 5. Process payment ────────────────────────────────────────────
-        Payment payment = new Payment();
-        payment.setBooking(booking);
-        payment.setMethod(request.paymentMethod());
-        payment.setAmount(total);
-        payment.setStatus(PaymentStatus.INITIATED);
-
-        PaymentResult result = paymentService.processPayment(payment);
-
-        if (!result.isSuccess()) {
-            // Roll back seat locks on payment failure
-            seats.forEach(s -> {
-                s.setStatus(SeatStatus.AVAILABLE);
-                s.setLockedAt(null);
-                s.setLockedByBookingId(null);
-            });
-            showSeatRepo.saveAll(seats);
-            booking.setStatus(BookingStatus.CANCELLED);
-            bookingRepo.save(booking);
-            return new BookingResponse(bookingId, BookingStatus.CANCELLED, total,
-                "Payment failed: " + result.getMessage());
-        }
-
-        // ── 6. Confirm booking ────────────────────────────────────────────
-        payment.setStatus(PaymentStatus.SUCCESS);
-        payment.setTransactionId(result.getTransactionId());
-        payment.setProcessedAt(LocalDateTime.now());
-        booking.setPayment(payment);
-        booking.setStatus(BookingStatus.CONFIRMED);
-
-        seats.forEach(s -> s.setStatus(SeatStatus.BOOKED));
-        showSeatRepo.saveAll(seats);
-        bookingRepo.save(booking);
-
-        // ── 7. Notify (async via Observer/EventListener) ──────────────────
-        eventPublisher.publishEvent(new BookingConfirmedEvent(booking));
-
-        return new BookingResponse(bookingId, BookingStatus.CONFIRMED, total,
-            "Booking confirmed!");
-    }
-
-    /**
-     * Cancel a booking and refund the payment.
-     */
-    @Transactional
-    public void cancelBooking(String bookingId, Long userId) {
-        Booking booking = bookingRepo.findById(bookingId)
-            .orElseThrow(() -> new NotFoundException("Booking not found"));
-
-        if (!booking.getUser().getId().equals(userId))
-            throw new UnauthorizedException("Not your booking");
-
-        if (booking.getStatus() != BookingStatus.CONFIRMED)
-            throw new InvalidRequestException("Only confirmed bookings can be cancelled");
-
-        // Release seats
-        booking.getSeats().forEach(bs -> {
-            ShowSeat ss = bs.getShowSeat();
-            ss.setStatus(SeatStatus.AVAILABLE);
-        });
-
-        // Initiate refund
-        booking.getPayment().setStatus(PaymentStatus.REFUNDED);
-        booking.setStatus(BookingStatus.CANCELLED);
-        bookingRepo.save(booking);
-    }
-}
-
-// ─────────────────────────────────────────────
-// Exception handler for optimistic lock failures
-// ─────────────────────────────────────────────
-
+// Global exception handler — translate the JPA exception into an HTTP 409.
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public Map<String, String> handleOptimisticLock(ObjectOptimisticLockingFailureException ex) {
+        // Return a user-friendly message — the client should prompt the user to re-select seats.
         return Map.of("error", "One or more seats were just taken. Please try again.");
-    }
-
-    @ExceptionHandler(SeatsUnavailableException.class)
-    @ResponseStatus(HttpStatus.CONFLICT)
-    public Map<String, String> handleSeatsUnavailable(SeatsUnavailableException ex) {
-        return Map.of("error", ex.getMessage());
-    }
-}
-
-// ─────────────────────────────────────────────
-// REST Controller
-// ─────────────────────────────────────────────
-
-@RestController
-@RequestMapping("/api/v1/bookings")
-public class BookingController {
-
-    private final BookingService bookingService;
-
-    public BookingController(BookingService bookingService) {
-        this.bookingService = bookingService;
-    }
-
-    @PostMapping
-    public ResponseEntity<BookingResponse> createBooking(
-            @RequestBody BookingRequest request,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = ((AppUserDetails) userDetails).getUserId();
-        BookingResponse response = bookingService.createBooking(userId, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
-
-    @DeleteMapping("/{bookingId}")
-    public ResponseEntity<Void> cancelBooking(
-            @PathVariable String bookingId,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        Long userId = ((AppUserDetails) userDetails).getUserId();
-        bookingService.cancelBooking(bookingId, userId);
-        return ResponseEntity.noContent().build();
     }
 }
 ```
 
 ---
 
-### 4.6 Key Interview Questions
+#### Interview Lens
 
-**Q1: How do you handle 1,000 concurrent users trying to book the same seat?**
+> **How to use this section:** Each question is self-contained. Every concept explained inline.
 
-> **Answer:** Optimistic locking via JPA `@Version`. All 1,000 requests read the seat row with `version=5`. The first transaction that executes `UPDATE show_seats SET status='LOCKED', version=6 WHERE id=? AND version=5` wins. The remaining 999 transactions see a stale version and JPA throws `ObjectOptimisticLockingFailureException`. The service layer catches this and returns HTTP 409 Conflict with a user-friendly message. This approach avoids row-level DB locks, which would serialize all 1,000 requests and cause massive contention.
->
-> **Follow-up:** When would you use pessimistic locking instead?  
-> When contention is near 100% (flash sales, limited inventory items). Use `@Lock(LockModeType.PESSIMISTIC_WRITE)` + `SELECT ... FOR UPDATE`. Trade-off: lower throughput but zero retries.
-
-**Q2: How do you prevent seat locks from being held forever?**
-
-> **Answer:** Every `Booking` has an `expiresAt` timestamp (10 minutes after creation). A `@Scheduled` job runs every 60 seconds and queries for `ShowSeat` records with `status=LOCKED AND lockedAt < now-10min`, resets them to `AVAILABLE`, and marks the corresponding `Booking` as `EXPIRED`. This ensures abandoned payment flows don't permanently block seats.
-
-**Q3: How do you design the seat map for high read throughput?**
-
-> **Answer:** Cache seat statuses in Redis with a TTL of 5–10 seconds using Spring Cache (`@Cacheable`). On every booking or lock change, evict the cache (`@CacheEvict`). For even higher scale, use Redis Pub/Sub to push seat status changes to all connected browser clients via WebSocket, eliminating repeated polling.
-
-**Q4: What is the overall booking flow?**
-
-> **Answer:** (1) User selects seats → lock seats optimistically + create PENDING booking → (2) Payment page shown (10-min timer) → (3) User pays → (4) If payment succeeds: mark seats BOOKED, booking CONFIRMED, fire async notification events → (5) If payment fails or times out: release locks, expire booking.
+> *Tip: Structure answers as: "The key challenge is X. I chose Y over Z because [reason]. The tradeoff is [cost]."*
 
 ---
 
-## LLD 5: Splitwise — Expense Sharing System
+**Concept Check — Concurrency**
+**"How do you handle 1,000 concurrent users trying to book the same seat?"**
 
-### 5.1 Requirements
+**One-line answer:** Optimistic locking with `@Version` — the first writer wins; all others get a conflict error and are told to retry.
 
-**Functional Requirements**
+**Full answer:**
+> "The key challenge is that read-then-write is not atomic. If I read the seat status as AVAILABLE and then write LOCKED as two separate DB operations, two threads can both read AVAILABLE before either writes, and both will think they succeeded. The fix is `@Version` on the ShowSeat entity. Every UPDATE includes a `WHERE version = ?` clause. The first writer increments the version from 5 to 6; every other writer's update matches zero rows, and JPA throws `ObjectOptimisticLockingFailureException`. I catch that in a `@RestControllerAdvice` and return an HTTP 409 with a message asking the user to re-select. I chose optimistic over pessimistic (`SELECT FOR UPDATE`) because pessimistic locking serializes all 1,000 requests through a single DB row lock — connection pool exhaustion, thread starvation. Optimistic locking has zero overhead in the common case where two users are not racing on the exact same seat at the exact same millisecond."
+
+> *Lead with the race condition problem, then explain why the version field fixes it atomically.*
+
+**Gotcha follow-up:** *"When would you use pessimistic locking instead?"*
+> "For flash sales or extremely high-contention scenarios — like a single item in a limited inventory drop where nearly every request is competing on the same resource. In those cases, optimistic locking generates so many retries that it actually hurts throughput. `SELECT FOR UPDATE` serializes the requests but eliminates wasted work from failed retries. The tradeoff is lower throughput and the risk of deadlocks if multiple rows are locked in inconsistent order."
+
+---
+
+**Tradeoff Question — Seat Expiry**
+**"How do you prevent seats from being locked forever when a user abandons the payment?"**
+
+**One-line answer:** A scheduled job runs every 60 seconds and resets any seat locked more than 10 minutes ago back to AVAILABLE.
+
+**Full answer:**
+> "The temptation is to use a TTL, but TTL is a cache concept — it does not apply to rows in a relational database. The database is my authoritative state, so I need the expiry to happen there. I use a `@Scheduled(fixedDelay = 60_000)` job that queries `WHERE status = LOCKED AND lockedAt < NOW() - 10 minutes` and resets those seats to AVAILABLE, then marks the associated Bookings as EXPIRED. This is simple, auditable, and requires no extra infrastructure. The tradeoff is imprecision — seats can be locked for up to 10 minutes and 60 seconds instead of exactly 10 minutes. That is acceptable here. If I needed exact expiry, I could push seat IDs into a Redis sorted set keyed by expiry timestamp and have a consumer pop entries when they expire — but that adds Redis as a hard dependency for correctness, which is overkill for a 60-second tolerance."
+
+> *Interviewers like hearing you rule out the wrong approach (TTL) before explaining the right one.*
+
+---
+
+**Design Scenario — Notifications**
+**"How would you design the post-booking notification system so it does not slow down the booking transaction?"**
+
+**One-line answer:** Publish a `BookingConfirmedEvent` after the transaction commits; listeners handle email, SMS, and push asynchronously.
+
+**Full answer:**
+> "The booking transaction itself — locking seats, recording payment, updating status — should complete and return a response to the user as fast as possible. Sending an email synchronously inside that transaction would add hundreds of milliseconds and make the booking fail if the email service is down. I use Spring's `ApplicationEventPublisher` to publish a `BookingConfirmedEvent` after the transaction commits. Separate `@EventListener` beans handle email, SMS, and push notifications independently and asynchronously. The core benefit is decoupling: adding a WhatsApp notification requires a new listener class, zero changes to `BookingService`. The tradeoff is that the flow of control is less visible — you cannot trace all post-booking effects by reading `BookingService` alone."
+
+> *Always frame async design around: what fails if this is synchronous, and what is the failure mode if the async step fails.*
+
+**Gotcha follow-up:** *"What happens if the async email listener throws an exception?"*
+> "By default, a Spring `@EventListener` failure does not affect the caller because the event was already published after the transaction committed. The booking is confirmed; only the notification fails. I would add retry logic — either Spring Retry with exponential backoff on the listener, or a dead-letter queue pattern where failed notification jobs are persisted and retried by a separate job. The booking confirmation should never be rolled back because a notification email failed."
+
+---
+
+**Tradeoff Question — Caching**
+**"How do you serve the seat map quickly when thousands of users are loading it simultaneously?"**
+
+**One-line answer:** Cache seat availability with `@Cacheable` and a 5-second TTL; evict on every booking or lock change.
+
+**Full answer:**
+> "Without caching, every seat map load is a query on the ShowSeat table filtered by showId. During a popular release, you get thousands of identical queries per second — a read storm. `@Cacheable('showSeats')` puts the result in memory (or Redis for a distributed deployment). I use a 5-second TTL rather than a longer one because seat availability changes rapidly during peak booking. If I used 60 seconds, users would try to book seats that have been locked for the past minute and hit unnecessary optimistic lock conflicts. `@CacheEvict` on every booking mutation keeps the cache reasonably fresh. For even higher scale, I would push seat changes over WebSocket to all connected browsers, eliminating polling entirely — but that adds significant infrastructure complexity."
+
+> *Show you understand the tradeoff between cache freshness and query volume.*
+
+---
+
+> **Common Mistake — Using `double` or `float` for prices:** Ticket prices and payment amounts stored as `double` will accumulate floating-point rounding errors (IEEE 754 cannot represent 0.1 exactly). Use `BigDecimal` for all monetary values and `DECIMAL(10,2)` in the database schema — a wrong price on a payment confirmation is a serious production bug.
+
+---
+
+**Quick Revision:** The entire correctness of BookMyShow rests on one field — `@Version` on ShowSeat — which turns a read-then-write race condition into an atomic compare-and-swap at the database level.
+
+---
+
+## Topic 5: Splitwise — Expense Sharing System — LLD Case Study
+
+#### The Idea
+
+Imagine you go on a trip with five friends. One person pays for the hotel, another for dinner, a third for the rental car. By the end of the trip, you have a tangle of debts: Alice owes Bob, Bob owes Carol, Carol owes Alice, and Dave owes everyone a little bit. If everyone settled individually, you might need eight or nine separate bank transfers. Splitwise's core insight is that you can collapse all of those debts into a much smaller set of transfers that net to the same result.
+
+That is the interesting design problem: given an arbitrary graph of who-owes-whom, find the minimum number of transactions that clears all debts. This turns out to be solvable with a greedy algorithm using two priority queues, and it is a favourite interview question because it sits at the intersection of financial correctness, data modelling, and algorithm design.
+
+The second non-obvious challenge is money arithmetic. Splitting $10 three ways gives $3.333... You have to decide how to handle the rounding remainder (one person pays $3.34 instead of $3.33), and you must use exact-precision arithmetic (`BigDecimal`) throughout — IEEE 754 floating point cannot represent fractions like 0.1 exactly, and rounding errors compound across hundreds of expenses.
+
+#### How It Works
+
+**Step 1: Requirements & Clarifying Questions**
+
+Functional requirements:
 - Create groups and add members
-- Add an expense (one person paid; split among some/all members)
+- Add an expense: one person paid, split among some or all members
 - Split types: Equal, Exact amount, Percentage, Shares
-- View net balance for each user (who owes whom, how much)
-- Settle up: simplify debts to minimize the number of transactions
-- Expense history and audit trail
+- View net balance: who owes whom, how much
+- Settle up: simplify debts to minimise the number of transactions
+- View expense history
 
-**Non-Functional Requirements**
-- Balance calculations must be consistent (no floating-point drift)
-- Support groups with up to 50 members
-- Simplification algorithm should run in O(N log N) for N members
+Non-functional requirements:
+- All monetary values stored as `BigDecimal`, never `double`/`float`
+- Support groups of up to 50 members
+- Simplification algorithm runs in O(N log N)
+
+Clarifying questions:
+
+1. **Can a non-member be added to a split?** No — splits are within the group. This keeps balance tracking scoped to group members and prevents orphaned debt records.
+
+2. **Are balances computed on the fly or pre-aggregated?** This determines the read vs. write trade-off. On-the-fly is always accurate but slow for large history; pre-aggregated (cached net balance per user-pair) is fast but must be invalidated on every new expense.
+
+3. **What currency precision is required?** Two decimal places (standard currency). This determines the `BigDecimal` scale and rounding mode, and affects how we assign the rounding remainder.
+
+4. **Can percentages be fractional (e.g., 33.33%)?** Yes. This means percentage splits must handle the case where percentages sum to 99.99% due to rounding — the last participant absorbs the remainder.
+
+5. **Is real-time balance notification required?** If yes, we need WebSocket push on every new expense. If near-real-time is acceptable, cache invalidation with polling suffices. This question controls a significant architecture decision.
 
 ---
 
-### 5.2 Core Entities
+**Step 2: Core Entities**
 
 ```
 User ──member of──> Group
                       │
-                   Expense (paid by one User, split among many)
+                   Expense (paidBy: User, splitType, totalAmount)
                       │
-               ExpenseSplit (one per participant)
-                      │
-              [EqualSplit | ExactSplit | PercentageSplit | ShareSplit]
+               ExpenseSplit (one row per participant: user + amountOwed)
+                      ↓
+     [EqualSplit | ExactSplit | PercentageSplit | ShareSplit]
 
-Balance  — net amount User A owes User B (aggregated view)
-Transaction — a settlement payment
+Balance = net amount User A owes User B (derived from ExpenseSplits, cached)
+Transaction = a recorded settlement payment between two users
 ```
+
+- **Group**: the boundary of shared expenses. Members are listed here; balances are meaningful only within a group.
+- **Expense**: the top-level record of a payment event. `paidBy` identifies who fronted the money; `totalAmount` is what they paid; `splitType` tells the system how to divide it.
+- **ExpenseSplit**: one row per participant per expense, recording how much that person owes. This is a separate entity (not embedded in Expense) because each split has its own `amountOwed` and different split types carry additional metadata (percentage value, share count).
+- **Balance**: the net amount one user owes another. Not stored as a primary record — computed by aggregating all ExpenseSplits between two users, then cached.
+- **Transaction**: records that User A paid User B a settlement amount. Updates the cached balance.
+
+---
+
+**Step 3: Design Decisions**
+
+**Decision: Separate `ExpenseSplit` entity rather than embedding splits in `Expense`**
+*Why this over the alternatives:* Embedding all split data in the Expense table would require nullable columns for percentage values, share counts, and exact amounts — only some of which apply to any given expense type. It would also require switching logic in every query that needs to compute how much a particular user owes. A separate `ExpenseSplit` entity keeps each row uniform: every split has a user and an `amountOwed`. Type-specific metadata (the percentage, the share count) lives in subtype tables or a `details` JSON column on the split row.
+*Tradeoff:* Every expense load requires a join to ExpenseSplit. For large groups with long history, this is more queries — mitigated by indexed foreign keys and caching.
+
+**Decision: Strategy pattern for split calculation**
+*Why this over the alternatives:* Equal, Exact, Percentage, and Shares splits have fundamentally different calculation logic. Without Strategy, `ExpenseService` contains a growing `switch` statement: `case EQUAL: ..., case PERCENTAGE: ..., case SHARES: ...`. Every new split type requires modifying this method, violating the Open/Closed Principle. With Strategy, `EqualSplitStrategy`, `PercentageSplitStrategy`, `ExactSplitStrategy`, and `SharesSplitStrategy` each implement `SplitStrategy.calculateSplits(expense, participants)`. Adding a `CustomFormulaSplit` type requires one new class and one new Spring `@Component` registration.
+*Tradeoff:* The indirection means reading `ExpenseService` alone does not tell you how a split is calculated — you must follow the strategy lookup.
+
+**Decision: Greedy two-heap algorithm for debt simplification**
+*Why this over the alternatives:* Naive simplification matches debts pair-by-pair in the order they appear, producing one transaction per debt edge — potentially O(N²) transactions for a group of N people. Graph reduction algorithms exist but are O(N²) and do not reduce the transaction count beyond what the greedy approach achieves. The greedy approach exploits the key accounting identity: net balances always sum to zero, meaning every creditor's surplus exactly matches some debtor's deficit. By always matching the largest creditor with the largest debtor, we clear at least one party to zero on every iteration, and the number of resulting transactions is at most N-1. Two max-heaps give us the largest creditor and largest debtor in O(log N) each, making the full algorithm O(N log N).
+*Tradeoff:* The greedy result minimises transaction count but does not necessarily optimise for the most convenient pairings (e.g., Alice and Bob might prefer to settle directly even if an algorithmically optimal path routes through Carol).
+
+**Decision: `BigDecimal` with `HALF_UP` rounding, remainder assigned to the last participant**
+*Why this over the alternatives:* IEEE 754 `double` cannot represent 0.1 exactly — `0.1 + 0.2 = 0.30000000000000004`. Over hundreds of expense splits, these errors compound into noticeable discrepancies. `BigDecimal` provides exact arbitrary-precision arithmetic. The rounding problem: `$10 / 3 = $3.333...`, which rounds to `$3.33` × 3 = `$9.99` — one cent short. Assigning the remainder to the last participant gives `$3.33, $3.33, $3.34` — the splits sum to exactly `$10.00`. Distributing it randomly or to the first participant would also work; the convention is to assign it to the last person in the list.
+*Tradeoff:* The last participant in the list always absorbs the rounding remainder. For tiny amounts (a cent), this is fair enough. For unusual currencies with larger subunit values, a more sophisticated distribution might be warranted.
+
+**Decision: Template Method pattern for expense processing pipeline**
+*Why this over the alternatives:* Every expense, regardless of split type, follows the same five-step flow: validate input → calculate splits → persist expense → update cached balances → notify participants. Without Template Method, this pipeline would be duplicated (with subtle variations) in each expense type's service method. Template Method defines the skeleton in an abstract `ExpenseProcessor.processExpense()` and lets subclasses override individual steps — for example, a recurring expense subclass overrides only the "persist" step to create multiple dated records.
+*Tradeoff:* The control flow is inverted — the base class calls subclass methods, which can be hard to follow when debugging.
+
+---
+
+**Step 4: Key Algorithm (pseudocode)**
+
+```
+BALANCE SIMPLIFICATION:
+
+function simplify(netBalances: Map<UserId, Amount>):
+    // netBalances[user] = total owed to user minus total user owes
+    // Positive = creditor (others owe them), Negative = debtor (they owe others)
+
+    creditors = max-heap sorted by balance (largest credit first)
+    debtors   = max-heap sorted by absolute balance (largest debt first)
+
+    for each user, balance in netBalances:
+        if balance > 0: creditors.add(user, balance)
+        if balance < 0: debtors.add(user, abs(balance))
+        // balance == 0: already settled, skip
+
+    result = []
+
+    while creditors and debtors are not empty:
+        creditor = creditors.pollMax()   // e.g., Bob is owed $20
+        debtor   = debtors.pollMax()     // e.g., Alice owes $30
+
+        transfer = min(creditor.amount, debtor.amount)  // $20
+        result.add(Transaction(debtor=Alice, creditor=Bob, amount=transfer))
+
+        remainingCredit = creditor.amount - transfer    // $0  → Bob is cleared
+        remainingDebt   = debtor.amount - transfer      // $10 → Alice still owes $10
+
+        if remainingCredit > 0: creditors.add(creditor.user, remainingCredit)
+        if remainingDebt   > 0: debtors.add(debtor.user, remainingDebt)
+
+    return result
+    // Result: Alice pays Bob $20, Alice pays Carol $10 → 2 transactions, not 3.
+
+EQUAL SPLIT CALCULATION:
+
+function calculateEqualSplits(totalAmount, participants):
+    n = participants.size()
+    perPerson = totalAmount.divide(n, 2, HALF_UP)  // e.g., $3.33
+    splits = []
+    runningTotal = ZERO
+
+    for i = 0 to n-2:  // all but last
+        splits.add(participants[i], perPerson)
+        runningTotal += perPerson
+
+    // Last person absorbs rounding remainder
+    splits.add(participants[n-1], totalAmount - runningTotal)  // e.g., $3.34
+    return splits
+```
+
+---
+
+**Step 5: Must-Know Code**
 
 ```java
-public enum SplitType { EQUAL, EXACT, PERCENTAGE, SHARES }
+public List<SettlementTransaction> simplify(Map<Long, BigDecimal> netBalances) {
+    // Creditors: users who are owed money. Max-heap: largest creditor polled first.
+    PriorityQueue<Map.Entry<Long, BigDecimal>> creditors =
+        new PriorityQueue<>((a, b) -> b.getValue().compareTo(a.getValue()));
 
-@Entity
-@Table(name = "users")
-public class User {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String name;
-    private String email;
-    private String phone;
-}
+    // Debtors: users who owe money, stored as positive values for easy comparison.
+    PriorityQueue<Map.Entry<Long, BigDecimal>> debtors =
+        new PriorityQueue<>((a, b) -> b.getValue().compareTo(a.getValue()));
 
-@Entity
-@Table(name = "groups")
-public class Group {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String name;
+    for (var entry : netBalances.entrySet()) {
+        int cmp = entry.getValue().compareTo(BigDecimal.ZERO);
+        if (cmp > 0) creditors.offer(entry);                                    // net positive → creditor
+        else if (cmp < 0) debtors.offer(Map.entry(entry.getKey(),
+                                                   entry.getValue().negate())); // store as positive
+        // cmp == 0 → balanced, skip
+    }
 
-    @ManyToMany
-    @JoinTable(name = "group_members",
-               joinColumns = @JoinColumn(name = "group_id"),
-               inverseJoinColumns = @JoinColumn(name = "user_id"))
-    private Set<User> members = new HashSet<>();
-}
+    var result = new ArrayList<SettlementTransaction>();
 
-@Entity
-@Table(name = "expenses")
-public class Expense {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String description;
-    private BigDecimal totalAmount;
-    private LocalDateTime createdAt;
+    while (!creditors.isEmpty() && !debtors.isEmpty()) {
+        var creditor = creditors.poll();   // largest amount owed to someone
+        var debtor   = debtors.poll();     // largest amount someone owes
 
-    @ManyToOne @JoinColumn(name = "paid_by_user_id")
-    private User paidBy;
+        // Transfer is limited by the smaller of the two — one of them hits zero.
+        BigDecimal transfer = creditor.getValue().min(debtor.getValue());
+        result.add(new SettlementTransaction(debtor.getKey(), creditor.getKey(), transfer));
 
-    @ManyToOne @JoinColumn(name = "group_id")
-    private Group group;   // null for non-group expenses
+        // Return non-zero remainders to their respective heaps for the next iteration.
+        BigDecimal remainingCredit = creditor.getValue().subtract(transfer);
+        BigDecimal remainingDebt   = debtor.getValue().subtract(transfer);
 
-    @Enumerated(EnumType.STRING)
-    private SplitType splitType;
+        if (remainingCredit.compareTo(BigDecimal.ZERO) > 0)
+            creditors.offer(Map.entry(creditor.getKey(), remainingCredit));
+        if (remainingDebt.compareTo(BigDecimal.ZERO) > 0)
+            debtors.offer(Map.entry(debtor.getKey(), remainingDebt));
+    }
 
-    @OneToMany(mappedBy = "expense", cascade = CascadeType.ALL)
-    private List<ExpenseSplit> splits = new ArrayList<>();
-}
-
-/**
- * One record per participant in an expense.
- * amountOwed = how much THIS user owes toward this expense.
- */
-@Entity
-@Table(name = "expense_splits")
-public class ExpenseSplit {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @ManyToOne @JoinColumn(name = "expense_id")
-    private Expense expense;
-
-    @ManyToOne @JoinColumn(name = "user_id")
-    private User user;
-
-    private BigDecimal amountOwed;    // always stored in absolute currency units
-
-    // For display purposes only:
-    private BigDecimal percentage;    // set when SplitType=PERCENTAGE
-    private Integer shares;           // set when SplitType=SHARES
-}
-
-@Entity
-@Table(name = "transactions")
-public class Transaction {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @ManyToOne @JoinColumn(name = "from_user_id")
-    private User from;    // the person paying
-
-    @ManyToOne @JoinColumn(name = "to_user_id")
-    private User to;      // the person receiving
-
-    private BigDecimal amount;
-    private LocalDateTime settledAt;
+    return result;  // at most N-1 transactions for N users
 }
 ```
 
 ---
 
-### 5.3 Core Algorithm — Balance Simplification
+#### Interview Lens
 
-**Problem:** After many expenses in a group, the raw debts are a dense graph.  
-**Goal:** Produce a minimal set of transactions to clear all debts.
+> **How to use this section:** Each question is self-contained. Every concept explained inline.
 
-**Example:**
-```
-Raw debts (from expenses):
-  A owes B: 50
-  B owes C: 30
-  C owes A: 20
-
-Net balances:
-  A: -50 + 20 = -30   (net owes 30)
-  B: +50 - 30 = +20   (net is owed 20)
-  C: +30 - 20 = +10   (net is owed 10)
-
-Simplified (greedy, max-heap for creditors, min-heap for debtors):
-  A pays B: 20  (B cleared)
-  A pays C: 10  (C cleared, A owes 0)
-  → 2 transactions instead of 3
-```
-
-**Algorithm: Greedy with Two Priority Queues**
-
-```java
-public class BalanceSimplifier {
-
-    /**
-     * Given a map of userId → net balance (positive = owed money, negative = owes money),
-     * returns the minimum list of transactions to settle all debts.
-     *
-     * Time: O(N log N)  Space: O(N)
-     */
-    public List<SettlementTransaction> simplify(Map<Long, BigDecimal> netBalances) {
-        // Max-heap for creditors (those who are owed money — positive balance)
-        PriorityQueue<Map.Entry<Long, BigDecimal>> creditors =
-            new PriorityQueue<>((a, b) -> b.getValue().compareTo(a.getValue()));
-
-        // Max-heap of absolute values for debtors (those who owe — negative balance)
-        PriorityQueue<Map.Entry<Long, BigDecimal>> debtors =
-            new PriorityQueue<>((a, b) -> b.getValue().compareTo(a.getValue()));
-
-        for (Map.Entry<Long, BigDecimal> entry : netBalances.entrySet()) {
-            int cmp = entry.getValue().compareTo(BigDecimal.ZERO);
-            if (cmp > 0) {
-                creditors.offer(entry);
-            } else if (cmp < 0) {
-                // Store absolute value for easier comparison
-                debtors.offer(Map.entry(entry.getKey(), entry.getValue().negate()));
-            }
-            // zero balance: skip
-        }
-
-        List<SettlementTransaction> result = new ArrayList<>();
-
-        while (!creditors.isEmpty() && !debtors.isEmpty()) {
-            Map.Entry<Long, BigDecimal> creditor = creditors.poll();
-            Map.Entry<Long, BigDecimal> debtor   = debtors.poll();
-
-            BigDecimal credit = creditor.getValue();
-            BigDecimal debt   = debtor.getValue();
-
-            BigDecimal transfer = credit.min(debt);
-            result.add(new SettlementTransaction(debtor.getKey(), creditor.getKey(), transfer));
-
-            BigDecimal remainingCredit = credit.subtract(transfer);
-            BigDecimal remainingDebt   = debt.subtract(transfer);
-
-            if (remainingCredit.compareTo(BigDecimal.ZERO) > 0)
-                creditors.offer(Map.entry(creditor.getKey(), remainingCredit));
-
-            if (remainingDebt.compareTo(BigDecimal.ZERO) > 0)
-                debtors.offer(Map.entry(debtor.getKey(), remainingDebt));
-        }
-
-        return result;
-    }
-}
-
-public record SettlementTransaction(Long fromUserId, Long toUserId, BigDecimal amount) {}
-```
+> *Tip: Structure answers as: "The key challenge is X. I chose Y over Z because [reason]. The tradeoff is [cost]."*
 
 ---
 
-### 5.4 Design Patterns Applied
+**Concept Check — Core Algorithm**
+**"Walk me through the balance simplification algorithm."**
 
-#### Strategy Pattern — Split Type Calculation
+**One-line answer:** Compute net balances, then greedily match the largest creditor with the largest debtor using two max-heaps until everyone is cleared.
 
-```java
-/**
- * Each split strategy validates inputs and computes the amountOwed
- * for each participant.
- */
-public interface SplitStrategy {
-    /**
-     * Validate that the provided split data is internally consistent
-     * (e.g., percentages sum to 100, exact amounts sum to totalAmount).
-     */
-    void validate(BigDecimal totalAmount, List<SplitData> splitData);
+**Full answer:**
+> "The key challenge is minimising the number of transactions needed to clear all debts. The raw debt graph after many expenses can have an edge between every pair of users — O(N²) transactions. The insight is the accounting identity: net balances always sum to zero. This means every creditor's surplus is exactly covered by some debtor's deficit. I compute each user's net balance — total owed to them minus total they owe. Positive means creditor, negative means debtor. I put creditors in a max-heap sorted by amount and debtors in another max-heap sorted by absolute debt. On each iteration, I poll the largest creditor and the largest debtor, transfer the minimum of their amounts, and return the non-zero remainder to the heap. Each iteration clears at least one party to zero, so the algorithm runs in O(N log N) and produces at most N-1 transactions. For a group of 50, the worst case is 49 transactions — much better than the naive pairwise approach."
 
-    /**
-     * Compute the exact amountOwed for each participant.
-     * Returns a map of userId → amountOwed.
-     */
-    Map<Long, BigDecimal> compute(BigDecimal totalAmount, List<SplitData> splitData);
+> *Draw the state of the two heaps after the first iteration to show you understand what 'returning the remainder' means.*
 
-    SplitType supports();
-}
-
-// ── Equal Split ─────────────────────────────────────────────────────────────
-
-@Component
-public class EqualSplitStrategy implements SplitStrategy {
-
-    @Override
-    public void validate(BigDecimal totalAmount, List<SplitData> splitData) {
-        if (splitData == null || splitData.isEmpty())
-            throw new InvalidSplitException("At least one participant required");
-    }
-
-    @Override
-    public Map<Long, BigDecimal> compute(BigDecimal totalAmount, List<SplitData> splitData) {
-        int n = splitData.size();
-        // Use HALF_UP rounding; last person absorbs rounding remainder
-        BigDecimal share = totalAmount.divide(
-            BigDecimal.valueOf(n), 2, RoundingMode.HALF_UP);
-        BigDecimal remainder = totalAmount.subtract(share.multiply(BigDecimal.valueOf(n)));
-
-        Map<Long, BigDecimal> result = new LinkedHashMap<>();
-        for (int i = 0; i < n; i++) {
-            BigDecimal amount = (i == n - 1) ? share.add(remainder) : share;
-            result.put(splitData.get(i).userId(), amount);
-        }
-        return result;
-    }
-
-    @Override public SplitType supports() { return SplitType.EQUAL; }
-}
-
-// ── Exact Split ──────────────────────────────────────────────────────────────
-
-@Component
-public class ExactSplitStrategy implements SplitStrategy {
-
-    @Override
-    public void validate(BigDecimal totalAmount, List<SplitData> splitData) {
-        BigDecimal sum = splitData.stream()
-            .map(SplitData::exactAmount)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-        if (sum.compareTo(totalAmount) != 0)
-            throw new InvalidSplitException(
-                "Exact amounts must sum to total. Got: " + sum + ", expected: " + totalAmount);
-    }
-
-    @Override
-    public Map<Long, BigDecimal> compute(BigDecimal totalAmount, List<SplitData> splitData) {
-        return splitData.stream()
-            .collect(Collectors.toMap(SplitData::userId, SplitData::exactAmount,
-                (a, b) -> a, LinkedHashMap::new));
-    }
-
-    @Override public SplitType supports() { return SplitType.EXACT; }
-}
-
-// ── Percentage Split ─────────────────────────────────────────────────────────
-
-@Component
-public class PercentageSplitStrategy implements SplitStrategy {
-    private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
-
-    @Override
-    public void validate(BigDecimal totalAmount, List<SplitData> splitData) {
-        BigDecimal totalPct = splitData.stream()
-            .map(SplitData::percentage)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
-        if (totalPct.compareTo(HUNDRED) != 0)
-            throw new InvalidSplitException(
-                "Percentages must sum to 100. Got: " + totalPct);
-    }
-
-    @Override
-    public Map<Long, BigDecimal> compute(BigDecimal totalAmount, List<SplitData> splitData) {
-        Map<Long, BigDecimal> result = new LinkedHashMap<>();
-        List<SplitData> sorted = new ArrayList<>(splitData);
-
-        BigDecimal assigned = BigDecimal.ZERO;
-        for (int i = 0; i < sorted.size() - 1; i++) {
-            SplitData sd = sorted.get(i);
-            BigDecimal amount = totalAmount
-                .multiply(sd.percentage())
-                .divide(HUNDRED, 2, RoundingMode.HALF_UP);
-            result.put(sd.userId(), amount);
-            assigned = assigned.add(amount);
-        }
-        // Last person absorbs rounding residue
-        SplitData last = sorted.get(sorted.size() - 1);
-        result.put(last.userId(), totalAmount.subtract(assigned));
-        return result;
-    }
-
-    @Override public SplitType supports() { return SplitType.PERCENTAGE; }
-}
-
-// ── Shares Split ─────────────────────────────────────────────────────────────
-
-@Component
-public class SharesSplitStrategy implements SplitStrategy {
-
-    @Override
-    public void validate(BigDecimal totalAmount, List<SplitData> splitData) {
-        int totalShares = splitData.stream().mapToInt(SplitData::shares).sum();
-        if (totalShares <= 0)
-            throw new InvalidSplitException("Total shares must be positive");
-    }
-
-    @Override
-    public Map<Long, BigDecimal> compute(BigDecimal totalAmount, List<SplitData> splitData) {
-        int totalShares = splitData.stream().mapToInt(SplitData::shares).sum();
-        Map<Long, BigDecimal> result = new LinkedHashMap<>();
-        BigDecimal assigned = BigDecimal.ZERO;
-
-        for (int i = 0; i < splitData.size() - 1; i++) {
-            SplitData sd = splitData.get(i);
-            BigDecimal amount = totalAmount
-                .multiply(BigDecimal.valueOf(sd.shares()))
-                .divide(BigDecimal.valueOf(totalShares), 2, RoundingMode.HALF_UP);
-            result.put(sd.userId(), amount);
-            assigned = assigned.add(amount);
-        }
-        SplitData last = splitData.get(splitData.size() - 1);
-        result.put(last.userId(), totalAmount.subtract(assigned));
-        return result;
-    }
-
-    @Override public SplitType supports() { return SplitType.SHARES; }
-}
-
-// ── Split data carrier ───────────────────────────────────────────────────────
-
-public record SplitData(
-    Long userId,
-    BigDecimal exactAmount,     // used by EXACT
-    BigDecimal percentage,      // used by PERCENTAGE
-    int shares                  // used by SHARES
-) {
-    // Convenience factories
-    public static SplitData forEqual(Long userId) {
-        return new SplitData(userId, null, null, 0);
-    }
-    public static SplitData forExact(Long userId, BigDecimal amount) {
-        return new SplitData(userId, amount, null, 0);
-    }
-    public static SplitData forPercentage(Long userId, BigDecimal pct) {
-        return new SplitData(userId, null, pct, 0);
-    }
-    public static SplitData forShares(Long userId, int shares) {
-        return new SplitData(userId, null, null, shares);
-    }
-}
-```
-
-#### Template Method Pattern — Expense Processing Pipeline
-
-```java
-/**
- * Defines the invariant skeleton for processing any expense.
- * Subclasses only override the steps that differ.
- */
-public abstract class ExpenseProcessor {
-
-    // Template method — defines the algorithm skeleton
-    public final Expense processExpense(ExpenseRequest request) {
-        validateRequest(request);                         // Step 1: validate
-        Map<Long, BigDecimal> amounts = calculateSplits(request);  // Step 2: calculate
-        Expense expense = persistExpense(request, amounts);       // Step 3: persist
-        updateBalances(expense);                          // Step 4: update balances
-        notifyParticipants(expense);                      // Step 5: notify
-        return expense;
-    }
-
-    protected abstract void validateRequest(ExpenseRequest request);
-    protected abstract Map<Long, BigDecimal> calculateSplits(ExpenseRequest request);
-
-    // Default implementations for common steps
-    protected Expense persistExpense(ExpenseRequest req, Map<Long, BigDecimal> amounts) {
-        // default persistence logic — subclasses can override
-        throw new UnsupportedOperationException("Must be implemented");
-    }
-
-    protected void updateBalances(Expense expense) {
-        // default: no-op (balances computed on-the-fly)
-    }
-
-    protected void notifyParticipants(Expense expense) {
-        // default: send push notifications — subclasses can suppress
-    }
-}
-
-@Service
-public class StandardExpenseProcessor extends ExpenseProcessor {
-
-    private final Map<SplitType, SplitStrategy> strategies;
-    private final ExpenseRepository expenseRepo;
-    private final UserRepository userRepo;
-
-    public StandardExpenseProcessor(List<SplitStrategy> strategyList,
-                                    ExpenseRepository expenseRepo,
-                                    UserRepository userRepo) {
-        this.strategies  = strategyList.stream()
-            .collect(Collectors.toMap(SplitStrategy::supports, s -> s));
-        this.expenseRepo = expenseRepo;
-        this.userRepo    = userRepo;
-    }
-
-    @Override
-    protected void validateRequest(ExpenseRequest request) {
-        if (request.totalAmount().compareTo(BigDecimal.ZERO) <= 0)
-            throw new InvalidRequestException("Amount must be positive");
-        if (request.splitData().isEmpty())
-            throw new InvalidRequestException("At least one participant required");
-    }
-
-    @Override
-    protected Map<Long, BigDecimal> calculateSplits(ExpenseRequest request) {
-        SplitStrategy strategy = strategies.get(request.splitType());
-        if (strategy == null)
-            throw new InvalidRequestException("Unknown split type: " + request.splitType());
-        strategy.validate(request.totalAmount(), request.splitData());
-        return strategy.compute(request.totalAmount(), request.splitData());
-    }
-
-    @Override
-    @Transactional
-    protected Expense persistExpense(ExpenseRequest req, Map<Long, BigDecimal> amounts) {
-        User paidBy = userRepo.findById(req.paidByUserId())
-            .orElseThrow(() -> new NotFoundException("User not found"));
-
-        Expense expense = new Expense();
-        expense.setDescription(req.description());
-        expense.setTotalAmount(req.totalAmount());
-        expense.setPaidBy(paidBy);
-        expense.setSplitType(req.splitType());
-        expense.setCreatedAt(LocalDateTime.now());
-
-        List<ExpenseSplit> splits = amounts.entrySet().stream().map(e -> {
-            User participant = userRepo.getReferenceById(e.getKey());
-            ExpenseSplit split = new ExpenseSplit();
-            split.setExpense(expense);
-            split.setUser(participant);
-            split.setAmountOwed(e.getValue());
-            return split;
-        }).toList();
-
-        expense.setSplits(splits);
-        return expenseRepo.save(expense);
-    }
-}
-```
+**Gotcha follow-up:** *"Why does this greedy approach guarantee the minimum number of transactions?"*
+> "Because net balances sum to zero (fundamental accounting identity), every creditor's total can always be paid by debtors, and every iteration removes at least one person from further consideration. The minimum possible transactions to clear N people is N-1 (a spanning tree structure). The greedy two-heap approach achieves this bound. A simpler pairwise matching would produce N-1 transactions in the best case but can produce more if matching is done naively."
 
 ---
 
-### 5.5 Balance Service
+**Tradeoff Question — Money Arithmetic**
+**"Why must you use BigDecimal for money, and how do you handle the rounding remainder in equal splits?"**
 
-```java
-@Service
-public class BalanceService {
+**One-line answer:** `double` cannot represent 0.1 exactly in IEEE 754 binary; `BigDecimal` uses exact decimal arithmetic, and the remainder goes to the last participant.
 
-    private final ExpenseRepository expenseRepo;
-    private final TransactionRepository transactionRepo;
-    private final BalanceSimplifier simplifier;
+**Full answer:**
+> "IEEE 754 floating-point represents numbers in base 2, but many common decimal fractions — like 0.1 — have no exact binary representation. So `0.1 + 0.2` in Java evaluates to `0.30000000000000004`. For a single calculation this is negligible, but across hundreds of expense splits, these errors compound: a group might find their balances are off by a few cents with no obvious cause. `BigDecimal` uses exact decimal arithmetic, so `0.1 + 0.2` is precisely `0.3`. I always set scale 2 and `RoundingMode.HALF_UP`. For the rounding remainder problem: `$10 / 3 = $3.333...`, which rounds to `$3.33`. Three people paying `$3.33` sum to `$9.99` — one cent short. I calculate `perPerson * (n-1)` and assign `totalAmount - runningTotal` to the last participant. This guarantees splits always sum to exactly `totalAmount` with no residue."
 
-    public BalanceService(ExpenseRepository expenseRepo,
-                          TransactionRepository transactionRepo,
-                          BalanceSimplifier simplifier) {
-        this.expenseRepo      = expenseRepo;
-        this.transactionRepo  = transactionRepo;
-        this.simplifier       = simplifier;
-    }
-
-    /**
-     * Compute net balances for all members of a group.
-     * Returns userId → net (positive = owed, negative = owes).
-     */
-    public Map<Long, BigDecimal> getGroupNetBalances(Long groupId) {
-        Map<Long, BigDecimal> net = new HashMap<>();
-
-        List<Expense> expenses = expenseRepo.findByGroupId(groupId);
-        for (Expense expense : expenses) {
-            Long payerId = expense.getPaidBy().getId();
-            // Payer gets credited the full amount
-            net.merge(payerId, expense.getTotalAmount(), BigDecimal::add);
-
-            // Each participant is debited their share
-            for (ExpenseSplit split : expense.getSplits()) {
-                Long participantId = split.getUser().getId();
-                net.merge(participantId, split.getAmountOwed().negate(), BigDecimal::add);
-            }
-        }
-
-        // Apply already-completed settlement transactions
-        List<Transaction> settlements = transactionRepo.findByGroupId(groupId);
-        for (Transaction t : settlements) {
-            net.merge(t.getFrom().getId(), t.getAmount().negate(), BigDecimal::add);
-            net.merge(t.getTo().getId(),   t.getAmount(),          BigDecimal::add);
-        }
-
-        return net;
-    }
-
-    /**
-     * Get the simplified settlement plan for a group.
-     */
-    public List<SettlementTransaction> getSimplifiedSettlement(Long groupId) {
-        Map<Long, BigDecimal> netBalances = getGroupNetBalances(groupId);
-        return simplifier.simplify(netBalances);
-    }
-
-    /**
-     * Net balance between exactly two users (across all shared groups and direct expenses).
-     */
-    public BigDecimal getBalanceBetween(Long userAId, Long userBId) {
-        // Positive → A is owed money by B
-        // Negative → A owes money to B
-        return expenseRepo.computeNetBalanceBetween(userAId, userBId);
-    }
-}
-```
+> *Mention the PostgreSQL column type too — store as `DECIMAL(19,4)`, never `FLOAT`.*
 
 ---
 
-### 5.6 Key Interview Questions
+**Design Scenario — Scale**
+**"How would you scale Splitwise to millions of groups?"**
 
-**Q1: Walk me through the balance simplification algorithm.**
+**One-line answer:** Partition by `groupId`, cache net balances in Redis with event-driven invalidation, and keep the simplification algorithm in-memory per group.
 
-> **Answer:** Compute each user's net balance (sum of all amounts they're owed minus all amounts they owe). This gives a vector that sums to zero. Use two max-heaps — one for creditors (positive net) and one for debtors (absolute negative net). Greedily match the largest creditor with the largest debtor. The transfer amount is `min(credit, debt)`. The one that hits zero exits the heap; the remainder re-enters with the reduced balance. Continue until both heaps are empty. This produces O(N) transactions for N users, which is optimal. Time complexity: O(N log N).
+**Full answer:**
+> "The key scaling insight is that groups are isolated units — a group of five friends in Mumbai has no data dependency on a group in London. I would shard the expense and split data by `groupId`, so each shard handles a subset of groups. For read performance, net balances per group are pre-computed and stored in Redis. When a new expense is added, a `GroupBalanceUpdated` event invalidates the cached balance for that group and triggers a recomputation. The simplification algorithm is O(N log N) and runs in memory — for a 50-person group, this is microseconds. For even higher read throughput, I would push balance changes to connected clients via WebSocket on the `GroupBalanceUpdated` event, eliminating polling entirely."
 
-**Q2: How do you handle floating point precision in financial calculations?**
-
-> **Answer:** Always use `BigDecimal` with explicit scale (2 decimal places for currency) and `RoundingMode.HALF_UP`. Never use `double` or `float` for money. For rounding residues when splitting, assign the remainder to the last participant. Store amounts in the database as `DECIMAL(19,4)` columns, not `FLOAT`.
-
-**Q3: How would you scale Splitwise to millions of groups?**
-
-> **Answer:** (1) Partition expense data by groupId. (2) Precompute and cache net balances in Redis, invalidating on each new expense or settlement. (3) For the simplification algorithm, it runs per-group in-memory — O(N log N) for N members, which is fast even for groups of 50. (4) Use async event-driven updates: when an expense is added, publish a `GroupBalanceInvalidated` event that triggers cache eviction and optional WebSocket push to all group members.
-
-**Q4: How do you implement the "you owe X to Y" notification?**
-
-> **Answer:** After every expense, compare net balances before and after. Publish a `BalanceChangedEvent`. Listeners compute the human-readable delta ("Rahul added 'Dinner', and you owe ₹150 to Rahul") and send via push/email. Never block the expense creation on notification delivery — use `@Async` listeners.
+> *Always show you know where the partition boundary is — for Splitwise it is the group.*
 
 ---
 
-## LLD 6: Elevator System
+**Concept Check — Split Types**
+**"How does the percentage split handle the case where percentages don't sum to exactly 100%?"**
 
-### 6.1 Requirements
+**One-line answer:** Validation rejects it if the sum deviates beyond rounding tolerance; the remainder after `BigDecimal` arithmetic is assigned to the last participant.
 
-**Functional Requirements**
-- N elevators operating in a building with M floors
-- External request: person on floor F presses UP or DOWN button
-- Internal request: person inside elevator presses destination floor button
-- Elevator moves to serve requests; doors open/close at target floor
-- Elevators can be taken out of service (MAINTENANCE mode)
+**Full answer:**
+> "I validate that percentages sum to exactly 100 before processing — if they don't, I return a 400 Bad Request. The trickier case is when percentages are valid (sum to 100) but the resulting amounts don't sum to `totalAmount` due to `BigDecimal` rounding. For example, three people at 33.33%, 33.33%, 33.34%: `100 * 0.3333 = $33.33`, `100 * 0.3333 = $33.33`, `100 * 0.3334 = $33.34`. If I compute each independently with `HALF_UP`, the sum might be `$33.33 + $33.33 + $33.34 = $100.00` — lucky. But with awkward amounts it can be off by a cent. The safe approach: compute the first N-1 splits, sum them, and assign `totalAmount - sum` to the last participant. This guarantees the total always balances."
 
-**Non-Functional Requirements**
-- Minimize average wait time
-- Fairness: no request starves indefinitely
-- Support pluggable scheduling algorithms (FCFS, SCAN, LOOK)
-- Thread-safe: multiple elevators operate concurrently
+> *This is a common follow-up and tests whether you know the 'last person absorbs remainder' pattern.*
 
 ---
 
-### 6.2 Core Entities
+> **Common Mistake — Storing balances as a dense user-pair matrix:** Pre-computing and storing a balance row for every pair of users in a group creates O(N²) rows. For a 50-person group that is 1,225 rows, each updated on every new expense. Instead, store only non-zero balances — in practice, most user pairs in a group never transact directly — and recompute on demand from the ExpenseSplit ledger, caching the result.
+
+---
+
+**Quick Revision:** Splitwise's entire algorithmic insight is that net balances sum to zero, which lets a greedy two-heap algorithm collapse any debt graph into at most N-1 transactions in O(N log N).
+
+---
+
+## Topic 6: Elevator System — LLD Case Study
+
+#### The Idea
+
+An elevator system sounds simple — press a button, the elevator comes, you go to your floor. But think about what happens during morning rush hour in a 50-storey office building when 200 people are all pressing the UP button on floors 1 through 5 simultaneously. Which of the six elevators should respond to each request? Should elevator 3 go all the way to floor 1 to pick someone up when elevator 2 is already on floor 2 heading up? How does an elevator decide the order in which to serve its queued floors?
+
+The scheduling problem is the heart of this design. A naive approach (First Come, First Served) serves requests in the order they arrive, which can make an elevator travel from floor 10 down to floor 1, back up to floor 3, down to floor 2, and so on — an enormous amount of unnecessary travel. The SCAN and LOOK algorithms, borrowed from disk scheduling, dramatically reduce travel by committing the elevator to one direction until all requests in that direction are served.
+
+The concurrency problem is equally important. Each elevator runs as its own thread. External requests come in from the main thread. The data structure tracking which floors the elevator needs to visit is shared between these threads. Without synchronisation, you get `ConcurrentModificationException` or, worse, silently lost requests. The design must coordinate a background thread (the elevator moving) with a foreground thread (the controller dispatching requests) safely and efficiently.
+
+#### How It Works
+
+**Step 1: Requirements & Clarifying Questions**
+
+Functional requirements:
+- N elevators, M floors in a building
+- External request: a person on floor F presses UP or DOWN
+- Internal request: a person inside an elevator presses their destination floor
+- Elevators move to serve requests; doors open and close at each served floor
+- Elevators can be placed in MAINTENANCE mode (stop accepting requests)
+
+Non-functional requirements:
+- Minimise average wait time across all requests
+- No request starves indefinitely (fairness guarantee)
+- Scheduling algorithm is pluggable — support FCFS, SCAN, and LOOK
+- Thread-safe: multiple elevators run concurrently as separate threads
+
+Clarifying questions:
+
+1. **Is this a simulation or a real controller?** Simulation. This matters because in a real controller, `step()` would be driven by hardware interrupts; in a simulation, it is called by a scheduled timer or a tight loop.
+
+2. **Can multiple people board the same elevator at the same floor?** Yes, but for the LLD we model floors served, not individual passengers. This keeps the scope focused on scheduling rather than capacity management.
+
+3. **What happens to in-flight requests when an elevator enters MAINTENANCE mode?** Pending requests are redistributed to other elevators by the `ElevatorController`. This defines the MAINTENANCE transition behaviour.
+
+4. **Should the system prefer to pick up nearby requests or stick to its current direction?** This is the core scheduling question — the answer (LOOK algorithm) drives several data structure choices.
+
+5. **What is the expected group size (N elevators, M floors)?** Knowing the scale — say, 10 elevators, 50 floors — tells us whether O(N²) operations per step are acceptable or whether O(N log N) is required.
+
+---
+
+**Step 2: Core Entities**
 
 ```
 Building
-  └── ElevatorController (1 per building) ← ExternalRequest (floor + direction)
-         │ assigns to
-         ▼
-     Elevator (N instances)  ← InternalRequest (destination floor)
-         │
-    [ElevatorState: IDLE | MOVING_UP | MOVING_DOWN | MAINTENANCE]
-         │
-       Floor (M instances) — has UP button, DOWN button, Door indicator
+  └── ElevatorController  (1 per building)
+           │  receives ExternalRequest(floor, direction)
+           │  assigns using SchedulingStrategy
+           ▼
+       Elevator  (N instances, each runs as a Thread)
+           │  receives InternalRequest(destinationFloor)
+           │
+       State: IDLE | MOVING_UP | MOVING_DOWN | MAINTENANCE
+           │
+       pendingFloors: TreeSet<Integer>
+```
+
+- **Building**: the root entity. Holds the `ElevatorController` and the list of `Elevator` instances.
+- **ElevatorController**: the dispatcher. Receives external button presses and assigns them to an elevator using the configured `SchedulingStrategy`. Has no opinion on how a single elevator serves its queue — that is the elevator's responsibility.
+- **Elevator**: the workhorse. Runs its own thread, maintains its `pendingFloors` TreeSet, and implements the LOOK algorithm in `step()`.
+- **ElevatorState** (IDLE / MOVING_UP / MOVING_DOWN / MAINTENANCE): encodes what the elevator is currently doing. Drives the behaviour of `step()` and `addDestination()`.
+- **SchedulingStrategy**: decides which elevator to assign an external request to. Injected into `ElevatorController` — pluggable without changing dispatcher logic.
+- **ExternalRequest / InternalRequest**: value objects. External = someone waiting on a floor. Internal = someone inside pressing a destination floor.
+
+---
+
+**Step 3: Design Decisions**
+
+**Decision: `TreeSet<Integer>` for `pendingFloors`**
+*Why this over the alternatives:* The LOOK algorithm needs to find the nearest floor above the current position (`ceiling(currentFloor)`) and the nearest floor below (`floor(currentFloor)`) on every `step()` call. A `List` or `ArrayDeque` would require O(N) linear scan to find these values — every step would iterate through all pending floors. `TreeSet` is a sorted set backed by a red-black tree; `ceiling()` and `floor()` run in O(log N). `TreeSet` also auto-deduplicates: if a passenger presses floor 5 twice, it is stored only once.
+*Tradeoff:* `TreeSet` is not thread-safe. Every access must be wrapped in a `synchronized(lock)` block. A concurrent data structure like `ConcurrentSkipListSet` would avoid explicit locking but would sacrifice the `wait/notifyAll` mechanism used to park the idle elevator thread.
+
+**Decision: State pattern for elevator behaviour**
+*Why this over the alternatives:* Without a State pattern, every method in `Elevator` starts with `if (state == MAINTENANCE) throw ...` or `if (state == IDLE) ...` — scattered conditionals that grow with each new state. The State pattern encapsulates state-specific behaviour: `MaintenanceState.addDestination()` throws an exception; `IdleState.addDestination()` accepts the floor and transitions to MOVING_UP or MOVING_DOWN. Adding a new `DOOR_OPEN` state (to prevent movement while doors are open) requires one new class and changes to the two adjacent states (MOVING and IDLE), not changes to `Elevator` itself.
+*Tradeoff:* State transitions are now spread across multiple classes, making the full lifecycle harder to see in one place. A state transition diagram is essential documentation for this design.
+
+**Decision: Strategy pattern for dispatcher scheduling**
+*Why this over the alternatives:* The `ElevatorController` needs to pick the best elevator for each external request. Different algorithms make different trade-offs: FCFS is simple but ignores elevator position; LOOK-based scoring (distance + direction penalty + queue depth) minimises average wait time but is more complex. Without Strategy, `ElevatorController` has a switch statement that changes when you want to test a different algorithm or configure per environment. With `SchedulingStrategy` as an interface, `LookSchedulingStrategy` and `FcfsSchedulingStrategy` are swappable `@Component` beans.
+*Tradeoff:* A scoring function in `LookSchedulingStrategy` has tunable weights (how much to penalise direction mismatch vs. distance). Getting these weights wrong can increase average wait time. This needs experimentation or offline simulation.
+
+**Decision: `synchronized` block with `wait/notifyAll` for thread coordination**
+*Why this over the alternatives:* The elevator's `step()` loop runs in a background thread; `addDestination()` is called from the main `ElevatorController` thread. Both access `pendingFloors` (the `TreeSet`). Unsynchronised concurrent access to a `TreeSet` causes `ConcurrentModificationException` or silent data corruption. `synchronized(lock)` on a shared `Object lock` ensures mutual exclusion. When `pendingFloors` is empty, `step()` calls `lock.wait()` to park the thread (releasing the lock) rather than spinning in a busy loop — which would waste CPU. `addDestination()` calls `lock.notifyAll()` to wake the parked elevator thread the moment a new floor is added.
+*Tradeoff:* `wait/notifyAll` is low-level and easy to misuse (spurious wakeups require a `while` loop, not an `if`). A higher-level `BlockingQueue` or `Condition` object from `java.util.concurrent` would be cleaner — but `TreeSet` with range queries cannot be replaced by a `BlockingQueue` directly.
+
+**Decision: LOOK algorithm over SCAN for floor selection**
+*Why this over the alternatives:* FCFS serves floors in arrival order — an elevator on floor 10 might travel down to floor 1 to serve the first request, then back up to floor 8 for the second, zig-zagging wastefully. SCAN commits to one direction (down to floor 0, then up to the top floor) like a typewriter head — better than FCFS but travels to the building boundary even when no requests exist there. LOOK is like SCAN but reverses at the last pending request in the current direction, not at the building boundary. In a 50-floor building where all requests are on floors 5-20, SCAN travels all the way to floor 50 before reversing; LOOK reverses at floor 20. Fewer unnecessary floors travelled means lower average wait time.
+*Tradeoff:* LOOK requires knowing the highest and lowest pending floors at all times — which is why `TreeSet.last()` and `TreeSet.first()` are used, requiring O(log N) per step rather than O(1) for a simple queue pop.
+
+---
+
+**Step 4: Key Algorithm (pseudocode)**
+
+```
+LOOK ALGORITHM — step():
+
+function step(elevator):
+    acquire elevator.lock
+
+    while pendingFloors is empty and state != MAINTENANCE:
+        state = IDLE
+        lock.wait()   // park thread; release lock while waiting
+
+    if pendingFloors is empty: release lock; return
+
+    nextFloor = selectNextFloor(elevator)
+
+    if nextFloor > currentFloor:
+        currentFloor++
+        state = MOVING_UP
+    else if nextFloor < currentFloor:
+        currentFloor--
+        state = MOVING_DOWN
+
+    if currentFloor == nextFloor:
+        pendingFloors.remove(nextFloor)
+        openAndCloseDoors()
+        if pendingFloors is empty: state = IDLE
+
+    release elevator.lock
+
+function selectNextFloor(elevator):
+    if state == MOVING_UP:
+        above = pendingFloors.ceiling(currentFloor)  // nearest floor ≥ currentFloor
+        if above != null: return above
+        else: return pendingFloors.last()            // reverse: no more above, go to highest
+
+    if state == MOVING_DOWN:
+        below = pendingFloors.floor(currentFloor)    // nearest floor ≤ currentFloor
+        if below != null: return below
+        else: return pendingFloors.first()           // reverse: no more below, go to lowest
+
+    if state == IDLE:
+        above = pendingFloors.ceiling(currentFloor)
+        below = pendingFloors.floor(currentFloor)
+        if above == null: return below
+        if below == null: return above
+        return whichever of (above, below) is closer to currentFloor
+
+DISPATCHER — selectElevator(floor, direction):
+
+for each elevator that is not MAINTENANCE:
+    score = distanceTo(elevator, floor)
+    if elevator.state == MOVING_UP and direction == DOWN: score += DIRECTION_PENALTY
+    if elevator.state == MOVING_DOWN and direction == UP: score += DIRECTION_PENALTY
+    score += elevator.pendingFloors.size() * LOAD_PENALTY
+
+return elevator with lowest score
 ```
 
 ---
 
-### 6.3 Algorithms
-
-| Algorithm | Description | Pros | Cons |
-|-----------|-------------|------|------|
-| **FCFS** | Serve requests in the order received | Simple to implement | High average wait time |
-| **SCAN** | Move in one direction until end, then reverse | Fair to all floors | Floors near reversal point wait long |
-| **LOOK** | Like SCAN but only goes as far as the last request | Better than SCAN | Slightly more complex |
-
-**LOOK Algorithm (used in this implementation):**
-- If moving UP: serve all pending floors above current floor in ascending order
-- If moving DOWN: serve all pending floors below current floor in descending order
-- When no more in current direction: switch direction (if requests exist) or become IDLE
-
----
-
-### 6.4 Design Patterns Applied
-
-#### State Pattern — Elevator States
+**Step 5: Must-Know Code**
 
 ```java
-public enum ElevatorState { IDLE, MOVING_UP, MOVING_DOWN, MAINTENANCE }
-
-/**
- * State interface — each concrete state encodes allowed transitions
- * and behaviour for that state.
- */
-public interface ElevatorStateHandler {
-    void handleInternalRequest(Elevator elevator, int floor);
-    void moveToNextFloor(Elevator elevator);
-    ElevatorState getState();
-}
-```
-
-#### Strategy Pattern — Scheduling Algorithm
-
-```java
-public interface SchedulingStrategy {
-    /**
-     * Choose the best elevator from the available pool to serve an external request.
-     */
-    Elevator selectElevator(List<Elevator> elevators, ExternalRequest request);
-}
-```
-
-#### Observer Pattern — Floor Button Events
-
-```java
-public record ExternalRequestEvent(int floor, Direction direction) {}
-
-// Floor button press is an event; the ElevatorController is the observer
-@Component
-public class ElevatorController implements ApplicationListener<ExternalRequestEvent> {
-    @Override
-    public void onApplicationEvent(ExternalRequestEvent event) {
-        dispatchRequest(event.floor(), event.direction());
-    }
-}
-```
-
----
-
-### 6.5 Complete Java 17 Implementation
-
-```java
-// ─────────────────────────────────────────────
-// Enumerations
-// ─────────────────────────────────────────────
-
-public enum Direction { UP, DOWN, IDLE }
-public enum ElevatorState { IDLE, MOVING_UP, MOVING_DOWN, MAINTENANCE }
-
-// ─────────────────────────────────────────────
-// Request types
-// ─────────────────────────────────────────────
-
-public record ExternalRequest(int floor, Direction direction) {}
-public record InternalRequest(int destinationFloor) {}
-
-// ─────────────────────────────────────────────
-// Elevator — State machine with LOOK algorithm
-// ─────────────────────────────────────────────
-
-public class Elevator {
-    private final int id;
-    private volatile int currentFloor;
-    private volatile ElevatorState state;
-
-    /**
-     * Pending destination floors stored in a sorted set for O(log N) insertion
-     * and O(1) access to min/max (for LOOK algorithm direction decisions).
-     */
-    private final TreeSet<Integer> pendingFloors = new TreeSet<>();
+public class Elevator implements Runnable {
     private final Object lock = new Object();
+    private final TreeSet<Integer> pendingFloors = new TreeSet<>();
+    private volatile int currentFloor = 0;          // volatile: ElevatorController reads this without locking
+    private volatile ElevatorState state = ElevatorState.IDLE;
 
-    public Elevator(int id, int initialFloor) {
-        this.id           = id;
-        this.currentFloor = initialFloor;
-        this.state        = ElevatorState.IDLE;
-    }
-
-    /**
-     * Add a destination floor (called for both internal and external requests).
-     */
-    public void addDestination(int floor) {
-        synchronized (lock) {
-            if (floor < 0) throw new IllegalArgumentException("Floor must be >= 0");
-            pendingFloors.add(floor);
-            if (state == ElevatorState.IDLE) {
-                state = (floor >= currentFloor) ? ElevatorState.MOVING_UP
-                                                : ElevatorState.MOVING_DOWN;
-            }
-            lock.notifyAll();
+    @Override
+    public void run() {
+        while (!Thread.currentThread().isInterrupted()) {
+            step();
         }
     }
 
-    /**
-     * LOOK algorithm step — move one floor toward the next destination.
-     * Called by the elevator's worker thread in a loop.
-     */
     public void step() {
         synchronized (lock) {
+            // Spurious wakeup guard: must be a while loop, not if.
             while (pendingFloors.isEmpty() && state != ElevatorState.MAINTENANCE) {
                 state = ElevatorState.IDLE;
                 try { lock.wait(); } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return;
+                    Thread.currentThread().interrupt(); return;
                 }
             }
-            if (state == ElevatorState.MAINTENANCE || pendingFloors.isEmpty()) return;
+            if (pendingFloors.isEmpty()) return;
 
-            // LOOK: determine next floor to visit based on current direction
-            Integer nextFloor = getNextFloorByLook();
-            if (nextFloor == null) return;
-
-            // Simulate movement (one floor per step)
-            if (nextFloor > currentFloor) {
-                currentFloor++;
-                state = ElevatorState.MOVING_UP;
-            } else if (nextFloor < currentFloor) {
-                currentFloor--;
-                state = ElevatorState.MOVING_DOWN;
-            }
-
-            // Arrived at destination
-            if (currentFloor == nextFloor) {
-                pendingFloors.remove(nextFloor);
-                openDoors();   // simulate door open/close
-                closeDoors();
-
-                // Reassess direction after reaching a destination
-                if (pendingFloors.isEmpty()) {
-                    state = ElevatorState.IDLE;
-                } else {
-                    Integer higher = pendingFloors.ceiling(currentFloor);
-                    Integer lower  = pendingFloors.floor(currentFloor);
-                    if (state == ElevatorState.MOVING_UP && higher != null) {
-                        // continue up
-                    } else if (state == ElevatorState.MOVING_DOWN && lower != null) {
-                        // continue down
-                    } else {
-                        // flip direction
-                        state = (higher != null) ? ElevatorState.MOVING_UP
-                                                 : ElevatorState.MOVING_DOWN;
-                    }
+            // LOOK: find next floor in the current direction of travel.
+            Integer nextFloor = switch (state) {
+                case MOVING_UP -> {
+                    Integer above = pendingFloors.ceiling(currentFloor); // O(log N)
+                    yield above != null ? above : pendingFloors.last();  // reverse at last request above
                 }
+                case MOVING_DOWN -> {
+                    Integer below = pendingFloors.floor(currentFloor);   // O(log N)
+                    yield below != null ? below : pendingFloors.first(); // reverse at last request below
+                }
+                default -> {  // IDLE: pick the closer of above/below
+                    Integer above = pendingFloors.ceiling(currentFloor);
+                    Integer below = pendingFloors.floor(currentFloor);
+                    if (above == null) yield below;
+                    if (below == null) yield above;
+                    yield (above - currentFloor <= currentFloor - below) ? above : below;
+                }
+            };
+
+            // Move one floor at a time toward nextFloor.
+            if      (nextFloor > currentFloor) { currentFloor++; state = ElevatorState.MOVING_UP; }
+            else if (nextFloor < currentFloor) { currentFloor--; state = ElevatorState.MOVING_DOWN; }
+
+            if (currentFloor.equals(nextFloor)) {  // arrived
+                pendingFloors.remove(nextFloor);   // O(log N)
+                openAndCloseDoors();
+                if (pendingFloors.isEmpty()) state = ElevatorState.IDLE;
             }
         }
     }
 
-    /**
-     * LOOK: if moving up, pick smallest floor above current;
-     *       if moving down, pick largest floor below current;
-     *       if IDLE, pick closest floor.
-     */
-    private Integer getNextFloorByLook() {
-        return switch (state) {
-            case MOVING_UP -> {
-                Integer above = pendingFloors.ceiling(currentFloor);
-                yield (above != null) ? above : pendingFloors.last();  // reverse at top
-            }
-            case MOVING_DOWN -> {
-                Integer below = pendingFloors.floor(currentFloor);
-                yield (below != null) ? below : pendingFloors.first(); // reverse at bottom
-            }
-            default -> {   // IDLE: pick closest
-                Integer above = pendingFloors.ceiling(currentFloor);
-                Integer below = pendingFloors.floor(currentFloor);
-                if (above == null) yield below;
-                if (below == null) yield above;
-                yield (above - currentFloor <= currentFloor - below) ? above : below;
-            }
-        };
-    }
-
-    private void openDoors() {
-        System.out.printf("Elevator %d: doors OPEN at floor %d%n", id, currentFloor);
-        try { Thread.sleep(2000); } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
-    private void closeDoors() {
-        System.out.printf("Elevator %d: doors CLOSED at floor %d%n", id, currentFloor);
-    }
-
-    public void setMaintenance(boolean on) {
+    public void addDestination(int floor) {
         synchronized (lock) {
-            state = on ? ElevatorState.MAINTENANCE : ElevatorState.IDLE;
-            if (!on) lock.notifyAll();
+            pendingFloors.add(floor);  // TreeSet deduplicates; pressing 5 twice has no effect
+            if (state == ElevatorState.IDLE)
+                state = floor >= currentFloor ? ElevatorState.MOVING_UP : ElevatorState.MOVING_DOWN;
+            lock.notifyAll();  // wake the step() loop if it is parked in lock.wait()
         }
     }
-
-    // ── Getters for controller ────────────────────────────────────────────
-    public int getId()            { return id; }
-    public int getCurrentFloor()  { return currentFloor; }
-    public ElevatorState getState() { return state; }
-    public boolean isAvailable()  { return state != ElevatorState.MAINTENANCE; }
-    public int getPendingCount()  { synchronized (lock) { return pendingFloors.size(); } }
-}
-
-// ─────────────────────────────────────────────
-// Scheduling Strategies
-// ─────────────────────────────────────────────
-
-/**
- * LOOK-based strategy: pick the available elevator that can serve
- * this request with the fewest additional stops (load-based).
- * Falls back to nearest-floor tie-break.
- */
-@Component("LOOK")
-public class LookSchedulingStrategy implements SchedulingStrategy {
-
-    @Override
-    public Elevator selectElevator(List<Elevator> elevators, ExternalRequest request) {
-        return elevators.stream()
-            .filter(Elevator::isAvailable)
-            .min(Comparator
-                .comparingInt(e -> scoringFunction(e, request)))
-            .orElseThrow(() -> new NoElevatorAvailableException("All elevators in maintenance"));
-    }
-
-    /**
-     * Lower score = better candidate.
-     * Score = distance to requested floor + penalty if direction mismatch.
-     */
-    private int scoringFunction(Elevator e, ExternalRequest req) {
-        int distance = Math.abs(e.getCurrentFloor() - req.floor());
-        int directionPenalty = 0;
-
-        if (e.getState() == ElevatorState.MOVING_UP && req.direction() == Direction.DOWN)
-            directionPenalty = 10;
-        if (e.getState() == ElevatorState.MOVING_DOWN && req.direction() == Direction.UP)
-            directionPenalty = 10;
-
-        return distance + directionPenalty + e.getPendingCount();
-    }
-}
-
-@Component("FCFS")
-public class FcfsSchedulingStrategy implements SchedulingStrategy {
-
-    private final Queue<Long> requestQueue = new ConcurrentLinkedQueue<>();
-
-    @Override
-    public Elevator selectElevator(List<Elevator> elevators, ExternalRequest request) {
-        // Simply pick the elevator with the fewest pending requests (round-robin on tie)
-        return elevators.stream()
-            .filter(Elevator::isAvailable)
-            .min(Comparator.comparingInt(Elevator::getPendingCount))
-            .orElseThrow(() -> new NoElevatorAvailableException("All elevators in maintenance"));
-    }
-}
-
-// ─────────────────────────────────────────────
-// Elevator Controller
-// ─────────────────────────────────────────────
-
-@Service
-public class ElevatorController {
-
-    private final List<Elevator> elevators;
-    private final SchedulingStrategy schedulingStrategy;
-    private final List<Thread> elevatorThreads = new ArrayList<>();
-
-    public ElevatorController(
-            @Value("${elevator.count:4}") int elevatorCount,
-            @Value("${elevator.floors:20}") int floors,
-            @Qualifier("LOOK") SchedulingStrategy schedulingStrategy) {
-        this.schedulingStrategy = schedulingStrategy;
-        this.elevators = new ArrayList<>();
-
-        for (int i = 0; i < elevatorCount; i++) {
-            Elevator elevator = new Elevator(i + 1, 0);
-            elevators.add(elevator);
-
-            // Each elevator runs its step() loop in a dedicated thread
-            Thread t = Thread.ofVirtual()   // Java 21 virtual thread; use new Thread() for Java 17
-                .name("elevator-" + (i + 1))
-                .start(() -> {
-                    while (!Thread.currentThread().isInterrupted()) {
-                        elevator.step();
-                    }
-                });
-            elevatorThreads.add(t);
-        }
-    }
-
-    /**
-     * Called when a person on a floor presses the UP or DOWN button.
-     */
-    public void handleExternalRequest(int floor, Direction direction) {
-        ExternalRequest request = new ExternalRequest(floor, direction);
-        Elevator chosen = schedulingStrategy.selectElevator(elevators, request);
-        chosen.addDestination(floor);
-        System.out.printf("Dispatched elevator %d to floor %d (%s)%n",
-            chosen.getId(), floor, direction);
-    }
-
-    /**
-     * Called when a person inside an elevator presses a floor button.
-     */
-    public void handleInternalRequest(int elevatorId, int destinationFloor) {
-        Elevator elevator = elevators.stream()
-            .filter(e -> e.getId() == elevatorId)
-            .findFirst()
-            .orElseThrow(() -> new NotFoundException("Elevator not found: " + elevatorId));
-
-        if (elevator.getState() == ElevatorState.MAINTENANCE)
-            throw new InvalidRequestException("Elevator " + elevatorId + " is in maintenance");
-
-        elevator.addDestination(destinationFloor);
-        System.out.printf("Elevator %d: internal request for floor %d%n",
-            elevatorId, destinationFloor);
-    }
-
-    /**
-     * Take an elevator in/out of maintenance.
-     */
-    public void setMaintenance(int elevatorId, boolean on) {
-        elevators.stream()
-            .filter(e -> e.getId() == elevatorId)
-            .findFirst()
-            .ifPresent(e -> e.setMaintenance(on));
-    }
-
-    public List<ElevatorStatus> getStatus() {
-        return elevators.stream()
-            .map(e -> new ElevatorStatus(e.getId(), e.getCurrentFloor(),
-                                         e.getState(), e.getPendingCount()))
-            .toList();
-    }
-}
-
-public record ElevatorStatus(int id, int floor, ElevatorState state, int pendingRequests) {}
-
-// ─────────────────────────────────────────────
-// REST API
-// ─────────────────────────────────────────────
-
-@RestController
-@RequestMapping("/api/v1/elevator")
-public class ElevatorController_REST {
-
-    private final ElevatorController controller;
-
-    public ElevatorController_REST(ElevatorController controller) {
-        this.controller = controller;
-    }
-
-    @PostMapping("/external")
-    public ResponseEntity<String> externalRequest(
-            @RequestParam int floor,
-            @RequestParam Direction direction) {
-        controller.handleExternalRequest(floor, direction);
-        return ResponseEntity.ok("Request dispatched");
-    }
-
-    @PostMapping("/{elevatorId}/internal")
-    public ResponseEntity<String> internalRequest(
-            @PathVariable int elevatorId,
-            @RequestParam int floor) {
-        controller.handleInternalRequest(elevatorId, floor);
-        return ResponseEntity.ok("Floor " + floor + " added to queue");
-    }
-
-    @PutMapping("/{elevatorId}/maintenance")
-    public ResponseEntity<String> setMaintenance(
-            @PathVariable int elevatorId,
-            @RequestParam boolean on) {
-        controller.setMaintenance(elevatorId, on);
-        return ResponseEntity.ok("Elevator " + elevatorId +
-            (on ? " in MAINTENANCE" : " back in SERVICE"));
-    }
-
-    @GetMapping("/status")
-    public ResponseEntity<List<ElevatorStatus>> status() {
-        return ResponseEntity.ok(controller.getStatus());
-    }
-}
-
-// ─────────────────────────────────────────────
-// Spring Boot Application Entry Point
-// ─────────────────────────────────────────────
-
-@SpringBootApplication
-public class ElevatorSystemApplication {
-    public static void main(String[] args) {
-        SpringApplication.run(ElevatorSystemApplication.class, args);
-    }
 }
 ```
 
 ---
 
-### 6.6 State Transition Diagram
+#### Interview Lens
 
-```
-         addDestination(above)              addDestination(below)
-IDLE ─────────────────────────> MOVING_UP ──────────────────────> MOVING_DOWN
- ^                                  │   ^                               │
- │         no pending floors        │   │  still floors above           │
- └────────────────────────────────  │   └───────────────────────────────┘
-                                    │
-              setMaintenance(true)  │
-                 ┌──────────────────┘
-                 ▼
-           MAINTENANCE
-                 │  setMaintenance(false)
-                 └──────────────────────> IDLE
-```
+> **How to use this section:** Each question is self-contained. Every concept explained inline.
+
+> *Tip: Structure answers as: "The key challenge is X. I chose Y over Z because [reason]. The tradeoff is [cost]."*
 
 ---
 
-### 6.7 Key Interview Questions
+**Concept Check — Scheduling Algorithm**
+**"Explain the LOOK algorithm and why it is better than SCAN."**
 
-**Q1: Explain the LOOK algorithm and why it is better than SCAN.**
+**One-line answer:** LOOK reverses at the last pending request in the current direction, not at the building boundary — eliminating unnecessary travel past the last requested floor.
 
-> **Answer:** SCAN moves the elevator from bottom to top and back, like a typewriter head — it reverses only at the absolute top/bottom floor. LOOK is smarter: it reverses as soon as there are no more requests in the current direction, not at the building boundary. This reduces unnecessary travel when requests cluster in the middle floors. Average wait time is lower for LOOK.
+**Full answer:**
+> "SCAN works like a typewriter head: the elevator travels from the bottom floor to the top floor and back, serving every pending request it passes. The problem is that it travels all the way to the building boundary even if there are no requests past a certain point. In a 50-floor building where all current requests are on floors 5 through 15, SCAN goes all the way to floor 50, serves nothing between floors 15 and 50, then reverses — pure waste. LOOK fixes this by reversing at the last pending request in the current direction. Using a `TreeSet`, I find `pendingFloors.last()` as the reversal point when moving up and `pendingFloors.first()` when moving down. This eliminates the unnecessary travel to the building boundary. LOOK reduces average wait time compared to SCAN at the cost of slightly more complexity — the reversal point changes dynamically as requests are added and served."
 
-**Q2: How do you handle concurrent requests thread-safely?**
+> *Use a concrete example with specific floor numbers — it demonstrates you understand the algorithm, not just the name.*
 
-> **Answer:** Each `Elevator` has an internal `Object lock` (monitor). The `pendingFloors` `TreeSet` is only mutated inside `synchronized(lock)` blocks. The `step()` method calls `lock.wait()` when idle and `lock.notifyAll()` is called in `addDestination()` to wake the sleeping elevator thread. For the controller's dispatch decision, `schedulingStrategy.selectElevator()` reads elevator state but does not mutate it — it's a read-only scoring function, so it only needs the elevator's volatile fields to be visible (handled by `volatile` keyword on `currentFloor` and `state`).
-
-**Q3: How would you modify the system to minimize wait time further?**
-
-> **Answer:** (1) **Destination dispatch** — show passengers a keypad in the lobby, assign elevator before they board (like modern KONE/Schindler systems). This groups passengers going to nearby floors into one elevator. (2) **Predictive scheduling** — use historical data (morning rush: most people going up from floor 1; evening rush: going down). (3) **Express elevators** — in a skyscraper, designate some elevators to serve only floors 1–20, others 21–40 etc., reducing average travel distance.
-
-**Q4: How does the State pattern help here?**
-
-> **Answer:** The State pattern makes state-specific behavior explicit and prevents invalid transitions. For example, `addDestination()` on a `MAINTENANCE` elevator should throw an exception — rather than scattering `if (state == MAINTENANCE)` checks everywhere, each concrete state handler encapsulates its own behavior. Adding a new state (e.g., `DOOR_OPEN`) only requires a new class, not modifying all existing logic (Open/Closed Principle).
+**Gotcha follow-up:** *"Can LOOK cause starvation?"*
+> "Not in practice for this problem. Because the elevator reverses at the extreme pending request rather than the building boundary, every pending request is eventually reached on the next sweep in its direction. The only starvation risk is a continuous stream of same-direction requests always added ahead of a waiting request — but in a finite building with bounded traffic, this resolves in at most two full sweeps. If starvation is a hard requirement, I would add a 'maximum wait' counter: any request waiting more than K sweeps gets elevated priority, forcing the elevator to serve it next."
 
 ---
 
-## Cheat Sheet: LLD Interview Quick Reference
+**Concept Check — Thread Safety**
+**"How do you handle concurrent requests from multiple threads safely?"**
 
-### LLD Interview Approach Checklist
+**One-line answer:** A shared `Object lock` guards all `TreeSet` access; `step()` parks with `lock.wait()` when idle, and `addDestination()` wakes it with `lock.notifyAll()`.
 
-Follow this step-by-step process in every LLD interview:
+**Full answer:**
+> "Each `Elevator` has a background thread running its `step()` loop and the `ElevatorController` calls `addDestination()` from the main thread. Both access `pendingFloors`, a `TreeSet` that is not thread-safe — concurrent modification would cause `ConcurrentModificationException` or data loss. I guard every `TreeSet` access with `synchronized(lock)` where `lock` is a private `Object` in `Elevator`. When `pendingFloors` is empty, `step()` calls `lock.wait()`, which atomically releases the lock and parks the thread — no CPU spinning. When `addDestination()` adds a new floor, it calls `lock.notifyAll()` inside its own `synchronized(lock)` block, waking the parked `step()` thread. The `wait()` is inside a `while` loop (not `if`) to guard against spurious wakeups — a Java threading requirement. `currentFloor` and `state` are `volatile` so the `ElevatorController` can read them for scoring without acquiring the lock."
 
-```
-Step 1 — REQUIREMENTS (5 min)
-  □ Ask clarifying questions: scale, users, edge cases
-  □ Separate functional requirements from NFRs
-  □ Confirm: "I'll focus on [core flow], we can extend later"
+> *Explicitly mention the spurious wakeup guard — it separates candidates who know Java concurrency from those who learned the pattern without understanding it.*
 
-Step 2 — ENTITIES (5 min)
-  □ Identify the nouns in requirements → candidates for classes
-  □ Define attributes for each entity
-  □ Identify relationships: has-a, is-a, many-to-many
-  □ Draw ER diagram on whiteboard
-
-Step 3 — CLASS RELATIONSHIPS (5 min)
-  □ Composition vs. Aggregation vs. Association
-  □ Inheritance hierarchy (prefer composition)
-  □ Define interfaces for key abstractions
-
-Step 4 — DESIGN PATTERNS (5 min)
-  □ Is there a family of algorithms? → Strategy
-  □ Are there state transitions? → State
-  □ One-to-many notifications? → Observer
-  □ Object creation logic? → Factory / Builder
-  □ Wrapping with extra behavior? → Decorator
-  □ Incompatible interfaces? → Adapter
-
-Step 5 — CODE KEY CLASSES (15 min)
-  □ Write the most important entity class with fields
-  □ Write the interface for the key abstraction
-  □ Write the core service method (booking, expense, dispatch)
-  □ Handle the key challenge (concurrency, algorithm, state machine)
-
-Step 6 — DISCUSS TRADE-OFFS (5 min)
-  □ What would break at 10x scale?
-  □ What would you cache? (Redis)
-  □ What would you make async? (messaging queue)
-  □ What would you index differently in the DB?
-```
+**Gotcha follow-up:** *"Why not use a `ConcurrentSkipListSet` instead of a synchronized `TreeSet`?"*
+> "`ConcurrentSkipListSet` provides thread-safe `ceiling()` and `floor()` operations, which would avoid explicit locking for the read path. However, I still need `wait/notifyAll` to park the elevator thread when the set is empty — and that mechanism requires an explicit lock object. Mixing `ConcurrentSkipListSet` with a separate monitor for the wait/notify creates a compound check-then-act that is harder to reason about correctly. The synchronized `TreeSet` plus a single lock object keeps all coordination through one mechanism. If I were using a `BlockingQueue`, I could use `take()` to block on empty — but a queue does not support the range queries (`ceiling`, `floor`) the LOOK algorithm needs."
 
 ---
 
-### Common Design Patterns in LLD
+**Tradeoff Question — Data Structure**
+**"Why TreeSet for pendingFloors instead of a List or Queue?"**
 
-| Pattern | Intent | Used In (this handbook) |
-|---------|--------|------------------------|
-| **Strategy** | Swap algorithms at runtime | Payment methods, Split types, Scheduling algorithms |
-| **Observer** | One-to-many event notification | Booking notifications, Floor button events, Balance updates |
-| **State** | Object behaviour varies by state | Elevator states (IDLE/MOVING/MAINTENANCE) |
-| **Factory / Factory Method** | Decouple object creation | Notification channels, Split strategy lookup |
-| **Builder** | Construct complex objects step by step | Query builders, Request objects |
-| **Singleton** | One instance per JVM | Spring `@Service` beans (default scope) |
-| **Decorator** | Add behaviour without inheritance | Logging wrappers, Retry decorators |
-| **Template Method** | Invariant algorithm skeleton, variable steps | Expense processing pipeline |
-| **Adapter** | Make incompatible interfaces work together | Third-party payment gateway adapters |
-| **Proxy** | Lazy loading, access control, caching | JPA lazy relationships, Spring AOP |
-| **Command** | Encapsulate a request as an object | Undo/redo, request queuing |
-| **Repository** | Decouple domain from data access | Spring Data JPA repositories |
+**One-line answer:** LOOK needs the nearest floor above and below in O(log N); a List requires O(N) scan; `TreeSet.ceiling()` and `TreeSet.floor()` are O(log N) by design.
+
+**Full answer:**
+> "The LOOK algorithm's core operation is: given my current floor, find the nearest pending floor above me (to continue upward) or the nearest below (to continue downward). On a `List`, this requires iterating through every pending floor to find the minimum distance — O(N) per step. For an elevator serving 20 requests, that is 20 comparisons on every simulated step. `TreeSet` is a sorted red-black tree. `ceiling(x)` returns the smallest element greater than or equal to x in O(log N). `floor(x)` returns the largest element less than or equal to x in O(log N). `last()` and `first()` give the reversal points in O(log N). Additionally, `TreeSet` automatically deduplicates: if a passenger presses floor 5 inside the elevator and another passenger on floor 5 presses the DOWN button, the floor is stored only once. A `Queue` cannot be used because it forces FIFO ordering — the whole point of LOOK is to ignore insertion order in favour of direction-optimal ordering."
+
+> *Mention deduplication — it is a free benefit of `TreeSet` that interviewers appreciate.*
 
 ---
 
-### LLD Designs Quick Reference
+**Design Scenario — Further Optimisation**
+**"How would you reduce average wait time beyond the LOOK algorithm?"**
 
-| Design | Key Entities | Key Patterns | Key Challenge |
-|--------|-------------|--------------|---------------|
-| **Parking Lot** | ParkingLot, Level, Spot (Compact/Large/Handicapped), Vehicle, Ticket, Payment | Strategy (fee), Factory (vehicle type), Observer (spot availability) | Thread-safe spot allocation |
-| **Library Management** | Book, BookItem, Member, Librarian, Reservation, Fine, BookLending | Observer (reservation), Strategy (fine calculation) | Multiple copies, reservation queue |
-| **BookMyShow** | Movie, Theatre, Screen, Show, ShowSeat, Booking, Payment, User | Observer (notifications), Strategy (payment), Factory (notification channel) | Concurrent seat booking — `@Version` optimistic lock |
-| **Splitwise** | User, Group, Expense, ExpenseSplit, Balance, Transaction | Strategy (split type), Template Method (expense pipeline) | Balance simplification — greedy 2-heap O(N log N) |
-| **Elevator System** | Elevator, ElevatorController, Floor, Request (internal/external) | State (elevator states), Strategy (scheduling), Observer (floor button) | LOOK algorithm, thread-safe step() with `synchronized` |
-| **Ride Sharing (Uber)** | Driver, Rider, Trip, Vehicle, Location, Pricing, Rating | Strategy (pricing surge), Observer (location updates), State (trip states) | Geo-spatial driver matching |
-| **ATM** | ATM, Card, Account, Transaction, CashDispenser, Receipt | State (ATM states), Chain of Responsibility (auth steps), Command (transactions) | Transaction atomicity, hardware failure |
-| **Chess / Tic-Tac-Toe** | Board, Piece (subclasses), Player, Game, Move | Strategy (AI player), State (game states), Command (move history/undo) | Move validation, win detection |
+**One-line answer:** Destination dispatch, express zones, predictive scheduling, and dynamic idle rebalancing each attack a different dimension of wait time.
+
+**Full answer:**
+> "LOOK minimises in-shaft travel, but there are four further levers. First, destination dispatch: instead of pressing UP or DOWN in the lobby, passengers enter their destination floor on a keypad before boarding. The controller groups passengers going to nearby floors onto the same elevator — one elevator handles floors 20-25, another handles 30-35. This dramatically reduces stops per trip. Second, express zones: some elevators serve only floors 1-20, others 21-40, others 41-50. Passengers transfer at zone boundaries. Fewer floors per elevator means faster service within each zone. Third, predictive scheduling: the system learns that 8-9 AM sees a surge of UP requests from floor 1, so it pre-positions more elevators at the ground floor before rush hour rather than waiting for requests to accumulate. Fourth, dynamic rebalancing: when all elevators cluster at the top of the building (evening rush going down), idle elevators are proactively sent back to mid-building floors to reduce the initial travel distance for the next request."
+
+> *Showing you can think beyond the algorithm to operational optimisations signals senior-level thinking.*
 
 ---
 
-### Key Concurrency Patterns for LLD Interviews
-
-```java
-// 1. Optimistic Locking (low contention — best default)
-@Version private Long version;  // JPA handles conflict detection
-
-// 2. Pessimistic Locking (high contention — flash sale, limited inventory)
-@Lock(LockModeType.PESSIMISTIC_WRITE)
-@Query("SELECT s FROM ShowSeat s WHERE s.id = :id")
-ShowSeat findByIdForUpdate(@Param("id") Long id);
-
-// 3. synchronized block (single JVM — elevators, in-memory state machines)
-synchronized (lock) { pendingFloors.add(floor); lock.notifyAll(); }
-
-// 4. ConcurrentHashMap (high-concurrency reads, low-contention writes)
-private final Map<Long, BigDecimal> balanceCache = new ConcurrentHashMap<>();
-
-// 5. Atomic operations (counters, flags)
-private final AtomicInteger availableSpots = new AtomicInteger(capacity);
-availableSpots.decrementAndGet();  // thread-safe
-```
+> **Common Mistake — Using `if` instead of `while` for `lock.wait()`:** Java's `wait()` can return spuriously — the thread wakes without `notifyAll()` being called. If the guard is `if (pendingFloors.isEmpty()) lock.wait()`, the thread may proceed on a spurious wakeup and call `step()` on an empty `TreeSet`, causing a `NoSuchElementException` on `pendingFloors.last()`. Always use `while (pendingFloors.isEmpty()) lock.wait()` — this is a non-negotiable rule in Java concurrent programming.
 
 ---
 
-## Quick Revision — LLD Case Studies
-
-### Parking Lot
-- **Key entities:** ParkingLot (Singleton), ParkingFloor, ParkingSpot (Compact/Large/Handicapped/Motorcycle), Vehicle (Car/Truck/Motorcycle/Electric), Ticket, Payment
-- **Patterns:** Singleton (one lot), Factory (vehicle creation), Strategy (fee: hourly/flat/EV), Observer (display board updates)
-- **Key challenge:** Thread-safe spot allocation — use `synchronized` on `findAvailableSpot()` or optimistic CAS
-- **Fee calculation:** Strategy pattern allows adding new fee types without changing ParkingLot
-
-### URL Shortener
-- **Key entities:** ShortUrl (id, originalUrl, shortCode, expiresAt, createdBy), ClickAnalytics
-- **Core algorithm:** Base62 encoding — 62^6 = 56.8 billion unique codes; use Redis INCR for counter-based ID generation
-- **301 vs 302:** 301 (permanent, browser caches — saves server load); 302 (temporary, every request hits server — enables analytics)
-- **Patterns:** Strategy (ID gen: counter vs random vs hash), Facade (UrlShortenerService), @Cacheable on redirect
-
-### Rate Limiter
-- **Algorithms:** Token Bucket (allows burst), Leaky Bucket (smooth output), Fixed Window (simple but boundary attack), Sliding Window Log (accurate, memory heavy), Sliding Window Counter (hybrid — accurate + efficient)
-- **Distributed:** Lua script on Redis for atomic token check + decrement
-- **Pattern:** Strategy (algorithm), Decorator (OncePerRequestFilter wraps any endpoint)
-- **Headers:** X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After (429)
-
-### BookMyShow
-- **Key entities:** Show, ShowSeat (@Version for optimistic lock), Booking (states: PENDING/CONFIRMED/CANCELLED), Payment
-- **Concurrency:** `@Version` on ShowSeat — SELECT + UPDATE WHERE version=? — throws OptimisticLockException on conflict → retry or show "seat taken"
-- **Patterns:** Observer (booking confirmation → email/SMS via Spring Events), Strategy (payment methods), Factory (notification channels)
-- **Seat lock expiry:** @Scheduled job to release PENDING bookings older than 10 minutes
-
-### Splitwise
-- **Split types:** EqualSplit (amount/n), ExactSplit (explicit amounts), PercentageSplit (%, must sum to 100), ShareSplit (proportional)
-- **Balance simplification:** Net balance per user → max-heap for creditors, min-heap for debtors → greedy O(N log N) minimizes transactions
-- **Pattern:** Strategy (split calculation), Template Method (ExpenseProcessor skeleton)
-- **Key invariant:** Sum of all splits must equal total expense amount (validated in `validate()`)
-
-### Elevator
-- **States:** IDLE, MOVING_UP, MOVING_DOWN, MAINTENANCE — State pattern FSM
-- **LOOK algorithm:** Move in current direction, serve all requests in that direction, then reverse — O(1) per step
-- **Data structure:** `TreeSet<Integer> pendingFloors` for O(log N) next-floor lookup with `higher()`/`lower()`
-- **Coordination:** ElevatorController assigns external requests to closest available elevator (min distance + direction penalty)
-
-### LLD Interview Approach (6 steps)
-1. **Clarify requirements** — functional (what it does) + non-functional (scale, latency, consistency)
-2. **Identify core entities** — nouns in requirements = classes; verbs = methods
-3. **Define relationships** — has-a (composition/aggregation) vs is-a (inheritance)
-4. **Apply design patterns** — identify which patterns solve the key challenges
-5. **Write the code** — start with interfaces/enums, then core classes, then service layer
-6. **Discuss trade-offs** — thread safety, extensibility, scalability
-
----
-
-*End of Chapter 21 — LLD Case Studies | Volume 5: System Design & LLD*
-
-> **Next:** Chapter 22 — System Design Deep Dives (URL Shortener, Rate Limiter, Distributed Cache)
-
-
+**Quick Revision:** The elevator system's correctness rests on two things: a `TreeSet` for O(log N) directional floor selection, and a `synchronized` + `wait/notifyAll` pattern that lets the elevator thread sleep efficiently between requests without busy-waiting.
 

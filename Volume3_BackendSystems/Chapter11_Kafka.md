@@ -1,661 +1,1059 @@
 ﻿# Volume 3: Backend Systems
-# Chapter 11: Apache Kafka & Event Streaming
+# Chapter 11: Kafka
 
 ---
 
 ## Table of Contents
-1. [Kafka Core Concepts](#topic-1-kafka-core-concepts)
-2. [Producers](#topic-2-producers)
-3. [Consumers & Consumer Groups](#topic-3-consumers--consumer-groups)
-4. [Offset Management](#topic-4-offset-management)
-5. [Kafka Delivery Guarantees](#topic-5-kafka-delivery-guarantees)
-6. [Partitioning Strategy](#topic-6-partitioning-strategy)
-7. [Consumer Lag & Monitoring](#topic-7-consumer-lag--monitoring)
-8. [Kafka Streams](#topic-8-kafka-streams)
-9. [Kafka Connect](#topic-9-kafka-connect)
-10. [Schema Registry & Avro](#topic-10-schema-registry--avro)
-11. [Kafka in Spring Boot](#topic-11-kafka-in-spring-boot)
-12. [Retention & Compaction](#topic-12-retention--compaction)
-13. [Kafka vs RabbitMQ vs SQS](#topic-13-kafka-vs-rabbitmq-vs-sqs)
-14. [Replication & Fault Tolerance](#topic-14-replication--fault-tolerance)
-15. [Kafka Performance Tuning](#topic-15-kafka-performance-tuning)
-16. [Cheat Sheet](#cheat-sheet)
+
+1. Kafka Core Concepts
+2. Producers
+3. Consumers and Consumer Groups
+4. Offset Management
+5. Kafka Delivery Guarantees
+6. Partitioning Strategy
+7. Consumer Lag and Monitoring
+8. Kafka Streams
+9. Kafka Connect
+10. Schema Registry and Avro
+11. Kafka in Spring Boot
+12. Retention and Log Compaction
+13. Kafka vs RabbitMQ vs SQS
+14. Replication and Fault Tolerance
+15. Kafka Performance Tuning
 
 ---
 
-### Topic 1: Kafka Core Concepts
-**Difficulty:** Medium | **Frequency:** High | **Companies:** LinkedIn, Confluent, Uber, Netflix, Goldman Sachs
+> **How to read this chapter:** Each topic has three layers.
+> - **The Idea** — start here, no prior knowledge needed.
+> - **How It Works** — the real mechanism, patterns, and tradeoffs.
+> - **Interview Lens** — what interviewers actually probe.
+>
+> Beginners: read all three layers top to bottom.
+> SDE2/Senior: skim "The Idea", focus on "How It Works" and "Interview Lens".
 
-**Q: Explain the core architecture of Apache Kafka — what are brokers, topics, partitions, offsets, segments, and how does log compaction work?**
+---
 
-**Short Answer (2-3 sentences):**
-Kafka is a distributed, partitioned, replicated commit-log service. Topics are logical categories of messages split into partitions, each of which is an ordered, immutable sequence of records stored on a broker. Each record within a partition has a monotonically increasing offset that uniquely identifies it; log compaction is a background process that retains only the latest value per key, enabling changelog-style topics.
+## Topic 1: Kafka Core Concepts
 
-**Deep Explanation:**
-- **Broker**: A Kafka server process. A cluster has N brokers; each partition has exactly one leader broker and R-1 follower brokers (where R = replication factor). The leader handles all reads and writes; followers replicate asynchronously from the leader.
-- **Topic**: A named, durable feed of records. Topics are the primary abstraction — producers write to topics and consumers read from them.
-- **Partition**: The unit of parallelism and ordering. Records within a partition are totally ordered; across partitions, there is no global ordering guarantee. A partition is stored as an append-only log on the broker's disk. The number of partitions determines maximum consumer parallelism.
-- **Offset**: A 64-bit integer uniquely identifying a record's position within a partition. Offsets are assigned by the broker at append time and are immutable. Consumer groups track their position via committed offsets.
-- **Segment**: A partition log is physically stored as a set of segment files on disk (e.g., `00000000000000000000.log`). Kafka rolls over to a new segment when the current one reaches `log.segment.bytes` (default 1 GB) or `log.roll.hours` (default 168 h). Older segments are eligible for deletion per retention policy.
-- **Log Compaction**: Rather than time- or size-based deletion, compaction retains the most recent record per key, cleaning up older duplicates. The cleaner thread merges "dirty" (post-last-clean) segments with clean segments. Tombstones (null-value records) mark deletes; they are retained for `delete.retention.ms` before being physically removed. Log compaction is critical for changelog topics in Kafka Streams state stores and Kafka Connect offset topics.
+<svg viewBox="0 0 760 340" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="width:100%; max-width:760px; display:block; margin:16px 0;">
+  <defs>
+    <style>
+      /* ── Fonts &amp; base ── */
+      text { font-family: 'Courier New', monospace; fill: #e2e8f0; }
 
-**Real-World Example:**
-At LinkedIn, each user-event topic has hundreds of partitions. Each partition is ~1 GB on disk. The `__consumer_offsets` internal topic uses log compaction so it only stores the latest committed offset per group-topic-partition, keeping storage bounded even after billions of commits.
+      /* ── Producer pulse ── */
+      @keyframes producerPulse {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.7; }
+      }
 
-**Code Example:**
+      /* ── Message block: P0 ── */
+      @keyframes msgP0 {
+        0%         { transform: translateX(-60px); opacity: 0; }
+        8%         { transform: translateX(0);     opacity: 1; }
+        45%        { transform: translateX(0);     opacity: 1; }
+        55%        { transform: translateX(0);     opacity: 0; }
+        100%       { transform: translateX(0);     opacity: 0; }
+      }
+      /* ── Message block: P1 ── */
+      @keyframes msgP1 {
+        0%,  18%   { transform: translateX(-60px); opacity: 0; }
+        26%        { transform: translateX(0);     opacity: 1; }
+        55%        { transform: translateX(0);     opacity: 1; }
+        65%        { transform: translateX(0);     opacity: 0; }
+        100%       { transform: translateX(0);     opacity: 0; }
+      }
+      /* ── Message block: P2 ── */
+      @keyframes msgP2 {
+        0%,  34%   { transform: translateX(-60px); opacity: 0; }
+        42%        { transform: translateX(0);     opacity: 1; }
+        70%        { transform: translateX(0);     opacity: 1; }
+        80%        { transform: translateX(0);     opacity: 0; }
+        100%       { transform: translateX(0);     opacity: 0; }
+      }
+
+      /* ── Offset counter flash ── */
+      @keyframes offsetP0 {
+        0%,  7%   { opacity: 0; }
+        8%,  54%  { opacity: 1; }
+        55%, 100% { opacity: 0; }
+      }
+      @keyframes offsetP1 {
+        0%,  25%  { opacity: 0; }
+        26%, 64%  { opacity: 1; }
+        65%, 100% { opacity: 0; }
+      }
+      @keyframes offsetP2 {
+        0%,  41%  { opacity: 0; }
+        42%, 79%  { opacity: 1; }
+        80%, 100% { opacity: 0; }
+      }
+
+      /* ── Consumer pull arrows ── */
+      @keyframes arrowP0 {
+        0%,  44%  { stroke-dashoffset: 80; opacity: 0; }
+        46%        { opacity: 1; }
+        55%        { stroke-dashoffset: 0; opacity: 1; }
+        62%        { opacity: 0; }
+        100%       { stroke-dashoffset: 80; opacity: 0; }
+      }
+      @keyframes arrowP1 {
+        0%,  62%  { stroke-dashoffset: 80; opacity: 0; }
+        64%        { opacity: 1; }
+        73%        { stroke-dashoffset: 0; opacity: 1; }
+        80%        { opacity: 0; }
+        100%       { stroke-dashoffset: 80; opacity: 0; }
+      }
+      @keyframes arrowP2 {
+        0%,  78%  { stroke-dashoffset: 80; opacity: 0; }
+        80%        { opacity: 1; }
+        90%        { stroke-dashoffset: 0; opacity: 1; }
+        97%        { opacity: 0; }
+        100%       { stroke-dashoffset: 80; opacity: 0; }
+      }
+
+      /* ── Consumer green flash ── */
+      @keyframes consumerFlashC0 {
+        0%,  54%  { fill: #10b981; }
+        55%,  62% { fill: #34d399; }
+        63%, 100% { fill: #10b981; }
+      }
+      @keyframes consumerFlashC1 {
+        0%,  72%  { fill: #10b981; }
+        73%,  80% { fill: #34d399; }
+        81%, 100% { fill: #10b981; }
+      }
+      @keyframes consumerFlashC2 {
+        0%,  89%  { fill: #10b981; }
+        90%,  97% { fill: #34d399; }
+        98%, 100% { fill: #10b981; }
+      }
+
+      /* ── Group label blink ── */
+      @keyframes groupLabel {
+        0%,  10%  { opacity: 0; }
+        15%,  85% { opacity: 1; }
+        90%, 100% { opacity: 0; }
+      }
+
+      /* ── Producer line dash flow ── */
+      @keyframes dashFlow {
+        0%   { stroke-dashoffset: 20; }
+        100% { stroke-dashoffset: 0; }
+      }
+
+      .producer-box   { animation: producerPulse 6s infinite; }
+
+      .msg-p0  { animation: msgP0 6s infinite; }
+      .msg-p1  { animation: msgP1 6s infinite; }
+      .msg-p2  { animation: msgP2 6s infinite; }
+
+      .off-p0  { animation: offsetP0 6s infinite; }
+      .off-p1  { animation: offsetP1 6s infinite; }
+      .off-p2  { animation: offsetP2 6s infinite; }
+
+      .arrow-p0 { animation: arrowP0 6s infinite; }
+      .arrow-p1 { animation: arrowP1 6s infinite; }
+      .arrow-p2 { animation: arrowP2 6s infinite; }
+
+      .consumer-c0 { animation: consumerFlashC0 6s infinite; }
+      .consumer-c1 { animation: consumerFlashC1 6s infinite; }
+      .consumer-c2 { animation: consumerFlashC2 6s infinite; }
+
+      .group-label { animation: groupLabel 6s infinite; }
+
+      .prod-line { animation: dashFlow 0.6s linear infinite; }
+    </style>
+
+    <!-- arrowhead markers -->
+    <marker id="arrowAmber" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#10b981"/>
+    </marker>
+  </defs>
+
+  <!-- ══════════════════════════════════════════════════
+       BACKGROUND
+  ══════════════════════════════════════════════════ -->
+  <rect width="760" height="340" fill="#f8fafc" rx="10"/>
+
+  <!-- ══════════════════════════════════════════════════
+       TITLE
+  ══════════════════════════════════════════════════ -->
+  <text x="380" y="26" text-anchor="middle" font-size="14" font-weight="bold" fill="#64748b">Kafka Producer-Consumer Flow</text>
+
+  <!-- ══════════════════════════════════════════════════
+       PRODUCER  (left, x=30..130, vertically centered)
+  ══════════════════════════════════════════════════ -->
+  <g class="producer-box">
+    <rect x="30" y="120" width="100" height="100" rx="8" fill="#3b82f6" stroke="#60a5fa" stroke-width="1.5"/>
+    <text x="80" y="163" text-anchor="middle" font-size="12" font-weight="bold">Producer</text>
+    <text x="80" y="180" text-anchor="middle" font-size="9" fill="#1d4ed8">orders-svc</text>
+    <!-- animated dashes representing activity -->
+    <line x1="48" y1="200" x2="112" y2="200" stroke="#bfdbfe" stroke-width="1" stroke-dasharray="4 3" opacity="0.5" class="prod-line"/>
+  </g>
+
+  <!-- ══════════════════════════════════════════════════
+       PRODUCER → TOPIC connector line
+  ══════════════════════════════════════════════════ -->
+  <line x1="130" y1="170" x2="218" y2="170"
+        stroke="#f59e0b" stroke-width="2" stroke-dasharray="6 3"
+        marker-end="url(#arrowAmber)" class="prod-line"/>
+
+  <!-- ══════════════════════════════════════════════════
+       TOPIC BOX  (center, x=220..530)
+  ══════════════════════════════════════════════════ -->
+  <!-- outer topic container -->
+  <rect x="218" y="50" width="316" height="240" rx="10" fill="#f1f5f9" stroke="#475569" stroke-width="1.5"/>
+  <text x="376" y="74" text-anchor="middle" font-size="12" font-weight="bold" fill="#64748b">Topic: orders</text>
+
+  <!-- ── Partition 0 (y=85..135) ── -->
+  <rect x="230" y="82" width="294" height="46" rx="5" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="246" y="110" font-size="10" fill="#334155">Partition 0</text>
+  <!-- slot for message block -->
+  <clipPath id="clipP0"><rect x="300" y="84" width="210" height="42" rx="3"/></clipPath>
+  <g clip-path="url(#clipP0)">
+    <g class="msg-p0">
+      <rect x="382" y="88" width="60" height="32" rx="3" fill="#f59e0b"/>
+      <text x="412" y="107" text-anchor="middle" font-size="9" fill="#fffbeb" font-weight="bold">msg-42</text>
+    </g>
+    <!-- second message -->
+    <rect x="306" y="88" width="56" height="32" rx="3" fill="#f59e0b" opacity="0.4"/>
+    <text x="334" y="107" text-anchor="middle" font-size="9" fill="#fffbeb">msg-41</text>
+  </g>
+  <!-- offset label -->
+  <g class="off-p0">
+    <text x="454" y="110" font-size="9" fill="#92400e">offset: 43</text>
+  </g>
+
+  <!-- ── Partition 1 (y=145..195) ── -->
+  <rect x="230" y="143" width="294" height="46" rx="5" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="246" y="171" font-size="10" fill="#334155">Partition 1</text>
+  <clipPath id="clipP1"><rect x="300" y="145" width="210" height="42" rx="3"/></clipPath>
+  <g clip-path="url(#clipP1)">
+    <g class="msg-p1">
+      <rect x="382" y="149" width="60" height="32" rx="3" fill="#f59e0b"/>
+      <text x="412" y="168" text-anchor="middle" font-size="9" fill="#fffbeb" font-weight="bold">msg-17</text>
+    </g>
+    <rect x="306" y="149" width="56" height="32" rx="3" fill="#f59e0b" opacity="0.4"/>
+    <text x="334" y="168" text-anchor="middle" font-size="9" fill="#fffbeb">msg-16</text>
+  </g>
+  <g class="off-p1">
+    <text x="454" y="171" font-size="9" fill="#92400e">offset: 18</text>
+  </g>
+
+  <!-- ── Partition 2 (y=205..255) ── -->
+  <rect x="230" y="204" width="294" height="46" rx="5" fill="#1e293b" stroke="#475569" stroke-width="1"/>
+  <text x="246" y="232" font-size="10" fill="#334155">Partition 2</text>
+  <clipPath id="clipP2"><rect x="300" y="206" width="210" height="42" rx="3"/></clipPath>
+  <g clip-path="url(#clipP2)">
+    <g class="msg-p2">
+      <rect x="382" y="210" width="60" height="32" rx="3" fill="#f59e0b"/>
+      <text x="412" y="229" text-anchor="middle" font-size="9" fill="#fffbeb" font-weight="bold">msg-09</text>
+    </g>
+    <rect x="306" y="210" width="56" height="32" rx="3" fill="#f59e0b" opacity="0.4"/>
+    <text x="334" y="229" text-anchor="middle" font-size="9" fill="#fffbeb">msg-08</text>
+  </g>
+  <g class="off-p2">
+    <text x="454" y="232" font-size="9" fill="#92400e">offset: 10</text>
+  </g>
+
+  <!-- ══════════════════════════════════════════════════
+       PULL ARROWS  (partition right edge → consumer left edge)
+       Partition right edge x=524, Consumer left edge x=548
+  ══════════════════════════════════════════════════ -->
+  <!-- Arrow P0 → C0 -->
+  <line x1="524" y1="105" x2="548" y2="105"
+        stroke="#10b981" stroke-width="2.5"
+        stroke-dasharray="10 4" stroke-dashoffset="80"
+        marker-end="url(#arrowGreen)"
+        class="arrow-p0"/>
+  <!-- Arrow P1 → C1 -->
+  <line x1="524" y1="166" x2="548" y2="166"
+        stroke="#10b981" stroke-width="2.5"
+        stroke-dasharray="10 4" stroke-dashoffset="80"
+        marker-end="url(#arrowGreen)"
+        class="arrow-p1"/>
+  <!-- Arrow P2 → C2 -->
+  <line x1="524" y1="227" x2="548" y2="227"
+        stroke="#10b981" stroke-width="2.5"
+        stroke-dasharray="10 4" stroke-dashoffset="80"
+        marker-end="url(#arrowGreen)"
+        class="arrow-p2"/>
+
+  <!-- ══════════════════════════════════════════════════
+       CONSUMER GROUP BOX  (right, x=546..730)
+  ══════════════════════════════════════════════════ -->
+  <rect x="546" y="50" width="190" height="240" rx="10" fill="#f1f5f9" stroke="#059669" stroke-width="1.5"/>
+
+  <!-- Consumer Group label (flashing) -->
+  <g class="group-label">
+    <rect x="556" y="56" width="170" height="22" rx="4" fill="#d1fae5"/>
+    <text x="641" y="71" text-anchor="middle" font-size="9" fill="#065f46">Consumer Group: my-group</text>
+  </g>
+
+  <!-- ── Consumer 0 ── -->
+  <rect x="562" y="84" width="158" height="46" rx="6" class="consumer-c0" fill="#10b981"/>
+  <text x="641" y="108" text-anchor="middle" font-size="10" font-weight="bold" fill="#022c22">Consumer-0</text>
+  <text x="641" y="122" text-anchor="middle" font-size="8" fill="#d1fae5">← P0 assigned</text>
+
+  <!-- ── Consumer 1 ── -->
+  <rect x="562" y="143" width="158" height="46" rx="6" class="consumer-c1" fill="#10b981"/>
+  <text x="641" y="167" text-anchor="middle" font-size="10" font-weight="bold" fill="#022c22">Consumer-1</text>
+  <text x="641" y="181" text-anchor="middle" font-size="8" fill="#d1fae5">← P1 assigned</text>
+
+  <!-- ── Consumer 2 ── -->
+  <rect x="562" y="204" width="158" height="46" rx="6" class="consumer-c2" fill="#10b981"/>
+  <text x="641" y="228" text-anchor="middle" font-size="10" font-weight="bold" fill="#022c22">Consumer-2</text>
+  <text x="641" y="242" text-anchor="middle" font-size="8" fill="#d1fae5">← P2 assigned</text>
+
+  <!-- ══════════════════════════════════════════════════
+       LEGEND  (bottom)
+  ══════════════════════════════════════════════════ -->
+  <rect x="30" y="305" width="700" height="26" rx="5" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>
+  <!-- Message block legend -->
+  <rect x="44" y="313" width="14" height="10" rx="2" fill="#f59e0b"/>
+  <text x="62" y="322" font-size="9" fill="#64748b">Message (amber)</text>
+  <!-- Consumer legend -->
+  <rect x="190" y="313" width="14" height="10" rx="2" fill="#10b981"/>
+  <text x="208" y="322" font-size="9" fill="#64748b">Consumer (green)</text>
+  <!-- Producer legend -->
+  <rect x="340" y="313" width="14" height="10" rx="2" fill="#3b82f6"/>
+  <text x="358" y="322" font-size="9" fill="#64748b">Producer (blue)</text>
+  <!-- Offset text -->
+  <text x="470" y="322" font-size="9" fill="#92400e">offset: N</text>
+  <text x="510" y="322" font-size="9" fill="#64748b">= committed read position</text>
+</svg>
+
+---
+
+#### The Idea
+
+Imagine a city's postal sorting office that never throws away any letter — it just stacks them in numbered slots. Every letter that arrives gets a unique slot number, and that number never changes. If you want to re-read letter number 42, it's still there. Multiple delivery teams can each keep their own bookmark (saying "I've read up to slot 42") and work independently without interfering with each other.
+
+That is Kafka. A **topic** is the address (e.g., "order-events"). A **partition** is one physical stack of letters inside that address — ordered, append-only, numbered from zero. The number on each letter is its **offset**. A **broker** is a server that hosts those stacks. Multiple brokers together form the **cluster**, and each partition is replicated across several brokers for fault tolerance — one broker is the **leader** (handles reads and writes) and the rest are **followers** (copy from the leader).
+
+**Segments** are just how the partition's letter-stack is broken into manageable files on disk — when a file grows past 1 GB or a week old, Kafka starts a new segment file. **Log compaction** is a background process that, for changelog-style topics (e.g., the latest state of a user profile), throws away old versions of a key and keeps only the most recent one, bounding disk usage without losing the current picture.
+
+---
+
+#### How It Works
+
+```
+CLUSTER STRUCTURE
+
+  Broker 1 (Leader for P0, P2)        Broker 2 (Leader for P1)
+  ┌────────────────────────────┐       ┌────────────────────────┐
+  │  Topic: order-events       │       │  Topic: order-events   │
+  │  Partition 0  (replica)    │       │  Partition 1  (leader) │
+  │  ┌──────────────────────┐  │       │  ┌──────────────────┐  │
+  │  │ offset 0 | offset 1  │  │       │  │ offset 0 | off 1 │  │
+  │  │ offset 2 | offset 3  │  │       │  │ offset 2 | off 3 │  │
+  │  └──────────────────────┘  │       │  └──────────────────┘  │
+  │  Partition 2  (leader)     │       │  Partition 0  (follower)│
+  └────────────────────────────┘       └────────────────────────┘
+
+  Each partition = append-only segment files on disk
+  e.g. 00000000000000000000.log (segment 1)
+       00000000000001048576.log (segment 2, starts at offset 1048576)
+
+  Consumer Group A bookmarks:
+    P0 → committed offset 47
+    P1 → committed offset 31
+    P2 → committed offset 55
+```
+
+Key rules:
+- Ordering is guaranteed **within** a partition only — not across partitions.
+- One leader per partition; all writes go to the leader; followers replicate asynchronously.
+- Segment rollover triggers: `log.segment.bytes` (1 GB default) or `log.roll.hours` (168 h default).
+- Log compaction keeps the latest record per key; a null-value record (tombstone) signals deletion and is kept for `delete.retention.ms` before physical removal.
+- Consumers can read from follower replicas since Kafka 2.4 (`client.rack` config) to reduce cross-AZ traffic — but writes always go to the leader.
+
 ```java
-// Spring Boot 3.x — programmatically creating a topic with compaction
-import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.common.config.TopicConfig;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.config.TopicBuilder;
+// Must-memorise: creating a compacted changelog topic in Spring Boot
+@Bean
+public NewTopic userProfileChangelog() {
+    return TopicBuilder.name("user-profile-changelog")
+            .partitions(12)
+            .replicas(3)
+            .compact()
+            .config(TopicConfig.MIN_CLEANABLE_DIRTY_RATIO_CONFIG, "0.1")
+            .config(TopicConfig.DELETE_RETENTION_MS_CONFIG,
+                    String.valueOf(24 * 60 * 60 * 1000L))
+            .build();
+}
+```
 
-@Configuration
-public class KafkaTopicConfig {
+---
 
-    // Standard topic: 6 partitions, replication factor 3
-    @Bean
-    public NewTopic orderEventsTopic() {
-        return TopicBuilder.name("order-events")
-                .partitions(6)
-                .replicas(3)
-                .config(TopicConfig.RETENTION_MS_CONFIG, String.valueOf(7 * 24 * 60 * 60 * 1000L)) // 7 days
-                .build();
-    }
+#### Interview Lens
 
-    // Compacted topic for user-profile changelog
-    @Bean
-    public NewTopic userProfileChangelog() {
-        return TopicBuilder.name("user-profile-changelog")
-                .partitions(12)
-                .replicas(3)
-                .compact()
-                .config(TopicConfig.MIN_CLEANABLE_DIRTY_RATIO_CONFIG, "0.1")
-                .config(TopicConfig.DELETE_RETENTION_MS_CONFIG, String.valueOf(24 * 60 * 60 * 1000L))
-                .build();
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
+
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
+
+---
+
+##### Q1 — Concept Check
+**"Explain the core architecture of Kafka — what are brokers, topics, partitions, and offsets?"**
+
+**One-line answer:** Kafka topics are split into ordered, append-only partitions stored on broker servers; each record within a partition gets a unique sequential offset number.
+
+**Full answer to give in an interview:**
+
+> "Kafka is a distributed commit-log system. You write messages to a **topic** — a named logical category like 'order-events'. A topic is physically divided into **partitions**, each of which is an append-only, ordered log of records. Every record appended to a partition gets a **offset** — a 64-bit integer that starts at zero and increments forever. That offset is how consumers bookmark their position.
+>
+> The partitions live on **brokers** — Kafka server processes in the cluster. For fault tolerance, each partition is replicated: one broker is the **leader** (the only one that accepts writes) and the others are **followers** that copy from the leader. If the leader fails, a follower is promoted.
+>
+> On disk, a partition is stored as rolling **segment** files — when a file hits roughly 1 GB or a week of age, Kafka starts a new one. Older segments are deleted based on your retention policy. For topics that represent the latest state of something — like the current address for each user — you can enable **log compaction**, which deletes old values for a key and keeps only the most recent one, so the log grows only as fast as the number of unique keys."
+
+> *Sketch the broker/partition/offset diagram if you have a whiteboard — it immediately shows you understand the physical layout.*
+
+**Gotcha follow-up they'll ask:** *"Is ordering guaranteed across partitions?"*
+
+> "No — ordering is only guaranteed within a single partition. Across partitions there is no global order. This is a deliberate trade-off: multiple partitions enable parallel producers and consumers, which is where Kafka gets its throughput. If you need total ordering for a business entity — like all events for a given order — you route them to the same partition by using the order ID as the message key. Kafka hashes the key to consistently pick the same partition."
+
+---
+
+##### Q2 — Tradeoff Question
+**"What is log compaction and when would you use it instead of time-based retention?"**
+
+**One-line answer:** Log compaction keeps only the latest value per key in a partition — use it when the topic represents current state (like a cache) rather than a time-series event stream.
+
+**Full answer to give in an interview:**
+
+> "By default, Kafka deletes records based on age or total partition size — after 7 days, old segments are removed regardless of what keys they contain. That works for event streams where you care about the history.
+>
+> **Log compaction** is an alternative where Kafka runs a background cleaner that looks at 'dirty' segments — the parts not yet compacted — and merges them, keeping only the most recent record for each key. If you update the same user's profile 100 times, after compaction only the 100th version remains. This means you can always rebuild current state by replaying the topic from the beginning, making it perfect for **database changelogs**, **Kafka Connect offset topics**, or **Kafka Streams state store restore topics**.
+>
+> The trade-off: compaction is asynchronous, so there's a window where duplicates exist; and it uses more broker CPU. You also need keys on every record — compaction is key-based. Tombstones — records with a null value — signal that a key should be deleted entirely; they're retained for `delete.retention.ms` before physical removal so slow consumers can observe the delete."
+
+> *If they push on Kafka Streams: the internal state store changelog topics use compaction so a restarted stream app can restore its state store from the beginning of the topic instead of a remote snapshot.*
+
+**Gotcha follow-up they'll ask:** *"Can a consumer read from a follower replica?"*
+
+> "Yes, since Kafka 2.4. Using the `client.rack` configuration, a consumer can be directed to fetch from the closest replica — typically the one in the same availability zone — instead of always going to the leader. This reduces cross-AZ data transfer costs significantly in cloud deployments. Writes still always go to the partition leader; only reads are rack-aware."
+
+---
+
+> **Common Mistake — confusing offset with time:** An offset is a sequential integer, not a timestamp. If you need to seek to a point in time, use the `offsetsForTimes()` API, which translates a timestamp to an offset. Trying to calculate offsets from timestamps manually will break when brokers delete old segments.
+
+---
+
+**Quick Revision (one line):**
+A Kafka topic is split into ordered append-only partitions stored as rolling segment files on brokers; offsets uniquely identify records within a partition, and log compaction retains only the latest value per key.
+
+---
+
+## Topic 2: Producers
+
+---
+
+#### The Idea
+
+Think of a Kafka producer like a courier company that doesn't send a truck for every single letter — it waits in the depot until either the truck is full or a short time window expires, then sends a single truck carrying a compressed bundle. This dramatically cuts transport costs compared to one truck per letter.
+
+The two knobs controlling that depot behaviour are **batch.size** (how full the truck must be before it leaves) and **linger.ms** (how long the depot waits for more letters before sending a half-full truck). The default is `linger.ms=0` — the truck leaves immediately — which is great for latency but terrible for throughput.
+
+Now imagine your courier occasionally crashes and tries to re-deliver the same package twice. To prevent that, each driver is issued a unique **Producer ID** and each package gets a **sequence number**. The receiving broker checks: if it already accepted this driver's package number 42, it silently drops the duplicate. That is the **idempotent producer** — it protects against duplicate records caused by retries after network timeouts.
+
+---
+
+#### How It Works
+
+```
+Producer internals:
+
+  Application thread          Background I/O thread
+  ─────────────────           ───────────────────────
+  send(record)
+      │
+      ▼
+  RecordAccumulator
+  (one ProducerBatch deque per TopicPartition)
+      │
+      ├─ batch full? (batch.size bytes, default 16 KB)  ──► send now
+      └─ linger.ms elapsed?                             ──► send now
+                                                │
+                                                ▼
+                                    Compress batch (lz4/snappy/zstd)
+                                                │
+                                                ▼
+                                    Send to leader broker
+                                                │
+                                    acks=0 ──► fire and forget
+                                    acks=1 ──► leader confirms write
+                                    acks=all ► all ISR replicas confirm
+```
+
+**acks settings — the durability ladder:**
+- `acks=0`: Maximum throughput, zero durability. Message may be lost if broker is unavailable.
+- `acks=1`: Leader writes and confirms. Risk: leader crashes before followers replicate — message is lost.
+- `acks=all` (or `-1`): All in-sync replicas (ISR) confirm. Use with `min.insync.replicas=2` for production durability. Recommended default.
+
+**Idempotent producer flow:**
+```
+Producer assigned PID=7 by broker
+
+Batch 1 for Partition-0:  PID=7, seq=0  → broker writes, ACKs
+Network blip — producer retries
+Batch 1 retry:            PID=7, seq=0  → broker sees (7, P0, 0) already written → drops silently
+Batch 2 for Partition-0:  PID=7, seq=1  → broker writes, ACKs
+```
+
+Constraints: requires `acks=all`, `retries > 0`, `max.in.flight.requests.per.connection <= 5`. Guarantees deduplication within one producer session only — a restart gets a new PID.
+
+```java
+// Must-memorise: idempotent producer config
+props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+props.put(ProducerConfig.ACKS_CONFIG, "all");
+props.put(ProducerConfig.RETRIES_CONFIG, Integer.MAX_VALUE);
+props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
+// Also tune for throughput:
+props.put(ProducerConfig.LINGER_MS_CONFIG, 10);        // wait 10ms for batch fill
+props.put(ProducerConfig.BATCH_SIZE_CONFIG, 65536);    // 64 KB batches
+props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "lz4");
+```
+
+---
+
+#### Interview Lens
+
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
+
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
+
+---
+
+##### Q1 — Concept Check
+**"How does Kafka producer batching work and what configs control it?"**
+
+**One-line answer:** The producer buffers records in per-partition batches and sends them when either the batch is full (`batch.size` bytes) or a time window expires (`linger.ms`).
+
+**Full answer to give in an interview:**
+
+> "The Kafka producer maintains a **RecordAccumulator** — essentially a queue of in-memory batches, one deque per topic-partition. When your application calls `send()`, the record is appended to the current open batch for that partition.
+>
+> Two conditions trigger a flush: the batch fills up to **`batch.size`** bytes (default 16 KB), or **`linger.ms`** milliseconds have elapsed since the first record was added to the batch (default 0 — which means send immediately with no waiting). For high-throughput scenarios, setting `linger.ms=5` to `linger.ms=20` dramatically improves throughput because more records aggregate into a single network request — you pay the round-trip cost once for many records instead of once per record.
+>
+> Before sending, the batch is **compressed** as a unit using the codec set in `compression.type` — options are none, gzip, snappy, lz4, or zstd. LZ4 is a popular production choice: fast CPU-wise and 3–5x compression for JSON payloads. The broker stores the compressed batch as-is and consumers decompress on their side.
+>
+> The **`acks`** setting then controls durability: `acks=0` means fire-and-forget, `acks=1` means the leader acknowledges, and `acks=all` means every in-sync replica acknowledges. Production should use `acks=all` with `min.insync.replicas=2`."
+
+> *If asked about latency vs throughput trade-off: linger.ms adds intentional latency at the producer to improve throughput downstream. It's a knob you tune based on your SLAs.*
+
+**Gotcha follow-up they'll ask:** *"Does the idempotent producer guarantee exactly-once across producer restarts?"*
+
+> "No, and this is a common trap. The **Producer ID (PID)** is assigned per session — when the producer process restarts, it gets a brand new PID. The broker has no way to correlate the old PID with the new one, so a duplicate sent by the old producer and then retried by the new producer after restart will not be deduplicated. Idempotence is session-scoped only. For cross-session exactly-once, you need **transactions** with a stable `transactional.id` — that identifier persists across restarts and lets the broker use epoch-based fencing to invalidate zombie producers."
+
+---
+
+##### Q2 — Tradeoff Question
+**"When would you use acks=1 vs acks=all, and what can go wrong with each?"**
+
+**One-line answer:** `acks=1` is faster but can lose messages if the leader crashes before followers replicate; `acks=all` is durable but adds latency proportional to the slowest in-sync replica.
+
+**Full answer to give in an interview:**
+
+> "With **`acks=1`**, the leader writes the batch to its local log and immediately sends back an acknowledgment. The producer considers the message delivered. But if the leader broker fails before the followers have replicated that batch, the new leader — promoted from a follower — won't have that record. It is permanently lost. This is acceptable for metrics or logs where occasional loss is tolerable, but not for financial events or order confirmations.
+>
+> With **`acks=all`** (equivalent to `-1`), the leader waits until all brokers in the **ISR** — the In-Sync Replica set, the set of followers that are caught up within `replica.lag.time.max.ms` — have acknowledged. This means a message survives even if the leader fails immediately after the ACK, because all ISR members have it. You typically pair this with `min.insync.replicas=2`, which means if only one broker is up (leader only, all followers are down), the producer gets a `NotEnoughReplicasException` instead of silently losing durability.
+>
+> The trade-off: `acks=all` latency is bounded by the slowest ISR follower. In practice with modern hardware this is 1–5 ms, which is acceptable for most use cases. The throughput difference matters more for fire-hose workloads — there you might tune `linger.ms` higher to amortize the acks cost across larger batches."
+
+> *Mention min.insync.replicas — interviewers love that follow-up. It's the safety net that prevents acks=all from being silently bypassed when the ISR shrinks to just the leader.*
+
+**Gotcha follow-up they'll ask:** *"Does compression hurt latency?"*
+
+> "Usually not — it improves it. Compression adds a small amount of CPU overhead on the producer side, but the reduction in bytes sent over the network typically more than compensates. For large messages, especially JSON, you're often seeing 3–5x compression, which means much less network time. The only scenario where compression hurts is very small messages where the compression overhead exceeds the byte savings — in that case, none or snappy is better."
+
+---
+
+> **Common Mistake — enabling idempotence without acks=all:** If you set `enable.idempotence=true` but leave `acks=1`, Kafka will throw a `ConfigException` at startup. Idempotence requires `acks=all` by design — there is no point deduplicating retries if the original write might not have reached all replicas. Always set them together.
+
+---
+
+**Quick Revision (one line):**
+Kafka producers batch records by size (`batch.size`) and time (`linger.ms`), compress per-batch, use `acks=all` for durability, and rely on PID + sequence-number idempotence to deduplicate retries within a single producer session.
+
+---
+
+## Topic 3: Consumers and Consumer Groups
+
+---
+
+#### The Idea
+
+Imagine a call centre with 20 incoming phone lines (partitions). You have a team of agents (consumers) who need to handle those calls. The rule is: each line is handled by exactly one agent — no two agents pick up the same line simultaneously. But multiple teams (consumer groups) can each have their own set of agents independently listening to all 20 lines — a customer service team and a QA team can both monitor calls without stepping on each other.
+
+When an agent goes on break or a new agent joins, the supervisor (Kafka's **Group Coordinator**) redistributes the lines. The classic way to do this — the **eager protocol** — was to have everyone put down their phone at the same time, wait for new instructions, then pick up again. That's a "stop the world" pause. The newer **cooperative protocol** is smarter: only the lines that actually need to move are handed off; everyone else keeps working.
+
+Each agent also has to check in with the supervisor regularly (heartbeat) to prove they're still alive. If they stop checking in, the supervisor assumes they've left and redistributes their lines.
+
+---
+
+#### How It Works
+
+```
+Topic: order-events (6 partitions)
+
+Consumer Group A (3 consumers):
+  Consumer-1 ──► Partition 0, Partition 1
+  Consumer-2 ──► Partition 2, Partition 3
+  Consumer-3 ──► Partition 4, Partition 5
+
+Consumer Group B (6 consumers):
+  Consumer-1 ──► Partition 0
+  Consumer-2 ──► Partition 1
+  ...each consumer gets exactly one partition
+
+Consumer Group C (8 consumers):
+  6 consumers get one partition each
+  2 consumers are IDLE (partitions < consumers = wasted capacity)
+```
+
+**Assignment strategies (who decides which consumer gets which partition):**
+```
+RangeAssignor       – consecutive ranges per topic (default, can be uneven)
+RoundRobinAssignor  – round-robin across all topics (better balance)
+StickyAssignor      – minimise moves on rebalance (keeps existing assignments)
+CooperativeStickyAssignor – Sticky + incremental (recommended for production)
+```
+
+**Rebalance protocols:**
+```
+Eager (classic):
+  1. ALL consumers revoke ALL partitions (stop the world)
+  2. All rejoin the group
+  3. Leader computes new assignment
+  4. All consumers get new assignment and resume
+  Problem: gap in processing for every rebalance
+
+Cooperative (incremental):
+  Round 1: Members report current assignments
+           Only partitions that must move are revoked
+  Round 2: Revoked partitions assigned to new owners
+           Unaffected partitions NEVER stop
+  Result: zero pause for partitions not being moved
+```
+
+**Critical timing configs:**
+```
+session.timeout.ms     = 45000  (45s) — if no heartbeat in this window → consumer declared dead
+heartbeat.interval.ms  = 15000  (15s) — how often consumer sends heartbeat (~1/3 of session.timeout)
+max.poll.interval.ms   = 300000 (5m)  — max time between poll() calls; if exceeded → consumer removed
+max.poll.records       = 500          — max records per poll(); tune to fit within max.poll.interval.ms
+```
+
+```java
+// Must-memorise: cooperative sticky rebalancing config
+props.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG,
+    CooperativeStickyAssignor.class.getName());
+props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 45000);
+props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 15000);
+props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 300000);
+props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
+```
+
+---
+
+#### Interview Lens
+
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
+
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
+
+---
+
+##### Q1 — Concept Check
+**"How do Kafka consumer groups work, and what is the maximum parallelism for a topic?"**
+
+**One-line answer:** A consumer group splits a topic's partitions across its members — one partition per consumer — so the maximum parallelism equals the number of partitions.
+
+**Full answer to give in an interview:**
+
+> "A **consumer group** is a named set of consumer processes that jointly consume a topic. Kafka's invariant is: within a group, each partition is owned by exactly one consumer at any time. So if your topic has 6 partitions and your group has 3 consumers, each consumer handles 2 partitions. This is where Kafka gets its parallel processing — each consumer reads independently from its assigned partitions.
+>
+> The assignment is managed by two roles. The **Group Coordinator** is a broker that tracks group membership and stores committed offsets in the internal `__consumer_offsets` topic. One of the consumer instances is elected the **Group Leader** — it receives the full member list from the coordinator, runs the partition assignment algorithm locally, and sends the result back to the coordinator, which then pushes assignments to each member.
+>
+> The maximum parallelism within a group is capped by the number of partitions. If you add a 7th consumer to a 6-partition topic, that consumer sits idle — it gets no partitions. Multiple consumer groups are independent: a monitoring group and a processing group can both read all 6 partitions without interfering with each other."
+
+> *If they ask about increasing parallelism: you must increase partition count. This requires a repartition — existing messages don't move, but new messages route differently. Plan partition count upfront; it's hard to change cleanly.*
+
+**Gotcha follow-up they'll ask:** *"What happens if processing takes longer than max.poll.interval.ms?"*
+
+> "The consumer is removed from the group — Kafka treats it as a liveness failure separate from the heartbeat mechanism. The heartbeat thread runs in the background and keeps the session alive, but `max.poll.interval.ms` is checked between calls to `poll()`. If your processing of one batch takes longer than 5 minutes (the default), Kafka assumes the consumer is stuck and triggers a rebalance, handing its partitions to another consumer. The mitigation is to either reduce `max.poll.records` so each batch is smaller and faster to process, or increase `max.poll.interval.ms` to match your worst-case processing time, or offload processing to an async thread pool and call `poll()` more frequently."
+
+---
+
+##### Q2 — Tradeoff Question
+**"What is the difference between eager and cooperative rebalancing, and why does it matter?"**
+
+**One-line answer:** Eager rebalancing stops all consumers and reassigns all partitions from scratch; cooperative rebalancing only pauses partitions that need to move, leaving the rest running.
+
+**Full answer to give in an interview:**
+
+> "The classic **eager rebalancing protocol** works in one round: when any consumer joins or leaves the group, every consumer revokes all its partitions simultaneously, rejoins the group, and waits for new assignments. This stop-the-world pause means zero processing happens across the entire group during rebalance. For a rolling deployment of 50 consumer instances, that's 50 sequential pauses — potentially seconds of total downtime per deployment.
+>
+> **Cooperative (incremental) rebalancing**, enabled with `CooperativeStickyAssignor`, uses two rounds. In round one, members report what they currently own; only the partitions that need to actually move are revoked. In round two, those revoked partitions are handed to their new owners. Partitions that don't need to move are never interrupted — consumers keep reading them throughout the rebalance. The result is near-zero downtime during deployments and consumer group changes.
+>
+> The only catch is migrating from eager to cooperative in a live cluster. During the migration window, you can't have a mix of eager-only and cooperative-only consumers in the same group — you need to go through an intermediate `StickyAssignor` step or do a full group restart."
+
+> *CooperativeStickyAssignor is the answer to 'how do you do zero-downtime Kafka deployments' — it's worth knowing cold.*
+
+**Gotcha follow-up they'll ask:** *"Can two consumers in the same group read the same partition?"*
+
+> "No — within a consumer group, each partition is exclusively owned by one consumer at any given time. This is the core guarantee that prevents double-processing within a group. However, two different consumer groups can each read the same partition completely independently. This is how Kafka supports multiple use cases off the same topic — a real-time processing group and a batch analytics group both reading 'order-events' without affecting each other."
+
+---
+
+> **Common Mistake — max.poll.records too high:** Setting `max.poll.records=5000` and then writing slow database logic per record is a recipe for consumers being kicked out of the group mid-batch. The batch processing time must fit inside `max.poll.interval.ms`. Start with 500 and tune up only after measuring.
+
+---
+
+**Quick Revision (one line):**
+Consumer groups distribute topic partitions across members (one partition per consumer, maximum parallelism = partition count); cooperative rebalancing only moves affected partitions, keeping unaffected consumers running.
+
+---
+
+## Topic 4: Offset Management
+
+---
+
+#### The Idea
+
+Think of reading a very long book with a bookmark. The bookmark is your **offset** — it records where you stopped. If you put the bookmark in before you actually finish reading a page (commit before processing), and then you drop the book, you'll think you've read that page even though you haven't — the page is lost. If you wait until you finish reading before moving the bookmark (commit after processing), and then you drop the book, you'll re-read the last page — duplicated, but nothing lost. True "exactly read each page once" requires the bookmark and your brain state to update atomically, which is much harder.
+
+Kafka's auto-commit is like having an assistant move your bookmark every 5 seconds whether you've finished the page or not — unreliable in either direction. Manual commit gives you direct control. The question of "when do I move the bookmark?" is the core of delivery semantics.
+
+---
+
+#### How It Works
+
+```
+Auto-commit (enable.auto.commit=true):
+  poll() ──► records returned
+  ... processing happens ...
+  5 seconds later, background thread commits latest polled offset
+  
+  Problem 1 (at-most-once): crash AFTER poll but BEFORE processing
+    → offset was committed at end of previous interval
+    → next consumer starts after the lost records → LOST
+  
+  Problem 2 (at-least-once): crash AFTER processing but BEFORE next commit interval
+    → offset not yet committed
+    → next consumer re-reads and re-processes → DUPLICATE
+
+Manual commit patterns:
+  BEFORE processing  → at-most-once  (message may be lost on crash)
+  AFTER processing   → at-least-once (message may be reprocessed on crash)
+  Transactional      → exactly-once  (atomic offset commit + produce)
+```
+
+**commit strategies:**
+```
+commitSync()   – blocks until broker confirms; auto-retries; use at shutdown or partition revoke
+commitAsync()  – non-blocking; pass callback for error handling; higher throughput
+per-record     – maximum safety, lowest throughput (commit after every single record)
+per-batch      – good balance (commit after processing all records from one poll())
+on-revoke      – always call commitSync() inside onPartitionsRevoked() to avoid reprocessing
+```
+
+**auto.offset.reset (what to do when no committed offset exists):**
+```
+earliest  – start from the beginning of the partition (safe for new consumers)
+latest    – start from the end (only new messages after consumer start)
+none      – throw exception if no committed offset found
+```
+
+```java
+// Must-memorise: manual at-least-once commit pattern
+@KafkaListener(topics = "order-events", groupId = "order-processing-group",
+               containerFactory = "kafkaListenerContainerFactory")
+public void consume(ConsumerRecord<String, String> record, Acknowledgment ack) {
+    try {
+        orderRepository.upsert(record.key(), record.value()); // 1. process
+        ack.acknowledge();                                      // 2. commit AFTER
+    } catch (Exception e) {
+        throw e; // do NOT ack — record will be redelivered
     }
 }
 ```
 
-**Follow-up Questions:**
-1. How does Kafka guarantee ordering within a partition when a broker fails and a new leader is elected?
-2. What is the difference between `log.retention.bytes` and `log.segment.bytes`?
-3. How does the Kafka controller (or KRaft) manage leader election across brokers?
+---
 
-**Common Mistakes:**
-- Confusing offset with message position in time — offsets are sequential integers, not timestamps. Use `log.message.timestamp.type` and `offsetsForTimes()` API if you need time-based seeks.
-- Assuming messages are globally ordered across partitions — only intra-partition ordering is guaranteed.
+#### Interview Lens
 
-**Interview Traps:**
-- "Can a consumer read from a follower?" — Yes, since Kafka 2.4, consumers can fetch from the closest replica using `client.rack` configuration (rack-aware fetching), but writes always go to the leader.
-- "Is a topic an append-only log?" — Technically partitions are append-only; the topic is the logical abstraction. Log compaction does delete older records (it rewrites segments), so it is not purely append-only at the storage level.
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
 
-**Quick Revision (1-liner):**
-A Kafka topic is split into ordered, append-only partitions stored as rolling segment files on brokers; offsets uniquely identify records within a partition, and log compaction retains only the latest value per key.
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
 
 ---
 
-### Topic 2: Producers
-**Difficulty:** Medium | **Frequency:** High | **Companies:** Confluent, Uber, Netflix, Goldman Sachs
+##### Q1 — Concept Check
+**"What is the difference between auto-commit and manual commit, and what delivery semantics does each give you?"**
 
-**Q: How does the Kafka producer work internally — explain batching (linger.ms, batch.size), compression, acks modes, and the idempotent producer?**
+**One-line answer:** Auto-commit is unreliable — it can give at-most-once or at-least-once depending on crash timing; manual post-processing commit reliably gives at-least-once.
 
-**Short Answer (2-3 sentences):**
-The Kafka producer accumulates records into per-partition batches before sending them to the broker, controlled by `batch.size` (bytes) and `linger.ms` (wait time). The `acks` setting controls durability: `0` = fire-and-forget, `1` = leader acknowledgment, `all` = all in-sync replicas. The idempotent producer (`enable.idempotence=true`) assigns a producer ID and sequence number per partition, allowing the broker to deduplicate retried batches and prevent duplicate records.
+**Full answer to give in an interview:**
 
-**Deep Explanation:**
-**Batching Internals:**
-The RecordAccumulator holds a deque of ProducerBatch objects per TopicPartition. A new record is appended to the current open batch. The batch is sent when either:
-1. The batch is full (`batch.size` bytes, default 16 KB), or
-2. `linger.ms` milliseconds have elapsed (default 0 ms — send immediately).
+> "**Auto-commit** (`enable.auto.commit=true`) works by having a background thread periodically commit the offset of the last record returned by `poll()`, regardless of whether your application has finished processing it. The interval is `auto.commit.interval.ms`, defaulting to 5 seconds. This creates two failure windows: if the consumer crashes after `poll()` returns records but before the next commit interval, the records were never committed — on restart, they're re-read. That's at-least-once. But if the consumer crashes after the commit fires but before it finishes processing, the records are marked done even though they weren't — that's at-most-once. You get a mix of both, non-deterministically. That's why auto-commit is generally unsuitable for critical paths.
+>
+> **Manual commit** with `enable.auto.commit=false` gives you deterministic control. If you commit the offset **after** successful processing — calling `ack.acknowledge()` in Spring Kafka — you get **at-least-once**: a crash before commit means the record is re-read and reprocessed on recovery. Your processing logic must be idempotent to handle this. If you commit **before** processing (for audit-log style workloads where you prefer to lose a record rather than process it twice) you get **at-most-once**.
+>
+> True **exactly-once** requires either application-level idempotency on the consumer side — like an upsert keyed on record ID — or Kafka transactions, where the offset commit is part of a transactional write and `isolation.level=read_committed` on the consumer filters out uncommitted records."
 
-Setting `linger.ms=5` dramatically improves throughput by allowing more records to aggregate into a single network request at the cost of 5 ms additional latency.
+> *The Goldman Sachs pattern is worth mentioning: process batch → write to DB with upsert → commitSync(). The upsert provides idempotency; the synchronous commit ensures the offset only advances on success.*
 
-**Compression:**
-Compression is applied per-batch (`compression.type`: none, gzip, snappy, lz4, zstd). The broker stores the compressed batch as-is and consumers decompress. Snappy/LZ4 offer good throughput with moderate compression; zstd offers the best ratio. Compression reduces network I/O and broker disk usage significantly — typically 3-5x for JSON payloads.
+**Gotcha follow-up they'll ask:** *"Does enable.auto.commit=false by itself give you exactly-once?"*
 
-**acks Settings:**
-- `acks=0`: Producer does not wait for acknowledgment. Maximum throughput, zero durability guarantee.
-- `acks=1`: Leader writes to its local log and acknowledges. Risk: if leader crashes before followers replicate, the message is lost.
-- `acks=all` (or `-1`): Leader waits for all ISR (In-Sync Replicas) to acknowledge. Used with `min.insync.replicas=2` (or higher) for true durability. This is the recommended production setting.
-
-**Idempotent Producer:**
-With `enable.idempotence=true`:
-- The broker assigns a Producer ID (PID) per producer.
-- Each record batch gets a sequence number per partition.
-- On retry (after network timeout), the broker checks: if it already received this (PID, partition, sequence), it de-duplicates.
-- Requires `acks=all`, `retries > 0`, `max.in.flight.requests.per.connection <= 5`.
-- Idempotence guarantees exactly-once within a single producer session (no cross-session or cross-partition guarantees — that requires transactions).
-
-**Real-World Example:**
-At Uber, the dispatch event producer uses `linger.ms=10`, `batch.size=65536`, `compression.type=lz4`, and `enable.idempotence=true`. This achieves ~500k messages/second per producer instance while preventing duplicates during broker failover retries.
-
-**Code Example:**
-```java
-import org.apache.kafka.clients.producer.*;
-import org.apache.kafka.common.serialization.StringSerializer;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.core.*;
-
-import java.util.HashMap;
-import java.util.Map;
-
-@Configuration
-public class KafkaProducerConfig {
-
-    @Bean
-    public ProducerFactory<String, String> producerFactory() {
-        Map<String, Object> props = new HashMap<>();
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "broker1:9092,broker2:9092");
-        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-
-        // Batching
-        props.put(ProducerConfig.LINGER_MS_CONFIG, 10);          // wait up to 10ms
-        props.put(ProducerConfig.BATCH_SIZE_CONFIG, 65536);       // 64 KB batches
-
-        // Compression
-        props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "lz4");
-
-        // Durability
-        props.put(ProducerConfig.ACKS_CONFIG, "all");
-        props.put(ProducerConfig.RETRIES_CONFIG, Integer.MAX_VALUE);
-        props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
-
-        // Idempotence
-        props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-
-        // Timeouts
-        props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 30000);
-        props.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 120000);
-
-        return new DefaultKafkaProducerFactory<>(props);
-    }
-
-    @Bean
-    public KafkaTemplate<String, String> kafkaTemplate(ProducerFactory<String, String> pf) {
-        return new KafkaTemplate<>(pf);
-    }
-}
-
-// Usage in a service
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
-import org.springframework.stereotype.Service;
-
-import java.util.concurrent.CompletableFuture;
-
-@Service
-public class OrderEventProducer {
-
-    private final KafkaTemplate<String, String> kafkaTemplate;
-
-    public OrderEventProducer(KafkaTemplate<String, String> kafkaTemplate) {
-        this.kafkaTemplate = kafkaTemplate;
-    }
-
-    public void sendOrderEvent(String orderId, String eventJson) {
-        CompletableFuture<SendResult<String, String>> future =
-            kafkaTemplate.send("order-events", orderId, eventJson);
-
-        future.whenComplete((result, ex) -> {
-            if (ex != null) {
-                // Log and handle: dead-letter queue, alerting, etc.
-                System.err.println("Failed to send order " + orderId + ": " + ex.getMessage());
-            } else {
-                RecordMetadata meta = result.getRecordMetadata();
-                System.out.printf("Sent order %s to partition %d offset %d%n",
-                    orderId, meta.partition(), meta.offset());
-            }
-        });
-    }
-}
-```
-
-**Follow-up Questions:**
-1. What happens when `max.block.ms` is exceeded — where does the producer block?
-2. How does `max.in.flight.requests.per.connection=5` interact with idempotence and ordering guarantees?
-3. What is the difference between `delivery.timeout.ms` and `request.timeout.ms`?
-
-**Common Mistakes:**
-- Setting `linger.ms=0` (default) in high-throughput scenarios and wondering why batching doesn't kick in.
-- Enabling idempotence without also setting `acks=all` — Kafka will throw a `ConfigException`.
-- Using `acks=1` and thinking it provides durability — the leader can crash between write and follower replication.
-
-**Interview Traps:**
-- "Does idempotent producer guarantee exactly-once across producer restarts?" — No. The PID is session-scoped. Across restarts, a new PID is assigned, and the broker has no way to correlate. Use transactions with a stable `transactional.id` for cross-session idempotence.
-- "Does compression hurt latency?" — Compression adds CPU overhead but typically reduces end-to-end latency because network I/O is reduced. For small messages, compression overhead may exceed savings.
-
-**Quick Revision (1-liner):**
-Kafka producers batch records by size (`batch.size`) and time (`linger.ms`), compress per-batch, use `acks=all` for durability, and rely on PID+sequence-number idempotence to deduplicate retries within a producer session.
+> "No — that's a common misconception. Disabling auto-commit gives you at-least-once when you commit after processing. To get exactly-once, you need either: idempotent consumers at the application level (e.g., database upserts keyed on the record's unique ID — so reprocessing the same record has no additional effect), or Kafka transactions where the consumer offset commit is bundled atomically with a producer write using `sendOffsetsToTransaction()`, and consumers set `isolation.level=read_committed` to skip records from aborted transactions."
 
 ---
 
-### Topic 3: Consumers & Consumer Groups
-**Difficulty:** Medium | **Frequency:** High | **Companies:** LinkedIn, Netflix, Confluent, Uber
+##### Q2 — Tradeoff Question
+**"When would you use commitSync vs commitAsync?"**
 
-**Q: How do Kafka consumer groups work, what is partition assignment, and what is the difference between eager and cooperative rebalancing?**
+**One-line answer:** Use `commitSync` at shutdown and partition revoke (guaranteed delivery); use `commitAsync` during normal processing (higher throughput, handle errors in callback).
 
-**Short Answer (2-3 sentences):**
-A consumer group is a set of consumers that jointly consume a topic; each partition is assigned to exactly one consumer in the group, enabling parallel processing while ensuring each record is processed once per group. When consumers join or leave, Kafka triggers a rebalance to redistribute partitions. Eager rebalancing (the classic protocol) stops all consumers and reassigns from scratch, causing a brief stop-the-world pause, while cooperative (incremental) rebalancing only revokes and reassigns the affected partitions, allowing unaffected consumers to continue processing.
+**Full answer to give in an interview:**
 
-**Deep Explanation:**
-**Group Coordinator & Group Leader:**
-Each consumer group is managed by a Group Coordinator broker (determined by hashing `group.id` to an `__consumer_offsets` partition). One consumer in the group is elected the Group Leader by the coordinator; the leader runs the partition assignment algorithm and returns the result to the coordinator, which distributes assignments to all members.
+> "**`commitSync()`** blocks the consumer thread until the broker acknowledges the offset commit, and automatically retries on transient failures. The cost is that your consumer can't call `poll()` during the block — throughput drops. It's the right choice at two specific moments: when you're shutting down the consumer gracefully, and inside `onPartitionsRevoked()` — the callback Kafka triggers before a rebalance takes your partitions away. In both cases, you must be sure the commit lands before the consumer is no longer responsible for that partition, so blocking is correct.
+>
+> **`commitAsync()`** returns immediately and lets you pass a callback that's invoked when the broker responds. During normal processing of batches, this is better — you commit the previous batch's offset while already processing the next one, hiding the commit latency. The risk: if the commit fails and the callback doesn't retry (because a later commit for a higher offset may have already succeeded), you could have a gap. The standard pattern is: use `commitAsync()` in the processing loop for throughput, and always call `commitSync()` in the finally block on shutdown or partition revoke to flush any pending commits."
 
-**Partition Assignment Strategies:**
-- `RangeAssignor` (default): Assigns consecutive ranges of partitions per topic. Can cause imbalance if topics have uneven partition counts.
-- `RoundRobinAssignor`: Assigns partitions round-robin across all topics. Better balance.
-- `StickyAssignor`: Tries to preserve existing assignments and minimize movement during rebalances.
-- `CooperativeStickyAssignor`: Sticky + cooperative (incremental) rebalancing. Recommended for production.
+> *Not committing in onPartitionsRevoked is one of the most common bugs in Kafka consumers — the new partition owner re-reads and reprocesses records the old owner already handled.*
 
-**Eager Rebalancing (Classic Protocol):**
-1. All consumers send a `LeaveGroup` or trigger via heartbeat timeout.
-2. All consumers stop consuming and revoke all partitions (stop-the-world).
-3. The leader computes new assignment; coordinator distributes.
-4. All consumers resume with new partitions.
-This creates a gap in processing during rebalance — problematic for latency-sensitive applications.
+**Gotcha follow-up they'll ask:** *"What does isolation.level=read_committed do?"*
 
-**Cooperative (Incremental) Rebalancing:**
-1. First round: Coordinator notifies members of pending rebalance; members respond with their current assignments.
-2. Only partitions that need to move are revoked; unaffected partitions continue processing.
-3. Second round: Revoked partitions are assigned to new owners.
-This eliminates the stop-the-world pause. Enabled by `partition.assignment.strategy=CooperativeStickyAssignor` and `group.protocol=consumer` (KIP-848 in Kafka 3.7+).
-
-**Session Timeout vs Heartbeat:**
-- `session.timeout.ms` (default 45s): If the coordinator doesn't receive a heartbeat within this window, the consumer is declared dead and triggers rebalance.
-- `heartbeat.interval.ms` (default 3s): How often the consumer sends heartbeats. Should be ~1/3 of `session.timeout.ms`.
-- `max.poll.interval.ms` (default 300s): Maximum time between `poll()` calls. If exceeded, the consumer is removed from the group (liveness failure separate from heartbeat).
-
-**Real-World Example:**
-At Netflix, streaming recommendation consumers use `CooperativeStickyAssignor` with rolling deployments. Without cooperative rebalancing, deploying 50 consumer instances would cause 50 sequential stop-the-world pauses. With cooperative, only the partitions moving to new instances are briefly paused.
-
-**Code Example:**
-```java
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.CooperativeStickyAssignor;
-import org.apache.kafka.common.serialization.StringDeserializer;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
-import org.springframework.kafka.core.ConsumerFactory;
-import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
-import org.springframework.kafka.listener.ContainerProperties;
-
-import java.util.HashMap;
-import java.util.Map;
-
-@Configuration
-public class KafkaConsumerConfig {
-
-    @Bean
-    public ConsumerFactory<String, String> consumerFactory() {
-        Map<String, Object> props = new HashMap<>();
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "broker1:9092,broker2:9092");
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, "order-processing-group");
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-
-        // Cooperative sticky rebalancing
-        props.put(ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG,
-            CooperativeStickyAssignor.class.getName());
-
-        // Offset management
-        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-
-        // Heartbeat / session tuning
-        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 45000);
-        props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 15000);
-        props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 300000);
-        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
-
-        return new DefaultKafkaConsumerFactory<>(props);
-    }
-
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
-            ConsumerFactory<String, String> cf) {
-        ConcurrentKafkaListenerContainerFactory<String, String> factory =
-            new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(cf);
-        factory.setConcurrency(3); // 3 consumer threads per instance
-        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
-        return factory;
-    }
-}
-```
-
-**Follow-up Questions:**
-1. What happens if a consumer takes longer than `max.poll.interval.ms` to process a batch? How do you mitigate this?
-2. How does the static group membership (`group.instance.id`) reduce rebalances?
-3. What is the maximum consumer parallelism for a topic with 6 partitions?
-
-**Common Mistakes:**
-- Setting `max.poll.records` too high — if processing takes >max.poll.interval.ms, the consumer is kicked out of the group mid-batch.
-- Not handling `onPartitionsRevoked` — during eager rebalance, uncommitted offsets for revoked partitions may be re-processed by the new owner.
-- Mixing `CooperativeStickyAssignor` with `EagerRebalanceProtocol` consumers in the same group during migration — can cause protocol mismatch errors.
-
-**Interview Traps:**
-- "Can two consumers in the same group read the same partition?" — No, within a group each partition is owned by exactly one consumer. Different groups can read the same partition independently.
-- "If a topic has 3 partitions and 5 consumers in the group, what happens?" — 3 consumers get one partition each; 2 consumers are idle. Adding partitions is the only way to increase parallelism beyond the partition count.
-
-**Quick Revision (1-liner):**
-Consumer groups distribute topic partitions across members (one partition per consumer); eager rebalancing causes a stop-the-world pause while cooperative (incremental) rebalancing only moves affected partitions, keeping unaffected consumers running.
+> "It tells the consumer to only expose records that are part of committed transactions. Records from aborted transactions are filtered out and never delivered to your application. Additionally, the consumer will not advance past the **Last Stable Offset** — the offset of the oldest open (not yet committed or aborted) transaction. This means if a slow transactional producer has an open transaction at offset 100, consumers with `read_committed` won't see records beyond offset 99 even if records at offset 200 are already in the log. This can cause consumer lag to grow if a transaction is left open — something to monitor in production."
 
 ---
 
-### Topic 4: Offset Management
-**Difficulty:** Medium | **Frequency:** High | **Companies:** Goldman Sachs, Confluent, Uber, LinkedIn
-
-**Q: What is the difference between auto and manual offset commit, and how do they map to at-most-once, at-least-once, and exactly-once delivery semantics?**
-
-**Short Answer (2-3 sentences):**
-Auto-commit (`enable.auto.commit=true`) periodically commits the latest polled offset at `auto.commit.interval.ms`, which can produce at-most-once or at-least-once depending on when the commit happens relative to processing. Manual commit gives the application control: committing before processing risks at-most-once (record processed zero times on crash), committing after processing achieves at-least-once (record re-processed on crash before commit). True exactly-once requires transactional producers + idempotent consumers or Kafka Streams EOS.
-
-**Deep Explanation:**
-**Auto-Commit Behavior:**
-Auto-commit commits the offset of the last record returned by `poll()`, not the last record processed. If the consumer crashes after poll but before processing, the offset is still committed on the next poll cycle — leading to message loss (at-most-once). If the consumer crashes after processing but before the next auto-commit interval, the offset is not committed — leading to reprocessing (at-least-once). Auto-commit is non-deterministic and generally unsuitable for production critical paths.
-
-**Manual Commit Strategies:**
-1. **Commit Sync (`commitSync()`)**: Blocks until the broker acknowledges. Retries automatically on transient failure. Use when ordering is critical.
-2. **Commit Async (`commitAsync()`)**: Non-blocking; pass a callback for error handling. Higher throughput but requires careful error handling to avoid skipping commits on transient failures.
-3. **Per-Record Commit**: Commit after every record — maximum safety, lowest throughput.
-4. **Per-Batch Commit**: Commit after processing all records in a `poll()` batch — good balance.
-5. **Synchronous Commit on Rebalance/Shutdown**: Always commit synchronously in `onPartitionsRevoked` to avoid reprocessing when partitions are reassigned.
-
-**Delivery Semantics Mapping:**
-| Semantic | How | Config |
-|---|---|---|
-| At-most-once | Commit before processing | `auto.commit` or manual pre-processing commit |
-| At-least-once | Commit after processing | `enable.auto.commit=false`, manual post-processing commit |
-| Exactly-once | Transactional producer + idempotent consumer or Kafka Streams EOS | `isolation.level=read_committed`, transactional producer |
-
-**Offset Reset Policy (`auto.offset.reset`):**
-- `earliest`: Start from the beginning of the topic (or the earliest available offset after retention).
-- `latest`: Start from the end — only new messages after consumer start.
-- `none`: Throw exception if no committed offset exists.
-
-**Real-World Example:**
-Goldman Sachs trade confirmation service uses `enable.auto.commit=false` with synchronous per-batch commit inside a database transaction: process batch → write to DB → `commitSync()`. If the DB write fails, the offset is not committed, and the batch is retried — achieving at-least-once with idempotent DB upserts for effective exactly-once.
-
-**Code Example:**
-```java
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.stereotype.Service;
-
-@Service
-public class OrderConsumer {
-
-    private final OrderRepository orderRepository;
-
-    public OrderConsumer(OrderRepository orderRepository) {
-        this.orderRepository = orderRepository;
-    }
-
-    // Manual commit: at-least-once — commit AFTER successful processing
-    @KafkaListener(
-        topics = "order-events",
-        groupId = "order-processing-group",
-        containerFactory = "kafkaListenerContainerFactory"
-    )
-    public void consume(ConsumerRecord<String, String> record, Acknowledgment ack) {
-        try {
-            // 1. Process the record
-            orderRepository.upsert(record.key(), record.value());
-
-            // 2. Commit offset AFTER successful processing (at-least-once)
-            ack.acknowledge();
-
-        } catch (Exception e) {
-            // Do NOT acknowledge — record will be redelivered after restart/rebalance
-            // Optionally: send to dead-letter topic after N retries
-            throw e; // Let Spring Kafka's error handler manage retry
-        }
-    }
-}
-
-// Batch commit example — commit whole batch at once
-import java.util.List;
-
-@Service
-public class BatchOrderConsumer {
-
-    @KafkaListener(
-        topics = "order-events",
-        groupId = "batch-order-group",
-        containerFactory = "batchKafkaListenerContainerFactory"
-    )
-    public void consumeBatch(List<ConsumerRecord<String, String>> records, Acknowledgment ack) {
-        try {
-            for (ConsumerRecord<String, String> record : records) {
-                processOrder(record);
-            }
-            // Commit after entire batch is processed
-            ack.acknowledge();
-        } catch (Exception e) {
-            // Entire batch will be retried
-            throw new RuntimeException("Batch processing failed", e);
-        }
-    }
-
-    private void processOrder(ConsumerRecord<String, String> record) {
-        // business logic
-    }
-}
-```
-
-**Follow-up Questions:**
-1. What is the difference between `commitSync()` and `commitAsync()` in error handling — when would you use each?
-2. How do you implement idempotent consumers to achieve effectively-exactly-once without transactions?
-3. What happens to committed offsets when a consumer group is deleted?
-
-**Common Mistakes:**
-- Calling `ack.acknowledge()` inside a try-catch that swallows exceptions — this silently commits offsets for failed records, losing them forever.
-- Using `auto.commit` and assuming it provides at-least-once — it actually provides at-most-once if the consumer crashes post-poll pre-commit interval.
-- Not committing on `onPartitionsRevoked` — causes the new partition owner to reprocess already-processed records.
-
-**Interview Traps:**
-- "Does `enable.auto.commit=false` by itself give you exactly-once?" — No. It gives at-least-once. Exactly-once requires either idempotent consumers (application-level deduplication) or Kafka transactions.
-- "What does `isolation.level=read_committed` do on the consumer side?" — It causes the consumer to only see records from committed transactions, filtering out aborted transaction records and pending (uncommitted) records.
-
-**Quick Revision (1-liner):**
-Manual post-processing offset commit gives at-least-once semantics; auto-commit is unreliable; true exactly-once requires transactional producers paired with `isolation.level=read_committed` consumers.
+> **Common Mistake — swallowing exceptions after acknowledging:** Calling `ack.acknowledge()` inside a catch block that silently handles the exception means Kafka commits the offset for a record your application failed to process. That record is gone forever with no alert. Always either re-throw the exception or send the record to a dead-letter topic before acknowledging.
 
 ---
 
-### Topic 5: Kafka Delivery Guarantees
-**Difficulty:** Hard | **Frequency:** High | **Companies:** Confluent, Goldman Sachs, Netflix, Uber
+**Quick Revision (one line):**
+Manual post-processing offset commit gives at-least-once semantics; auto-commit is unreliable; true exactly-once requires either idempotent consumers or transactional producers paired with `isolation.level=read_committed`.
 
-**Q: How does Kafka achieve exactly-once semantics (EOS) using transactions — explain transactional.id, the two-phase commit protocol, and idempotent semantics?**
+---
 
-**Short Answer (2-3 sentences):**
-Kafka EOS is built on two pillars: idempotent producers (deduplication within a session via PID + sequence number) and transactions (atomic multi-partition writes via `transactional.id`, Transaction Coordinator, and a two-phase commit protocol). A transactional producer writes records and offsets atomically — either all are committed or all are aborted. Consumers using `isolation.level=read_committed` only see records from committed transactions.
+## Topic 5: Kafka Delivery Guarantees
 
-**Deep Explanation:**
-**Idempotent Producer (Session-Level):**
-- Broker assigns a Producer ID (PID) on `initTransactions()` or first produce.
-- Each batch has a monotonically increasing sequence number per partition.
-- Broker deduplicates: if a (PID, partition, sequence) batch is received twice, the second is silently dropped.
-- Limitation: PID is invalidated on producer restart — no cross-session idempotence.
+---
 
-**Transactions (Cross-Session, Cross-Partition):**
-`transactional.id` is a stable, application-assigned identifier (e.g., `"order-processor-instance-1"`). On restart, the broker uses it to fence older zombie producers.
+#### The Idea
 
-**Transaction Flow:**
-1. `initTransactions()` — Producer registers with the Transaction Coordinator (a broker partition of `__transaction_state` topic). The TC bumps the epoch; any old producer with same `transactional.id` and lower epoch is fenced (rejected).
-2. `beginTransaction()` — Locally marks start.
-3. Producer sends records to partitions (logged as part of the open transaction).
-4. `sendOffsetsToTransaction(offsets, groupMetadata)` — Atomically includes consumer offset commits in the transaction.
-5. `commitTransaction()` or `abortTransaction()` — Producer sends `EndTransactionMarker` to TC.
-6. TC writes COMMIT/ABORT to `__transaction_state` and then writes transaction markers to each partition's log.
-7. Consumers with `isolation.level=read_committed` only expose records up to the Last Stable Offset (LSO) — the offset of the oldest open transaction.
+Imagine you are transferring money between two bank accounts. You need the debit and the credit to either both happen or both not happen — partial execution is worse than failure. In Kafka terms, you might be reading a payment from one topic, transforming it, and writing a result to another topic while also committing your read position. If any one of those three steps fails, you want to roll back all three.
 
-**Zombie Fencing:**
-If a transactional producer restarts with the same `transactional.id`, the new epoch invalidates any in-flight batches from the old (zombie) producer, preventing duplicate writes.
+Kafka's **exactly-once semantics (EOS)** builds this guarantee in two layers. The first layer — the **idempotent producer** — ensures that if a network blip causes your producer to retry a message, the broker notices it's a duplicate (matching Producer ID and sequence number) and silently drops it. The second layer — **transactions** — wraps multiple writes across multiple partitions into an atomic unit: either everything commits or everything aborts. Consumers reading with `isolation.level=read_committed` see only the committed results, never the in-progress or aborted ones.
 
-**Performance Trade-off:**
-Transactions add ~1-5 ms latency per transaction due to two-phase commit. Batch multiple records per transaction to amortize overhead.
+The catch is that this guarantee is Kafka-internal only. If you also write to a database as part of the same logical operation, Kafka cannot atomically coordinate with that external system — you need application-level idempotency (like a database upsert keyed on the record's unique ID) to cover that boundary.
 
-**Real-World Example:**
-A Kafka Streams application processing payments (read from `payments-input`, write to `payments-output`, commit consumer offsets) uses transactions to ensure that either all three operations succeed or none do — preventing double-charging or lost payments during broker failover.
+---
 
-**Code Example:**
+#### How It Works
+
+**Delivery guarantee comparison:**
+
+| Semantic | What it means | How to achieve | When to use |
+|---|---|---|---|
+| At-most-once | Message processed zero or one time. May be lost. | Commit offset before processing; or `acks=0`. | Metrics, logs, telemetry — loss is acceptable, duplicates are not. |
+| At-least-once | Message processed one or more times. Never lost. | `enable.auto.commit=false`, commit after processing, idempotent consumer. | Most production workloads. Handle duplicates via idempotent logic. |
+| Exactly-once | Message processed exactly one time. Never lost, never duplicated. | Transactional producer + `isolation.level=read_committed` consumer. | Payments, financial ledgers, stateful stream processing. |
+
+**Transaction flow (two-phase commit inside Kafka):**
+```
+1. initTransactions()
+   → Producer registers with Transaction Coordinator (TC) broker
+   → TC bumps epoch; any old producer with same transactional.id + lower epoch is FENCED
+
+2. beginTransaction()
+   → Local marker only (no broker call)
+
+3. send(records to partition A)
+   send(records to partition B)
+   → Records written to partitions but NOT visible to read_committed consumers yet
+
+4. sendOffsetsToTransaction(consumerOffsets, groupMetadata)
+   → Consumer offset commit bundled INTO the transaction
+
+5. commitTransaction()
+   → Producer sends EndTransactionMarker to TC
+   → TC writes COMMIT to __transaction_state
+   → TC writes transaction markers to each involved partition
+   → Records now visible to read_committed consumers
+
+   OR abortTransaction() → records remain invisible, offsets not advanced
+```
+
+**Zombie fencing:**
+```
+Old producer (epoch 1) crashes mid-transaction
+New producer starts with same transactional.id → gets epoch 2
+Zombie retries with epoch 1 → TC rejects (stale epoch)
+Result: no duplicate commit from the zombie
+```
+
+**Consumer side — Last Stable Offset (LSO):**
+```
+read_committed consumers only advance to the LSO
+LSO = offset of the oldest OPEN transaction
+If a transaction is open at offset 100:
+  consumers stop at offset 99 even if offset 500 is in the log
+→ Monitor for open transactions; a stuck producer causes consumer lag to grow
+```
+
 ```java
-import org.apache.kafka.clients.producer.*;
-import org.apache.kafka.clients.consumer.*;
-import org.apache.kafka.common.serialization.*;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.core.*;
-import org.springframework.kafka.transaction.KafkaTransactionManager;
+// Must-memorise: exactly-once transactional produce + consume
+// Producer config:
+props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+props.put(ProducerConfig.ACKS_CONFIG, "all");
+props.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "payment-processor-1"); // stable, unique per instance
 
-import java.util.HashMap;
-import java.util.Map;
+// Consumer config:
+props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
 
-@Configuration
-public class KafkaTransactionConfig {
-
-    @Bean
-    public ProducerFactory<String, String> transactionalProducerFactory() {
-        Map<String, Object> props = new HashMap<>();
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "broker1:9092");
-        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-        props.put(ProducerConfig.ACKS_CONFIG, "all");
-        props.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "payment-processor-1"); // stable ID
-
-        DefaultKafkaProducerFactory<String, String> pf = new DefaultKafkaProducerFactory<>(props);
-        pf.setTransactionIdPrefix("payment-tx-"); // Spring adds suffix for concurrency
-        return pf;
-    }
-
-    @Bean
-    public KafkaTemplate<String, String> transactionalKafkaTemplate(
-            ProducerFactory<String, String> pf) {
-        return new KafkaTemplate<>(pf);
-    }
-
-    @Bean
-    public KafkaTransactionManager<String, String> kafkaTransactionManager(
-            ProducerFactory<String, String> pf) {
-        return new KafkaTransactionManager<>(pf);
-    }
-}
-
-// Transactional consume-transform-produce pattern
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-@Service
-public class PaymentProcessor {
-
-    private final KafkaTemplate<String, String> kafkaTemplate;
-
-    public PaymentProcessor(KafkaTemplate<String, String> kafkaTemplate) {
-        this.kafkaTemplate = kafkaTemplate;
-    }
-
-    // @Transactional triggers KafkaTransactionManager — atomic produce + offset commit
-    @Transactional("kafkaTransactionManager")
-    @KafkaListener(
-        topics = "payments-input",
-        groupId = "payment-processor-group"
-    )
-    public void process(ConsumerRecord<String, String> record) {
-        String result = transformPayment(record.value());
-
-        // This send is part of the transaction
-        kafkaTemplate.send("payments-output", record.key(), result);
-
-        // If an exception is thrown here, the transaction is aborted:
-        // - The output record is NOT visible to read_committed consumers
-        // - The input offset is NOT committed
-        // Both operations are atomic
-    }
-
-    private String transformPayment(String payment) {
-        // business logic
-        return payment.toUpperCase();
-    }
+// Spring: @Transactional("kafkaTransactionManager") on the listener method
+// atomically wraps offset commit + downstream produce
+@Transactional("kafkaTransactionManager")
+@KafkaListener(topics = "payments-input", groupId = "payment-processor-group")
+public void process(ConsumerRecord<String, String> record) {
+    String result = transformPayment(record.value());
+    kafkaTemplate.send("payments-output", record.key(), result);
+    // exception here → transaction aborts → input offset NOT committed → output NOT visible
 }
 ```
 
-**Follow-up Questions:**
-1. What is the Last Stable Offset (LSO), and how does an open transaction affect consumer throughput?
-2. How does Kafka handle a Transaction Coordinator failure mid-transaction?
-3. What is the difference between Kafka EOS and database ACID transactions?
+---
 
-**Common Mistakes:**
-- Using a different `transactional.id` per producer instance restart — zombie fencing only works with a stable ID.
-- Not setting `isolation.level=read_committed` on the consumer side — consumers will see uncommitted (and potentially aborted) records.
-- Using transactions for single-partition, single-record writes where idempotent producer alone suffices — unnecessary overhead.
+#### Interview Lens
 
-**Interview Traps:**
-- "Does Kafka EOS guarantee exactly-once with external systems (e.g., databases)?" — No. Kafka EOS is Kafka-internal only. For external systems, you need two-phase commit or application-level idempotency (e.g., upsert by record ID).
-- "Can Kafka Streams automatically use EOS?" — Yes. Set `processing.guarantee=exactly_once_v2` (EOS v2, Kafka 2.6+) or `exactly_once` (EOS v1). Streams handles transactions transparently.
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
 
-**Quick Revision (1-liner):**
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
+
+---
+
+##### Q1 — Concept Check
+**"How does Kafka achieve exactly-once semantics — explain idempotent producers and transactions?"**
+
+**One-line answer:** EOS combines session-level deduplication (idempotent producer via PID + sequence number) with atomic multi-partition writes (transactions via transactional.id and a two-phase commit), with consumers filtering uncommitted data via isolation.level=read_committed.
+
+**Full answer to give in an interview:**
+
+> "Kafka exactly-once semantics has two building blocks.
+>
+> The first is the **idempotent producer**. When you set `enable.idempotence=true`, the broker assigns the producer a **Producer ID (PID)** and tracks a monotonically increasing **sequence number** for each partition the producer writes to. If a network timeout causes the producer to retry a batch, the broker checks whether it has already seen that (PID, partition, sequence number) combination. If yes, it silently drops the duplicate. This eliminates the classic retry-induced duplicate problem. Limitation: the PID is session-scoped — a producer restart gets a new PID, so idempotence doesn't survive restarts.
+>
+> The second building block is **transactions**. You assign a stable, application-chosen `transactional.id` — like `'payment-processor-instance-1'`. On startup, `initTransactions()` registers with the **Transaction Coordinator**, a broker that manages the `__transaction_state` internal topic. The TC increments an **epoch**: any old producer using the same `transactional.id` with a lower epoch is now **fenced** — its batches are rejected. This is zombie fencing.
+>
+> Inside a transaction, you call `beginTransaction()`, send records to one or more partitions, optionally include consumer offset commits via `sendOffsetsToTransaction()`, and then call `commitTransaction()`. The TC orchestrates a two-phase commit: writes the COMMIT record to `__transaction_state`, then writes transaction markers to each involved partition's log. Until the commit marker lands, consumers with **`isolation.level=read_committed`** see nothing from that transaction — they block at the **Last Stable Offset**, the offset of the oldest open transaction."
+
+> *In Spring, the @Transactional("kafkaTransactionManager") annotation wires all of this automatically — the KafkaTransactionManager handles beginTransaction/commitTransaction/rollback transparently.*
+
+**Gotcha follow-up they'll ask:** *"Does Kafka EOS guarantee exactly-once with external systems like databases?"*
+
+> "No — and this is the critical boundary. Kafka EOS is Kafka-internal only. If your transaction writes to Kafka AND to a relational database, those are two independent systems with no shared coordinator. The database write and the Kafka commit cannot be made atomic from Kafka's perspective. To achieve effectively-exactly-once across that boundary, you need application-level idempotency: for example, the database write uses an upsert keyed on the Kafka record's unique business ID, so reprocessing the same record on retry has no additional effect. The combination of at-least-once Kafka delivery plus idempotent downstream writes is the standard production pattern for cross-system exactly-once."
+
+---
+
+##### Q2 — Design Scenario
+**"Design a consume-transform-produce pipeline that guarantees exactly-once — e.g., read from payments-input, transform, write to payments-output."**
+
+**One-line answer:** Use a transactional producer with a stable transactional.id, bundle the output write and input offset commit in one transaction via sendOffsetsToTransaction, and set isolation.level=read_committed on the downstream consumer.
+
+**Full answer to give in an interview:**
+
+> "The pattern is called **consume-transform-produce with EOS**. Here is how I'd build it.
+>
+> On the producer side, configure `transactional.id` to a stable, unique identifier per consumer instance — for example `'payment-processor-' + instanceId`. Set `enable.idempotence=true` and `acks=all`. On the consumer side, set `isolation.level=read_committed` and `enable.auto.commit=false`.
+>
+> For each batch: call `beginTransaction()`, process the records, call `kafkaTemplate.send('payments-output', key, result)` to write the output, then call `sendOffsetsToTransaction(currentOffsets, groupMetadata)` to bundle the input offset commit inside the transaction, and finally `commitTransaction()`. If any step throws, call `abortTransaction()` — the output records are rolled back and the input offset is not advanced, so the records will be redelivered.
+>
+> **Zombie fencing** protects against the scenario where two instances start up with the same `transactional.id` — the TC will fence the older epoch, preventing duplicate writes.
+>
+> The performance cost: each `commitTransaction()` adds roughly 1–5 ms of two-phase commit overhead. To amortise this, process as many records as possible per transaction — tune `max.poll.records` upward and commit once per batch rather than once per record.
+>
+> In Kafka Streams, all of this is handled automatically by setting `processing.guarantee=exactly_once_v2`."
+
+> *If they ask about Kafka Streams EOS: exactly_once_v2 (EOS v2, introduced in Kafka 2.6) uses a shared transaction coordinator per task group rather than one per thread, reducing coordinator load — prefer it over the older exactly_once setting.*
+
+**Gotcha follow-up they'll ask:** *"What is the Last Stable Offset and how does it affect consumer throughput?"*
+
+> "The **Last Stable Offset (LSO)** is the offset up to which `read_committed` consumers can safely read — it's the offset just before the oldest open (uncommitted, not yet aborted) transaction in the partition. If a transactional producer opens a transaction at offset 100 and takes 30 seconds to commit, all `read_committed` consumers on that partition are blocked at offset 99 for those 30 seconds, even if records at offset 200 are already sitting in the log. This is a real production concern: a slow or stuck transactional producer can cause consumer lag to grow rapidly and trigger processing SLA violations. Monitor LSO lag separately from consumer group lag, and set appropriate `transaction.timeout.ms` on the producer (default 60 seconds) so the TC auto-aborts stuck transactions."
+
+---
+
+> **Common Mistake — not setting isolation.level=read_committed:** If you configure a transactional producer but forget `isolation.level=read_committed` on the consumer, the consumer will happily read records from aborted transactions — seeing data that was supposed to be rolled back. The transactional guarantee on the producer side is useless without the corresponding filter on the consumer side. Always configure both ends.
+
+---
+
+**Quick Revision (one line):**
 Kafka EOS uses `transactional.id` + epoch-based zombie fencing for cross-session idempotence, a two-phase commit protocol for atomic multi-partition writes, and `isolation.level=read_committed` on consumers to hide uncommitted records.
 
 ---
 
-### Topic 6: Partitioning Strategy
-**Difficulty:** Medium | **Frequency:** Medium | **Companies:** LinkedIn, Confluent, Uber
+## Topic 6: Partitioning Strategy
 
-**Q: How does Kafka partition records, and how do you design a partitioning strategy to avoid hotspots while maintaining ordering guarantees?**
+---
 
-**Short Answer (2-3 sentences):**
-By default, the Kafka producer routes keyed records using `murmur2(key) % numPartitions`, ensuring all records with the same key land in the same partition (ordering guarantee). Keyless records are distributed round-robin (or sticky partition per batch in newer versions). Hotspots occur when key cardinality is low or key distribution is skewed; solutions include key salting, custom partitioners, or compounded keys.
+#### The Idea
 
-**Deep Explanation:**
-**Default Partitioner (DefaultPartitioner / UniformStickyPartitioner):**
-- Keyed records: `partition = murmur2(key) % numPartitions`. Deterministic mapping — same key always same partition.
-- Keyless records: The sticky partitioner (default since Kafka 2.4) sends a batch to one partition until the batch is full or `linger.ms` elapses, then switches. This improves batching vs pure round-robin.
+Imagine a busy post office sorting mail into numbered bins. Each bin is a partition. The rule is simple: every letter addressed to "Alice" always goes into bin 3, every letter to "Bob" always goes into bin 7. This guarantees that when someone processes bin 3, they see all of Alice's letters in the exact order they arrived — that is Kafka's ordering guarantee per partition.
 
-**Key-Based Partitioning (When to Use):**
-Use when you need ordering per entity (e.g., all events for `orderId=123` must be processed in sequence). The key should have high cardinality and uniform distribution.
+The problem is that some people receive far more mail than others. If your celebrity friend gets a thousand letters a day and everyone else gets ten, bin 3 is overflowing while other bins sit empty. That is a hotspot: one partition doing all the work while the rest are idle.
 
-**Hotspot Scenarios:**
-1. **Low-cardinality keys**: e.g., `country` — most traffic goes to a few partitions (US, EU).
-2. **Viral users**: e.g., key = `userId` but one user generates 100x more events.
-3. **Time-based keys**: e.g., key = `date` — all traffic goes to today's partition.
+Fixing hotspots means rethinking the "rule" for choosing which bin a message goes into. You can salt the key (spread one person's mail across several bins at the cost of ordering), use a compound key (combine region + user so traffic fans out), or write a custom partitioner that gives high-traffic senders their own dedicated bins.
 
-**Hotspot Avoidance Strategies:**
-1. **Key Salting**: Append a random suffix to the key: `orderId + "-" + random(0, N)`. Spreads load but breaks ordering — requires downstream deduplication.
-2. **Compound Keys**: `regionId + ":" + userId` — spreads across region+user combinations.
-3. **Custom Partitioner**: Implement `org.apache.kafka.clients.producer.Partitioner` to apply domain-specific logic (e.g., route VIP users to dedicated partitions).
-4. **Increase Partition Count**: More partitions reduce per-partition load, but can't fix a key with 100% of traffic.
+---
 
-**Partition Count Decisions:**
-- Rule of thumb: `partitions = max(throughput_MB/s / 10, desired_parallelism)`.
-- Consider: number of consumers, broker count, replication overhead, Zookeeper/KRaft metadata load.
-- Adding partitions later is possible but breaks key-to-partition mapping for existing records — existing consumers may see out-of-order records for a key after the change.
+#### How It Works
 
-**Real-World Example:**
-LinkedIn's newsfeed uses `memberId` as the partition key. For members with large networks (e.g., influencers with millions of connections), a custom partitioner routes their events to a "heavy hitter" partition set with extra consumer capacity.
+```
+// Default routing for keyed records
+partition = murmur2(key) % numPartitions
 
-**Code Example:**
+// For keyless records (Kafka 2.4+ UniformStickyPartitioner)
+stick to one partition until batch is full or linger.ms elapses, then rotate
+// Better batching than pure per-record round-robin
+```
+
+**Hotspot scenarios:**
+- Low-cardinality key (e.g., `country`) — most traffic lands on US/EU partitions
+- Viral user — `userId` as key but one user generates 100x traffic
+- Time-based key (e.g., `date`) — all today's traffic goes to one partition
+
+**Avoidance strategies:**
+
+```
+// Key salting: spread load, break ordering
+saltedKey = orderId + "-" + random(0, N)
+
+// Compound key: fan out by region+user
+compoundKey = regionId + ":" + userId
+
+// Partition count rule of thumb
+partitions = max(throughputMB_per_sec / 10, desired_parallelism)
+```
+
+**Critical gotcha — partition count increases break key ordering:** adding partitions to a live topic changes `murmur2(key) % numPartitions` for every key. Existing records stay in their old partitions; new records go to newly calculated partitions. Consumers that rely on per-key ordering will see interleaved out-of-order records during and after the resize. You cannot decrease partition count — create a new topic and migrate.
+
+The must-memorise code: a custom partitioner routing VIP orders to dedicated partitions.
+
 ```java
 import org.apache.kafka.clients.producer.Partitioner;
 import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.PartitionInfo;
-
 import java.util.List;
 import java.util.Map;
 
-/**
- * Custom partitioner: routes "VIP" orders to dedicated partitions 0-2,
- * regular orders to partitions 3-N.
- */
+// Routes keys prefixed "VIP-" to partitions 0-2; regular keys to 3-N.
 public class OrderPartitioner implements Partitioner {
 
     private static final int VIP_PARTITION_COUNT = 3;
@@ -667,107 +1065,149 @@ public class OrderPartitioner implements Partitioner {
         int totalPartitions = partitions.size();
 
         if (keyBytes == null) {
-            // No key — use round-robin across non-VIP partitions
-            return VIP_PARTITION_COUNT + (int)(Math.random() * (totalPartitions - VIP_PARTITION_COUNT));
+            return VIP_PARTITION_COUNT +
+                   (int)(Math.random() * (totalPartitions - VIP_PARTITION_COUNT));
         }
 
         String orderKey = new String(keyBytes);
         if (orderKey.startsWith("VIP-")) {
-            // VIP orders: use murmur2 within VIP partition range
             return Math.abs(murmur2(keyBytes)) % VIP_PARTITION_COUNT;
         }
 
-        // Regular orders: distribute across remaining partitions
         int regularPartitions = totalPartitions - VIP_PARTITION_COUNT;
         return VIP_PARTITION_COUNT + (Math.abs(murmur2(keyBytes)) % regularPartitions);
     }
 
     private int murmur2(byte[] data) {
-        // Simplified — in production use org.apache.kafka.common.utils.Utils.murmur2
-        return java.util.Arrays.hashCode(data);
+        return java.util.Arrays.hashCode(data); // use Utils.murmur2 in production
     }
 
-    @Override
-    public void close() {}
-
-    @Override
-    public void configure(Map<String, ?> configs) {}
+    @Override public void close() {}
+    @Override public void configure(Map<String, ?> configs) {}
 }
 
-// Register custom partitioner in producer config
+// Wire it up in producer config:
 // props.put(ProducerConfig.PARTITIONER_CLASS_CONFIG, OrderPartitioner.class.getName());
 ```
 
-**Follow-up Questions:**
-1. What happens to key-based ordering guarantees if you increase partition count on a live topic?
-2. How does the UniformStickyPartitioner (keyless) improve throughput vs round-robin?
-3. If you need ordering within a category (e.g., per-user) but want to avoid hotspots, what is your strategy?
+---
 
-**Common Mistakes:**
-- Choosing a low-cardinality key (e.g., boolean `isPremium`) thinking it ensures ordering — creates severe hotspots.
-- Not accounting for partition count increases in downstream consumers — consumers may need to rebuild state.
-- Setting `num.partitions` too high initially — each partition has overhead (memory, file handles, replication network).
+#### Interview Lens
 
-**Interview Traps:**
-- "Does null key mean random partition?" — Not random per-record. Since Kafka 2.4, the UniformStickyPartitioner sends a batch to one sticky partition before switching, improving batch aggregation.
-- "Can you decrease partition count?" — No. Kafka does not support partition reduction. You must create a new topic with fewer partitions and migrate.
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
 
-**Quick Revision (1-liner):**
-Keyed records use `murmur2(key) % numPartitions` for deterministic routing (ordering guarantee); hotspots from skewed keys require key salting, compound keys, or custom partitioners, while partition count decisions balance throughput parallelism against per-partition overhead.
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
 
 ---
 
-### Topic 7: Consumer Lag & Monitoring
-**Difficulty:** Medium | **Frequency:** Medium | **Companies:** Confluent, Netflix, LinkedIn
+##### Q1 — Concept Check
+**"How does Kafka decide which partition a message goes to?"**
 
-**Q: What is consumer lag, how is it calculated, and what monitoring and alerting strategies do you use in production?**
+**One-line answer:** Keyed records use `murmur2(key) % numPartitions` for deterministic routing; keyless records use the sticky partitioner to fill a batch before rotating.
 
-**Short Answer (2-3 sentences):**
-Consumer lag is the difference between the latest offset on a partition (log-end offset, LEO) and the last committed offset of a consumer group on that partition. It indicates how far behind consumers are from the latest data. In production, lag is monitored via JMX, Kafka's AdminClient API, or tools like Confluent Control Center, Burrow, or Prometheus/Grafana, with alerts triggering when lag exceeds a threshold or grows monotonically.
+**Full answer to give in an interview:**
 
-**Deep Explanation:**
-**Lag Calculation:**
-For each (group, topic, partition):
+> "When a producer sends a message with a key — say, an order ID — Kafka applies the murmur2 hash of that key and takes the result modulo the number of partitions. That calculation is deterministic: the same key always lands on the same partition, which is how Kafka guarantees ordered delivery per key. If I send no key at all, Kafka 2.4 introduced the Uniform Sticky Partitioner: instead of round-robining every single record, it sticks to one partition until the current batch is full or `linger.ms` expires, then picks a new partition. That improves batching efficiency. You can also override both behaviours by supplying a custom `Partitioner` implementation in the producer config."
+
+> *Keep it crisp — the interviewer usually follows up on hotspots, so save that depth for Q2.*
+
+**Gotcha follow-up they'll ask:** *"What happens to key-based ordering if you add partitions to a live topic?"*
+
+> "It breaks. The hash formula is `murmur2(key) % numPartitions`. Once numPartitions changes, the same key now maps to a different partition number. Records already written stay in their old partition; new records go to the new one. Any consumer relying on per-key ordering will see interleaved records from both partitions. This is why partition count changes need careful planning — Kafka provides no way to decrease partitions, and increasing them requires migrating consumers."
+
+---
+
+##### Q2 — Tradeoff Question
+**"Your Kafka topic has a hotspot — one partition is getting 80% of all traffic. Walk me through how you would fix it."**
+
+**One-line answer:** Diagnose the key distribution, then choose between key salting (breaks ordering), compound keys, or a custom partitioner that dedicates extra partitions to high-traffic keys.
+
+**Full answer to give in an interview:**
+
+> "First I'd confirm the hotspot by looking at per-partition lag and broker throughput metrics. The root cause is almost always a low-cardinality or skewed key — classic examples are using `country` as a key (most traffic is US/EU), a boolean flag, or a user ID where one viral account generates 100x the events of anyone else. Once I know the cause, I pick a fix based on whether ordering matters. If ordering within a key is not required, key salting is the simplest option: I append a random suffix from 0 to N, which fans the key out across N partitions and distributes load. The downside is that downstream consumers now see records for the same logical entity on multiple partitions, so if I need to reconstruct order I have to dedup or sort. If I do need ordering, I switch to a compound key — for example `regionId:userId` — which provides high cardinality while still grouping semantically. For enterprise use cases like VIP customers requiring guaranteed low-latency processing, I write a custom `Partitioner` that routes those specific keys to a reserved set of partitions backed by higher-capacity consumer threads."
+
+> *Mentioning the tradeoff (salting breaks ordering) shows senior-level thinking.*
+
+**Gotcha follow-up they'll ask:** *"Will adding more partitions solve the hotspot?"*
+
+> "Not if the hotspot is one specific key. If 80% of traffic comes from a single key value, splitting the topic into 200 partitions still sends 80% of records to whichever partition that key hashes to. More partitions help when many keys are competing for the same small set of partitions — it spreads the load across more bins. For a genuinely skewed single key, you need salting or a custom partitioner."
+
+---
+
+##### Q3 — Design Scenario
+**"You are designing a Kafka-based order processing pipeline. Orders must be processed in sequence per customer, but some enterprise customers generate 1,000x more orders than standard customers. How do you partition?"**
+
+**One-line answer:** Use a custom partitioner that routes enterprise customer keys to a dedicated reserved partition set and regular customers to the remaining partitions, preserving per-customer ordering in both tiers.
+
+**Full answer to give in an interview:**
+
+> "I would use a two-tier partitioning strategy. First, I'd size the topic: suppose I have 20 partitions total, and enterprise customers — maybe 50 of them — generate 80% of traffic. I would reserve partitions 0 through 9 for enterprise customers and partitions 10 through 19 for standard customers. Then I write a custom `Partitioner`: if the order key starts with an enterprise prefix, I apply `murmur2(key) % 10` to land in the enterprise range; otherwise `10 + murmur2(key) % 10` for the standard range. On the consumer side, I run two separate consumer groups — one with higher-throughput instances assigned to the enterprise partitions, one lighter group on standard partitions. This preserves per-customer ordering (same customer always hits the same partition), avoids enterprise traffic starving standard customers, and lets me scale the two tiers independently."
+
+> *This answer demonstrates you think end-to-end: partitioner + consumer sizing together.*
+
+**Gotcha follow-up they'll ask:** *"What happens when a new enterprise customer signs up and their volume is not yet known?"*
+
+> "I'd configure the partitioner to check a dynamically refreshable set of enterprise customer IDs — loaded from a config store or a feature flag service — rather than hardcoding the prefix check. On startup it loads the set; a background thread refreshes it periodically. New enterprise customers are added to the set before their order volume ramps up, ensuring they land in the right partition range from day one."
+
+---
+
+> **Common Mistake — Low-Cardinality Key:** Choosing a key like `isPremium` (boolean) or `status` (a few values) thinking it ensures ordering creates severe hotspots — all premium orders go to one partition. Always verify key cardinality before choosing it as a partition key.
+
+---
+
+**Quick Revision (one line):**
+Keyed records route via `murmur2(key) % numPartitions` for ordering; hotspots from skewed keys require key salting (breaks ordering), compound keys, or a custom partitioner — and adding partitions to a live topic silently breaks existing key-to-partition mappings.
+
+---
+
+## Topic 7: Consumer Lag and Monitoring
+
+---
+
+#### The Idea
+
+Imagine a conveyor belt at a factory carrying boxes past a worker who stamps each one. Consumer lag is how many boxes are piled up on the belt waiting to be stamped — the difference between the last box that arrived and the last box the worker finished. If boxes keep arriving faster than the worker stamps, the pile grows and the factory falls behind.
+
+In Kafka, the conveyor belt is a topic partition. Each position on the belt is an offset — a sequential number. The "log-end offset" (LEO) is the position of the newest message the broker has received. The "committed offset" is the position the consumer group last confirmed it processed. Lag = LEO minus committed offset. If that number is growing, your consumer is falling behind producers.
+
+Lag in records can be misleading if messages have wildly different sizes — a lag of 100 large records might be worse than 10,000 tiny ones. Production systems therefore also measure lag in time: how many milliseconds behind the producer is the consumer, calculated from timestamps embedded in records.
+
+---
+
+#### How It Works
+
 ```
-lag = log_end_offset(partition) - committed_offset(group, partition)
+// Per-partition lag formula
+lag(group, topic, partition) = log_end_offset(partition) - committed_offset(group, partition)
+
+// Total group lag
+total_lag = sum of per-partition lags
+
+// Lag in time (preferred for variable message sizes)
+lag_ms = lag_records / consumption_rate_per_second * 1000
+      OR use producer timestamp in record header for exact wall-clock lag
 ```
-Total group lag = sum of per-partition lags.
 
-**Monitoring Tools:**
-1. **kafka-consumer-groups.sh**: CLI tool, good for ad-hoc checks.
-   ```bash
-   kafka-consumer-groups.sh --bootstrap-server broker:9092 \
-     --describe --group my-group
-   ```
-2. **JMX Metrics**: `kafka.consumer:type=consumer-fetch-manager-metrics,client-id=X` — `records-lag-max`, `records-lag-avg`.
-3. **AdminClient API**: `listConsumerGroupOffsets()` + `listOffsets()` for programmatic lag calculation.
-4. **Burrow (LinkedIn)**: Evaluates lag trends over time — not just current lag but whether it is growing (consumer is falling behind) vs. stable.
-5. **Confluent Control Center / Grafana + JMX Exporter**: Dashboard-based monitoring.
+**Key metrics to monitor:**
+- `records-lag-max` (JMX) — highest single-partition lag for the consumer group; most critical
+- `records-consumed-rate` — records per second being consumed
+- `fetch-latency-avg` — network health between consumer and broker
+- `commit-rate` — how often offsets are committed
 
-**Key Metrics to Monitor:**
-- `records-lag-max`: Highest lag across all partitions for a consumer — most critical.
-- `records-consumed-rate`: Records per second consumed.
-- `fetch-rate` and `fetch-latency-avg`: Network health.
-- `commit-rate`: How frequently offsets are committed.
+**Alerting strategy:**
+```
+threshold alert:    lag > 10,000 records for > 5 minutes  → page on-call
+rate-of-change:     lag increasing for > 10 consecutive minutes → warning
+zero-consumption:   records-consumed-rate = 0 for > 2 minutes → critical
+partition imbalance: one partition has 10x lag of others → hot partition or stuck thread
+```
 
-**Alerting Strategy:**
-1. **Threshold Alert**: Lag > N records (e.g., >10,000) for > 5 minutes → Page on-call.
-2. **Rate-of-Change Alert**: Lag increasing for > 10 consecutive minutes → Warning.
-3. **Zero-Consumption Alert**: `records-consumed-rate = 0` for > 2 minutes → Critical (consumer may be stuck).
-4. **Partition Imbalance**: One partition has 10x lag of others → hot partition or stuck consumer thread.
+The must-memorise code: programmatic lag calculation using the `AdminClient` API (works even when the consumer is dead — unlike JMX metrics, which require a live consumer process).
 
-**Lag vs Latency:**
-Lag in records is not directly comparable across topics. Convert to time: `lag_time = lag_records / consumption_rate`. Some systems (Confluent, custom tooling) use producer timestamp in the record header to calculate exact lag in milliseconds.
-
-**Real-World Example:**
-Netflix uses a custom lag monitoring system that calculates lag in milliseconds (using record timestamps) rather than record counts, because message sizes vary dramatically. An alert fires if any consumer group falls more than 30 seconds behind the producer.
-
-**Code Example:**
 ```java
 import org.apache.kafka.clients.admin.*;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
-
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
@@ -781,24 +1221,23 @@ public class KafkaLagMonitor {
         this.adminClient = AdminClient.create(props);
     }
 
-    public Map<TopicPartition, Long> calculateLag(String groupId) 
+    public Map<TopicPartition, Long> calculateLag(String groupId)
             throws ExecutionException, InterruptedException {
 
-        // Step 1: Get committed offsets for the consumer group
+        // Step 1: get what the consumer group has committed
         Map<TopicPartition, OffsetAndMetadata> committedOffsets =
             adminClient.listConsumerGroupOffsets(groupId)
                        .partitionsToOffsetAndMetadata()
                        .get();
 
-        // Step 2: Get log-end offsets (LEO) for those partitions
+        // Step 2: get the latest offset on each partition (log-end offset)
         Map<TopicPartition, OffsetSpec> offsetSpecs = new HashMap<>();
-        committedOffsets.keySet().forEach(tp ->
-            offsetSpecs.put(tp, OffsetSpec.latest()));
+        committedOffsets.keySet().forEach(tp -> offsetSpecs.put(tp, OffsetSpec.latest()));
 
         Map<TopicPartition, ListOffsetsResult.ListOffsetsResultInfo> latestOffsets =
             adminClient.listOffsets(offsetSpecs).all().get();
 
-        // Step 3: Calculate lag per partition
+        // Step 3: lag = LEO - committed
         Map<TopicPartition, Long> lagMap = new LinkedHashMap<>();
         for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : committedOffsets.entrySet()) {
             TopicPartition tp = entry.getKey();
@@ -806,87 +1245,137 @@ public class KafkaLagMonitor {
             long logEndOffset = latestOffsets.get(tp).offset();
             lagMap.put(tp, logEndOffset - committedOffset);
         }
-
         return lagMap;
     }
 
-    public void printLag(String groupId) throws Exception {
-        Map<TopicPartition, Long> lag = calculateLag(groupId);
-        long totalLag = lag.values().stream().mapToLong(Long::longValue).sum();
-
-        System.out.printf("Consumer Group: %s | Total Lag: %d%n", groupId, totalLag);
-        lag.forEach((tp, l) ->
-            System.out.printf("  %s partition %d: lag=%d%n",
-                tp.topic(), tp.partition(), l));
-    }
-
-    public void close() {
-        adminClient.close();
-    }
+    public void close() { adminClient.close(); }
 }
 ```
 
-**Follow-up Questions:**
-1. Why is lag in records sometimes misleading — when would you prefer lag in time (milliseconds)?
-2. How does Burrow's sliding-window analysis differ from simple threshold alerting?
-3. What causes consumer lag to grow even when `records-consumed-rate` is non-zero?
+---
 
-**Common Mistakes:**
-- Alerting only on total lag without checking per-partition lag — a stuck partition can be masked by healthy partitions.
-- Using `records-lag-max` JMX metric from inside the consumer process — requires the consumer to be running. Dead consumers show no lag JMX but have growing actual lag.
-- Not accounting for consumer group rebalances temporarily increasing lag metrics.
+#### Interview Lens
 
-**Interview Traps:**
-- "Lag is 0 — does that mean the consumer is healthy?" — Not necessarily. The consumer may have committed offsets ahead of processing (at-most-once commit), or the topic may have no new data.
-- "Can lag be negative?" — In theory no, but AdminClient calculations can show negative lag briefly due to race conditions between offset commits and log-end-offset updates. Treat negative lag as zero.
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
 
-**Quick Revision (1-liner):**
-Consumer lag = log-end-offset minus committed offset per partition; monitor with JMX `records-lag-max`, AdminClient API, or Burrow, and alert on both absolute threshold and monotonically growing lag.
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
 
 ---
 
-### Topic 8: Kafka Streams
-**Difficulty:** Hard | **Frequency:** Medium | **Companies:** Confluent, LinkedIn, Uber
+##### Q1 — Concept Check
+**"What is consumer lag and how is it calculated?"**
 
-**Q: What is the difference between KStream and KTable in Kafka Streams, and how do tumbling, hopping, and session windows work for stateful aggregations?**
+**One-line answer:** Consumer lag is the log-end offset of a partition minus the last committed offset of the consumer group on that partition — it counts how many messages the consumer has not yet processed.
 
-**Short Answer (2-3 sentences):**
-A KStream represents an unbounded stream of events where each record is an independent event (insert semantics), while a KTable represents a changelog stream where each record updates the latest value for a key (upsert semantics). Windowing enables stateful aggregations over time-bounded buckets: tumbling windows are fixed-size non-overlapping, hopping windows are fixed-size overlapping, and session windows are dynamically sized based on gaps between events. Kafka Streams materializes windowed state in local RocksDB state stores, with changelog topics for fault tolerance.
+**Full answer to give in an interview:**
 
-**Deep Explanation:**
-**KStream vs KTable:**
-- **KStream**: Each record is an independent event. `stream.filter(...)`, `stream.map(...)`, `stream.flatMap(...)`. Use for event logs, clickstreams, transactions.
-- **KTable**: Each record is an update to a key's current value. The table holds the latest value per key (like a materialized view). Use for current state: user profiles, account balances.
-- **GlobalKTable**: A KTable replicated to all Kafka Streams instances, enabling non-partitioned joins (join with any key regardless of partitioning).
+> "Consumer lag measures how far behind a consumer group is from the latest data on a topic partition. Kafka brokers track two numbers per partition: the log-end offset, which is the offset of the newest message written by producers, and the committed offset, which is the offset the consumer group last confirmed it finished processing. Lag is simply log-end offset minus committed offset. If I have five partitions, I sum across all five to get total group lag. The important nuance is that lag in record count can be misleading if messages vary in size — a lag of 500 large records might represent more processing work than 5,000 small ones. Production systems at companies like Netflix therefore also measure lag in milliseconds by comparing the producer timestamp embedded in each record against wall clock time."
 
-**Windowing Types:**
-1. **Tumbling Window** (`TimeWindows.ofSizeWithNoGrace(Duration.ofMinutes(5))`):
-   - Fixed size, non-overlapping. Record at t=4m falls in window [0,5). Record at t=6m falls in window [5,10).
-   - Use: page views per 5 minutes.
+> *Mentioning the record-count vs time-lag distinction immediately shows production experience.*
 
-2. **Hopping Window** (`TimeWindows.of(Duration.ofMinutes(10)).advanceBy(Duration.ofMinutes(5))`):
-   - Fixed size, overlapping. A record may fall in multiple windows.
-   - Window size=10m, advance=5m → record at t=6m falls in both [0,10) and [5,15).
-   - Use: moving averages.
+**Gotcha follow-up they'll ask:** *"Lag is 0 — does that mean the consumer is healthy?"*
 
-3. **Session Window** (`SessionWindows.ofInactivityGapWithNoGrace(Duration.ofMinutes(30))`):
-   - Dynamic size based on activity gaps. Events within 30 minutes of each other are merged into the same session.
-   - Use: user session analytics.
+> "Not necessarily. Zero lag means the consumer has committed offsets up to the log-end offset, but it says nothing about correctness. If the consumer is using at-most-once delivery — committing offsets before processing — it can report zero lag while actually losing messages. Zero lag also occurs when no new messages are being produced, which might look healthy but could mask a stuck consumer. The key health signal is not just lag but also that `records-consumed-rate` is non-zero and that offsets are advancing when new messages arrive."
 
-**Stateful Processing & State Stores:**
-Stateful operations (aggregations, joins, windowing) use local RocksDB state stores. Each task's state store is backed by a changelog Kafka topic (log compacted). On restart, the task restores state by replaying the changelog.
+---
 
-**Standby Replicas:** Set `num.standby.replicas=1` to keep a warm copy of state stores on another instance, reducing restoration time after failure.
+##### Q2 — Tradeoff Question
+**"Why is the JMX `records-lag-max` metric sometimes insufficient for production monitoring, and what do you use instead?"**
 
-**Joins:**
-- `KStream-KStream join`: Both sides must be windowed (join within a time window).
-- `KStream-KTable join`: Non-windowed. The KTable side provides current value for each stream record's key.
-- `KTable-KTable join`: Triggers output on any update to either side.
+**One-line answer:** JMX metrics only work while the consumer process is alive — a dead consumer shows no JMX lag at all — so you combine JMX with AdminClient-based polling and tools like Burrow that detect growing lag trends.
 
-**Real-World Example:**
-Uber uses Kafka Streams for real-time surge pricing: a KStream of trip requests is aggregated with a tumbling 1-minute window per geohash (location cell), joined with a KTable of driver availability, to compute demand/supply ratio and update surge multipliers every minute.
+**Full answer to give in an interview:**
 
-**Code Example:**
+> "The `records-lag-max` JMX metric is exposed by the consumer process itself. If the consumer crashes or is stuck in a long GC pause, the JMX endpoint goes dark — you get no lag reading at all, which looks like zero lag to naive monitors. This is the most dangerous failure mode: the alerting system thinks everything is fine while lag is actually skyrocketing. To avoid this I use the AdminClient API, specifically `listConsumerGroupOffsets()` combined with `listOffsets()`, to calculate lag server-side against broker data regardless of whether consumers are running. I also use Burrow, which LinkedIn open-sourced: rather than checking instantaneous lag, Burrow applies a sliding window to detect whether lag is growing monotonically over time — a much stronger signal that a consumer is falling behind, as opposed to a temporary spike that recovers. For per-partition visibility, I alert separately when one partition has ten times the lag of others, which flags hot partitions or a stuck consumer thread without waiting for total group lag to cross a threshold."
+
+> *Naming Burrow's sliding-window analysis distinguishes you from candidates who only know JMX.*
+
+**Gotcha follow-up they'll ask:** *"Can consumer lag be negative?"*
+
+> "In theory no, but in practice AdminClient calculations can briefly show negative values due to a race condition: the consumer commits an offset at the same moment the broker is updating its log-end offset metadata. Treat any negative lag reading as zero — it is a transient artefact of the measurement, not a real state."
+
+---
+
+##### Q3 — Design Scenario
+**"Design a lag monitoring system for 50 consumer groups across 200 topics. What would you build?"**
+
+**One-line answer:** A polling service using AdminClient to calculate per-partition lag every 30 seconds, publishing metrics to Prometheus with Grafana dashboards and multi-tier alerts combining threshold, rate-of-change, and zero-consumption rules.
+
+**Full answer to give in an interview:**
+
+> "I would build a standalone monitoring service — not embedded in the consumer — that runs on a separate JVM so it works even when consumers are down. Every 30 seconds it calls `listConsumerGroupOffsets()` for all 50 groups and `listOffsets()` for their partitions, calculates lag per partition, and publishes Prometheus gauges labelled by group, topic, and partition. In Grafana I'd set up three alert tiers: first, an absolute threshold — lag above 10,000 records for more than five minutes pages the on-call engineer; second, a rate-of-change rule — lag increasing for ten consecutive polling intervals fires a warning before it becomes critical; third, a zero-consumption alert — if `records-consumed-rate` from JMX is zero for two minutes while lag is non-zero, that means the consumer is alive but stuck, which is a critical page. For topics where message size varies, I'd also track lag in milliseconds by comparing the producer timestamp in the latest unprocessed record against wall clock time. All metrics are retained for 30 days for capacity planning."
+
+> *Showing the three alert tiers demonstrates that you think about failure modes, not just steady-state.*
+
+**Gotcha follow-up they'll ask:** *"What causes lag to grow even when `records-consumed-rate` is non-zero?"*
+
+> "Several things: the consumer is processing but not fast enough — producers are writing faster than the consumer can handle, so lag grows even though consumption is happening. A rebalance can temporarily stall partitions being migrated between consumer instances. A slow downstream dependency — a database write, an HTTP call — can bottleneck the processing loop. Finally, a consumer with manual offset commit might be consuming but delaying commits, so the committed offset doesn't advance even though records are being read."
+
+---
+
+> **Common Mistake — Monitoring Total Lag Only:** Alerting on total group lag without checking per-partition breakdown lets a single stuck partition be hidden by healthy ones. Always alert at partition granularity and check that `records-consumed-rate` is non-zero independently of the lag number.
+
+---
+
+**Quick Revision (one line):**
+Consumer lag equals log-end offset minus committed offset per partition; monitor with AdminClient API (works when consumers are dead) and Burrow's sliding-window trend analysis, and alert on both absolute threshold and monotonically growing lag.
+
+---
+
+## Topic 8: Kafka Streams
+
+---
+
+#### The Idea
+
+Imagine two kinds of whiteboards in a meeting room. The first whiteboard is a running log: every time someone calls in, you write down what they said in order — you never erase anything, just keep appending. That is a KStream: each record is an independent event, an immutable fact about something that happened. The second whiteboard is a scoreboard: it shows the current score, and whenever a team scores you overwrite the old number. That is a KTable: each record is an update to the latest known value for a key.
+
+Kafka Streams is a Java library that lets you process these streams inside your application — no separate cluster like Flink or Spark needed. It runs as threads inside your JVM and uses Kafka partitions directly for parallelism. The magic is that it can do stateful computations — counting, summing, joining — by maintaining a local database (RocksDB) on each instance, backed by a Kafka changelog topic for fault tolerance.
+
+Windowing adds a time dimension to stateful computations. Instead of counting all events since the beginning of time, you count events within a five-minute bucket (tumbling window), or within a rolling ten-minute window that advances every five minutes (hopping window), or within a session that stretches as long as a user keeps interacting (session window).
+
+---
+
+#### How It Works
+
+```
+// KStream: insert semantics — every record is a new independent event
+stream = builder.stream("clicks")       // append-only log
+stream.filter(r -> r.value > 0)
+stream.map(r -> new KeyValue(r.key, transform(r.value)))
+
+// KTable: upsert semantics — each record replaces the prior value for that key
+table = builder.table("user-profiles")  // materialized view, latest value per key
+// When key "user-123" appears again, the old value is overwritten
+
+// GlobalKTable: full copy on every instance — join without co-partitioning
+globalTable = builder.globalTable("config-data")
+```
+
+**Windowing types:**
+```
+// Tumbling: fixed-size, non-overlapping
+// Event at t=4m → window [0,5). Event at t=6m → window [5,10).
+TimeWindows.ofSizeWithNoGrace(Duration.ofMinutes(5))
+
+// Hopping: fixed-size, overlapping — a record may land in multiple windows
+// size=10m, advance=5m → event at t=6m falls in [0,10) AND [5,15)
+TimeWindows.of(Duration.ofMinutes(10)).advanceBy(Duration.ofMinutes(5))
+
+// Session: dynamic size — events within gap of each other merge into one session
+SessionWindows.ofInactivityGapWithNoGrace(Duration.ofMinutes(30))
+```
+
+**State store fault tolerance:**
+```
+stateful operation  →  local RocksDB state store
+                    →  backed by changelog Kafka topic (log-compacted)
+on restart          →  replay changelog to restore state
+num.standby.replicas=1  →  warm copy on another instance, faster recovery
+```
+
+The must-memorise gotcha: the KTable vs KStream distinction and stateful windowed aggregation wired to a state store.
+
 ```java
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.*;
@@ -894,7 +1383,7 @@ import org.apache.kafka.streams.kstream.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafkaStreams;
-
+import org.springframework.kafka.config.KafkaStreamsDefaultConfiguration;
 import java.time.Duration;
 import java.util.Properties;
 
@@ -902,7 +1391,7 @@ import java.util.Properties;
 @EnableKafkaStreams
 public class KafkaStreamsConfig {
 
-    // KStream: count page views per URL in 5-minute tumbling windows
+    // KStream example: count page views per URL in 5-minute tumbling windows
     @Bean
     public KStream<String, String> pageViewStream(StreamsBuilder builder) {
         KStream<String, String> pageViews = builder.stream(
@@ -910,13 +1399,13 @@ public class KafkaStreamsConfig {
             Consumed.with(Serdes.String(), Serdes.String())
         );
 
-        // Tumbling window: 5-minute non-overlapping buckets
+        // Tumbling window: non-overlapping 5-minute buckets
+        // Materialized.as() names the RocksDB state store
         KTable<Windowed<String>, Long> viewCounts = pageViews
             .groupByKey()
             .windowedBy(TimeWindows.ofSizeWithNoGrace(Duration.ofMinutes(5)))
-            .count(Materialized.as("page-view-counts"));
+            .count(Materialized.as("page-view-counts"));  // state store name
 
-        // Convert back to stream and write to output topic
         viewCounts.toStream()
             .map((windowedKey, count) -> KeyValue.pair(
                 windowedKey.key() + "@" + windowedKey.window().startTime(),
@@ -927,20 +1416,17 @@ public class KafkaStreamsConfig {
         return pageViews;
     }
 
-    // KTable: join user click stream with user profile table
+    // KTable example: enrich click stream with user profile (KStream-KTable join)
     @Bean
     public KStream<String, String> enrichedClickStream(StreamsBuilder builder) {
         KStream<String, String> clicks = builder.stream(
-            "user-clicks",
-            Consumed.with(Serdes.String(), Serdes.String())
-        );
+            "user-clicks", Consumed.with(Serdes.String(), Serdes.String()));
 
+        // KTable holds the latest user profile per userId key — upsert semantics
         KTable<String, String> userProfiles = builder.table(
-            "user-profiles",
-            Consumed.with(Serdes.String(), Serdes.String())
-        );
+            "user-profiles", Consumed.with(Serdes.String(), Serdes.String()));
 
-        // KStream-KTable join: enrich each click with user profile
+        // Non-windowed join: each click is enriched with the current profile value
         KStream<String, String> enriched = clicks.join(
             userProfiles,
             (clickEvent, userProfile) -> clickEvent + "|" + userProfile
@@ -957,9 +1443,10 @@ public class KafkaStreamsConfig {
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "broker1:9092");
         props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass());
+        // exactly_once_v2 (Kafka 2.6+): shared transaction producer per StreamThread
+        // v1 used one producer per task — much higher overhead
         props.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE_V2);
         props.put(StreamsConfig.NUM_STANDBY_REPLICAS_CONFIG, 1);
-        props.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, 1000);
         return new KafkaStreamsConfiguration(props.entrySet().stream()
             .collect(java.util.stream.Collectors.toMap(
                 e -> e.getKey().toString(), Map.Entry::getValue)));
@@ -967,85 +1454,142 @@ public class KafkaStreamsConfig {
 }
 ```
 
-**Follow-up Questions:**
-1. How does Kafka Streams handle out-of-order records (late arrivals) — what is the grace period?
-2. What is the relationship between Kafka Streams tasks, threads, and partitions?
-3. How do you reprocess historical data in Kafka Streams (reset the application)?
+---
 
-**Common Mistakes:**
-- Using `ofSizeAndGrace(size, Duration.ZERO)` without understanding that records arriving after the window closes are dropped.
-- Not co-partitioning KStream and KTable topics for joins — results in `TopologyException`.
-- Underestimating state store size — RocksDB can consume significant disk space for large windowed aggregations.
+#### Interview Lens
 
-**Interview Traps:**
-- "Can Kafka Streams replace Flink or Spark Streaming?" — For simple stateful stream processing on Kafka data, yes. For complex event processing, ML pipelines, or cross-system joins, Flink is more appropriate.
-- "What is the difference between `processing.guarantee=exactly_once` and `exactly_once_v2`?" — v2 (Kafka 2.6+) uses a shared transaction producer per StreamThread rather than per task, reducing overhead. v2 requires Kafka brokers 2.5+.
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
 
-**Quick Revision (1-liner):**
-KStream treats every record as an independent event (insert), KTable as an upsert to the latest value; windowing (tumbling/hopping/session) enables stateful time-bounded aggregations backed by RocksDB state stores with changelog topic fault tolerance.
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
 
 ---
 
-### Topic 9: Kafka Connect
-**Difficulty:** Medium | **Frequency:** Medium | **Companies:** Confluent, LinkedIn, Goldman Sachs
+##### Q1 — Concept Check
+**"What is the difference between a KStream and a KTable in Kafka Streams?"**
 
-**Q: What is Kafka Connect, how do source and sink connectors work, what are Single Message Transforms (SMTs), and how does Debezium enable CDC?**
+**One-line answer:** KStream has insert semantics — every record is a new independent event; KTable has upsert semantics — each record replaces the previous value for that key, representing the latest known state.
 
-**Short Answer (2-3 sentences):**
-Kafka Connect is a scalable, fault-tolerant framework for streaming data between Kafka and external systems using source connectors (external system → Kafka) and sink connectors (Kafka → external system). Single Message Transforms (SMTs) are lightweight, stateless transformations applied per-record in the connector pipeline without writing custom code. Debezium is a CDC (Change Data Capture) source connector that reads the database binary log (MySQL binlog, Postgres WAL) and produces a Kafka event for every row-level INSERT, UPDATE, and DELETE.
+**Full answer to give in an interview:**
 
-**Deep Explanation:**
-**Kafka Connect Architecture:**
-- **Workers**: JVM processes running in standalone or distributed mode. Distributed mode: workers form a cluster; tasks are distributed across workers.
-- **Connectors**: Logical configuration units. Each connector manages N tasks.
-- **Tasks**: The actual units of work. For a source connector with 3 partitions, Kafka assigns 3 tasks in parallel.
-- **Offset Storage**: Connect tracks source offsets (e.g., file position, DB log position) in a Kafka topic (`connect-offsets`), enabling restart-without-replay.
-- **Config Storage**: Connector configs stored in `connect-configs` topic.
-- **Status Storage**: Task status in `connect-status` topic.
+> "The distinction comes down to what each record means. In a KStream, every message is a new, independent fact — think of a clickstream where each click event is its own entry. If the same user clicks twice, I get two records, and both matter. KStream operations like filter, map, and flatMap treat every record as immutable and independent. A KTable, by contrast, is like a database table where each key has exactly one current value. When a new record arrives for a key that already has a value, the KTable overwrites the old one — upsert semantics. This makes KTable ideal for holding current state: user profiles, account balances, feature flag settings. The practical consequence in joins is important: a KStream-KTable join is non-windowed — for every stream record, Kafka Streams looks up the current KTable value for that key. A KStream-KStream join requires both sides to be windowed because two event streams have no concept of 'current value' — you have to bound the join in time."
 
-**Source Connectors (External → Kafka):**
-- FileStreamSourceConnector: Reads a file line by line.
-- JdbcSourceConnector (Confluent): Polls a DB table for new/updated rows (timestamp or incrementing column strategy).
-- Debezium (CDC): Reads DB binary log for real-time, low-latency CDC.
+> *The join consequence is what interviewers really want to hear — lead there.*
 
-**Sink Connectors (Kafka → External):**
-- JdbcSinkConnector: Writes to a relational DB (INSERT, UPSERT, DELETE based on record key).
-- ElasticsearchSinkConnector: Indexes records to Elasticsearch.
-- S3SinkConnector: Partitions and writes records to S3 as Parquet/JSON/Avro files.
+**Gotcha follow-up they'll ask:** *"What is a GlobalKTable and when would you use it?"*
 
-**Single Message Transforms (SMTs):**
-Stateless record-level transformations in the connector's processing chain:
-- `InsertField`: Add a field to the record.
-- `ReplaceField`: Rename or drop fields.
-- `MaskField`: Replace field value with a mask (PII redaction).
-- `TimestampRouter`: Route to time-partitioned topics.
-- `ValueToKey`: Promote a field to the record key.
-- `Flatten`: Flatten nested structs.
-Chain multiple SMTs: `transforms=addTimestamp,redactEmail,...`
+> "A GlobalKTable is a KTable where the full contents are replicated to every Kafka Streams instance in the application, regardless of partition assignment. A regular KTable is co-partitioned — each instance only holds the slice of the table for its assigned partitions, so a KStream-KTable join only works if both topics have the same number of partitions and use the same partitioning key. If they don't, Kafka throws a TopologyException. A GlobalKTable sidesteps this: since every instance has the full table, a stream record with any key can be looked up locally without co-partitioning. The trade-off is memory and replication cost — GlobalKTable is only practical for smaller, slowly-changing reference data like config tables or country codes."
 
-**Debezium CDC:**
-Debezium connects to the DB's replication protocol:
-- MySQL: Reads binlog (STATEMENT/ROW format, requires `binlog_format=ROW`).
-- PostgreSQL: Uses logical replication slot (`pgoutput` or `decoderbufs`).
-- Oracle: LogMiner.
+---
 
-Debezium emits a structured envelope per change event:
+##### Q2 — Tradeoff Question
+**"Explain the three Kafka Streams window types and when you would choose each."**
+
+**One-line answer:** Tumbling windows are fixed non-overlapping buckets for per-period aggregations; hopping windows are fixed overlapping buckets for moving averages; session windows are gap-based and dynamically sized for user activity analytics.
+
+**Full answer to give in an interview:**
+
+> "Tumbling windows divide time into fixed-size, non-overlapping buckets. A record belongs to exactly one window. If I'm counting page views per five minutes, tumbling is the right choice — I want clean, non-overlapping periods that don't double-count. Hopping windows are also fixed-size but they overlap: a ten-minute window advancing every five minutes means every record falls into two windows. That is the right model for moving averages or rolling sums where I care about recent trends, not clean periods. Session windows are different in kind — they are event-driven rather than clock-driven. A session is created when the first event arrives; as long as new events keep coming within an inactivity gap — say 30 minutes — they are merged into the same session. When no event arrives for 30 minutes the session closes. This naturally models user sessions on a website without needing to know their length in advance. The operational gotcha with all three is the grace period: by default, `ofSizeWithNoGrace` drops late-arriving records — records that arrive after their window has closed. In production you almost always want to set a non-zero grace period to handle out-of-order events."
+
+> *Mentioning the grace period / late arrivals gotcha is a strong differentiator.*
+
+**Gotcha follow-up they'll ask:** *"How does Kafka Streams recover state after a crash?"*
+
+> "Every stateful operation — windowed count, aggregation, join — writes to a local RocksDB state store on disk. That state store is backed by a Kafka changelog topic that is log-compacted, meaning it retains the latest value per key. On restart, Kafka Streams replays the changelog topic to rebuild the state store. This can be slow for large state. To speed it up, you set `num.standby.replicas=1`, which keeps a warm copy of the state store on a second instance. When the primary crashes, the standby can take over with minimal replay needed."
+
+---
+
+##### Q3 — Design Scenario
+**"Design a real-time surge pricing calculation for a ride-sharing app using Kafka Streams."**
+
+**One-line answer:** Aggregate a KStream of trip requests by geohash in a one-minute tumbling window, join with a KTable of driver availability, compute demand/supply ratio, and write the surge multiplier back to an output topic.
+
+**Full answer to give in an interview:**
+
+> "I'd model it as a pipeline with two inputs and one output. The first input is a KStream from the `trip-requests` topic, keyed by geohash — a string that encodes a geographic cell at roughly city-block granularity. The second input is a KTable from the `driver-locations` topic, also keyed by geohash, holding the current count of available drivers in that cell — upsert semantics, so it always reflects the latest known driver count. In the Streams topology, I group the trip-request KStream by geohash and aggregate with a one-minute tumbling window to count requests per cell per minute — this produces a KTable of `(geohash, window) -> requestCount`. I then join that with the driver KTable: for each windowed request count, I look up the current driver availability for that geohash and compute `surgeMultiplier = requestCount / driverCount` with a floor of 1.0. The result is written to a `surge-multipliers` output topic that the pricing service consumes. State is stored in RocksDB per Streams instance. I'd set `processing.guarantee=EXACTLY_ONCE_V2` to prevent double-counting a surge update, and `num.standby.replicas=1` for fast failover."
+
+> *Walking through the topology step by step — KStream, KTable, join, output — is exactly what interviewers want.*
+
+**Gotcha follow-up they'll ask:** *"What is the difference between `exactly_once` and `exactly_once_v2` in Kafka Streams config?"*
+
+> "Both guarantee that each record is processed and its result produced to the output topic exactly once, even on failures. The difference is implementation efficiency. In `exactly_once` (v1), Kafka Streams creates one transactional producer per task — if a StreamThread manages ten tasks, that is ten producers, each with its own transaction coordinator overhead. `exactly_once_v2`, introduced in Kafka 2.6, uses one shared transactional producer per StreamThread instead of per task, dramatically reducing the number of open transactions and the coordinator load. V2 requires brokers running Kafka 2.5 or later. For new deployments, always use v2."
+
+---
+
+> **Common Mistake — Not Co-Partitioning for Joins:** Joining a KStream and a KTable that have different partition counts or different partition keys throws a `TopologyException` at startup. Before wiring a join, confirm both topics are co-partitioned — same partition count, same key, same partitioner. If they are not, use a GlobalKTable for the smaller side.
+
+---
+
+**Quick Revision (one line):**
+KStream treats every record as an independent insert; KTable treats each record as an upsert to the latest value; windowed aggregations (tumbling/hopping/session) maintain state in local RocksDB stores backed by changelog topics, with `exactly_once_v2` guaranteeing each record affects output exactly once.
+
+---
+
+## Topic 9: Kafka Connect
+
+---
+
+#### The Idea
+
+Imagine a universal adapter plug that lets you connect any device to any power socket in the world. Kafka Connect is that adapter for data: it provides a standard framework for moving data between Kafka and external systems — databases, object stores, search indexes, file systems — without writing custom consumer or producer code for every integration.
+
+The framework has two directions. A source connector reads from an external system and writes into Kafka — for example, reading every new row from a MySQL table and publishing it as a Kafka message. A sink connector reads from Kafka and writes into an external system — for example, taking Kafka messages and indexing them into Elasticsearch. Connectors run inside worker processes, and each connector manages multiple tasks that run in parallel.
+
+The most powerful source connector is Debezium, which implements CDC — Change Data Capture. Instead of polling a database table for new rows (which misses deletes and updates), Debezium reads the database's internal binary log — the same log MySQL or Postgres uses for replication — and produces a Kafka event for every single row-level INSERT, UPDATE, and DELETE. This gives you a real-time, complete audit trail of every change with latency under 100 milliseconds.
+
+---
+
+#### How It Works
+
+```
+// Connect cluster roles
+Workers  → JVM processes; distributed mode forms a cluster, tasks spread across workers
+Connectors → logical config unit; each manages N tasks
+Tasks    → actual work units; source task pulls from external system, sink task pushes to it
+
+// Internal Kafka topics (created automatically)
+connect-offsets  → tracks source progress (file position, DB log position)
+connect-configs  → stores connector configurations
+connect-status   → tracks task health
+```
+
+**Source connector strategies:**
+```
+JdbcSourceConnector   → polls DB table for new/changed rows (timestamp or incrementing column)
+                         limitation: misses DELETEs, high DB poll load, higher latency
+Debezium (CDC)        → reads database binary log, captures INSERT/UPDATE/DELETE
+                         low latency (<100ms), zero polling load on DB, complete change history
+```
+
+**Single Message Transforms (SMTs) — stateless per-record transforms in the connector chain:**
+```
+InsertField      → add a field to the record (e.g., ingest timestamp)
+ReplaceField     → rename or drop fields
+MaskField        → replace field value with a mask (PII redaction)
+TimestampRouter  → route to time-partitioned topic names
+ValueToKey       → promote a record field to become the message key
+Flatten          → flatten nested structs to dot-notation keys
+
+// Chain multiple SMTs:
+transforms=addTimestamp,redactEmail
+transforms.addTimestamp.type=org.apache.kafka.connect.transforms.InsertField$Value
+transforms.addTimestamp.timestamp.field=kafka_ingest_ts
+```
+
+**Debezium event envelope:**
 ```json
 {
   "before": { "id": 1, "email": "old@example.com" },
   "after":  { "id": 1, "email": "new@example.com" },
-  "op": "u",  // c=create, u=update, d=delete, r=read (snapshot)
+  "op": "u",
   "ts_ms": 1700000000000,
-  "source": { "db": "orders", "table": "order_items", ... }
+  "source": { "db": "orders", "table": "order_items" }
 }
+// op values: c=create (INSERT), u=update (UPDATE), d=delete (DELETE), r=read (snapshot)
 ```
 
-**Real-World Example:**
-Goldman Sachs uses Debezium to capture every trade record change from their Oracle trade database into Kafka in real time (<100 ms latency), replacing nightly batch ETL jobs. Downstream consumers build real-time risk dashboards without querying the source OLTP database.
+The must-memorise code: Debezium MySQL connector configuration and a Spring Boot consumer handling CDC events.
 
-**Code Example:**
 ```json
-// Debezium MySQL Connector configuration (REST API payload)
 {
   "name": "mysql-orders-cdc",
   "config": {
@@ -1060,15 +1604,12 @@ Goldman Sachs uses Debezium to capture every trade record change from their Orac
     "table.include.list": "orders_db.orders,orders_db.order_items",
     "database.history.kafka.bootstrap.servers": "broker1:9092",
     "database.history.kafka.topic": "schema-changes.orders",
-    "include.schema.changes": "true",
     "snapshot.mode": "initial",
-
     "transforms": "unwrap,addTimestamp",
     "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
     "transforms.unwrap.drop.tombstones": "false",
     "transforms.addTimestamp.type": "org.apache.kafka.connect.transforms.InsertField$Value",
     "transforms.addTimestamp.timestamp.field": "kafka_ingest_ts",
-
     "key.converter": "io.confluent.kafka.serializers.KafkaAvroSerializer",
     "key.converter.schema.registry.url": "http://schema-registry:8081",
     "value.converter": "io.confluent.kafka.serializers.KafkaAvroSerializer",
@@ -1078,7 +1619,6 @@ Goldman Sachs uses Debezium to capture every trade record change from their Orac
 ```
 
 ```java
-// Spring Boot application consuming Debezium CDC events
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -1109,103 +1649,140 @@ public class OrderCdcConsumer {
 }
 ```
 
-**Follow-up Questions:**
-1. What is the difference between Debezium snapshot mode `initial` vs `schema_only`, and when would you use each?
-2. How does Kafka Connect handle connector failures — what happens to in-flight records?
-3. What are the limitations of JDBC polling source connectors compared to CDC?
+---
 
-**Common Mistakes:**
-- Not setting `database.server.id` to a unique value when running multiple Debezium instances against the same MySQL cluster — causes replication conflicts.
-- Chaining too many SMTs — SMTs are stateless, so complex transformations requiring state (joins, aggregations) should be done in Kafka Streams or a consumer application, not SMTs.
-- Not monitoring replication slot lag in PostgreSQL — an idle or slow Debezium connector can cause WAL accumulation and disk exhaustion.
+#### Interview Lens
 
-**Interview Traps:**
-- "Is Kafka Connect fault-tolerant without Zookeeper?" — Yes. In distributed mode, Connect uses Kafka topics for offset/config/status storage. It is independent of Zookeeper.
-- "Can SMTs do joins or aggregations?" — No. SMTs are stateless, per-record transforms. For stateful operations use Kafka Streams.
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
 
-**Quick Revision (1-liner):**
-Kafka Connect streams data between external systems and Kafka via source/sink connectors with lightweight SMTs for per-record transforms; Debezium is a CDC source connector that reads database binary logs to produce low-latency change events.
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
 
 ---
 
-### Topic 10: Schema Registry & Avro
-**Difficulty:** Medium | **Frequency:** Medium | **Companies:** Confluent, LinkedIn, Goldman Sachs
+##### Q1 — Concept Check
+**"What is Kafka Connect and how do source and sink connectors differ?"**
 
-**Q: How does Confluent Schema Registry work with Avro serialization, and what are the schema evolution compatibility modes (backward, forward, full)?**
+**One-line answer:** Kafka Connect is a framework for streaming data between Kafka and external systems; source connectors pull data from an external system into Kafka, sink connectors push data from Kafka into an external system.
 
-**Short Answer (2-3 sentences):**
-Confluent Schema Registry stores Avro (or Protobuf/JSON Schema) schemas indexed by subject (topic name + "-value" or "-key"); producers register schemas and embed a 5-byte magic header (magic byte + schema ID) in each serialized record, while consumers retrieve the schema by ID for deserialization. Schema evolution compatibility ensures producers and consumers can be deployed independently: backward compatibility means new readers can read old records, forward compatibility means old readers can read new records, and full compatibility is both. Log compaction ensures schema registry subjects are durably stored in Kafka itself.
+**Full answer to give in an interview:**
 
-**Deep Explanation:**
-**Wire Format:**
-Each Kafka message serialized with KafkaAvroSerializer has the format:
+> "Kafka Connect is a scalable, fault-tolerant framework that standardises how data moves between Kafka and the outside world. Without it, every integration requires a custom producer or consumer application — error handling, offset tracking, parallelism, all written from scratch each time. Connect provides that infrastructure once: connectors are just configuration files that specify the external system, topic names, and any transforms, while the Connect workers handle execution, fault tolerance, and offset management. A source connector reads from an external system and writes to Kafka — a common example is JdbcSourceConnector polling a database table for new rows, or Debezium reading MySQL's binary log for real-time CDC. A sink connector reads from Kafka and writes to an external system — ElasticsearchSinkConnector indexing records, S3SinkConnector writing Parquet files to object storage. In distributed mode, multiple worker nodes share the connector tasks, so if one worker fails another picks up its tasks automatically. Connector state — which file offset, which DB log position — is stored in Kafka topics, so it survives worker restarts without replay."
+
+> *Mentioning offset storage in Kafka topics is the detail that shows you understand the architecture.*
+
+**Gotcha follow-up they'll ask:** *"Is Kafka Connect fault-tolerant without Zookeeper?"*
+
+> "Yes, fully. In distributed mode, Connect stores connector configurations, task offsets, and task status in three internal Kafka topics: `connect-configs`, `connect-offsets`, and `connect-status`. Zookeeper is not involved. This means Connect can run in environments that have migrated to KRaft-based Kafka, and the configuration persists independently of which worker process is currently running. Workers elect a group leader using Kafka's consumer group protocol — the same mechanism as consumer group rebalancing."
+
+---
+
+##### Q2 — Tradeoff Question
+**"Compare JDBC polling source connectors with Debezium CDC. When would you choose each?"**
+
+**One-line answer:** JDBC polling is simple to set up but misses deletes, has higher DB load, and has higher latency; Debezium reads the binary log for complete, low-latency change capture but requires database replication privileges and more operational complexity.
+
+**Full answer to give in an interview:**
+
+> "JdbcSourceConnector works by periodically querying a database table — say every 60 seconds — for rows where an `updated_at` timestamp is greater than the last seen value. It is simple to configure, works with any JDBC-compatible database, and requires no special database privileges beyond SELECT. But it has three fundamental limitations: first, it cannot detect row deletions — a deleted row simply disappears from the query results with no event produced. Second, it creates polling load on the source database — at scale this can be significant. Third, the latency equals the poll interval, so events are at best 60 seconds stale. Debezium solves all three by reading the database's internal replication log directly — MySQL binlog, Postgres WAL, Oracle LogMiner. Every INSERT, UPDATE, and DELETE produces a Kafka event with before and after values, operation type, and a timestamp, with latency typically under 100 milliseconds. The trade-offs are complexity: the source database must have binary logging enabled in ROW format for MySQL, or a logical replication slot configured for Postgres. Debezium requires a dedicated database account with REPLICATION privilege. For Postgres, you must monitor replication slot lag, because a slow or idle Debezium connector can cause WAL to accumulate and fill the disk. Choose JDBC polling for simple, low-volume use cases where deletes do not matter and latency of minutes is acceptable. Choose Debezium for real-time pipelines, event sourcing, audit trails, and any case where deletes must be captured."
+
+> *The WAL disk accumulation risk for Postgres is a production gotcha that shows hands-on experience.*
+
+**Gotcha follow-up they'll ask:** *"Can Single Message Transforms do joins or aggregations?"*
+
+> "No. SMTs are stateless, per-record transforms — they operate on one record at a time with no access to any other record. For stateless work like adding a timestamp field, masking a PII field, or renaming columns they are perfect. For anything requiring state — joining two streams, counting, deduplication, sessionisation — you need Kafka Streams or a downstream consumer application. Chaining too many SMTs also degrades connector throughput because each transform adds CPU per record; complex logic belongs in the processing layer, not the connector."
+
+---
+
+##### Q3 — Design Scenario
+**"Design a real-time data pipeline that captures every order change from a MySQL database and makes it queryable in Elasticsearch within 5 seconds."**
+
+**One-line answer:** Debezium MySQL source connector captures binlog changes to Kafka, an SMT unwraps the envelope and adds an ingest timestamp, and an Elasticsearch sink connector indexes the records — all within the 5-second SLA.
+
+**Full answer to give in an interview:**
+
+> "I'd build this as a three-stage Connect pipeline with no custom code. Stage one: deploy a Debezium MySQL connector pointing at the primary MySQL instance. MySQL must have `binlog_format=ROW` enabled. Debezium reads the binlog and produces one Kafka message per change event to a topic named `mysql-orders.orders_db.orders`, with the full before/after payload. End-to-end latency from MySQL commit to Kafka message is typically under 100 milliseconds. Stage two: configure SMTs on the connector — first `ExtractNewRecordState` to unwrap Debezium's nested envelope down to just the `after` fields for inserts and updates, plus tombstone records for deletes; then `InsertField` to add a `kafka_ingest_ts` timestamp field for observability. Stage three: deploy an ElasticsearchSinkConnector consuming from that topic, configured to use the record key as the Elasticsearch document ID and UPSERT mode, so updates correctly overwrite existing documents rather than creating duplicates. The Elasticsearch connector batches records and flushes every second by default, which puts total pipeline latency well under the 5-second SLA. For resilience, I'd run three Connect workers in distributed mode so any single worker failure triggers automatic task redistribution without human intervention."
+
+> *Calling out `UPSERT mode` and document ID mapping for Elasticsearch shows you have actually debugged duplicate records.*
+
+**Gotcha follow-up they'll ask:** *"Debezium has been running for a month and the Postgres disk is filling up. What happened?"*
+
+> "That is the WAL accumulation problem. Postgres logical replication slots retain all WAL segments that the slot has not yet consumed. If Debezium is slow, paused, or misconfigured, the replication slot falls behind and Postgres cannot reclaim old WAL files. This grows until the disk is full and Postgres crashes. The fix is to monitor replication slot lag in Postgres with `pg_replication_slots` — alert when `pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)` exceeds a threshold like 10 GB. If the connector is permanently stopped, drop the replication slot immediately."
+
+---
+
+> **Common Mistake — Duplicate `database.server.id` Values:** Running two Debezium MySQL connectors against the same MySQL cluster with the same `database.server.id` causes MySQL to think it is replicating to the same replica twice, resulting in replication conflicts and missed events. Every Debezium instance must have a globally unique server ID.
+
+---
+
+**Quick Revision (one line):**
+Kafka Connect streams data between external systems and Kafka via source and sink connectors with lightweight stateless SMTs for per-record transforms; Debezium reads the database binary log to produce low-latency (<100ms) change events including deletes, which JDBC polling cannot capture.
+
+---
+
+## Topic 10: Schema Registry and Avro
+
+---
+
+#### The Idea
+
+Imagine two teams in different buildings exchanging messages in envelopes. The sender writes a letter using an agreed template — field 1 is the customer ID, field 2 is the amount. The receiver reads the letter by following the same template. If the sender one day adds a new field 3 for currency without telling the receiver, the receiver's code might crash trying to parse a structure it does not recognise.
+
+Schema Registry solves this coordination problem. It is a central catalogue that stores every version of every message format (schema). When a producer sends a message, it registers its schema with the registry and receives back a small integer ID — say, 42. It then embeds that ID in the first five bytes of every message it sends. When a consumer receives the message, it reads those five bytes, fetches schema 42 from the registry (caching it locally), and uses that schema to deserialise the rest of the bytes. Both sides always know exactly what structure to expect, without embedding the full schema in every message.
+
+Avro is the most common serialisation format used with Schema Registry. It is compact (binary, not text), fast, and schema-aware — a valid Avro message cannot be written or read without a schema. The critical discipline is schema evolution: when you need to change the schema, you must do so in a way that does not break existing consumers or producers. The registry enforces compatibility rules so that incompatible schemas are rejected before they reach production.
+
+---
+
+#### How It Works
+
 ```
-[Magic Byte: 0x00] [Schema ID: 4 bytes big-endian] [Avro Binary Data]
-```
-Consumers call `GET /subjects/{subject}/versions/{id}` (cached locally) to retrieve the schema for deserialization.
+// Wire format of every Kafka message serialised with KafkaAvroSerializer
+[Magic Byte: 0x00][Schema ID: 4 bytes big-endian][Avro Binary Payload]
 
-**Subject Naming Strategies:**
-- `TopicNameStrategy` (default): Subject = `{topic}-value` or `{topic}-key`. One schema per topic.
-- `RecordNameStrategy`: Subject = fully qualified record name. Multiple record types per topic.
-- `TopicRecordNameStrategy`: Subject = `{topic}-{recordName}`. Scoped per topic per type.
+// Producer flow
+1. producer calls KafkaAvroSerializer.serialize(record)
+2. serialiser registers schema → GET /subjects/{topic}-value/versions (or POST if new)
+3. registry returns schema ID (e.g. 42)
+4. serialiser writes: 0x00 + int32(42) + avro_binary(record)
 
-**Schema Evolution Rules:**
-**Backward Compatible** (default): New schema can read data written with old schema.
-- OK: Add optional field with default.
-- NOT OK: Remove a required field, change a field type incompatibly.
-
-**Forward Compatible**: Old schema can read data written with new schema.
-- OK: Remove an optional field (old reader ignores the removed field).
-- NOT OK: Add a required field without default (old reader can't read the new record).
-
-**Full Compatible**: Both backward AND forward compatible.
-- Only safe change: Add/remove optional fields with defaults.
-
-**Avro Schema Example:**
-```json
-// v1
-{ "type": "record", "name": "Order", "fields": [
-  { "name": "id",     "type": "string" },
-  { "name": "amount", "type": "double" }
-]}
-
-// v2 — backward compatible: adds optional field with default
-{ "type": "record", "name": "Order", "fields": [
-  { "name": "id",       "type": "string" },
-  { "name": "amount",   "type": "double" },
-  { "name": "currency", "type": "string", "default": "USD" }
-]}
+// Consumer flow
+1. consumer calls KafkaAvroDeserialiser.deserialise(bytes)
+2. deserialiser reads magic byte (must be 0x00) + schema ID (42)
+3. deserialiser checks local cache; if miss: GET /schemas/ids/42 from registry
+4. deserialiser uses schema 42 to decode the avro binary payload
 ```
 
-**Schema Registry HA:**
-Schema Registry is stateless (schemas stored in `_schemas` Kafka topic with log compaction); multiple instances can be run for HA, with one designated as the primary writer.
+**Subject naming strategies:**
+```
+TopicNameStrategy (default)  → subject = "{topic}-value" or "{topic}-key"
+                                one schema per topic; fails if multiple record types share a topic
+RecordNameStrategy           → subject = fully-qualified record class name
+                                multiple record types can share a topic
+TopicRecordNameStrategy      → subject = "{topic}-{recordName}"
+                                scoped per topic per record type
+```
 
-**Real-World Example:**
-LinkedIn's data pipeline uses Avro with Schema Registry for all internal events. When the Order service adds a `customerId` field (backward compatible), existing consumers (Elasticsearch sink, audit service) continue to work without redeployment — they read the old schema and `customerId` is absent in historical data.
+**Schema evolution compatibility modes:**
+```
+BACKWARD (default)  → new schema can read data written with old schema
+                       safe change: ADD optional field with default value
+                       unsafe:      REMOVE a required field, CHANGE a field type
 
-**Code Example:**
+FORWARD             → old schema can read data written with new schema
+                       safe change: REMOVE an optional field (old reader ignores it)
+                       unsafe:      ADD a required field without default
+                                    (old reader cannot parse the new record)
+
+FULL                → both BACKWARD and FULL — the safest, most restrictive
+                       only safe change: ADD or REMOVE optional fields with defaults
+
+NONE                → no compatibility check — any change allowed (dangerous in production)
+```
+
+The must-memorise gotcha: schema evolution compatibility modes and which is the safe default.
+
 ```java
-// Spring Boot 3.x + spring-kafka + confluent avro serializer
-// pom.xml dependencies:
-// io.confluent:kafka-avro-serializer:7.5.0
-// org.apache.avro:avro:1.11.3
-
-// Generated Avro class (from schema)
-// src/main/avro/Order.avsc → compiled to com.example.avro.Order
-
-import io.confluent.kafka.serializers.KafkaAvroDeserializer;
-import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
-import io.confluent.kafka.serializers.KafkaAvroSerializer;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.common.serialization.StringDeserializer;
-import org.apache.kafka.common.serialization.StringSerializer;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.core.*;
-
-import java.util.HashMap;
-import java.util.Map;
+// Spring Boot 3.x + spring-kafka + Confluent Avro serialiser
 
 @Configuration
 public class AvroKafkaConfig {
@@ -1219,13 +1796,9 @@ public class AvroKafkaConfig {
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KafkaAvroSerializer.class);
         props.put("schema.registry.url", SCHEMA_REGISTRY_URL);
-        props.put("auto.register.schemas", true);
+        // DANGER in production: set to false and register schemas in CI/CD instead
+        props.put("auto.register.schemas", false);
         return new DefaultKafkaProducerFactory<>(props);
-    }
-
-    @Bean
-    public KafkaTemplate<String, Object> avroKafkaTemplate(ProducerFactory<String, Object> pf) {
-        return new KafkaTemplate<>(pf);
     }
 
     @Bean
@@ -1236,845 +1809,946 @@ public class AvroKafkaConfig {
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class);
         props.put("schema.registry.url", SCHEMA_REGISTRY_URL);
-        // Return the specific generated type, not GenericRecord
+        // true = return the generated Java class (Order), not a GenericRecord map
         props.put(KafkaAvroDeserializerConfig.SPECIFIC_AVRO_READER_CONFIG, true);
         return new DefaultKafkaConsumerFactory<>(props);
     }
 }
 
-// Producer usage with generated Avro class
-import com.example.avro.Order;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.stereotype.Service;
+// Avro schema evolution example
+// v1 schema (Order.avsc)
+// { "type": "record", "name": "Order", "fields": [
+//   { "name": "id",     "type": "string" },
+//   { "name": "amount", "type": "double" }
+// ]}
 
-@Service
-public class AvroOrderProducer {
+// v2 schema — BACKWARD compatible: optional field with default
+// { "type": "record", "name": "Order", "fields": [
+//   { "name": "id",       "type": "string" },
+//   { "name": "amount",   "type": "double" },
+//   { "name": "currency", "type": "string", "default": "USD" }  // safe: has default
+// ]}
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
-
-    public AvroOrderProducer(KafkaTemplate<String, Object> kafkaTemplate) {
-        this.kafkaTemplate = kafkaTemplate;
-    }
-
-    public void sendOrder(String orderId, double amount) {
-        Order order = Order.newBuilder()
-            .setId(orderId)
-            .setAmount(amount)
-            .setCurrency("USD") // new field with default
-            .build();
-        kafkaTemplate.send("orders-avro", orderId, order);
-    }
-}
+// v2 would be REJECTED if compatibility=BACKWARD and currency had no default,
+// because a new consumer reading old v1 records would have no value for currency.
 ```
-
-**Follow-up Questions:**
-1. What happens if a producer tries to register a schema that is not backward compatible with the existing schema?
-2. How does Protobuf compare to Avro for Kafka schema evolution — what are the trade-offs?
-3. What is the `TRANSITIVE` compatibility mode and when would you use it?
-
-**Common Mistakes:**
-- Setting `auto.register.schemas=true` in production — schema registration should be part of CI/CD, not runtime, to prevent accidental incompatible schema registration.
-- Using `TopicNameStrategy` with multiple record types in one topic — each new record type overwrites the subject, causing deserialization failures.
-- Removing a field without a default (backward-incompatible) and assuming it works because no consumers are currently deployed — future consumers reading old data will fail.
-
-**Interview Traps:**
-- "What is the difference between backward and forward compatibility from the consumer's perspective?" — Backward: NEW consumer can read OLD data (add fields with defaults). Forward: OLD consumer can read NEW data (remove fields). Most people get these backwards.
-- "Does Schema Registry store schemas in Zookeeper?" — No. Schemas are stored in a Kafka topic (`_schemas`) with log compaction. Schema Registry itself is a REST service that is stateless and can run without Zookeeper.
-
-**Quick Revision (1-liner):**
-Schema Registry stores Avro schemas by subject and embeds a 4-byte schema ID in each message; backward compatibility (new reader + old data) is the default, requiring new optional fields to have defaults, while forward allows old readers to skip unknown fields.
 
 ---
 
-### Topic 11: Kafka in Spring Boot
-**Difficulty:** Medium | **Frequency:** High | **Companies:** Goldman Sachs, Confluent, Uber, Netflix
+#### Interview Lens
 
-**Q: How do you implement a production-grade @KafkaListener in Spring Boot 3.x with manual commit, error handling, dead-letter topics, and retry logic?**
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
 
-**Short Answer (2-3 sentences):**
-Spring Kafka's `@KafkaListener` runs inside a `ConcurrentMessageListenerContainer` that manages consumer threads, polling, and offset commit lifecycle. For production use, manual acknowledgment mode (`AckMode.MANUAL_IMMEDIATE`) combined with a `DefaultErrorHandler` (formerly `SeekToCurrentErrorHandler`) enables configurable retry with backoff, and a `DeadLetterPublishingRecoverer` routes exhausted records to a dead-letter topic (DLT) rather than silently dropping them. The `@RetryableTopic` annotation (since Spring Kafka 2.7) provides non-blocking retry via dedicated retry topics.
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
 
-**Deep Explanation:**
-**AckMode Options:**
-- `RECORD`: Commit after each record is processed (highest safety, lowest throughput).
-- `BATCH`: Commit after all records from a `poll()` batch are processed.
-- `MANUAL_IMMEDIATE`: Application calls `ack.acknowledge()` — commit happens immediately.
-- `MANUAL`: Application calls `ack.acknowledge()` — commit happens on next `poll()`.
-- `COUNT`: Commit after N records.
-- `TIME`: Commit every T milliseconds.
+---
 
-**DefaultErrorHandler (Spring Kafka 2.8+):**
-Replaces the deprecated `SeekToCurrentErrorHandler`. On exception, seeks the failed record's offset back and retries after a configurable `BackOff`. After exhausting retries, calls the `RecoveryCallback` (e.g., send to DLT).
+##### Q1 — Concept Check
+**"How does Confluent Schema Registry work with Avro — walk me through what happens when a producer sends a message."**
 
-**Non-Blocking Retry with @RetryableTopic:**
-Instead of blocking the consumer thread during retry waits, `@RetryableTopic` creates retry topics (`topic.name-retry-1`, `topic.name-retry-2`, ...) and a DLT (`topic.name-dlt`). Failed records are re-published to retry topics with delay headers, processed by dedicated retry consumers after the delay expires. The main consumer thread is never blocked.
+**One-line answer:** The producer serialises the record to Avro binary, registers (or looks up) the schema to get a 4-byte ID, prepends a magic byte plus that ID to the payload, and the consumer reverses the process using the cached schema.
 
-**Dead Letter Topic (DLT) Pattern:**
-Records that fail all retries are sent to `{topic}-dlt` with headers containing the original topic, partition, offset, exception class, and message. A separate DLT consumer logs, alerts, or manually reprocesses these records.
+**Full answer to give in an interview:**
 
-**Real-World Example:**
-Netflix payment notification service uses `@RetryableTopic` with 3 retry attempts (1s, 5s, 30s exponential backoff) and a DLT consumer that raises a PagerDuty alert and stores failed messages in S3 for manual reprocessing.
+> "When a producer calls `KafkaAvroSerializer.serialize()`, three things happen. First, the serialiser contacts Schema Registry to register or look up the schema for the topic subject — by default, the subject is the topic name plus `-value`, so for a topic called `orders` the subject is `orders-value`. If the schema is new, Registry assigns it an integer ID, say 42, and stores it durably in a Kafka topic called `_schemas` with log compaction. If the schema was already registered, Registry returns the existing ID. Second, the serialiser writes the wire format: one magic byte (always `0x00`, a sentinel that tells consumers this is a Registry-managed message), four bytes containing the schema ID in big-endian format, and then the Avro binary payload. Third, the consumer receives this message, reads the first five bytes to extract the schema ID, checks its local in-memory cache — to avoid hitting the registry on every record — and on a cache miss fetches the schema with `GET /schemas/ids/42`. It then uses that schema to decode the binary payload. The whole round trip adds roughly one HTTP call per unique schema per consumer lifetime, not per message."
 
-**Code Example:**
+> *Explaining the caching behaviour shows you understand this is production-safe at scale.*
+
+**Gotcha follow-up they'll ask:** *"Does Schema Registry store schemas in Zookeeper?"*
+
+> "No. Schema Registry stores all schemas in a Kafka topic called `_schemas` with log compaction, which retains the latest version of each schema indefinitely. Schema Registry itself is a stateless REST service — you can run multiple instances for high availability, with one designated as the primary writer to prevent concurrent registration conflicts. Because it is stateless, it does not depend on Zookeeper at all and works with KRaft-based Kafka clusters."
+
+---
+
+##### Q2 — Tradeoff Question
+**"Explain the three schema compatibility modes — BACKWARD, FORWARD, and FULL — and which one you would use as a default in production."**
+
+**One-line answer:** BACKWARD means new consumers can read old data (add optional fields with defaults); FORWARD means old consumers can read new data (remove optional fields); FULL requires both and is the safest default because it allows rolling deployments without coordination.
+
+**Full answer to give in an interview:**
+
+> "The three modes answer the question: which side can be deployed first without breaking the other? BACKWARD compatibility means the new schema can deserialise data written with the old schema. Practically, this means you can deploy a new consumer before the old producer is updated — the consumer can read historical messages even though they were written with the old schema. The only schema change that is BACKWARD safe is adding an optional field with a default value: when the new consumer reads an old message that lacks the new field, it uses the default. FORWARD compatibility is the mirror: the old schema can deserialise data written with the new schema. This means you can deploy a new producer before updating consumers — old consumers can still read the new messages. The safe change here is removing an optional field: old consumers that expect that field get the default, new consumers stop writing it. FULL compatibility requires both at once: you can deploy either side first. The only safe change is adding or removing optional fields with defaults — which is actually what most normal schema evolution looks like. I use FULL as the production default because it enforces the strictest discipline and allows rolling blue-green deployments without any deployment ordering requirement. BACKWARD is a reasonable second choice if you always update consumers before producers."
+
+> *The deployment ordering consequence — which side can go first — is what interviewers are really testing.*
+
+**Gotcha follow-up they'll ask:** *"What is TRANSITIVE compatibility and when does it matter?"*
+
+> "Non-transitive BACKWARD only checks compatibility between the new schema and the immediately previous version. TRANSITIVE_BACKWARD checks the new schema against every prior version. This matters when historical data is still in the topic and consumers replaying from the beginning will encounter old schema versions, not just the latest. If you have log compaction disabled and retention is long — say 90 days — any consumer replaying from day 1 will encounter every schema version that existed during that period. TRANSITIVE mode ensures compatibility across all of them, not just the last one. For most operational topics with short retention, non-transitive is fine. For event-sourced systems where the full history is replayed on rebuild, TRANSITIVE is safer."
+
+---
+
+##### Q3 — Design Scenario
+**"Your Order service needs to add a `customerId` field to the Kafka message schema. There are 12 downstream consumers already deployed. How do you roll this change safely?"**
+
+**One-line answer:** Add `customerId` as an optional Avro field with a default value of null, register the new schema against the subject (Schema Registry enforces BACKWARD compatibility), deploy consumers first, then the updated producer — no consumer redeployment needed for old messages.
+
+**Full answer to give in an interview:**
+
+> "The safe path depends on the compatibility mode configured for the `orders-value` subject in Schema Registry. Assuming we run FULL or BACKWARD, which is the standard, I take these steps. First, I update the Avro schema file to add `customerId` as a nullable field with a default of null: in Avro JSON that looks like `{ 'name': 'customerId', 'type': ['null', 'string'], 'default': null }`. This is a BACKWARD-compatible change: new consumers reading old messages that lack `customerId` get null, which is handled gracefully. Second, I register the new schema against Schema Registry in the CI/CD pipeline — never at runtime with `auto.register.schemas=true`. Registry validates compatibility and either accepts the schema and assigns a new ID, or rejects it with an HTTP 409 if the change violates the configured mode. Third, I deploy the 12 downstream consumers with the updated generated Avro class. Since the change is BACKWARD compatible, they continue to work correctly against both old messages (null `customerId`) and new messages. Fourth, I deploy the updated Order service producer. From this point it sends messages with schema v2 and a real `customerId` value. No consumer restart is needed because they already have the updated schema. The key discipline here is registering the schema in CI/CD and not production startup — this way an accidental incompatible change fails the build pipeline before any consumer or producer is deployed."
+
+> *The CI/CD registration point — not `auto.register.schemas=true` — is the senior-level signal interviewers look for.*
+
+**Gotcha follow-up they'll ask:** *"What happens if a producer tries to register a schema that is NOT backward compatible?"*
+
+> "Schema Registry rejects it with an HTTP 409 Conflict response. The KafkaAvroSerializer receives a non-2xx response, throws a `SerializationException`, and the `producer.send()` call fails. If this happens at application startup, the application fails to start — which is the desired behaviour if schema registration is done eagerly on boot. If `auto.register.schemas=true` and the registration happens lazily on the first `send()` call, the first message that uses the incompatible schema triggers the exception and that message is lost unless the application handles the exception and retries after a schema fix. This is why incompatible schema changes should be caught in CI/CD using the Schema Registry compatibility check endpoint, not discovered at runtime."
+
+---
+
+> **Common Mistake — `auto.register.schemas=true` in Production:** Leaving auto-registration enabled means any developer who deploys a service with an accidentally incompatible schema registers it immediately against production data. Once incompatible data is written to the topic, consumers will crash deserialising it. Always set `auto.register.schemas=false` in production and register schemas explicitly as part of the CI/CD pipeline.
+
+---
+
+**Quick Revision (one line):**
+Schema Registry stores Avro schemas by subject and embeds a 4-byte schema ID in every message; BACKWARD compatibility (the safe default) requires new optional fields to carry default values so new consumers can read old data, while FULL compatibility additionally ensures old consumers can read new data — use FULL for rolling deployments with no ordering requirement.
+
+---
+
+## Topic 11: Kafka in Spring Boot
+
+---
+
+#### The Idea
+
+Think of a Kafka consumer in Spring Boot like a cashier at a supermarket. The cashier picks up items from the conveyor belt (polls records), scans each one (processes the message), and only moves the receipt to the "done" pile after the item is successfully bagged (manual acknowledgment). If something goes wrong mid-scan, the item stays on the belt and gets retried — it is never silently dropped.
+
+Spring Boot's `@KafkaListener` annotation wires this loop automatically. Under the hood, Spring creates a `ConcurrentMessageListenerContainer` — a managed thread that runs a Kafka consumer poll loop. You annotate a method, Spring calls it for every record, and you control when the offset is committed.
+
+For production systems you need two more things: a retry strategy for transient failures, and a dead-letter topic (DLT) for records that fail every retry attempt. Spring Kafka gives you two tools: `DefaultErrorHandler` for blocking retry (the consumer thread waits between attempts) and `@RetryableTopic` for non-blocking retry (failed records are re-published to separate retry topics, so the main consumer thread is never stalled waiting for a cooldown).
+
+---
+
+#### How It Works
+
+```
+Consumer thread starts polling topic "payment-events"
+  → poll() returns a batch of ConsumerRecords
+  → for each record:
+      call @KafkaListener method
+      if success → ack.acknowledge() → offset committed
+      if exception thrown:
+          DefaultErrorHandler intercepts
+          retry up to N times with BackOff delay
+          if still failing → DeadLetterPublishingRecoverer sends to "payment-events-dlt"
+          offset committed (past the failed record)
+```
+
+**AckMode choices (set on the container factory):**
+- `RECORD` — commit after every single record. Safest, slowest.
+- `BATCH` — commit after the entire poll batch is processed. Good balance.
+- `MANUAL_IMMEDIATE` — your code calls `ack.acknowledge()`; commit fires immediately. Use when you need precise control.
+- `MANUAL` — your code calls `ack.acknowledge()`; commit fires on next poll. Slightly deferred.
+
+**Non-blocking retry with `@RetryableTopic`:**
+```
+Original topic: "notification-events"
+  → failure on attempt 1 → re-published to "notification-events-retry-0" (delay: 1s)
+  → failure on attempt 2 → re-published to "notification-events-retry-1" (delay: 2s)
+  → failure on attempt 3 → re-published to "notification-events-retry-2" (delay: 4s)
+  → failure on attempt 4 → re-published to "notification-events-dlt"
+```
+The main consumer thread is free to process new records during each delay window. A separate retry consumer picks up the retry topic after the delay header expires.
+
+**Must-memorise gotcha — manual ack with `@RetryableTopic`:**
+
 ```java
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.TopicPartition;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.annotation.DltHandler;
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.annotation.RetryableTopic;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.listener.*;
-import org.springframework.kafka.retrytopic.TopicSuffixingStrategy;
-import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.stereotype.Service;
-import org.springframework.util.backoff.FixedBackOff;
+// WRONG: mixing AckMode.MANUAL with @RetryableTopic causes unexpected behavior.
+// @RetryableTopic manages its own offset lifecycle via re-publishing.
+// Do NOT add Acknowledgment ack to the method signature when using @RetryableTopic.
 
-// ---- Configuration ----
-@Configuration
-public class KafkaErrorHandlerConfig {
-
-    @Bean
-    public DefaultErrorHandler errorHandler(KafkaTemplate<Object, Object> kafkaTemplate) {
-        // Send to DLT after 3 attempts with 1-second fixed backoff
-        DeadLetterPublishingRecoverer recoverer =
-            new DeadLetterPublishingRecoverer(kafkaTemplate,
-                (record, ex) -> new TopicPartition(
-                    record.topic() + "-dlt",
-                    record.partition()
-                )
-            );
-
-        DefaultErrorHandler handler = new DefaultErrorHandler(
-            recoverer,
-            new FixedBackOff(1000L, 3L) // 1s interval, 3 retries
-        );
-
-        // Do not retry on deserialization or business logic validation errors
-        handler.addNotRetryableExceptions(
-            org.apache.kafka.common.errors.SerializationException.class,
-            IllegalArgumentException.class
-        );
-
-        return handler;
+// CORRECT pattern: manual ack for traditional blocking retry
+@KafkaListener(topics = "payment-events", groupId = "payment-group")
+public void consume(ConsumerRecord<String, String> record, Acknowledgment ack) {
+    try {
+        paymentService.process(record.key(), record.value());
+        ack.acknowledge(); // commit AFTER successful processing
+    } catch (RuntimeException e) {
+        throw e; // do NOT swallow — DefaultErrorHandler must see the exception
     }
 }
 
-// ---- Service with manual commit + traditional error handler ----
-@Service
-public class PaymentConsumer {
-
-    private static final org.slf4j.Logger log =
-        org.slf4j.LoggerFactory.getLogger(PaymentConsumer.class);
-
-    private final PaymentService paymentService;
-
-    public PaymentConsumer(PaymentService paymentService) {
-        this.paymentService = paymentService;
-    }
-
-    @KafkaListener(
-        topics = "payment-events",
-        groupId = "payment-consumer-group",
-        containerFactory = "kafkaListenerContainerFactory"
-    )
-    public void consume(ConsumerRecord<String, String> record, Acknowledgment ack) {
-        log.info("Processing payment: topic={} partition={} offset={} key={}",
-            record.topic(), record.partition(), record.offset(), record.key());
-        try {
-            paymentService.process(record.key(), record.value());
-            ack.acknowledge(); // Manual commit AFTER successful processing
-        } catch (RuntimeException e) {
-            log.error("Payment processing failed for key={}: {}", record.key(), e.getMessage());
-            // Do NOT acknowledge — DefaultErrorHandler will retry, then DLT
-            throw e;
-        }
-    }
+// CORRECT pattern: @RetryableTopic — no Acknowledgment parameter
+@RetryableTopic(
+    attempts = "4",
+    backoff = @Backoff(delay = 1000, multiplier = 2.0, maxDelay = 30000),
+    include = {RuntimeException.class}
+)
+@KafkaListener(topics = "notification-events", groupId = "notification-group")
+public void consume(ConsumerRecord<String, String> record) {
+    sendNotification(record.value()); // throws → Spring reroutes to retry topic
 }
 
-// ---- Non-Blocking Retry with @RetryableTopic ----
-@Service
-public class NotificationConsumer {
-
-    private static final org.slf4j.Logger log =
-        org.slf4j.LoggerFactory.getLogger(NotificationConsumer.class);
-
-    @RetryableTopic(
-        attempts = "4",                    // 1 original + 3 retries
-        backoff = @Backoff(
-            delay = 1000,
-            multiplier = 2.0,
-            maxDelay = 30000
-        ),
-        topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
-        dltTopicSuffix = "-dlt",
-        include = {RuntimeException.class}
-    )
-    @KafkaListener(
-        topics = "notification-events",
-        groupId = "notification-group"
-    )
-    public void consume(ConsumerRecord<String, String> record) {
-        log.info("Processing notification for key={}", record.key());
-        // If this throws, Spring Kafka routes to retry-1 topic after 1s
-        // then retry-2 after 2s, retry-3 after 4s, then DLT
-        sendNotification(record.value());
-    }
-
-    @DltHandler
-    public void handleDlt(ConsumerRecord<String, String> record) {
-        log.error("Notification failed permanently. key={} value={} topic={}",
-            record.key(), record.value(), record.topic());
-        // Alert, store to S3, raise incident
-    }
-
-    private void sendNotification(String value) {
-        // business logic that may throw
-    }
+@DltHandler
+public void handleDlt(ConsumerRecord<String, String> record) {
+    // exhausted all retries — alert, store to S3, raise incident
+    log.error("Permanent failure: key={} topic={}", record.key(), record.topic());
 }
 ```
 
-**Follow-up Questions:**
-1. What is the difference between `SeekToCurrentErrorHandler` (deprecated) and `DefaultErrorHandler`?
-2. How does `@RetryableTopic` differ from `DefaultErrorHandler` with `DeadLetterPublishingRecoverer` in terms of consumer thread blocking?
-3. What happens to consumer lag metrics during non-blocking retry — do retry topics count against the group lag?
-
-**Common Mistakes:**
-- Catching and swallowing exceptions inside the `@KafkaListener` method — this prevents the error handler from retrying and causes silent message loss.
-- Using `AckMode.BATCH` with `@RetryableTopic` — manual ack is not needed with non-blocking retry; mixing them causes unexpected behavior.
-- Not setting `spring.kafka.consumer.properties.isolation.level=read_committed` when consuming from transactional topics — consumers see aborted records.
-
-**Interview Traps:**
-- "Does `@KafkaListener` create one consumer per annotation?" — It creates one `MessageListenerContainer`. The concurrency (threads/consumers) is set by `factory.setConcurrency(N)` or `@KafkaListener(concurrency="3")`. Each thread is an independent Kafka consumer with its own poll loop.
-- "What happens if `ack.acknowledge()` is never called?" — The offset is never committed. After a restart or rebalance, the record is redelivered. This is at-least-once behavior, not a hang or error in itself.
-
-**Quick Revision (1-liner):**
-In Spring Boot, use `AckMode.MANUAL_IMMEDIATE` with `@KafkaListener` for at-least-once semantics, `DefaultErrorHandler` with `DeadLetterPublishingRecoverer` for blocking retry, or `@RetryableTopic` for non-blocking retry via dedicated retry topics.
+**Tradeoff — blocking vs non-blocking retry:**
+- `DefaultErrorHandler`: simpler setup, but the consumer thread is frozen during retry delays, causing consumer lag to grow.
+- `@RetryableTopic`: more moving parts (extra topics, extra consumer groups), but main consumer lag stays healthy during retries.
 
 ---
 
-### Topic 12: Retention & Compaction
-**Difficulty:** Medium | **Frequency:** Medium | **Companies:** Confluent, LinkedIn
+#### Interview Lens
 
-**Q: How do time-based and size-based retention policies work, and when should you use log compaction instead of deletion?**
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
 
-**Short Answer (2-3 sentences):**
-Kafka supports two deletion-based retention policies: time-based (`log.retention.ms`, default 7 days) which deletes segments older than the configured duration, and size-based (`log.retention.bytes`, default -1 unlimited) which deletes oldest segments when the partition log exceeds the configured size. Log compaction (`log.cleanup.policy=compact`) is an alternative that retains the latest value per key indefinitely, making it ideal for changelog-style topics where consumers need the current state, not event history.
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
 
-**Deep Explanation:**
-**Segment-Level Deletion:**
-Retention operates at the segment level, not per-record. A segment is eligible for deletion only when its largest timestamp (or oldest offset) is beyond the retention threshold AND it is not the active (current) segment. This means recent data in the last segment is always retained even if older than `log.retention.ms`.
+---
 
-**Time-Based Retention:**
-`log.retention.ms` = `log.retention.minutes` × 60000. Kafka checks `LogSegment.largestTimestamp`. If the segment's newest record is older than the retention window, the whole segment is deleted.
+##### Q1 — Concept Check
+**"How does `@KafkaListener` work in Spring Boot and how do you ensure at-least-once delivery?"**
 
-**Size-Based Retention:**
-`log.retention.bytes` is per-partition (not per-topic). When total partition size exceeds this, oldest segments are deleted one by one until under the limit.
+**One-line answer:** `@KafkaListener` runs inside a managed consumer loop; you get at-least-once delivery by using `AckMode.MANUAL_IMMEDIATE` and only calling `ack.acknowledge()` after the record is fully processed.
 
-**Combined Retention:**
-Set both; whichever threshold is hit first triggers deletion. This is the recommended production approach for bounded storage with a time-based safety net.
+**Full answer to give in an interview:**
 
-**Log Compaction Internals:**
-The Log Cleaner thread (background) divides the log into:
-- **Clean** portion: Already compacted; only latest values.
-- **Dirty** portion: Not yet compacted; may have multiple values per key.
+> "Spring Boot's `@KafkaListener` creates a `ConcurrentMessageListenerContainer` — a managed thread that owns a Kafka consumer and runs the poll loop continuously. The annotation just tells Spring which method to call for each record.
+>
+> For at-least-once delivery, I switch the container factory to `AckMode.MANUAL_IMMEDIATE`. The method signature gets an `Acknowledgment` parameter, and I call `ack.acknowledge()` only after the business logic succeeds. If an exception is thrown before the ack, the offset is never committed — so on the next poll or after a rebalance, the record is redelivered. That is at-least-once: I might process the same message twice (if I ack and then crash), but I will never silently drop one.
+>
+> One critical rule: never catch and swallow exceptions inside the listener. If you do, the error handler never sees the failure, the offset gets committed, and the message is permanently lost even though processing failed."
 
-The cleaner picks partitions where `dirtyRatio = dirty_bytes / total_bytes > min.cleanable.dirty.ratio` (default 0.5). It reads the dirty portion, builds an offset map (key → latest offset), then copies only the latest record per key into new segments, discarding older duplicates.
+> *Mention the swallow-exception trap unprompted — interviewers love that you know it.*
 
-**Tombstone Records:**
-A record with a null value is a tombstone — it marks a key for deletion. Tombstones are retained for `delete.retention.ms` (default 24h) before the cleaner physically removes them, giving consumers time to see the delete event.
+**Gotcha follow-up they'll ask:** *"What is the difference between `DefaultErrorHandler` and `@RetryableTopic`?"*
 
-**When to Use Compaction vs Deletion:**
+> "Both handle retry and dead-letter routing, but they differ in how they block the consumer. `DefaultErrorHandler` is blocking: when a record fails, the consumer thread sleeps through the backoff delay before retrying. Consumer lag grows during that wait, which can trigger rebalances if `max.poll.interval.ms` is exceeded. `@RetryableTopic` is non-blocking: it re-publishes the failed record to a dedicated retry topic (e.g., `topic-retry-0`) with a delay header, and the main consumer immediately moves on to the next record. A separate retry consumer picks up the record after the delay. The tradeoff is operational complexity — you get extra topics and extra consumer groups to monitor."
+
+---
+
+##### Q2 — Tradeoff Question
+**"When would you choose `@RetryableTopic` over `DefaultErrorHandler`?"**
+
+**One-line answer:** Use `@RetryableTopic` when retry delays are long (seconds or more) and you cannot afford consumer lag or rebalance risk; use `DefaultErrorHandler` for simple short-delay retries.
+
+**Full answer to give in an interview:**
+
+> "The core question is whether the retry delay is short enough that blocking the consumer thread is acceptable. If I'm retrying a database call with a 100 ms backoff and two attempts, `DefaultErrorHandler` is fine — the thread pauses briefly and moves on. But if I need exponential backoff of 1s, 5s, 30s — which is realistic for an external payment gateway — blocking the consumer that long will cause lag to spike and may push the consumer past its `max.poll.interval.ms` timeout, triggering an unnecessary rebalance.
+>
+> In that case I use `@RetryableTopic`. The failed record is re-published to a retry topic with the delay encoded as a header. The main consumer is free. The cost is extra topic overhead and slightly more complex DLT monitoring. For a notification service with millions of messages and a 30-second max backoff, non-blocking retry is the clear winner."
+
+> *State the `max.poll.interval.ms` risk by name — it shows you understand the operational consequence.*
+
+**Gotcha follow-up they'll ask:** *"What happens if you never call `ack.acknowledge()` — will the consumer hang?"*
+
+> "No, it won't hang. The record simply stays uncommitted. On the next restart or rebalance, Kafka delivers that record again from the last committed offset. This is normal at-least-once behavior — the record is redelivered, not stuck. The consumer keeps polling; it just re-reads from the uncommitted position after recovery."
+
+---
+
+##### Q3 — Design Scenario
+**"Design a Kafka consumer for a payment processing service that must never silently drop messages and must handle downstream failures gracefully."**
+
+**One-line answer:** Use `AckMode.MANUAL_IMMEDIATE` with `DefaultErrorHandler`, a `DeadLetterPublishingRecoverer` routing to a `payments-dlt` topic, and a separate DLT consumer for alerting and manual reprocessing.
+
+**Full answer to give in an interview:**
+
+> "I'd build it in three layers. First, the main consumer uses `AckMode.MANUAL_IMMEDIATE` — I only commit the offset after `paymentService.process()` returns successfully. If processing throws, I rethrow the exception without catching it, so the `DefaultErrorHandler` intercepts it.
+>
+> Second, I configure `DefaultErrorHandler` with a `FixedBackOff` of 1 second and 3 attempts, and attach a `DeadLetterPublishingRecoverer` that routes exhausted records to `payments-dlt`. I also register `SerializationException` and `IllegalArgumentException` as non-retryable — no point retrying a malformed message.
+>
+> Third, a separate DLT consumer reads `payments-dlt`, logs the original topic, partition, offset, and exception headers, stores the raw record in S3 for audit, and fires a PagerDuty alert. An on-call engineer can replay from S3 after the root cause is fixed.
+>
+> This design guarantees no silent drops: every failure either retries successfully, ends up in the DLT with a full audit trail, or blocks the offset until the consumer restarts — never silently skipped."
+
+> *Explicitly mention the non-retryable exception list — it shows production maturity.*
+
+---
+
+> **Common Mistake — Swallowing Exceptions:** Never catch exceptions inside `@KafkaListener` without rethrowing them. If you catch and swallow, `DefaultErrorHandler` never sees the failure, the offset is committed as though processing succeeded, and the message is permanently lost with no DLT record.
+
+---
+
+**Quick Revision (one line):**
+Use `AckMode.MANUAL_IMMEDIATE` + `DefaultErrorHandler` + `DeadLetterPublishingRecoverer` for at-least-once delivery with DLT safety; use `@RetryableTopic` when retry delays are long enough to cause consumer lag or rebalance risk.
+
+---
+
+## Topic 12: Retention and Log Compaction
+
+---
+
+#### The Idea
+
+Imagine a newspaper archive. A deletion-based policy is like a library that throws out all newspapers older than 30 days — it does not matter what they contain, time decides. A log compaction policy is like a reference library that keeps only the most recent edition of each encyclopedia volume — old editions are discarded once a newer one arrives, and the library stays current forever.
+
+Kafka's time-based and size-based retention are the newspaper archive. The broker deletes whole log segments once they are old enough or the partition grows too large. This is ideal for event streams where history eventually stops mattering — analytics events, audit logs, clickstreams.
+
+Log compaction is the reference library. The broker's Log Cleaner thread continuously scans for duplicate keys and discards all but the latest record per key. This is ideal for stateful data — a user's current profile, an account's current balance, a Kafka Streams state store. The topic acts as a key-value store: consumers can always replay from the beginning and reconstruct the latest state of every key.
+
+---
+
+#### How It Works
+
+**Time-based retention (`cleanup.policy=delete`):**
+```
+log.retention.ms = 259200000  (3 days)
+
+Partition log:
+  [Segment A: records 0-999, newest timestamp = 4 days ago]  ← eligible for deletion
+  [Segment B: records 1000-1999, newest timestamp = 2 days ago]  ← retained
+  [Segment C: records 2000-2499, newest timestamp = 30min ago]  ← active, always retained
+
+Broker deletes Segment A because its NEWEST record is older than retention window.
+Segment-level granularity: if even one record in a segment is within the window, the whole segment is kept.
+```
+
+**Size-based retention:**
+```
+log.retention.bytes = 10737418240  (10 GB, per partition)
+
+If total partition size > 10 GB:
+  delete oldest segments one by one until total < 10 GB
+```
+
+**Log Compaction internals:**
+```
+Log Cleaner thread wakes up, picks partition where:
+  dirtyRatio = dirty_bytes / total_bytes > min.cleanable.dirty.ratio (default 0.5)
+
+Dirty portion = records not yet compacted (may have multiple values per key)
+Clean portion = already compacted (only latest value per key)
+
+Cleaner builds offset map: key → latest offset in dirty portion
+Copies only the latest record per key into new clean segments
+Discards all older records for those keys
+
+Result: topic retains latest value per key; older duplicates are gone
+```
+
+**Tombstone records (deletion via compaction):**
+```
+Producer sends: key="user-123", value=null   ← tombstone
+
+Compaction keeps this tombstone for delete.retention.ms (default 24h)
+  → gives downstream consumers time to observe the delete event
+After delete.retention.ms expires, the cleaner physically removes the key entirely
+  → key "user-123" disappears from the topic
+```
+
+**Must-memorise gotcha — `compact,delete` combined policy:**
+
+```java
+// Spring Boot topic config: combined policy for a stateful topic with time-bounded history
+@Bean
+public NewTopic accountBalanceTopic() {
+    return TopicBuilder.name("account-balance")
+        .partitions(12)
+        .replicas(3)
+        .config(TopicConfig.CLEANUP_POLICY_CONFIG, "compact,delete")
+        // keep latest state per key indefinitely via compaction
+        // AND delete segments older than 30 days via retention
+        .config(TopicConfig.RETENTION_MS_CONFIG,
+            String.valueOf(30L * 24 * 60 * 60 * 1000L))
+        .config(TopicConfig.DELETE_RETENTION_MS_CONFIG,
+            String.valueOf(48L * 60 * 60 * 1000L)) // tombstones kept 48h
+        .config(TopicConfig.MIN_CLEANABLE_DIRTY_RATIO_CONFIG, "0.3") // aggressive cleaning
+        .build();
+}
+```
+
+**When to use which policy:**
+
 | Use Case | Policy |
 |---|---|
-| Event log (analytics, audit) | Deletion (time or size) |
-| Current state (user profile, account balance) | Compaction |
-| Kafka Streams state store changelog | Compaction |
-| Consumer offset commits (`__consumer_offsets`) | Compaction |
-| Mixed (keep recent events + latest state) | `compact,delete` |
+| Analytics events, audit logs | `delete` (time or size) |
+| Current user state, account balance | `compact` |
+| Kafka Streams state store changelog | `compact` |
+| `__consumer_offsets` internal topic | `compact` |
+| Recent events + latest state | `compact,delete` |
 
-**Real-World Example:**
-LinkedIn's user-profile topic uses `compact,delete` policy: compaction ensures only the latest profile per `memberId` is kept long-term, while deletion ensures profiles for deleted members (tombstones) are eventually removed after 30 days.
-
-**Code Example:**
-```java
-import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.common.config.TopicConfig;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.config.TopicBuilder;
-
-@Configuration
-public class RetentionTopicConfig {
-
-    // Standard deletion: 3 days or 10 GB per partition, whichever first
-    @Bean
-    public NewTopic analyticsEventsTopic() {
-        return TopicBuilder.name("analytics-events")
-            .partitions(12)
-            .replicas(3)
-            .config(TopicConfig.CLEANUP_POLICY_CONFIG, "delete")
-            .config(TopicConfig.RETENTION_MS_CONFIG, String.valueOf(3 * 24 * 60 * 60 * 1000L))
-            .config(TopicConfig.RETENTION_BYTES_CONFIG, String.valueOf(10L * 1024 * 1024 * 1024))
-            .config(TopicConfig.SEGMENT_BYTES_CONFIG, String.valueOf(512 * 1024 * 1024)) // 512MB segments
-            .build();
-    }
-
-    // Compacted changelog for user state
-    @Bean
-    public NewTopic userStateTopic() {
-        return TopicBuilder.name("user-state")
-            .partitions(24)
-            .replicas(3)
-            .compact()
-            // Also delete tombstones after 48h
-            .config(TopicConfig.DELETE_RETENTION_MS_CONFIG, String.valueOf(48 * 60 * 60 * 1000L))
-            .config(TopicConfig.MIN_CLEANABLE_DIRTY_RATIO_CONFIG, "0.3") // more aggressive cleaning
-            .config(TopicConfig.SEGMENT_MS_CONFIG, String.valueOf(60 * 60 * 1000L)) // 1h segments
-            .build();
-    }
-
-    // Mixed policy: keep latest state + delete old records
-    @Bean
-    public NewTopic accountBalanceTopic() {
-        return TopicBuilder.name("account-balance")
-            .partitions(12)
-            .replicas(3)
-            .config(TopicConfig.CLEANUP_POLICY_CONFIG, "compact,delete")
-            .config(TopicConfig.RETENTION_MS_CONFIG, String.valueOf(30L * 24 * 60 * 60 * 1000L)) // 30 days
-            .compact()
-            .build();
-    }
-}
-```
-
-**Follow-up Questions:**
-1. What is the impact of very small `segment.bytes` on log compaction performance and broker I/O?
-2. How does log compaction handle records with null keys — are they compacted?
-3. What is `min.compaction.lag.ms` and why is it useful for changelog topics?
-
-**Common Mistakes:**
-- Expecting log compaction to be real-time — the cleaner runs in the background and may lag minutes to hours behind. Do not rely on compaction for immediate storage reduction.
-- Using compaction on topics without keys — records with null keys are never compacted (compaction is key-based). All null-key records accumulate until the active segment rolls.
-- Forgetting that compaction still preserves one record per key in the dirty portion, not just the single global latest — intermediate records in the clean portion may still exist until the next clean cycle.
-
-**Interview Traps:**
-- "Does log compaction guarantee only one record per key on the topic?" — No. It guarantees consumers will see the latest value eventually, but multiple records per key may exist until compaction catches up on the dirty portion.
-- "Can you run both compaction and deletion simultaneously?" — Yes, `cleanup.policy=compact,delete` is a valid combined policy. Compaction runs on the clean portion while old segments are deleted by retention.
-
-**Quick Revision (1-liner):**
-Time-based and size-based retention delete entire segments past the threshold; log compaction retains only the latest value per key (with null-value tombstones for deletes) and is the right choice for changelog, state, and offset topics.
+**Tradeoff — compaction lag:** The Log Cleaner is a background thread. It can lag minutes to hours on a busy cluster. Do not rely on compaction for immediate storage reduction or real-time deduplication — it is an eventual consistency guarantee, not a synchronous one.
 
 ---
 
-### Topic 13: Kafka vs RabbitMQ vs SQS
-**Difficulty:** Easy | **Frequency:** High | **Companies:** Goldman Sachs, Netflix, Uber, LinkedIn
+#### Interview Lens
 
-**Q: Compare Apache Kafka, RabbitMQ, and Amazon SQS — when would you choose each, and what are their fundamental architectural differences?**
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
 
-**Short Answer (2-3 sentences):**
-Kafka is a distributed commit-log optimized for high-throughput, durable, replayable event streaming where multiple consumers can read the same data independently. RabbitMQ is a traditional message broker with push-based delivery, rich routing (exchanges/queues/bindings), and per-message acknowledgment, suited for task queues and complex routing. SQS is a fully managed AWS queue service optimized for decoupling microservices with minimal operational overhead, offering at-least-once delivery (standard) or FIFO ordering, but without log replay or multi-consumer fan-out without SNS.
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
 
-**Deep Explanation:**
+---
+
+##### Q1 — Concept Check
+**"How does Kafka's time-based retention work, and what is a tombstone record in log compaction?"**
+
+**One-line answer:** Time-based retention deletes entire log segments once their newest record is older than `log.retention.ms`; a tombstone is a record with a null value that signals log compaction to eventually delete all records for that key.
+
+**Full answer to give in an interview:**
+
+> "Kafka's time-based retention works at the segment level, not the record level. A partition log is divided into immutable segments. When the newest record in a segment is older than `log.retention.ms` — the default is 7 days — the broker marks that segment eligible for deletion. The active segment (the one currently being written to) is never deleted, even if it is older than the retention window. This is an important nuance: the last segment always stays.
+>
+> Log compaction is a completely different cleanup mechanism. Instead of deleting by time, the Log Cleaner thread scans the partition and keeps only the latest record per key, discarding older duplicates. To delete a key entirely, you produce a tombstone: a record with the same key but a null value. The compaction process retains this tombstone for `delete.retention.ms` — 24 hours by default — so that downstream consumers can observe the deletion event. After that window expires, the key is physically removed from the log."
+
+> *The segment-level granularity point is an interview trap — state it proactively.*
+
+**Gotcha follow-up they'll ask:** *"Does log compaction guarantee that a consumer will only ever see one record per key?"*
+
+> "No. Compaction is a background process that may lag. At any given moment, a consumer reading from the beginning of a compacted topic may still see multiple records for the same key in the 'dirty' (not yet compacted) portion of the log. The guarantee is eventual: once compaction catches up, only the latest value per key will remain. But you cannot assume real-time deduplication — if your consumer needs to handle duplicates, it must do so in application logic."
+
+---
+
+##### Q2 — Tradeoff Question
+**"When would you choose log compaction over time-based deletion, and when would you use both together?"**
+
+**One-line answer:** Use compaction for stateful data where consumers need the current value of every key; use deletion for event history where old records are simply no longer needed; use both together when you want current state but also need old records to eventually expire.
+
+**Full answer to give in an interview:**
+
+> "I choose compaction when the topic represents current state rather than a history of events. A classic example is a user-profile topic: I only care about each user's current profile, not every historical update. A new consumer can replay from offset zero and reconstruct the full current state of every user. Kafka Streams state store changelogs use compaction for exactly this reason.
+>
+> I choose time-based or size-based deletion when the data is purely historical and loses value after a window — clickstream events, application logs, metrics. Old events from six months ago have no value, so I just let them expire.
+>
+> The combined `compact,delete` policy is the right choice when I want both: keep the latest value per key indefinitely via compaction, but also delete records — including those latest values — after a long retention window. A billing topic might use this: keep the latest invoice state per customer forever for active customers, but after 30 days of inactivity and a tombstone, let the key expire entirely. The interaction between compaction and the retention timer means tombstones are cleaned up by both mechanisms, which is exactly what LinkedIn does for its member-profile topic."
+
+> *Naming the `compact,delete` combination by policy string shows you know the exact Kafka config.*
+
+**Gotcha follow-up they'll ask:** *"What happens to records with null keys in a compacted topic?"*
+
+> "Records with null keys are never compacted. Compaction is entirely key-based — the cleaner builds an offset map of key to latest offset, and null-key records cannot be indexed that way. They accumulate in the log indefinitely until the active segment rolls over and a deletion-based retention policy (if also configured) can remove them. This is why compacted topics should always have keyed producers — if your producer sends null-key records to a compacted topic, you have a slow storage leak."
+
+---
+
+##### Q3 — Design Scenario
+**"How would you design a Kafka topic for a user account balance service that multiple downstream systems need to be able to replay from scratch?"**
+
+**One-line answer:** Use log compaction so any new consumer can replay from offset zero and reconstruct the current balance for every account, with tombstone records for closed accounts.
+
+**Full answer to give in an interview:**
+
+> "I'd configure the topic with `cleanup.policy=compact,delete`. Compaction ensures that a new downstream service — say, a new reporting system — can consume from offset zero and see only the latest balance per account ID without wading through years of intermediate updates. The key is the account ID, the value is the current balance state as a serialized object.
+>
+> For account closure, the producer sends a tombstone: same account ID key, null value. I'd set `delete.retention.ms` to 48 hours so downstream consumers have a guaranteed window to observe and process the deletion event before the key is physically purged.
+>
+> I'd also add a long `log.retention.ms` — say 90 days — so that even with compaction, the topic does not hold data indefinitely for regulators or compliance if needed. The combined `compact,delete` policy handles this: compaction keeps current state, and the time-based deletion eventually removes even the latest records for keys that have not been updated recently after their retention window.
+>
+> For replication factor I'd use 3 with `min.insync.replicas=2` — balance data is critical and should never be lost to a single broker failure."
+
+> *Mentioning `delete.retention.ms` and the consumer observation window shows depth.*
+
+---
+
+> **Common Mistake — Relying on Real-Time Compaction:** Log compaction is a background process and can lag by minutes to hours on a busy cluster. Never design a system that depends on compaction happening immediately after a record is produced. Immediate deduplication must be handled in application code.
+
+---
+
+**Quick Revision (one line):**
+Time-based and size-based retention delete entire log segments past the threshold; log compaction retains only the latest value per key (null-value tombstones delete keys) and is the right choice for stateful changelog, state store, and offset topics.
+
+---
+
+## Topic 13: Kafka vs RabbitMQ vs SQS
+
+---
+
+#### The Idea
+
+Think of three different ways to move packages between warehouses. Kafka is like a conveyor belt with a long memory: every package placed on the belt stays there for days, and any number of warehouses can independently pick up copies of any package at any point in time. The belt is designed for massive volume and for scenarios where you might need to replay what came through yesterday.
+
+RabbitMQ is like a traditional postal sorting office: packages arrive, a routing engine directs each one to the correct destination mailbox based on address labels (routing keys), and a delivery person pushes packages out to recipients. Once delivered and signed for, the package is gone. It is designed for smart routing and prompt individual delivery.
+
+SQS is like a managed cloud drop-box: you throw packages in, and workers pull them out when ready. Amazon runs the whole operation — no servers to manage. Once a worker picks up and confirms a package, it is deleted. Simple, reliable, and low-maintenance, but limited to basic queue semantics.
+
+---
+
+#### How It Works
+
+**Architectural model comparison:**
+
+```
+Kafka:
+  Producer → Topic (append-only log, partitioned) → Consumer Groups (pull, independent)
+  Records retained for retention period — any group can re-read from any offset
+
+RabbitMQ:
+  Producer → Exchange (routing logic) → Queue(s) → Consumer(s) (push)
+  Message deleted after consumer ACKs — no replay
+
+SQS:
+  Producer → Queue → Consumer(s) (pull, competing)
+  Message deleted after visibility timeout + delete call — no replay
+```
+
+**Full comparison table:**
 
 | Dimension | Apache Kafka | RabbitMQ | Amazon SQS |
 |---|---|---|---|
 | **Model** | Distributed commit log (pull) | Message broker (push) | Managed queue (pull) |
-| **Throughput** | Millions msg/s per cluster | ~50k msg/s typical | ~3000 msg/s (FIFO), unlimited (Standard) |
+| **Throughput** | Millions msg/s per cluster | ~50k msg/s typical | ~3000 msg/s (FIFO); unlimited (Standard) |
 | **Retention** | Configurable (default 7 days) | Until consumed | Up to 14 days |
-| **Replay** | Yes — consumers re-read at any offset | No — consumed messages deleted | No |
-| **Consumer Model** | Pull; consumer groups | Push; competing consumers | Pull; competing consumers |
-| **Ordering** | Per-partition ordering | Per-queue (with limitations) | FIFO queue: per MessageGroupId |
-| **Fan-out** | Multiple independent consumer groups | Exchange bindings (fanout exchange) | Requires SNS → multiple SQS queues |
+| **Replay** | Yes — any consumer group re-reads from any offset | No — consumed messages are deleted | No |
+| **Consumer model** | Pull; consumer groups read independently | Push; competing consumers | Pull; competing consumers |
+| **Ordering** | Guaranteed per partition | Per-queue (with limitations) | FIFO queue: per `MessageGroupId` |
+| **Fan-out** | Multiple independent consumer groups out of the box | Fanout exchange bindings | Requires SNS → multiple SQS queues |
 | **Latency** | ~5–50 ms (batched) | ~1–5 ms | ~10–100 ms |
-| **Durability** | Replication factor (default 3) | Mirrored queues / quorum queues | Multi-AZ replicated |
-| **Operational Complexity** | High (cluster management, tuning) | Medium (plugin ecosystem) | Low (fully managed) |
-| **Schema** | Via Schema Registry | Application-level | Application-level |
-| **Protocol** | Custom (Kafka protocol) | AMQP, MQTT, STOMP | SQS API (HTTP) |
-| **Dead Letter** | Via custom DLT topics | Built-in dead-letter exchange | Built-in DLQ |
-| **Exactly-Once** | Yes (with transactions) | No (at-least-once) | No (at-least-once / FIFO deduplication) |
+| **Durability** | Replication factor (default 3) | Mirrored/quorum queues | Multi-AZ replicated |
+| **Operational complexity** | High (cluster management, tuning) | Medium (plugin ecosystem) | Low (fully managed) |
+| **Exactly-once** | Yes (with transactions + idempotent producer) | No (at-least-once) | SQS FIFO only, within deduplication window |
+| **Dead letter** | Custom DLT topics (application-level) | Built-in dead-letter exchange | Built-in DLQ |
+| **Protocol** | Kafka binary protocol | AMQP, MQTT, STOMP | HTTP/SQS API |
 
-**When to Choose Kafka:**
-- Event streaming with replay requirements (audit logs, event sourcing).
-- Multiple independent consumers on the same data stream.
-- High-throughput pipelines (>100k msg/s).
-- Kafka Streams or ksqlDB for stream processing.
-- Long-term event retention.
+**Decision flow:**
+```
+Need replay / multiple independent consumers reading the same stream?
+  → Kafka
 
-**When to Choose RabbitMQ:**
-- Complex routing logic (topic exchanges, header exchanges).
-- Task queues with worker pools (competing consumers pattern).
-- Push-based delivery with per-message acknowledgment.
-- Low latency (<5 ms) requirements.
-- Protocol flexibility (AMQP, MQTT for IoT).
+Need complex routing (topic exchanges, header matching, per-message ACK)?
+  → RabbitMQ
 
-**When to Choose SQS:**
-- AWS-native architecture; operational simplicity is paramount.
-- Decoupling microservices with standard queue semantics.
-- FIFO ordering with exactly-once processing (SQS FIFO + deduplication ID).
-- Lambda triggers (native integration).
-- No expertise to operate Kafka/RabbitMQ.
+AWS-native, want zero operational overhead, simple queue semantics?
+  → SQS
 
-**Real-World Example:**
-Uber uses Kafka for rider event streaming (millions of GPS updates/second with replay for ML training), RabbitMQ for driver dispatch task queues (push-based, complex routing by city/vehicle type), and SQS for non-critical notification delivery (billing receipts, emails) where managed infrastructure reduces operational load.
-
-**Code Example:**
-```java
-// Spring Boot: Kafka vs SQS consumer side-by-side comparison
-
-// Kafka consumer (spring-kafka)
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.stereotype.Service;
-
-@Service
-public class KafkaOrderConsumer {
-    @KafkaListener(topics = "order-events", groupId = "order-group")
-    public void consume(String message) {
-        System.out.println("Kafka: " + message);
-        // Kafka retains the record for retention period
-        // Other consumer groups can independently read the same record
-    }
-}
-
-// SQS consumer (spring-cloud-aws)
-import io.awspring.cloud.sqs.annotation.SqsListener;
-
-@Service
-public class SqsOrderConsumer {
-    @SqsListener("order-events-queue")
-    public void consume(String message) {
-        System.out.println("SQS: " + message);
-        // Message is deleted from SQS after successful processing
-        // No replay — once consumed, gone
-    }
-}
-
-// RabbitMQ consumer (spring-amqp)
-import org.springframework.amqp.rabbit.annotation.RabbitListener;
-
-@Service
-public class RabbitOrderConsumer {
-    @RabbitListener(queues = "order.events")
-    public void consume(String message) {
-        System.out.println("RabbitMQ: " + message);
-        // Push-based; broker delivers to consumer
-        // Message acknowledged and removed after processing
-    }
-}
+Need FIFO ordering with exactly-once processing at modest throughput?
+  → SQS FIFO (if AWS-native) or Kafka with keyed partitions (if scale required)
 ```
 
-**Follow-up Questions:**
-1. How would you migrate a RabbitMQ task queue workload to Kafka — what architectural changes are required?
-2. In an AWS-native microservices architecture, when would you choose MSK (managed Kafka) over SQS?
-3. How does SQS FIFO's `MessageGroupId` compare to Kafka's partition key for ordering?
+**Tradeoffs to state out loud:**
+- Kafka's throughput advantage only matters at scale. For a service handling 100 msg/s, RabbitMQ or SQS is simpler and equally capable.
+- RabbitMQ's push model means the broker holds delivery state per consumer. At very high consumer counts, broker memory pressure grows. Kafka's pull model shifts state to the consumer (offsets stored in `__consumer_offsets`), making broker resource usage predictable.
+- SQS Standard is at-least-once with no ordering. SQS FIFO is exactly-once per `MessageGroupId` but capped at 3000 msg/s. Do not conflate the two.
 
-**Common Mistakes:**
-- Using Kafka for simple point-to-point task queues where RabbitMQ or SQS is simpler and more appropriate.
-- Expecting RabbitMQ to replay messages — once a message is consumed and acknowledged, it is gone.
-- Confusing SQS Standard (at-least-once, no ordering) with SQS FIFO (exactly-once within a group, ordered per MessageGroupId).
+---
 
-**Interview Traps:**
-- "Is Kafka always better than RabbitMQ because it has higher throughput?" — No. For task queues needing push delivery, per-message ACK, or complex routing, RabbitMQ is simpler and more appropriate. Kafka's throughput advantage only matters at scale.
-- "Does SQS guarantee exactly-once delivery?" — SQS Standard: no, at-least-once. SQS FIFO: yes, with deduplication IDs within a 5-minute window. But FIFO throughput is limited.
+#### Interview Lens
 
-**Quick Revision (1-liner):**
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
+
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
+
+---
+
+##### Q1 — Concept Check
+**"What is the fundamental architectural difference between Kafka and RabbitMQ?"**
+
+**One-line answer:** Kafka is a durable, replayable, pull-based commit log where records persist after consumption; RabbitMQ is a push-based message broker where messages are deleted after a consumer acknowledges them.
+
+**Full answer to give in an interview:**
+
+> "The core difference is what happens to a message after it is consumed. In RabbitMQ, the broker owns delivery state: it pushes messages to consumers and deletes them once acknowledged. The message is gone — you cannot re-read it. In Kafka, the broker does not track which consumers have read what. Records sit on the commit log for the retention period regardless of whether anyone has read them. Consumers track their own position (called an offset) and can re-read from any point independently.
+>
+> This makes Kafka fundamentally suitable for different problems. If you have ten different services — analytics, billing, notifications — that all need to react to the same user-signup event, Kafka lets them all read from the same topic with independent consumer groups at their own pace. With RabbitMQ you would need to duplicate the message to ten separate queues via a fanout exchange.
+>
+> The other difference is throughput model. Kafka batches records and writes them sequentially to disk — it is optimized for sustained high volume, millions of messages per second. RabbitMQ is optimized for per-message routing intelligence and low individual message latency, typically sub-5ms."
+
+> *The 'consumer groups read independently' point is the interview differentiator — lead with it.*
+
+**Gotcha follow-up they'll ask:** *"Can RabbitMQ replay messages?"*
+
+> "No. Once a RabbitMQ message is consumed and acknowledged, it is deleted from the queue. There is no native replay mechanism. If you need replay, you either store messages externally (a database, S3) and replay from there, or you use Kafka. This is one of the clearest signals that your use case calls for Kafka over RabbitMQ."
+
+---
+
+##### Q2 — Tradeoff Question
+**"When would you choose SQS over Kafka in an AWS environment?"**
+
+**One-line answer:** Choose SQS when you want fully managed queue semantics with zero operational overhead and do not need replay, multi-consumer fan-out, or throughput beyond tens of thousands of messages per second.
+
+**Full answer to give in an interview:**
+
+> "SQS is the right choice when operational simplicity is the top priority. There are no brokers to manage, no replication factor to tune, no ISR to monitor. AWS handles availability, durability, and scaling automatically. If my team does not have Kafka expertise and the workload is a standard microservices decoupling pattern — service A sends tasks, service B processes them — SQS is the obvious choice.
+>
+> SQS also integrates natively with AWS Lambda as a trigger, which matters for serverless architectures. And SQS FIFO gives me exactly-once processing within a `MessageGroupId` deduplication window, which is useful for financial workflows where duplicate processing is dangerous.
+>
+> Where SQS falls short: it has no replay. Once a message is consumed and deleted, it is gone. If I need five different services to all process the same event independently, I need SNS fan-out to five SQS queues — more infrastructure, more complexity. And SQS Standard throughput is effectively unlimited but SQS FIFO is capped at around 3000 messages per second per queue. For true high-throughput event streaming, Kafka or Amazon MSK is the right answer."
+
+> *Naming the SNS fan-out workaround shows you know the SQS limitation in detail.*
+
+**Gotcha follow-up they'll ask:** *"Does SQS guarantee exactly-once delivery?"*
+
+> "SQS Standard does not — it is at-least-once and has no ordering guarantee. SQS FIFO offers exactly-once processing within a 5-minute deduplication window using a `MessageDeduplicationId`. If the same deduplication ID is sent twice within 5 minutes, the second one is dropped. But FIFO throughput is capped at 3000 msg/s, and the deduplication window means it is not truly exactly-once indefinitely — it is a bounded window. For true exactly-once at high throughput, Kafka with idempotent producer and transactions is the more robust solution."
+
+---
+
+##### Q3 — Design Scenario
+**"A company uses RabbitMQ for order processing but now needs replay capability for a new fraud detection ML model. What do you recommend?"**
+
+**One-line answer:** Introduce Kafka alongside RabbitMQ — publish order events to both, letting RabbitMQ continue handling task queue routing while Kafka provides the replayable event log the ML pipeline needs.
+
+**Full answer to give in an interview:**
+
+> "I would not replace RabbitMQ — I would add Kafka for the replay requirement specifically. The existing order processing task queue — competing consumers, push delivery, per-message ACK — is exactly what RabbitMQ excels at. Ripping it out introduces migration risk with no benefit.
+>
+> Instead, the order service publishes each order event to a Kafka topic in addition to the RabbitMQ queue. The fraud detection ML model consumes from Kafka as an independent consumer group. When the model needs to retrain on three months of historical orders, it resets its consumer group offset to the beginning and replays. Neither the RabbitMQ flow nor any other Kafka consumer is affected.
+>
+> For the Kafka side I'd configure: `replication.factor=3`, `min.insync.replicas=2`, `acks=all`, retention long enough to cover the full replay window needed for model training — say 90 days. This is the dual-write pattern: the same event is published to two systems, each optimized for its consumers' needs."
+
+> *The dual-write pattern name is worth stating explicitly — interviewers recognize it.*
+
+---
+
+> **Common Mistake — Assuming Kafka Always Wins on Throughput:** Kafka's throughput advantage only materializes at significant scale. For a service processing a few hundred messages per second, RabbitMQ or SQS is simpler to operate, has lower latency, and is equally reliable. Using Kafka for a simple task queue adds operational complexity with no benefit.
+
+---
+
+**Quick Revision (one line):**
 Choose Kafka for high-throughput, replayable, multi-consumer event streams; RabbitMQ for complex routing, push delivery, and task queues; SQS for AWS-native simplicity with minimal operational overhead.
 
 ---
 
-### Topic 14: Replication & Fault Tolerance
-**Difficulty:** Hard | **Frequency:** High | **Companies:** Confluent, LinkedIn, Goldman Sachs, Netflix
-
-**Q: Explain Kafka's ISR (In-Sync Replicas), leader election, unclean leader election, and the min.insync.replicas configuration for fault-tolerant cluster design.**
-
-**Short Answer (2-3 sentences):**
-The ISR (In-Sync Replicas) set contains the leader and all followers that are caught up within `replica.lag.time.max.ms` (default 30s). When the leader fails, the Kafka controller elects a new leader from the ISR, guaranteeing no data loss. Unclean leader election (`unclean.leader.election.enable=true`) allows out-of-ISR replicas to become leader, trading durability for availability; `min.insync.replicas` (combined with `acks=all`) rejects producer writes when fewer than the configured number of replicas are in-sync, preventing data loss at the cost of write availability.
-
-**Deep Explanation:**
-**ISR Mechanics:**
-Each partition has one leader and N-1 followers (N = replication factor). Followers fetch from the leader and update their High Watermark (HW). A follower is in the ISR if it has fetched up to the leader's log-end offset within `replica.lag.time.max.ms`. If a follower falls behind (slow I/O, GC pause, network issue), it is removed from the ISR and the leader proceeds without it.
-
-**High Watermark (HW) vs Log End Offset (LEO):**
-- **LEO**: The next offset the leader will assign. Advances with every appended record.
-- **HW**: The highest offset that has been replicated to all ISR members. Consumers can only read up to HW (ensuring read-your-writes consistency after leader election).
-
-**Leader Election:**
-The Kafka Controller (one broker elected via Zookeeper/KRaft) watches for leader failures. On failure:
-1. Controller selects the first ISR member as the new leader (preferred: the replica with the highest LEO).
-2. Broadcasts new leader metadata to all brokers and clients.
-3. Old leader's uncommitted records (above old HW) are truncated by new leader after fencing.
-
-**KRaft Mode (Kafka 3.3+ production-ready):**
-Zookeeper replaced by an internal Raft consensus group (`@metadata` topic). The KRaft controller quorum manages metadata without external Zookeeper dependency. Faster failover (<10s vs 30s+) and simpler operations.
-
-**Unclean Leader Election:**
-`unclean.leader.election.enable=true` (default false in newer Kafka, true in older):
-- Allows replicas NOT in the ISR to become leader when all ISR replicas are unavailable.
-- Trades **durability for availability**: records between the old HW and the failed leader's LEO are permanently lost.
-- Use case: log aggregation pipelines where some data loss is acceptable vs. complete unavailability.
-
-**min.insync.replicas (minISR):**
-With `acks=all`, the leader waits for all ISR members to acknowledge. `min.insync.replicas=2` (broker/topic config) rejects writes with `NotEnoughReplicasException` if ISR size drops below 2.
-
-**Recommended Production Configuration:**
-- `replication.factor=3`
-- `min.insync.replicas=2`
-- `acks=all` (producer)
-- `unclean.leader.election.enable=false`
-
-This tolerates 1 broker failure without data loss or write unavailability. 2 simultaneous broker failures → write unavailability (ISR < minISR), but no data loss.
-
-**Real-World Example:**
-Goldman Sachs trade topics use `replication.factor=3`, `min.insync.replicas=2`, and `unclean.leader.election.enable=false`. During a broker failure, writes block until the failed broker recovers or a new broker joins the ISR — acceptable for financial data correctness. Analytics topics use `unclean.leader.election.enable=true` to maintain write availability during broker failures.
-
-**Code Example:**
-```java
-import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.common.config.TopicConfig;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.config.TopicBuilder;
-
-@Configuration
-public class FaultTolerantTopicConfig {
-
-    // Financial data: durability over availability
-    @Bean
-    public NewTopic tradeEventsTopic() {
-        return TopicBuilder.name("trade-events")
-            .partitions(12)
-            .replicas(3)
-            .config(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG, "2")
-            .config(TopicConfig.UNCLEAN_LEADER_ELECTION_ENABLE_CONFIG, "false")
-            .build();
-    }
-
-    // Analytics data: availability over durability
-    @Bean
-    public NewTopic clickEventsTopic() {
-        return TopicBuilder.name("click-events")
-            .partitions(24)
-            .replicas(3)
-            .config(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG, "1")
-            .config(TopicConfig.UNCLEAN_LEADER_ELECTION_ENABLE_CONFIG, "true")
-            .build();
-    }
-}
-
-// Monitoring ISR health programmatically
-import org.apache.kafka.clients.admin.*;
-import org.apache.kafka.common.TopicPartitionInfo;
-
-import java.util.*;
-import java.util.concurrent.ExecutionException;
-
-public class IsrHealthChecker {
-
-    private final AdminClient adminClient;
-
-    public IsrHealthChecker(String bootstrapServers) {
-        Properties props = new Properties();
-        props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        this.adminClient = AdminClient.create(props);
-    }
-
-    public void checkIsrHealth(String topicName) throws ExecutionException, InterruptedException {
-        DescribeTopicsResult result = adminClient.describeTopics(List.of(topicName));
-        TopicDescription description = result.allTopicNames().get().get(topicName);
-
-        for (TopicPartitionInfo partition : description.partitions()) {
-            int isrSize = partition.isr().size();
-            int replicaCount = partition.replicas().size();
-
-            if (isrSize < replicaCount) {
-                System.out.printf("WARNING: Partition %d ISR=%d of %d replicas — under-replicated!%n",
-                    partition.partition(), isrSize, replicaCount);
-            }
-            if (partition.leader() == null) {
-                System.out.printf("CRITICAL: Partition %d has no leader!%n", partition.partition());
-            }
-        }
-    }
-}
-```
-
-**Follow-up Questions:**
-1. What happens to in-flight producer records when a leader election occurs mid-batch?
-2. How does the preferred replica election differ from unclean leader election?
-3. What is the `controlled.shutdown.enable` broker config and how does it reduce failover impact?
-
-**Common Mistakes:**
-- Setting `min.insync.replicas=replication.factor` — this means ANY broker failure makes the topic read-only (all writes fail). Always keep minISR at least 1 less than replication factor.
-- Confusing `acks=all` on the producer with `min.insync.replicas` on the broker — both must be set together. `acks=all` alone only waits for all current ISR members, not a minimum count.
-- Running with `replication.factor=1` in development/staging and forgetting to change it for production — no fault tolerance at all.
-
-**Interview Traps:**
-- "Is High Watermark the same as the committed offset?" — No. HW is a broker-side concept for replication: the offset up to which all ISR replicas have confirmed. Consumer committed offsets are stored in `__consumer_offsets`. These are independent concepts.
-- "Does Kafka guarantee no data loss with `acks=all`?" — Only if `unclean.leader.election.enable=false`. If clean leader election is allowed but all ISR replicas fail simultaneously, and an out-of-ISR replica (with stale data) is elected, records acknowledged since the last replication will be lost.
-
-**Quick Revision (1-liner):**
-ISR tracks replicas within `replica.lag.time.max.ms` of the leader; `min.insync.replicas=2` with `acks=all` and `unclean.leader.election=false` is the production durability standard, tolerating 1 broker failure without data loss.
+## Topic 14: Replication and Fault Tolerance
 
 ---
 
-### Topic 15: Kafka Performance Tuning
-**Difficulty:** Hard | **Frequency:** Medium | **Companies:** LinkedIn, Confluent, Uber, Netflix
+#### The Idea
 
-**Q: What are the key tuning parameters for maximizing Kafka producer throughput, consumer throughput, and broker efficiency?**
+Imagine a bank vault with three copies of every document: one master copy and two backups. The master copy (the leader) is the only one customers can read from or write to. The two backup copies (followers) continuously mirror every change the master receives. If the master vault catches fire, one of the two synchronized backups is immediately promoted to master — no documents are lost because the backup was fully up to date.
 
-**Short Answer (2-3 sentences):**
-Producer throughput is maximized by increasing batch size and linger time, enabling compression, and tuning `max.in.flight.requests`. Consumer throughput scales via concurrency, larger `fetch.min.bytes` / `max.poll.records`, and parallel processing with thread pools. Broker efficiency relies on OS page cache (linear reads/writes), appropriate heap sizing (keep small to reduce GC), `num.io.threads` and `num.network.threads` tuning, and avoiding swapping with `vm.swappiness=1`.
+Now imagine a scenario where the backups fall behind: the backup vault's delivery truck is slow and it has not received the last 200 documents. If the master burns down in this moment, promoting the slow backup means those 200 documents are permanently gone. Kafka's ISR (In-Sync Replicas) is the mechanism that tracks which backups are current enough to be trusted for promotion.
 
-**Deep Explanation:**
-**Producer Throughput Tuning:**
-| Config | Default | Tuning Recommendation |
-|---|---|---|
-| `batch.size` | 16384 (16KB) | 65536–262144 (64–256KB) for bulk |
-| `linger.ms` | 0 | 5–50 ms for batching |
-| `compression.type` | none | lz4 or zstd for 3-5x throughput |
-| `buffer.memory` | 33554432 (32MB) | 128MB+ for high-throughput |
-| `max.in.flight.requests.per.connection` | 5 | Keep 5 with idempotence; 1 for strict ordering without idempotence |
-| `acks` | 1 | `all` for durability; `1` for non-critical high-throughput |
-| `retries` | 2147483647 | INT_MAX with idempotence |
-
-**Consumer Throughput Tuning:**
-| Config | Default | Tuning Recommendation |
-|---|---|---|
-| `max.poll.records` | 500 | 1000–5000 for bulk processing |
-| `fetch.min.bytes` | 1 | 1048576 (1MB) for throughput |
-| `fetch.max.wait.ms` | 500 | 500ms (default is reasonable) |
-| `max.partition.fetch.bytes` | 1048576 (1MB) | 4MB+ for large messages |
-| `session.timeout.ms` | 45000 | 45–120s; larger for slow processing |
-| `max.poll.interval.ms` | 300000 | Increase if processing is slow |
-
-**Consumer-Side Parallelism:**
-For CPU-bound processing, add threads using `ConcurrentKafkaListenerContainerFactory.setConcurrency(N)` — each thread is an independent consumer. For I/O-bound processing (DB writes, HTTP calls), use an `ExecutorService` within the listener to parallelize record processing within a batch.
-
-**Broker Performance:**
-1. **Page Cache**: Kafka is optimized for OS page cache. Give brokers 50–60% of RAM to the OS (not JVM heap). Default heap: 6 GB. Consumers reading recently produced data hit the page cache, not disk.
-2. **JVM Heap**: Keep at 4–8 GB. Large heaps → long GC pauses → replication lag → ISR shrinkage. Use G1GC: `-XX:+UseG1GC -XX:MaxGCPauseMillis=20`.
-3. **Disk**: Use separate disks for Kafka data and OS. Use JBOD (multiple `log.dirs`) for throughput. Avoid RAID (Kafka handles redundancy via replication). Use ext4 or XFS with `noatime` mount option.
-4. **Network Threads**: `num.network.threads=8` (default 3); increase for high-connection-count clusters.
-5. **I/O Threads**: `num.io.threads=16` (default 8); should be ~2× disk count for JBOD setups.
-6. **OS Tuning**: `vm.swappiness=1`, `net.core.rmem_max=134217728`, `net.core.wmem_max=134217728`, `fs.file-max=100000`.
-
-**Zero-Copy:**
-Kafka uses `sendfile()` system call (Java NIO `FileChannel.transferTo()`) to send data from disk to network without copying through user space — critical for high-throughput consumer reads from disk. This is why avoiding encryption at the broker level (or using hardware TLS offload) matters for throughput.
-
-**Real-World Example:**
-LinkedIn tuned Kafka for peak throughput of 7 trillion messages/day. Key tunings: `linger.ms=5`, `batch.size=131072`, `compression.type=lz4`, 6-core machines with 128 GB RAM where 100 GB is left to OS page cache, 12 JBOD disks per broker, `num.network.threads=12`, `num.io.threads=24`.
-
-**Code Example:**
-```java
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
-import org.springframework.kafka.core.*;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.Executor;
-
-@Configuration
-public class KafkaHighThroughputConfig {
-
-    // High-throughput producer configuration
-    @Bean
-    public ProducerFactory<String, String> highThroughputProducerFactory() {
-        Map<String, Object> props = new HashMap<>();
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "broker1:9092,broker2:9092,broker3:9092");
-        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-            org.apache.kafka.common.serialization.StringSerializer.class);
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-            org.apache.kafka.common.serialization.StringSerializer.class);
-
-        // Batching for throughput
-        props.put(ProducerConfig.BATCH_SIZE_CONFIG, 131072);          // 128 KB batches
-        props.put(ProducerConfig.LINGER_MS_CONFIG, 10);               // wait up to 10ms
-        props.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 134217728L);   // 128 MB buffer
-
-        // Compression
-        props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "lz4");
-
-        // Durability
-        props.put(ProducerConfig.ACKS_CONFIG, "all");
-        props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-        props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
-
-        return new DefaultKafkaProducerFactory<>(props);
-    }
-
-    // High-throughput consumer configuration
-    @Bean
-    public ConsumerFactory<String, String> highThroughputConsumerFactory() {
-        Map<String, Object> props = new HashMap<>();
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "broker1:9092,broker2:9092,broker3:9092");
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, "high-throughput-group");
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-            org.apache.kafka.common.serialization.StringDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-            org.apache.kafka.common.serialization.StringDeserializer.class);
-
-        // Fetch tuning
-        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 2000);
-        props.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, 1048576);       // wait for 1MB
-        props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
-        props.put(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, 4194304); // 4 MB
-
-        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 60000);
-        props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 600000);
-
-        return new DefaultKafkaConsumerFactory<>(props);
-    }
-
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, String> highThroughputListenerFactory(
-            ConsumerFactory<String, String> cf) {
-        ConcurrentKafkaListenerContainerFactory<String, String> factory =
-            new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(cf);
-        factory.setConcurrency(6);  // 6 consumer threads per instance
-        factory.setBatchListener(true);  // batch consumption
-        factory.getContainerProperties().setAckMode(
-            org.springframework.kafka.listener.ContainerProperties.AckMode.BATCH);
-        return factory;
-    }
-
-    // Separate thread pool for async I/O within consumer
-    @Bean
-    public Executor consumerProcessingExecutor() {
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(20);
-        executor.setMaxPoolSize(50);
-        executor.setQueueCapacity(1000);
-        executor.setThreadNamePrefix("kafka-processing-");
-        executor.initialize();
-        return executor;
-    }
-}
-```
-
-**Follow-up Questions:**
-1. Why should Kafka broker JVM heap be kept small (4–8 GB) even on machines with 128 GB RAM?
-2. What is the impact of enabling SSL/TLS on Kafka throughput, and how do you mitigate it?
-3. How does the number of partitions affect producer and consumer throughput, and what are the limits?
-
-**Common Mistakes:**
-- Allocating most server RAM to JVM heap (-Xmx64g) — starves OS page cache, causing all reads to hit disk instead of memory.
-- Setting `max.poll.records=1` for "safety" — eliminates batching, drastically reduces throughput, and increases overhead.
-- Using synchronous `commitSync()` after every record in high-throughput scenarios — per-record commits to the `__consumer_offsets` topic create a throughput bottleneck.
-
-**Interview Traps:**
-- "Should you set `compression.type` on the broker or the producer?" — Both are possible. Producer-side compression is generally preferred because it reduces network I/O. Broker-side recompression (`compression.type != producer`) adds CPU overhead on the broker.
-- "Does increasing partition count always improve throughput?" — Up to a point. Beyond ~4000 partitions per broker, the overhead of managing replicas, leader elections, and metadata updates degrades cluster performance. The real limit is broker CPU, I/O, and RAM — not a hard partition ceiling.
-
-**Quick Revision (1-liner):**
-Maximize producer throughput with larger batches, `linger.ms`, and compression; consumer throughput with concurrency and larger fetch sizes; broker efficiency by keeping heap small (4–8 GB) to maximize OS page cache for zero-copy reads.
+The durability guarantee is: if a write is acknowledged only after all in-sync replicas confirm it (`acks=all`), then even if the leader immediately dies, one of the surviving in-sync replicas has the data and can safely become the new leader without losing anything. The `min.insync.replicas` setting adds an extra layer: it rejects writes when too few replicas are in sync, preventing situations where `acks=all` nominally succeeds but only one slow replica acknowledged it.
 
 ---
 
-## Cheat Sheet
+#### How It Works
 
-### acks Settings & Delivery Guarantees
+**ISR mechanics:**
+```
+Replication factor = 3: 1 leader + 2 followers
+Each follower continuously fetches from the leader's log
 
-| acks | Meaning | Data Loss Risk | Throughput | Use Case |
-|---|---|---|---|---|
-| `0` | Fire and forget | High | Maximum | Metrics, logs (loss OK) |
-| `1` | Leader ACK only | Medium (leader crash before replication) | High | Non-critical events |
-| `all` / `-1` | All ISR ACK | Minimal (with minISR ≥ 2) | Lower | Financial, audit, critical data |
+ISR (In-Sync Replicas) = { replicas caught up within replica.lag.time.max.ms (default 30s) }
 
-### Delivery Semantics
+If follower falls behind (slow I/O, GC pause, network congestion):
+  → removed from ISR
+  → leader continues writing without waiting for the lagging follower
+  → when follower catches up, it rejoins the ISR
 
-| Semantic | Producer Config | Consumer Config | Guarantee |
+ISR example:
+  Normal:  ISR = { broker1 (leader), broker2, broker3 }
+  Broker2 lags: ISR = { broker1 (leader), broker3 }
+  Broker1 fails: new leader elected from ISR → broker3 promoted
+```
+
+**High Watermark vs Log End Offset:**
+```
+LEO (Log End Offset): next offset the leader will assign → advances with every appended record
+HW (High Watermark):  highest offset replicated to ALL ISR members → consumers can only read up to HW
+
+Why HW matters: after a leader election, the new leader uses HW as its safe point.
+Records between old HW and old leader's LEO are truncated → never exposed to consumers → no phantom reads.
+```
+
+**Leader election (clean):**
+```
+Broker failure detected by Kafka Controller (elected via KRaft or Zookeeper)
+Controller selects: first member of current ISR as new leader (highest LEO preferred)
+Controller broadcasts new leader metadata to all brokers and clients
+Producers and consumers transparently reconnect to new leader
+Old leader's records above HW are truncated if it rejoins as a follower
+```
+
+**Unclean leader election:**
+```
+unclean.leader.election.enable = true:
+  If ALL ISR replicas are unavailable, allow out-of-ISR replica to become leader
+  → Topic becomes available but records between old HW and old leader's LEO are PERMANENTLY LOST
+  → Use only when availability > durability (e.g., log aggregation, analytics)
+
+unclean.leader.election.enable = false (recommended for production):
+  If ALL ISR replicas are unavailable, partition is offline until an ISR replica recovers
+  → No data loss, but topic is temporarily unavailable
+```
+
+**Must-memorise gotcha — the durability triangle:**
+
+```java
+// Production-safe topic configuration: tolerates 1 broker failure without data loss
+@Bean
+public NewTopic tradeEventsTopic() {
+    return TopicBuilder.name("trade-events")
+        .partitions(12)
+        .replicas(3)                                                  // RF=3: 1 leader + 2 followers
+        .config(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG, "2")        // reject writes if ISR < 2
+        .config(TopicConfig.UNCLEAN_LEADER_ELECTION_ENABLE_CONFIG, "false") // never lose acknowledged data
+        .build();
+}
+
+// Producer MUST also use acks=all — topic config alone is not enough
+// spring.kafka.producer.acks=all
+// spring.kafka.producer.properties.enable.idempotence=true
+
+// Result:
+//   1 broker fails → ISR=2 ≥ minISR=2 → writes continue, no data loss
+//   2 brokers fail → ISR=1 < minISR=2 → writes rejected (NotEnoughReplicasException), no data loss
+//   All 3 fail     → topic offline
+```
+
+**Fault tolerance matrix:**
+
+| Config | 1 Broker Failure | 2 Broker Failures | Data Loss Risk |
 |---|---|---|---|
-| At-most-once | Any | Commit before process | 0 or 1 delivery |
-| At-least-once | `acks=all`, retries | Commit after process (manual) | 1+ delivery |
-| Exactly-once | `enable.idempotence=true`, `transactional.id`, `acks=all` | `isolation.level=read_committed` | Exactly 1 delivery |
-
-### Key Configuration Reference
-
-#### Producer
-| Config | Default | Recommended Production |
-|---|---|---|
-| `acks` | `1` | `all` |
-| `enable.idempotence` | `false` | `true` |
-| `compression.type` | `none` | `lz4` or `zstd` |
-| `batch.size` | `16384` | `65536`–`262144` |
-| `linger.ms` | `0` | `5`–`20` |
-| `max.in.flight.requests.per.connection` | `5` | `5` (with idempotence) |
-| `retries` | `2147483647` | `INT_MAX` |
-| `delivery.timeout.ms` | `120000` | `120000`–`300000` |
-
-#### Consumer
-| Config | Default | Recommended Production |
-|---|---|---|
-| `enable.auto.commit` | `true` | `false` |
-| `auto.offset.reset` | `latest` | `earliest` (new groups) |
-| `max.poll.records` | `500` | `500`–`2000` |
-| `fetch.min.bytes` | `1` | `1048576` (throughput) |
-| `session.timeout.ms` | `45000` | `45000` |
-| `max.poll.interval.ms` | `300000` | Tune per processing time |
-| `isolation.level` | `read_uncommitted` | `read_committed` (transactions) |
-| `partition.assignment.strategy` | `RangeAssignor` | `CooperativeStickyAssignor` |
-
-#### Broker / Topic
-| Config | Default | Notes |
-|---|---|---|
-| `replication.factor` | `1` | `3` in production |
-| `min.insync.replicas` | `1` | `2` with RF=3 |
-| `unclean.leader.election.enable` | `false` | Keep `false` for durability |
-| `log.retention.ms` | `604800000` (7d) | Tune per data SLA |
-| `log.segment.bytes` | `1073741824` (1GB) | `536870912` (512MB) for faster compaction |
-| `num.partitions` | `1` | `max(throughput/10MB, consumers)` |
-| `log.cleanup.policy` | `delete` | `compact` for changelog, `compact,delete` for mixed |
-
-### Replication Quick Reference
-```
-RF=3, minISR=2, acks=all:
-  - Tolerate 1 broker failure: writes continue (ISR=2 ≥ minISR=2)
-  - Tolerate 2 broker failures: writes blocked (ISR=1 < minISR=2), no data loss
-  - All 3 brokers fail: unavailable
-
-unclean.leader.election=false → never lose acknowledged data
-unclean.leader.election=true  → may lose data, always available
-```
-
-### Window Types at a Glance
-```
-Tumbling:  [0----5)[5----10)[10----15)   — non-overlapping, fixed size
-Hopping:   [0--10)[5--15)[10--20)        — overlapping, fixed size, advance < size
-Session:   [event...inactivity...event]  — dynamic, gap-based
-```
-
-### EOS Transaction Flow
-```
-initTransactions()
-  beginTransaction()
-    producer.send(record1)
-    producer.send(record2)
-    producer.sendOffsetsToTransaction(offsets, groupMetadata)
-  commitTransaction()  ← atomic: all or nothing
-```
-
-### Common Kafka Port Reference
-| Component | Default Port |
-|---|---|
-| Broker (plaintext) | `9092` |
-| Broker (SSL) | `9093` |
-| Broker (SASL) | `9094` |
-| Schema Registry | `8081` |
-| Kafka Connect REST | `8083` |
-| KRaft Controller | `9093` |
-| JMX | `9999` |
+| RF=3, minISR=2, acks=all, unclean=false | Writes continue | Writes blocked (no data loss) | None |
+| RF=3, minISR=1, acks=all, unclean=false | Writes continue | Writes continue | None (but single point of replication) |
+| RF=3, minISR=2, acks=1, unclean=false | Writes continue | Writes blocked | Possible (leader may die before replication) |
+| RF=3, minISR=1, acks=all, unclean=true | Writes continue | Writes continue | Possible (unclean election may lose records) |
 
 ---
 
-*End of Chapter 11: Apache Kafka & Event Streaming*
+#### Interview Lens
 
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
+
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
+
+---
+
+##### Q1 — Concept Check
+**"What is the ISR in Kafka and why does it matter for durability?"**
+
+**One-line answer:** The ISR (In-Sync Replicas) is the set of replicas caught up within `replica.lag.time.max.ms` of the leader; it matters because only ISR members are eligible for clean leader election, guaranteeing no data loss on failover.
+
+**Full answer to give in an interview:**
+
+> "Every Kafka partition has one leader and N-1 followers, where N is the replication factor. The ISR — In-Sync Replicas — is a dynamic set maintained by the leader that tracks which followers are current: specifically, which have fetched up to the leader's log within `replica.lag.time.max.ms`, defaulting to 30 seconds. If a follower falls behind — due to a GC pause, slow disk, or network issue — it is removed from the ISR, and the leader stops waiting for it when acknowledging producer writes.
+>
+> Durability depends on the ISR because when the leader fails, the Kafka Controller will only elect a new leader from the current ISR. Since all ISR members have confirmed receipt of the same records up to the High Watermark, promoting any ISR member guarantees zero data loss for acknowledged writes. If we allowed out-of-ISR replicas to be elected — called unclean leader election — we risk losing records that the failed leader acknowledged but the lagging replica never received.
+>
+> The practical config is `acks=all` on the producer combined with `min.insync.replicas=2` on the topic. `acks=all` means the producer only gets an acknowledgment after all current ISR members confirm the write. `min.insync.replicas=2` means the broker rejects the write entirely if fewer than 2 replicas are in sync, preventing a false sense of safety when the ISR has shrunk to one."
+
+> *The `acks=all` + `min.insync.replicas` pairing is a compound answer — always state both together.*
+
+**Gotcha follow-up they'll ask:** *"What is the difference between the High Watermark and the consumer committed offset?"*
+
+> "They are completely independent concepts that are often confused. The High Watermark is a broker-side replication boundary: it is the highest offset that all ISR members have confirmed receiving. Consumers can only read up to the High Watermark — this prevents reading data that might be rolled back after a leader election. The consumer committed offset is stored in the `__consumer_offsets` internal topic and represents how far a specific consumer group has processed. The HW is about replication safety; the committed offset is about consumer progress. They are tracked separately and can be at very different positions."
+
+---
+
+##### Q2 — Tradeoff Question
+**"When would you enable unclean leader election, and what do you trade away?"**
+
+**One-line answer:** Enable unclean leader election only when availability is more important than durability — for log aggregation or analytics topics where losing some records is acceptable; never enable it for financial, audit, or transactional data.
+
+**Full answer to give in an interview:**
+
+> "Unclean leader election allows an out-of-ISR replica to become leader when all ISR replicas are unavailable. The tradeoff is stark: you trade durability for availability. Records that the old leader acknowledged but the new (lagging) leader never received are permanently gone. From the producer's perspective, those writes succeeded — but they have silently vanished.
+>
+> There are legitimate use cases. A log aggregation pipeline collecting application logs can tolerate losing a few thousand log lines during a simultaneous multi-broker failure — the alternative, a completely offline partition, would cause more harm by backing up producers. Similarly, real-time analytics dashboards where approximate counts are acceptable might prefer some data loss over unavailability.
+>
+> For anything financial — trade events, payment records, audit logs — `unclean.leader.election.enable=false` is non-negotiable. Goldman Sachs runs trade topics with this set to false precisely because a false acknowledgment followed by silent data loss would be a compliance disaster. The partition goes offline briefly; that is acceptable. Silently losing an acknowledged trade record is not."
+
+> *Framing the decision as a compliance question for financial data shows domain maturity.*
+
+**Gotcha follow-up they'll ask:** *"What happens if you set `min.insync.replicas` equal to the replication factor?"*
+
+> "That is a misconfiguration that makes the topic extremely fragile. If `min.insync.replicas = replication.factor = 3`, then any single broker failure causes the ISR to drop to 2, which is below the minimum, so all writes are immediately rejected with `NotEnoughReplicasException`. The topic becomes read-only until the failed broker recovers. The standard recommendation is to keep `min.insync.replicas` at `replication.factor - 1` — so `2` for `RF=3`. This tolerates one broker failure without write unavailability while still requiring two replicas to confirm each write."
+
+---
+
+##### Q3 — Design Scenario
+**"Design the replication strategy for a Kafka cluster handling financial trade events. What configurations would you set and why?"**
+
+**One-line answer:** Use `RF=3`, `min.insync.replicas=2`, `acks=all`, `unclean.leader.election.enable=false`, and idempotent producers to guarantee exactly-once durable writes that tolerate one broker failure.
+
+**Full answer to give in an interview:**
+
+> "For financial trade events, the non-negotiable requirement is that no acknowledged write is ever lost. I would start with `replication.factor=3` — the standard production setting that distributes one leader and two followers across three brokers in different racks or availability zones.
+>
+> On the topic I'd set `min.insync.replicas=2` and `unclean.leader.election.enable=false`. This means a write is only acknowledged after two replicas confirm it, and if a broker fails, only a replica that was fully in-sync can be promoted as leader. We tolerate one simultaneous broker failure with no write interruption: ISR drops from 3 to 2, which equals minISR, so writes continue. Two simultaneous broker failures block writes temporarily, but no acknowledged data is lost — the partition waits for recovery.
+>
+> On the producer I'd set `acks=all` and `enable.idempotence=true`. Idempotence (using sequence numbers) prevents duplicate records from producer retries — if a network timeout causes the producer to retry a send, the broker detects the duplicate sequence and discards it.
+>
+> I'd also monitor ISR shrinkage as a critical alert. An ISR of size 1 means we are one broker failure away from a hard write block. Catching and remediating that before a second failure is the operational discipline that makes this configuration reliable."
+
+> *Mentioning ISR monitoring as an alert condition shows operational thinking beyond config.*
+
+---
+
+> **Common Mistake — `acks=all` Without `min.insync.replicas`:** Setting `acks=all` on the producer alone is not sufficient for durability. If the ISR has shrunk to a single broker (due to two followers lagging), `acks=all` happily acknowledges the write after that one broker confirms it. If that broker then dies, the record is lost. You must combine `acks=all` with `min.insync.replicas=2` to guarantee that at least two independent copies exist before acknowledgment.
+
+---
+
+**Quick Revision (one line):**
+ISR tracks replicas within `replica.lag.time.max.ms` of the leader; the production durability standard is `RF=3`, `min.insync.replicas=2`, `acks=all`, and `unclean.leader.election.enable=false` — tolerating one broker failure without data loss.
+
+---
+
+## Topic 15: Kafka Performance Tuning
+
+---
+
+#### The Idea
+
+Think of a Kafka producer like a delivery truck. A naive driver picks up one package, drives to the warehouse, drops it off, and drives back — one at a time. A smart driver fills the truck to capacity, drives once, unloads everything, and drives back. That one change — batching — multiplies throughput by orders of magnitude. Kafka's `batch.size` and `linger.ms` settings control exactly this: how full the truck gets before it leaves, and how long it waits at the loading dock for more packages.
+
+Compression is the next multiplier: compressing the batch before sending is like vacuum-sealing the packages so three times as many fit in the truck. The CPU cost of compression at the producer is almost always worth it because network bandwidth and broker disk I/O are the real bottlenecks.
+
+On the broker side, Kafka's secret weapon is the OS page cache. Kafka writes to disk sequentially and relies on the operating system to cache recently written bytes in RAM. When a consumer reads data that was just produced, it almost never touches the disk — the bytes are already in the page cache and Kafka transfers them directly from cache to the network socket via a system call called `sendfile()` (zero-copy). This is why keeping the JVM heap small — counter-intuitively — makes Kafka faster: a small heap means less JVM memory, but it also means the OS gets more RAM for the page cache, which is far more valuable.
+
+---
+
+#### How It Works
+
+**Producer throughput tuning:**
+```
+Default batch behavior:
+  batch.size = 16 KB, linger.ms = 0
+  → sends immediately as records arrive, tiny batches, high per-batch overhead
+
+High-throughput tuning:
+  batch.size = 128 KB (131072)   → larger batches, fewer round trips
+  linger.ms = 10                 → wait up to 10ms for the batch to fill
+  compression.type = lz4         → 3–5x compression ratio, minimal CPU cost
+  buffer.memory = 128 MB         → more in-flight data before backpressure
+  acks = all                     → durability; drop to acks=1 only for non-critical data
+  enable.idempotence = true      → deduplicates retried records; requires acks=all, max.in.flight=5
+```
+
+**Consumer throughput tuning:**
+```
+Default fetch behavior:
+  max.poll.records = 500, fetch.min.bytes = 1
+  → returns as soon as any data is available, small polls
+
+High-throughput tuning:
+  max.poll.records = 2000         → process larger batches per poll loop
+  fetch.min.bytes = 1048576       → wait until 1MB is available before returning (batched fetches)
+  fetch.max.wait.ms = 500         → max wait even if fetch.min.bytes not reached
+  max.partition.fetch.bytes = 4MB → larger per-partition fetch ceiling
+
+Parallelism:
+  factory.setConcurrency(6)       → 6 independent consumer threads (one per partition assignment)
+  batch listener + thread pool    → within each poll batch, dispatch records to an ExecutorService for parallel I/O
+```
+
+**Broker performance:**
+```
+OS Page Cache (most important):
+  Give 50–60% of machine RAM to the OS (not the JVM).
+  Consumers reading recently produced data hit page cache, not disk → microsecond reads.
+  A 128 GB machine: 6–8 GB JVM heap, ~120 GB for OS page cache.
+
+Zero-copy (sendfile):
+  Kafka uses FileChannel.transferTo() → data moves from page cache to socket without copying through user space.
+  This is why TLS termination on the broker hurts throughput: TLS breaks zero-copy.
+
+JVM heap:
+  Keep at 4–8 GB. Use G1GC: -XX:+UseG1GC -XX:MaxGCPauseMillis=20.
+  Large heaps (>8 GB) → long GC pauses → replication lag → ISR shrinkage → reduced throughput.
+
+Disk:
+  JBOD (multiple log.dirs pointing to separate disks) for parallelism.
+  Avoid RAID — Kafka handles redundancy via replication, not RAID.
+  Use XFS or ext4 with noatime mount option.
+
+Thread tuning:
+  num.network.threads = 8 (default 3)  → handles socket I/O for producers/consumers
+  num.io.threads = 16 (default 8)      → handles disk I/O; target ~2× disk count for JBOD
+```
+
+**Must-memorise gotcha — heap size vs page cache:**
+
+```java
+// WRONG: allocating most RAM to JVM starves page cache
+// JVM start flag: -Xmx64g  ← DO NOT do this on a 128 GB broker
+
+// CORRECT: keep heap small, let OS own the rest
+// JVM start flags: -Xmx6g -Xms6g -XX:+UseG1GC -XX:MaxGCPauseMillis=20
+// OS gets ~122 GB for page cache → consumer reads almost never hit disk
+
+// High-throughput producer config in Spring Boot
+@Bean
+public ProducerFactory<String, String> highThroughputProducerFactory() {
+    Map<String, Object> props = new HashMap<>();
+    props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "broker1:9092,broker2:9092,broker3:9092");
+    props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,   StringSerializer.class);
+    props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+
+    props.put(ProducerConfig.BATCH_SIZE_CONFIG,        131072);      // 128 KB
+    props.put(ProducerConfig.LINGER_MS_CONFIG,         10);          // wait up to 10 ms
+    props.put(ProducerConfig.BUFFER_MEMORY_CONFIG,     134217728L);  // 128 MB
+    props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG,  "lz4");
+
+    props.put(ProducerConfig.ACKS_CONFIG,                              "all");
+    props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG,                true);
+    props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION,    5);
+
+    return new DefaultKafkaProducerFactory<>(props);
+}
+```
+
+**Tradeoffs to state aloud:**
+- `linger.ms` introduces latency: waiting 10ms to fill a batch means the first record in the batch is delayed up to 10ms. For latency-sensitive pipelines, keep `linger.ms` low (0–5ms). For bulk pipelines, 10–50ms is fine.
+- Compression saves network and disk but costs CPU. `lz4` has near-zero CPU cost and is the default recommendation. `zstd` gives better compression ratio at slightly higher CPU cost. `gzip` is CPU-heavy and rarely worth it for Kafka.
+- Increasing partition count beyond broker capacity degrades cluster metadata performance. Beyond ~4000 partitions per broker, leader election time, metadata propagation, and controller overhead create measurable latency spikes. More partitions is not always better.
+
+---
+
+#### Interview Lens
+
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
+
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
+
+---
+
+##### Q1 — Concept Check
+**"Why should Kafka broker JVM heap be kept small, even on machines with 128 GB RAM?"**
+
+**One-line answer:** A small heap leaves most RAM to the OS page cache, which Kafka uses for zero-copy consumer reads — a large heap triggers long GC pauses and starves the cache that makes Kafka fast.
+
+**Full answer to give in an interview:**
+
+> "Kafka's performance model is built around the OS page cache, not JVM memory. When a producer writes a record, Kafka appends it to a log file. The OS caches those bytes in RAM (the page cache). When a consumer reads those same records shortly after, Kafka uses the `sendfile()` system call — called zero-copy — to transfer bytes directly from the page cache to the network socket without ever copying them through JVM heap space. This path is extremely fast and is the reason Kafka can sustain millions of messages per second on modest hardware.
+>
+> If you give the JVM a 64 GB heap on a 128 GB machine, the OS only has 64 GB left for the page cache. Writes that are not in cache must be read from disk — orders of magnitude slower. Worse, a 64 GB heap means the garbage collector occasionally runs a multi-second full GC pause. During that pause, the broker stops responding, replication falls behind, followers may exit the ISR, and producer writes stall waiting for acknowledgment.
+>
+> The recommendation is 4–8 GB for the JVM heap with G1GC tuned to a 20ms max pause goal, and let the OS own everything else. LinkedIn's production brokers use 6 GB heap on 128 GB machines — 122 GB of page cache."
+
+> *The `sendfile()` zero-copy mechanism is the technical anchor — name it explicitly.*
+
+**Gotcha follow-up they'll ask:** *"What breaks zero-copy in Kafka?"*
+
+> "TLS/SSL encryption on the broker breaks zero-copy. When TLS is enabled, Kafka cannot use the `sendfile()` system call directly — the data must be decrypted and re-encrypted in user space, which requires copying through JVM memory. This is why high-throughput Kafka clusters often terminate TLS at a load balancer or use hardware TLS offload rather than broker-side SSL, or accept a throughput reduction when compliance requires end-to-end encryption."
+
+---
+
+##### Q2 — Tradeoff Question
+**"What is the throughput impact of enabling compression on the producer, and which codec should you choose?"**
+
+**One-line answer:** Compression typically improves throughput 3–5x by reducing both network I/O and broker disk usage; `lz4` is the default recommendation because it has near-zero CPU overhead at good compression ratios.
+
+**Full answer to give in an interview:**
+
+> "Compression in Kafka happens at the batch level on the producer: the entire batch is compressed before being sent. This is important because it means larger batches compress better — it reinforces the value of tuning `batch.size` and `linger.ms` alongside compression.
+>
+> The impact is dramatic for text-heavy payloads like JSON. A 5x compression ratio means 5x fewer bytes over the network, 5x less broker disk I/O, and therefore roughly 5x higher throughput without changing any infrastructure. The CPU cost on the producer is the only downside.
+>
+> For codec choice: `lz4` has the best throughput-to-CPU ratio — it compresses and decompresses so fast that the savings almost always outweigh the cost, even for CPU-bound producers. `zstd` (available since Kafka 2.1) gives better compression ratios at slightly higher CPU cost, which is worth it when disk space or bandwidth is the bottleneck. `gzip` is the worst choice for Kafka — high CPU cost, mediocre speed — it only makes sense if compatibility with legacy consumers is required.
+>
+> One nuance: if the broker is configured with a different compression type than the producer, the broker decompresses and recompresses every batch — adding significant broker CPU overhead. Set `compression.type=producer` on the topic configuration to tell the broker to store batches exactly as the producer sent them."
+
+> *The `compression.type=producer` broker config is a production detail most candidates miss.*
+
+**Gotcha follow-up they'll ask:** *"Does increasing partition count always improve throughput?"*
+
+> "Up to a point, yes — more partitions means more parallelism for both producers and consumers. But there is a ceiling. Each partition requires memory and file handles on the broker. Beyond roughly 4000 partitions per broker, the overhead of managing replica states, participating in leader elections, and propagating metadata updates starts to hurt. The Kafka controller — a single broker responsible for all partition leadership changes — becomes a bottleneck. LinkedIn observed measurable failover time degradation at high partition counts. The rule of thumb is to size partitions based on your actual throughput target (one partition can sustain ~10 MB/s) and your consumer parallelism needs, not to maximize the count."
+
+---
+
+##### Q3 — Design Scenario
+**"A Kafka cluster is under-performing: producer throughput is low and consumer lag is growing. Walk through how you would diagnose and fix it."**
+
+**One-line answer:** Profile in layers — producer batching and compression, consumer fetch size and concurrency, then broker page cache hit rate and thread counts — fixing the bottleneck at each layer before moving to the next.
+
+**Full answer to give in an interview:**
+
+> "I'd work from the producer inward. First I check producer metrics: `record-send-rate`, `batch-size-avg`, and `compression-rate-avg`. If batch size is near the default 16 KB and compression is disabled, the producer is sending tiny uncompressed batches — I increase `batch.size` to 128 KB, set `linger.ms` to 10ms, and enable `lz4` compression. These three changes together often 5–10x producer throughput with no infrastructure changes.
+>
+> If consumer lag is growing despite healthy producer throughput, I check the consumer: `max.poll.records`, fetch size, and concurrency. If `max.poll.records` is 500 and processing each record takes 10ms, one consumer thread can handle at most 50 records per second. I either increase concurrency via `factory.setConcurrency(N)` — adding more consumer threads — or batch the downstream I/O using an ExecutorService within the listener to parallelize DB writes or HTTP calls per poll batch.
+>
+> On the broker side I check JVM heap usage and GC pause duration via JMX metrics. If GC pauses exceed 500ms, the heap is too large or GC is misconfigured — I tune down to 6 GB with G1GC. I also check page cache hit rate: if broker disk read I/O is high, the page cache is insufficient, which usually means the JVM is consuming too much RAM.
+>
+> Finally I check `under-replicated-partitions` and ISR shrinkage — if followers are lagging, replication is stealing I/O bandwidth from producers, which can create a feedback loop of degrading throughput."
+
+> *Layered diagnosis — producer, consumer, broker — shows systematic thinking.*
+
+---
+
+> **Common Mistake — Allocating Large JVM Heap on Broker:** Setting `-Xmx64g` or higher on a Kafka broker does not speed it up — it actively slows it down by starving the OS page cache that Kafka's zero-copy mechanism depends on. Keep broker heap at 4–8 GB regardless of total machine RAM. The rest belongs to the OS.
+
+---
+
+**Quick Revision (one line):**
+Maximize producer throughput with larger batches (`batch.size`), `linger.ms`, and `lz4` compression; consumer throughput with concurrency and larger fetch sizes; broker efficiency by keeping JVM heap at 4–8 GB to maximize OS page cache for zero-copy reads.

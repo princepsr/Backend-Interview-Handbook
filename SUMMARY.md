@@ -75,9 +75,4 @@
 - [Appendix B — Master Reference Tables](APPENDIX_Tables.md)
 - [Appendix C — Must-Know Code Snippets](APPENDIX_CodeSnippets.md)
 
----
-
-# Meta
-
-- [Contributor & Maintenance Guide](CONTRIBUTING.md)
 

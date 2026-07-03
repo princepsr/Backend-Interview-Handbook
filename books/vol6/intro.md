@@ -1,4 +1,4 @@
-# Volume 6: Revision Pack
+﻿# Volume 6: Revision Pack
 
 **5 chapters · 100 mock Q&As · Interview-day checklist**
 
@@ -15,6 +15,11 @@ This volume is your final-week companion. Each chapter distils one full volume i
 | Ch 25 | Backend Systems (Vol 3) | Pattern cards, Kafka/Redis cheatsheet, 25 Q&As |
 | Ch 26 | Databases (Vol 4) | SQL patterns, index rules, 20 Q&As + 7 SQL exercises |
 | Ch 27 | System Design & LLD (Vol 5) | 100 mock Q&As + full interview checklist |
+
+---
+
+- [Volume 6 Study Plan](STUDY_GUIDE.md) — 1-week plan, 3-day crash plan, top 10 questions, and daily practice tips.
+- [Volume 6 Company Guide](COMPANY_GUIDE.md) — use Vol 6 to revise everything in the final week before your interview.
 
 ---
 

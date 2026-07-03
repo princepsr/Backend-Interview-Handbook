@@ -1,3224 +1,2392 @@
-﻿# Volume 4: Databases & Performance
-# Chapter 17: Distributed Databases & Sharding
+﻿# Volume 4: Databases
+# Chapter 17: Distributed Databases
 
 ---
 
-# Chapter 17: Distributed Databases & Sharding — Part A
+## Table of Contents
 
-> **Target Audience:** SDE2 / Senior Engineers interviewing at FAANG+
-> **Focus Companies:** Amazon, Google, Meta, Netflix, Uber, Stripe
-> **Prerequisites:** SQL fundamentals, basic networking, CAP theorem
+1. Database Sharding
+2. Consistent Hashing
+3. Replication Strategies
+4. Eventual Consistency in Practice
+5. Distributed Caching Architecture
+6. Time in Distributed Systems
+7. Consensus Algorithms
+8. Leader Election
+9. DynamoDB Deep Dive
+10. Cassandra Deep Dive
+11. MongoDB Deep Dive
+12. Time-Series Databases
+13. Full-Text Search with Elasticsearch
+14. Database Migration Strategies
+15. Performance Benchmarking
 
 ---
 
-## Overview
-
-Distributed databases and sharding sit at the core of every large-scale system design interview. Amazon tests this heavily for their distributed systems teams; Google expects deep knowledge of consistency models and consensus. This chapter covers the eight foundational topics you must own before walking into any senior backend interview.
+> **How to read this chapter:** Each topic has three layers.
+> - **The Idea** — start here, no prior knowledge needed.
+> - **How It Works** — the real mechanism, patterns, and tradeoffs.
+> - **Interview Lens** — what interviewers actually probe.
+>
+> Beginners: read all three layers top to bottom.
+> SDE2/Senior: skim "The Idea", focus on "How It Works" and "Interview Lens".
 
 ---
 
-### Topic 1: Database Sharding
-**Difficulty:** Hard | **Frequency:** Very High | **Companies:** Amazon, Meta, Uber, Stripe, LinkedIn
+## Topic 1: Database Sharding
 
-**Q:** How would you shard a large relational database, and what are the trade-offs between range-based, hash-based, and directory-based sharding?
+---
 
-**Short Answer:**
-Sharding is horizontal partitioning — splitting rows of a table across multiple independent database instances (shards). The shard key determines which shard a row lives on. The choice between range, hash, and directory-based strategies involves trade-offs among query flexibility, data distribution, and operational complexity.
+#### The Idea
 
-**Deep Explanation:**
+Imagine a library that started with one shelf. Over time books piled up until a single shelf couldn't hold them all, so librarians split the collection across ten rooms — room 1 for A–C authors, room 2 for D–F, and so on. Each room is independent: it has its own catalogue, its own staff, and can be searched quickly. That is sharding. Instead of one giant database, you split rows across many independent database instances called shards.
 
-**Why shard at all?**
-A single MySQL or PostgreSQL instance tops out around 100k–500k QPS (with heavy caching). When your write throughput or dataset size exceeds what one machine can handle, you shard. Vertical scaling (bigger machines) has diminishing returns and a hard ceiling.
+The split is controlled by a **shard key** — a column (or combination of columns) chosen from your data. Every write and read uses that key to decide which shard to talk to. A user-id, order-id, or tenant-id are typical choices. Pick well and each shard handles a fair slice of traffic; pick poorly and one shard becomes a bottleneck while the others idle.
 
-**Shard Key Selection — the most critical decision:**
-- The shard key must distribute writes evenly (avoid hot shards)
-- It should enable most queries to hit a single shard (avoid scatter-gather)
-- It should rarely need to change (resharding is painful)
-- Poor examples: `user_country` (US shard gets 40% of traffic), `created_at` (monotonically increasing keys all land on the latest shard)
-- Good examples: `user_id` (hashed), composite key (`tenant_id + entity_id`)
+There are three main strategies for mapping a key to a shard. **Range sharding** assigns contiguous key ranges to each shard (users 1–1 000 000 on shard A, 1 000 001–2 000 000 on shard B). **Hash sharding** runs the key through a hash function and uses `hash(key) % N` to pick a shard — spreading data more evenly but losing range-query ability. **Directory-based sharding** keeps a lookup table that maps each key (or key prefix) to a shard — maximum flexibility at the cost of maintaining that lookup service.
 
-**Range-Based Sharding:**
-Rows are partitioned by contiguous value ranges of the shard key (e.g., user IDs 1–1M on shard 1, 1M–2M on shard 2).
-- Pros: Range queries are efficient (all Jan 2024 orders are on shard 3); easy to reason about data locality
-- Cons: Hot spots when data is not uniformly distributed (new users all write to the last shard); resharding requires splitting ranges and moving data
+---
 
-**Hash-Based Sharding:**
-Apply a hash function to the shard key modulo N shards: `shard = hash(user_id) % N`
-- Pros: Near-uniform distribution; simple to implement
-- Cons: Range queries become scatter-gather (every shard must be queried); resharding requires remapping ~100% of keys when N changes (`hash(id) % 5` vs `hash(id) % 6` produces completely different shard assignments)
+#### How It Works
 
-**Directory-Based Sharding (Lookup Service):**
-A separate metadata service (the shard directory) stores the mapping `shard_key → shard_id`. Each write first consults the directory.
-- Pros: Flexible; can move individual keys between shards without changing logic; supports heterogeneous shard sizes
-- Cons: The directory is a single point of failure and a performance bottleneck; adds network round-trip; the directory itself must be highly available and consistent
+```
+// Range sharding — router logic
+function getShardForKey(key, shardRanges):
+    for each range in shardRanges:
+        if range.min <= key <= range.max:
+            return range.shard
+    throw ShardNotFound
 
-**The Resharding Problem:**
-When you add shards (scale out), you need to move data from overloaded shards to new ones. With naive hash sharding (`% N`), adding one shard invalidates nearly every key mapping and requires moving ~(N-1)/N of all data. This causes prolonged double-write periods and risk. Consistent hashing (Topic 2) solves this.
+// Hash sharding — router logic
+function getShardForKey(key, numShards):
+    return hash(key) % numShards
 
-**Cross-Shard Queries:**
-JOINs across shards require application-level scatter-gather: fan out the query to all shards, collect results, merge in memory. This is expensive. Good shard key design minimizes cross-shard queries by co-locating related data (e.g., all data for a tenant on the same shard).
+// Directory-based — router logic
+function getShardForKey(key, directoryService):
+    return directoryService.lookup(key)   // network call to lookup table
+```
 
-**Cross-Shard Transactions:**
-ACID transactions spanning multiple shards require distributed transactions (2PC — two-phase commit). 2PC is slow and blocks on coordinator failure. Most large-scale systems avoid cross-shard transactions by design (denormalization, eventual consistency, or saga patterns).
+**Range sharding** enables efficient range scans (`WHERE user_id BETWEEN 1 AND 10000`) but causes **hot spots** when keys are written sequentially — all new inserts land on the last shard. **Hash sharding** distributes evenly but breaks range queries — you must scatter-gather across all shards to answer `BETWEEN` queries. **Directory-based** handles non-uniform distributions and supports resharding without changing the hash formula, but the directory itself becomes a single point of failure if not replicated.
 
-**Real-World Example:**
-Instagram's user table: sharded by `user_id` using consistent hashing. Each shard is a PostgreSQL primary + replica set. Media metadata is co-located with the user on the same shard to avoid cross-shard lookups. The follower relationship table is sharded separately by `follower_id` for write throughput, accepting that "get all followers of user X" requires a cross-shard query on the celebrity shard problem.
+Must-memorise gotcha — the real code interviewers expect you to know:
 
-**Code Example:**
 ```java
-// Simple hash-based shard router
-public class ShardRouter {
-    private final List<DataSource> shards;
-    private final int numShards;
+// Cross-shard join — THIS DOES NOT WORK natively
+// You cannot JOIN tables on different shards in a single SQL query.
+// You must fetch from each shard and join in application memory.
 
-    public ShardRouter(List<DataSource> shards) {
-        this.shards = shards;
-        this.numShards = shards.size();
-    }
+List<Order> ordersFromShard1 = shard1.query("SELECT * FROM orders WHERE user_id = ?", userId);
+List<Order> ordersFromShard2 = shard2.query("SELECT * FROM orders WHERE user_id = ?", userId);
+// merge in application code — expensive and error-prone
+```
 
-    // PROBLEM: adding a shard remaps ~(N-1)/N keys
-    public DataSource getShardNaive(long userId) {
-        int shardIndex = (int) (Math.abs(userId) % numShards);
-        return shards.get(shardIndex);
-    }
+Cross-shard joins and cross-shard transactions (two-phase commit across shards) are not supported by most sharded systems. Design your data model so that entities that are queried together live on the same shard — called **co-location**. For example, store all of a user's orders on the same shard as the user by sharding both tables on `user_id`.
 
-    // Directory-based routing — flexible but needs a metadata store
-    private final Map<Long, Integer> directory = new ConcurrentHashMap<>();
+---
 
-    public DataSource getShardFromDirectory(long userId) {
-        Integer shardIndex = directory.get(userId);
-        if (shardIndex == null) {
-            // New user: assign to least loaded shard
-            shardIndex = pickLeastLoadedShard();
-            directory.put(userId, shardIndex);
-        }
-        return shards.get(shardIndex);
-    }
+#### Interview Lens
 
-    // Range-based routing
-    private final NavigableMap<Long, Integer> rangeMap = new TreeMap<>();
-    // rangeMap: {0 -> shard0, 1_000_000 -> shard1, 2_000_000 -> shard2}
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
 
-    public DataSource getShardByRange(long userId) {
-        Map.Entry<Long, Integer> entry = rangeMap.floorEntry(userId);
-        return shards.get(entry.getValue());
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
+
+---
+
+##### Q1 — Concept Check
+**"What is database sharding and what are the trade-offs between range, hash, and directory-based strategies?"**
+
+**One-line answer:** Sharding horizontally partitions rows across independent database instances using a shard key, and the partitioning strategy determines the balance between even distribution, query flexibility, and operational overhead.
+
+**Full answer to give in an interview:**
+
+> "Sharding means splitting a single large table's rows across multiple independent database instances — each instance is called a shard and holds a subset of the data. A shard key, typically something like user-id or tenant-id, decides which shard each row lives on.
+>
+> The three strategies differ in their trade-offs. Range sharding assigns contiguous key ranges to each shard — this lets you do efficient range queries like 'give me all orders from user 1 to 1 000 000' but creates hot spots when keys are written sequentially because all new writes hit the last range. Hash sharding runs the key through a hash function and takes modulo N — this spreads writes evenly and avoids hot spots, but you lose range-query ability entirely; a query like 'users with id between 100 and 200' must scatter to every shard and gather results in application code. Directory-based sharding maintains a lookup table mapping keys to shards — very flexible and supports arbitrary resharding, but the directory becomes a dependency that must itself be highly available and low-latency.
+>
+> The big operational constraint of all three: cross-shard joins don't work natively. If an order and its user live on different shards, you cannot do a SQL JOIN — you must fetch both separately and merge in application code. So the data model must be designed for co-location: everything you join together should share the same shard key."
+
+> *Deliver the three strategies in order. Pause after naming each one. Most interviewers will nod and let you continue — if they stop you, go deeper on whichever one they ask about.*
+
+**Gotcha follow-up they'll ask:** *"How do you handle resharding — adding a new shard — without downtime?"*
+
+> "Hash sharding is the painful case: changing N in `hash(key) % N` remaps almost every key, causing massive data movement. Consistent hashing was invented to solve exactly this — I can go into that if useful. Directory-based sharding handles resharding more gracefully: you just update the lookup table entries for the keys you want to move, migrate that data in the background, then flip the directory entry. Range sharding requires splitting a range and migrating half the data, which can be done online with dual-write during the migration window."
+
+---
+
+##### Q2 — Tradeoff Question
+**"When would you choose hash sharding over range sharding for a multi-tenant SaaS application?"**
+
+**One-line answer:** Choose hash sharding when uniform load distribution across shards matters more than the ability to do range queries on the shard key.
+
+**Full answer to give in an interview:**
+
+> "In a multi-tenant SaaS app I'd lean toward hash sharding on tenant-id if the tenants vary widely in activity — hash distributes them across shards more evenly, preventing one large tenant from overwhelming a single shard.
+>
+> Range sharding on tenant-id is tempting because it keeps a tenant's data contiguous and makes tenant-level backups or migrations easy — you know exactly which shard owns tenant X. But if tenant activity is uneven, one shard holding all the high-traffic tenants becomes a hot spot. Hash sharding breaks that correlation.
+>
+> The cost is losing range queries on tenant-id. But in a typical SaaS app, most queries are scoped to a single tenant anyway — 'give me all this tenant's data' — which is a point lookup on tenant-id. Range queries across tenants ('give me all tenants created in January') are rare and can be served by a secondary read replica or a data warehouse rather than the operational sharded database.
+>
+> For the must-avoid mistake: I'd never shard on a timestamp or an auto-increment id in a write-heavy system. Both cause all writes to go to the last shard — which defeats the purpose of sharding entirely."
+
+> *End on the anti-pattern. It shows operational maturity and interviewers remember it.*
+
+**Gotcha follow-up they'll ask:** *"What is a hot shard and how do you fix one in production?"*
+
+> "A hot shard is a shard receiving disproportionately more reads or writes than the others — typically because the shard key correlates with activity (e.g., a celebrity user, a viral event). Fixes: first, identify the hot keys using slow-query logs or shard-level metrics. Then either split that shard into two smaller shards (range split), re-route hot keys to a dedicated shard via directory update, or add a read-replica for the hot shard to absorb read traffic. For write-heavy hot keys, application-level caching or rate-limiting at the API layer is often the faster short-term fix."
+
+---
+
+##### Q3 — Design Scenario
+**"Design the sharding strategy for an e-commerce order system that needs to support both 'get orders for user X' and 'get all orders in the last 24 hours'."**
+
+**One-line answer:** Shard on user-id for operational reads and maintain a separate time-ordered table or data warehouse for time-range queries, because no single shard key satisfies both access patterns.
+
+**Full answer to give in an interview:**
+
+> "These two access patterns conflict at the sharding level. 'Get orders for user X' is a point lookup — user-id is the natural shard key and co-locates a user's orders on one shard, making this a single-shard query. 'Get all orders in the last 24 hours' is a time-range scan — if we sharded by timestamp instead, this would be efficient but 'get orders for user X' would scatter-gather across all shards.
+>
+> My approach: shard the primary orders table by user-id for the operational workload. For time-range analytics, write a secondary copy to a separate system — either a time-series table on a different shard key, a data warehouse like BigQuery or Redshift, or a stream processor that maintains a rolling 24-hour window. The operational DB handles per-user reads at low latency; the analytics system handles cross-cutting time queries with slightly higher latency, which is acceptable for dashboard-style queries.
+>
+> The key insight is that operational databases are optimised for known-key lookups, and analytics databases are optimised for scans. Trying to serve both from one sharded operational DB is a common mistake that leads to either hot shards or scatter-gather inefficiency."
+
+> *This answer demonstrates system design thinking beyond simple sharding — exactly what senior-level interviewers want to see.*
+
+---
+
+> **Common Mistake — Sharding on a monotonically increasing key:** Sharding on auto-increment IDs or timestamps means every new write goes to the last shard. The other shards sit idle while the hot shard becomes a bottleneck and eventually needs emergency splitting. Always model write distribution before choosing a shard key.
+
+---
+
+**Quick Revision (one line):**
+Sharding splits rows across independent DB instances via a shard key; hash sharding distributes evenly but kills range queries, range sharding enables scans but creates hot spots, and cross-shard joins must be done in application code so co-locate data that gets queried together.
+
+---
+
+## Topic 2: Consistent Hashing
+
+---
+
+#### The Idea
+
+Imagine a clock face with 360 positions. You have four servers and you paint each server's name at one of the positions — say 12 o'clock, 3 o'clock, 6 o'clock, and 9 o'clock. When a request comes in, you hash the request key to a position on the clock, then walk clockwise until you hit a server — that server handles the request. This is a consistent hash ring.
+
+Now suppose the 3 o'clock server goes down. With a normal hash (`key % 4` → `key % 3`), almost every key remaps to a different server, invalidating your entire cache or forcing massive data migration. With the ring, only the keys that were pointing to the 3 o'clock server now walk forward to 6 o'clock. Every other key stays exactly where it was. Adding or removing a node disturbs only the keys in that node's arc — roughly 1/N of all keys, where N is the number of nodes.
+
+The problem with a four-point ring is that the four arcs are rarely equal — one server might own 30% of the ring, another only 15%. **Virtual nodes** (vnodes) fix this: instead of placing each physical server at one point, you hash it multiple times and place it at many points. Server A might appear at 150 different positions on the ring. Now the ring is densely and evenly populated, each physical server owns many small arcs that together sum to roughly 1/N of the total ring, and when a server is removed its load spreads across all remaining servers proportionally rather than dumping everything on one neighbour.
+
+---
+
+#### How It Works
+
+```
+// Building a consistent hash ring
+ring = sorted map of (hash_position -> server_name)
+
+function addServer(serverName, numVirtualNodes):
+    for i in 0..numVirtualNodes:
+        position = hash(serverName + "#" + i)
+        ring[position] = serverName
+
+function removeServer(serverName, numVirtualNodes):
+    for i in 0..numVirtualNodes:
+        position = hash(serverName + "#" + i)
+        delete ring[position]
+
+function getServer(key):
+    position = hash(key)
+    // find the first ring entry at or after position (clockwise)
+    entry = ring.ceilingEntry(position)
+    if entry == null:
+        entry = ring.firstEntry()   // wrap around
+    return entry.value
+```
+
+**Adding a node:** new server's vnodes are inserted into the ring. Keys in those arcs now route to the new server — roughly 1/N of keys move. All other keys are undisturbed. **Removing a node:** its vnodes are deleted. Keys in those arcs now route clockwise to the next server — again roughly 1/N of keys, distributed across all remaining servers because vnodes are spread throughout the ring.
+
+Without vnodes, removing one of four servers dumps 25% of all keys onto a single neighbour (the next node clockwise), which can cause a thundering herd on that neighbour. With 150 vnodes per server, that 25% is spread across all three remaining servers in ~50 small chunks each.
+
+Must-memorise gotcha — why vnodes exist:
+
+```java
+// WITHOUT vnodes — 4 physical servers, 4 ring positions
+// Server B (at position 90) is removed.
+// ALL of B's keys (25% of total) now go to Server C (at position 180).
+// Server C suddenly handles 50% of total load — cascading failure risk.
+
+// WITH vnodes — 4 physical servers, 150 virtual nodes each = 600 ring positions
+// Server B's 150 vnodes are removed.
+// Each adjacent vnode's successor is a DIFFERENT physical server.
+// B's ~25% of keys spread across A, C, D roughly evenly (~8% each).
+// No single server absorbs the full load.
+
+// Java TreeMap implementation of the ring:
+TreeMap<Long, String> ring = new TreeMap<>();
+
+void addServer(String server, int vnodeCount) {
+    for (int i = 0; i < vnodeCount; i++) {
+        long hash = hashFunction(server + "#" + i);
+        ring.put(hash, server);
     }
 }
 
-// Vitess-style shard key annotation (pseudo-code for documentation)
-// @ShardKey(column = "user_id", strategy = CONSISTENT_HASH)
-// CREATE TABLE orders (user_id BIGINT, order_id BIGINT, ...);
-```
-
-**Follow-up Questions:**
-1. How do you handle a "celebrity" or hot-key problem where one shard receives disproportionate write traffic?
-2. If you need to rebalance shards online with zero downtime, what is your strategy?
-3. How does Vitess handle sharding for MySQL, and what abstractions does it provide?
-
-**Common Mistakes:**
-- Choosing a low-cardinality shard key (e.g., `status`, `country`) that creates a small number of distinct shards and limits scalability
-- Forgetting that the shard key becomes immutable in practice — updating `user_id` would require moving data across shards
-- Ignoring the operational burden: backup, schema migrations, and monitoring must now run across N shards
-
-**Interview Traps:**
-- Interviewers often ask "just use a UUID as shard key" — the trap is that random UUIDs destroy B-tree locality (write amplification), hurt range queries, and make cross-entity co-location impossible
-- "Can you do transactions across shards?" — Yes, via 2PC, but the correct answer is to explain why you'd redesign to avoid it at scale
-
-**Quick Revision:** Sharding splits rows across database instances using a shard key; hash sharding distributes evenly but breaks range queries and makes resharding costly — consistent hashing and directory-based approaches mitigate this.
-
----
-
-### Topic 2: Consistent Hashing
-**Difficulty:** Hard | **Frequency:** Very High | **Companies:** Amazon (DynamoDB), Netflix (Cassandra), Discord, Stripe
-
-**Q:** What is consistent hashing, and how does it solve the resharding problem? Explain virtual nodes and their purpose.
-
-**Short Answer:**
-Consistent hashing maps both data keys and server nodes onto a logical ring using the same hash function. When a node is added or removed, only keys in that node's segment of the ring need to move — on average ~K/N keys (K = total keys, N = nodes). Virtual nodes improve load balance by assigning each physical server multiple positions on the ring.
-
-**Deep Explanation:**
-
-![Consistent hashing ring](https://upload.wikimedia.org/wikipedia/commons/7/71/Consistent_Hashing_Sample_Illustration.png)
-*Consistent hashing — nodes and keys are mapped to the same ring; each key is owned by the next clockwise node, minimizing remapping when nodes join/leave*
-
-**The Classic Resharding Problem:**
-With `shard = hash(key) % N`, adding one server changes N to N+1. Almost every key maps to a different shard. You must move ~(N-1)/N of all data — a catastrophic migration.
-
-**The Ring Abstraction:**
-Hash both servers and keys to a number in range [0, 2^32). Arrange these numbers on a circular ring. Each key is served by the first server encountered when walking clockwise from the key's position.
-
-```
-           Server A (hash=10)
-              *
-    Key K1        Key K2
-    (hash=8)      (hash=15)
-              *
-           Server B (hash=20)
-```
-K1 → Server A (first server clockwise from 8 is A at 10)
-K2 → Server B (first server clockwise from 15 is B at 20)
-
-**Adding/Removing Nodes:**
-- Add Server C at position 12: only keys between 10 and 12 (previously owned by B) now move to C
-- Remove Server A: only its keys (between previous server and A's position) move to the next server clockwise
-- Result: only ~K/N keys move on average, regardless of total cluster size
-
-**Virtual Nodes (vnodes):**
-Problem with basic consistent hashing: with few physical servers, they land at sparse, uneven positions on the ring → load imbalance. Also, when a server goes down, all its load falls on a single neighbor.
-
-Solution: each physical server is assigned V virtual nodes (V=150 in Cassandra by default). Each vnode has its own position on the ring. Physical server S1 might occupy positions {17, 83, 201, 445, ...} spread around the ring.
-
-Benefits:
-1. **Load balance**: With 150 vnodes per server, the probabilistic spread gives near-uniform key distribution
-2. **Fault tolerance**: When S1 fails, its ~150 segments are distributed across ~150 different neighbors — no single neighbor gets all the load
-3. **Heterogeneous hardware**: Give powerful servers more vnodes to carry more data proportionally
-
-**Implementation in Cassandra/DynamoDB:**
-- Cassandra: `num_tokens = 256` (vnodes per node). The token ring is stored in the `system.tokens` table, gossipped between nodes
-- DynamoDB: uses consistent hashing internally but abstracts it completely behind the SDK; the partition key IS the consistent hash key
-- Amazon's paper (Dynamo, 2007) introduced vnodes to production systems
-
-**Lookup Complexity:**
-- Naive: O(N) linear scan of all node positions
-- Production: sorted array of token positions + binary search = O(log N)
-- Java `TreeMap` / `NavigableMap` is the standard implementation vehicle
-
-**Real-World Example:**
-Discord serves billions of messages. Their message store uses Cassandra with consistent hashing. When they add capacity (new Cassandra node), only the new node's portion of the ring migrates — typically a few percent of data. A full cluster expansion from 20→21 nodes means roughly 1/21 of data moves rather than remapping everything.
-
-**Code Example:**
-```java
-import java.security.MessageDigest;
-import java.util.SortedMap;
-import java.util.TreeMap;
-
-public class ConsistentHashRing {
-    private final SortedMap<Long, String> ring = new TreeMap<>();
-    private final int virtualNodes;
-
-    public ConsistentHashRing(int virtualNodes) {
-        this.virtualNodes = virtualNodes;
-    }
-
-    public void addServer(String server) {
-        for (int i = 0; i < virtualNodes; i++) {
-            long hash = hash(server + "#vnode" + i);
-            ring.put(hash, server);
-        }
-    }
-
-    public void removeServer(String server) {
-        for (int i = 0; i < virtualNodes; i++) {
-            long hash = hash(server + "#vnode" + i);
-            ring.remove(hash);
-        }
-    }
-
-    public String getServer(String key) {
-        if (ring.isEmpty()) throw new IllegalStateException("No servers");
-        long hash = hash(key);
-        // Find first server clockwise from key's hash
-        SortedMap<Long, String> tail = ring.tailMap(hash);
-        Long serverHash = tail.isEmpty() ? ring.firstKey() : tail.firstKey();
-        return ring.get(serverHash);
-    }
-
-    // Replicated writes: get next N unique servers clockwise
-    public List<String> getReplicaServers(String key, int replicationFactor) {
-        List<String> replicas = new ArrayList<>();
-        Set<String> seen = new HashSet<>();
-        long hash = hash(key);
-        // Walk clockwise, collect distinct physical servers
-        SortedMap<Long, String> tail = ring.tailMap(hash);
-        for (Map.Entry<Long, String> e : Iterables.concat(tail, ring).entrySet()) {
-            if (seen.add(e.getValue())) {
-                replicas.add(e.getValue());
-                if (replicas.size() == replicationFactor) break;
-            }
-        }
-        return replicas;
-    }
-
-    private long hash(String key) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] digest = md.digest(key.getBytes());
-            // Use first 8 bytes as long
-            long h = 0;
-            for (int i = 0; i < 8; i++) h = (h << 8) | (digest[i] & 0xFF);
-            return h;
-        } catch (Exception e) { throw new RuntimeException(e); }
-    }
+String getServer(String key) {
+    long hash = hashFunction(key);
+    Map.Entry<Long, String> entry = ring.ceilingEntry(hash);
+    if (entry == null) entry = ring.firstEntry(); // wrap around
+    return entry.getValue();
 }
-
-// Usage:
-// ConsistentHashRing ring = new ConsistentHashRing(150);
-// ring.addServer("redis-1:6379");
-// ring.addServer("redis-2:6379");
-// String server = ring.getServer("user:12345"); // → "redis-1:6379"
 ```
-
-**Follow-up Questions:**
-1. How does replication factor interact with consistent hashing? How do you select replica nodes?
-2. What happens during a node addition if we want zero-downtime — how do we stream data to the new node while serving reads?
-3. MD5 is used above — in production, would you use MD5? What are the alternatives and why?
-
-**Common Mistakes:**
-- Forgetting that without virtual nodes, a single node failure dumps all its load onto exactly one neighbor — a thundering herd
-- Using `String.hashCode()` (non-deterministic across JVM restarts since Java 7) as the hash function
-- Not handling the ring wrap-around: if a key hashes to a value larger than all servers, it must wrap to the first server (the `ring.firstKey()` fallback)
-
-**Interview Traps:**
-- "Can you just use modulo hashing with a prime number?" — No, the modulo issue is about N changing, not about the modulus value
-- Interviewer may ask you to implement getReplicaServers — the key insight is collecting distinct **physical** servers, not just N consecutive vnodes (multiple vnodes of the same server must be skipped)
-
-**Quick Revision:** Consistent hashing maps nodes and keys to a ring; adding/removing a node moves only ~1/N of keys; virtual nodes (150+ per server) ensure uniform distribution and spread failure impact across many neighbors.
 
 ---
 
-### Topic 3: Replication Strategies
-**Difficulty:** Hard | **Frequency:** Very High | **Companies:** Amazon, Google, MongoDB Atlas, CockroachDB
+#### Interview Lens
 
-**Q:** Compare single-leader, multi-leader, and leaderless replication. When would you choose each, and what consistency guarantees does each provide?
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
 
-**Short Answer:**
-Single-leader replication serializes all writes through one node for strong consistency but creates a write bottleneck and failover complexity. Multi-leader enables writes at multiple datacenters but requires conflict resolution. Leaderless (Dynamo-style) uses quorum writes/reads (R+W>N) for tunable consistency with no single point of failure.
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
 
-**Deep Explanation:**
+---
 
-**Single-Leader (Primary-Replica) Replication:**
-One primary accepts all writes; replicas receive changes via replication log (binlog in MySQL, WAL in PostgreSQL).
+##### Q1 — Concept Check
+**"What is consistent hashing and why is it used in distributed systems?"**
 
-*Synchronous vs. Asynchronous:*
-- **Synchronous**: Primary waits for at least one replica to acknowledge before confirming write. Guarantees no data loss on primary failure but increases write latency
-- **Semi-synchronous**: At least one replica is synchronous; others async. MySQL default since 5.7
-- **Asynchronous**: Primary confirms immediately; replicas lag. High write throughput, but replica lag causes stale reads and potential data loss on failover
+**One-line answer:** Consistent hashing maps keys and servers onto a ring so that adding or removing a server only remaps 1/N of all keys instead of remapping almost everything.
 
-*Failover:*
-When primary fails, a replica must be promoted. Challenges:
-1. **Replica lag**: New primary may not have all writes → acknowledged writes can be lost (split brain if old primary recovers)
-2. **Epoch/generation numbers**: Raft/Paxos-based systems use fencing tokens to prevent old leader from writing after being demoted
+**Full answer to give in an interview:**
 
-**Multi-Leader Replication:**
-Multiple nodes accept writes simultaneously. Common in multi-datacenter deployments (each DC has its own leader; replication is async between DCs).
+> "Consistent hashing solves the resharding problem with normal modulo hashing. With plain `hash(key) % N`, if N changes — because a server died or you added capacity — almost every key maps to a different server. For a distributed cache that means a nearly complete cache miss storm. For a distributed database it means migrating almost all your data.
+>
+> Consistent hashing places both keys and servers on a conceptual ring using the same hash function. A key is served by the first server you reach when you walk clockwise from the key's position on the ring. When a server is added or removed, only the keys in that server's arc — roughly 1 out of N total keys — need to move. Everything else stays put.
+>
+> Virtual nodes make this practical. Without them, four servers give four unequal arcs and removing one dumps all its load on a single neighbour. With virtual nodes, each physical server is hashed to many positions — say 150 — so arcs are small and numerous. When a server is removed, its 150 arcs each hand off to a different nearby server, spreading the load evenly across the whole cluster.
+>
+> Real-world users: Amazon DynamoDB, Apache Cassandra, and most distributed caches use consistent hashing as the foundation for key routing."
 
-Use cases: offline-capable apps (CouchDB), multi-datacenter active-active (Cassandra's multi-DC mode)
+> *If they ask about the ring wrap-around: the ring is a modular space — after the last position comes the first. The TreeMap ceiling-then-first trick handles it in O(log N).*
 
-*Conflict Resolution:* When two leaders receive conflicting writes to the same row:
-- **Last-write-wins (LWW)**: Highest timestamp wins. Simple but loses data; vulnerable to clock skew
-- **Custom conflict handlers**: Application-provided merge logic (CouchDB)
-- **CRDTs**: Conflict-free Replicated Data Types that auto-merge (Topic 4)
+**Gotcha follow-up they'll ask:** *"What happens to cache hit rate when a node is added to a consistent hash ring?"*
 
-**Leaderless Replication (Dynamo-style):**
-Any replica can accept any write. Used in DynamoDB, Cassandra, Riak, Voldemort.
+> "Only the keys in the new node's arcs — roughly 1/N of total keys — will now route to the new node. Those keys were previously cached on their old server and are not yet on the new one, so they get a cache miss and must be fetched from the database. The other (N-1)/N of keys are unaffected and continue hitting their existing servers. So cache hit rate dips by roughly 1/N immediately after adding a node and recovers as those keys are re-cached. This is far better than plain modulo hashing, where almost every key remaps and you get a near-total miss storm."
 
-*Quorum reads and writes:*
-- N = total replicas for a key
-- W = replicas that must acknowledge a write
-- R = replicas that must respond to a read
-- Condition for strong consistency: **R + W > N**
+---
 
-Example: N=3, W=2, R=2 → at least one replica in any read set must have seen the latest write.
+##### Q2 — Tradeoff Question
+**"How many virtual nodes should you assign per physical server, and what are the trade-offs?"**
 
-Common configurations:
-| Config | R | W | Trade-off |
-|--------|---|---|-----------|
-| High availability | 1 | 1 | Fastest but inconsistent |
-| Read-heavy | 1 | 3 | All writes hit all replicas; reads from any one |
-| Balanced | 2 | 2 | Standard; tolerates 1 node failure |
-| Consistency | 3 | 3 | All nodes must agree; no tolerance |
+**One-line answer:** More virtual nodes gives better load balance but increases the memory footprint of the ring and the overhead of adding or removing a server.
 
-*Sloppy quorum:* During network partition, writes can be accepted by nodes outside the key's home set (hinted handoff). Improves availability at the cost of durability guarantees. W + R > N no longer holds strictly.
+**Full answer to give in an interview:**
 
-*Version vectors / conflict detection:* Leaderless systems use vector clocks or version vectors to detect conflicting concurrent writes. The client or system then resolves the conflict.
+> "The ring data structure is a sorted map — a TreeMap in Java. Each virtual node is one entry in that map. With 150 vnodes per server and 100 servers, the ring has 15 000 entries. That's negligible memory. With 1 000 vnodes per server and 10 000 servers, you have 10 million entries — still manageable but worth measuring.
+>
+> The main trade-off is load balance precision versus operational cost. With very few vnodes — say 10 per server — arc sizes are still uneven and some servers handle significantly more load than others. Empirically, 100–150 vnodes per server gives good balance for cluster sizes up to a few hundred nodes. Cassandra defaults to 256.
+>
+> Adding or removing a server requires inserting or deleting all of its vnode entries in the ring and then migrating the data those arcs covered. More vnodes means more ring updates, but the migration work is the same regardless — it's still 1/N of total data. So the overhead of more vnodes is mostly the ring update cost, not the data migration cost.
+>
+> Heterogeneous hardware is another reason to tune vnode count: a server with twice the RAM and CPU should get twice as many vnodes so it naturally owns twice as large a share of the ring."
 
-**Real-World Example:**
-Amazon S3 uses leaderless replication internally. When you PUT an object with `x-amz-server-side-encryption`, the write is confirmed after W replicas acknowledge. A subsequent GET may return a stale version if it hits R replicas that haven't yet received the write — this is the eventual consistency window S3 historically exposed (now S3 is strongly consistent since 2020, achieved by adding a strong-consistency layer).
+> *This shows you understand the engineering nuance, not just the concept.*
 
-**Code Example:**
+**Gotcha follow-up they'll ask:** *"Cassandra uses consistent hashing — how does it decide which nodes to replicate data to?"*
+
+> "Cassandra assigns a replication factor, say 3. When a key hashes to position P on the ring, it is written to the first three distinct physical servers encountered walking clockwise from P — these are the three replicas. Virtual nodes complicate this slightly: you walk clockwise collecting vnodes but skip additional vnodes belonging to servers you've already selected, until you have N distinct physical servers. This gives rack-aware and data-center-aware replication when Cassandra's snitch is configured to know which rack each server is in."
+
+---
+
+##### Q3 — Design Scenario
+**"Design a consistent hash-based load balancer for a distributed cache cluster."**
+
+**One-line answer:** Build a ring with virtual nodes for each cache server, route each cache key to its clockwise server, and rebalance by adding/removing vnodes when the cluster changes.
+
+**Full answer to give in an interview:**
+
+> "The load balancer maintains an in-memory sorted ring — a TreeMap of hash position to server address. At startup it adds each cache server with, say, 150 virtual nodes. For each incoming cache key, it hashes the key, does a ceiling lookup in the TreeMap, and forwards the request to that server. The lookup is O(log N) where N is total virtual nodes.
+>
+> When a new cache server joins, the load balancer adds its 150 vnodes to the ring. The keys in those arcs now route to the new server — they'll be cache misses initially, which is acceptable. When a server leaves or dies, its vnodes are removed and the keys route to the next server clockwise. Those keys are also cache misses initially but the system self-heals as requests repopulate the new server.
+>
+> For production use I'd add health checking: the load balancer pings each server periodically and removes dead servers' vnodes from the ring automatically. I'd also maintain the ring in a replicated configuration store — ZooKeeper or etcd — so all load balancer instances see the same ring state and avoid split-brain routing decisions."
+
+> *Close with the operational detail — it shows you've thought past the algorithm.*
+
+---
+
+> **Common Mistake — Forgetting virtual nodes in the answer:** If you explain consistent hashing with just physical nodes on the ring, you'll describe a system where removing one of four servers dumps 25% of load on a single neighbour. That's the problem vnodes solve. Always mention vnodes when explaining consistent hashing — the interviewer is specifically checking whether you know this.
+
+---
+
+**Quick Revision (one line):**
+Consistent hashing places keys and servers on a ring so only 1/N keys move when a server is added or removed; virtual nodes give each physical server many ring positions so load spreads evenly and no single neighbour inherits a removed server's full share.
+
+---
+
+## Topic 3: Replication Strategies
+
+---
+
+#### The Idea
+
+A single database server is a single point of failure. If it crashes, all reads and writes fail. Replication solves this by keeping identical copies of the data on multiple servers. But keeping copies in sync raises a fundamental question: does the original server wait for all copies to confirm before telling the client "your write succeeded," or does it say "done" immediately and sync the copies in the background?
+
+That question — wait or don't wait — is the core trade-off of every replication strategy. Waiting (synchronous replication) means every copy is guaranteed to be up to date when the client gets a success response, but every write is only as fast as your slowest replica. Not waiting (asynchronous replication) makes writes fast because you only write to the primary and reply immediately, but if the primary crashes before syncing replicas, you lose that write.
+
+These trade-offs get more complex as you add more leaders. A single-leader system routes all writes through one node, making consistency easy but creating a write bottleneck. Multi-leader systems let multiple nodes accept writes simultaneously — useful for geo-distributed systems where users write to their nearest data centre — but require a conflict-resolution strategy when two leaders accept conflicting writes to the same record. Leaderless systems like Amazon Dynamo or Apache Cassandra go further: any replica can accept any write, and consistency is maintained through quorum reads and writes rather than through leadership.
+
+---
+
+#### How It Works
+
+```
+// Single-leader replication
+primary receives write
+  -> applies write to own storage
+  -> if SYNCHRONOUS: sends to all replicas, waits for all ACKs, then responds to client
+  -> if ASYNCHRONOUS: responds to client immediately, replicates in background
+  -> if SEMI-SYNCHRONOUS: waits for at least one replica ACK, then responds
+
+// Multi-leader replication
+writer_1 on datacenter_A accepts write to record R: value = "X"
+writer_2 on datacenter_B accepts write to record R: value = "Y"  (same record, same time)
+both leaders sync to each other -> CONFLICT on record R
+resolution strategies:
+  - last-write-wins: keep whichever write has the later timestamp (loses the other)
+  - application-level merge: pass both versions to application to merge
+  - CRDT: use a conflict-free replicated data type that auto-merges
+
+// Leaderless (quorum) replication — the must-memorise pattern
+N = total replicas
+W = number of replicas that must confirm a write (write quorum)
+R = number of replicas that must respond to a read (read quorum)
+
+if W + R > N:
+    every read overlaps with every write set by at least one node
+    -> at least one node in the read set has the latest write
+    -> STRONG CONSISTENCY guaranteed
+```
+
+Must-memorise gotcha — the quorum condition:
+
 ```java
-// Quorum write/read in a leaderless system (pseudo-implementation)
+// W + R > N is the quorum condition for strong consistency in leaderless replication.
+// Example: N=3, W=2, R=2  ->  W+R=4 > 3  ->  strong consistency
+// Example: N=3, W=1, R=1  ->  W+R=2 < 3  ->  eventual consistency only
+
 public class LeaderlessReplicaClient {
-    private final List<ReplicaNode> replicas; // e.g., 3 nodes
-    private final int N, W, R;
+    private final int N = 3;  // total replicas
+    private final int W = 2;  // write quorum
+    private final int R = 2;  // read quorum
 
-    public LeaderlessReplicaClient(List<ReplicaNode> replicas, int w, int r) {
-        this.replicas = replicas;
-        this.N = replicas.size();
-        this.W = w; // e.g., 2
-        this.R = r; // e.g., 2
-        assert W + R > N : "Quorum condition R+W>N must hold for consistency";
-    }
-
-    public void write(String key, String value, long timestamp) {
-        List<CompletableFuture<Void>> futures = replicas.stream()
-            .map(r -> CompletableFuture.runAsync(() -> r.write(key, value, timestamp)))
-            .collect(Collectors.toList());
-
-        // Wait for W acknowledgments (others may lag — async replication)
+    public void write(String key, String value) {
         int acks = 0;
-        for (CompletableFuture<Void> f : futures) {
-            try {
-                f.get(100, TimeUnit.MILLISECONDS);
-                if (++acks == W) return; // Quorum reached
-            } catch (Exception e) { /* replica failed or slow */ }
+        for (Replica r : replicas) {
+            if (r.write(key, value)) acks++;
+            if (acks >= W) return;  // quorum reached
         }
-        if (acks < W) throw new QuorumNotReachedException("Write failed: only " + acks + "/" + W);
+        throw new QuorumNotReachedException("Only " + acks + " of " + W + " required acks");
     }
 
     public String read(String key) {
-        List<VersionedValue> responses = replicas.parallelStream()
-            .map(r -> { try { return r.read(key); } catch (Exception e) { return null; } })
-            .filter(Objects::nonNull)
-            .limit(R)
-            .collect(Collectors.toList());
-
-        if (responses.size() < R) throw new QuorumNotReachedException("Read failed");
-
-        // Read repair: if versions differ, write latest back to stale replicas
-        VersionedValue latest = responses.stream()
-            .max(Comparator.comparingLong(VersionedValue::getTimestamp))
+        List<VersionedValue> responses = new ArrayList<>();
+        for (Replica r : replicas) {
+            responses.add(r.read(key));
+            if (responses.size() >= R) break;  // quorum reached
+        }
+        // return the value with the highest version number
+        return responses.stream()
+            .max(Comparator.comparing(VersionedValue::getTimestamp))
+            .map(VersionedValue::getValue)
             .orElseThrow();
-
-        responses.stream()
-            .filter(v -> v.getTimestamp() < latest.getTimestamp())
-            .forEach(stale -> /* async repair write to stale replica */ );
-
-        return latest.getValue();
     }
 }
 ```
 
-**Follow-up Questions:**
-1. How does replica lag affect monotonic read consistency, and how does session stickiness address it?
-2. In a network partition, what does Cassandra do with writes that can't reach a quorum?
-3. What is "read your own writes" consistency and how do you implement it in a leaderless system?
-
-**Common Mistakes:**
-- Confusing R+W>N (strong read-after-write) with general strong consistency — even with R+W>N, concurrent writes can still cause conflicts
-- Assuming synchronous replication is "free" — it doubles write latency and ties write availability to replica availability
-- Forgetting that sloppy quorums break the R+W>N guarantee: during a partition, W might be satisfied by non-home replicas
-
-**Interview Traps:**
-- "MySQL replication is synchronous, right?" — By default, MySQL uses asynchronous replication. Only with `rpl_semi_sync_master_enabled` does it become semi-synchronous
-- "With N=3, W=2, R=2, can you lose data?" — Yes: if W nodes acknowledge and then both crash before replicating to the third, the write is lost even though quorum was reached
-
-**Quick Revision:** Single-leader is simple but bottlenecks writes; multi-leader enables multi-DC writes but needs conflict resolution; leaderless (R+W>N) gives tunable consistency with no SPOF, at the cost of conflict detection complexity.
+Tuning W and R lets you trade off write latency versus read latency versus consistency. Setting W=N gives maximum durability (every replica has the write) but write latency equals the slowest replica. Setting W=1 gives lowest write latency but maximum data loss risk if the primary crashes before syncing.
 
 ---
 
-### Topic 4: Eventual Consistency in Practice
-**Difficulty:** Hard | **Frequency:** High | **Companies:** Amazon, Meta, Netflix, Riak, Cassandra teams
+#### Interview Lens
 
-**Q:** Explain how eventual consistency systems handle conflicting concurrent writes. What are vector clocks, and when would you use CRDTs instead?
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
 
-**Short Answer:**
-Eventual consistency guarantees that, absent new writes, all replicas will converge to the same value — but doesn't specify when or how conflicts are resolved. Systems use last-write-wins (simple but lossy), vector clocks (detect causality to identify true conflicts), or CRDTs (data structures that provably merge without conflicts) depending on the required semantics.
-
-**Deep Explanation:**
-
-**The Conflict Problem:**
-In a leaderless or multi-leader system, two clients can simultaneously write different values to the same key on different replicas. Both writes are locally valid; the system must reconcile them during read or anti-entropy.
-
-**Last-Write-Wins (LWW):**
-Each write is tagged with a timestamp. On conflict, the higher timestamp wins; the other write is discarded.
-- Used by: Cassandra (default), DynamoDB (optional)
-- Pros: Simple, O(1) space, easy to implement
-- Cons: **Loses data** — a perfectly valid write is silently dropped. Vulnerable to clock skew: a node with a fast clock can override a later write. Even a few milliseconds of drift is enough to corrupt data
-
-**Vector Clocks:**
-A vector clock is a map `{nodeId → counter}`. Each write increments the local node's counter. When merging, compare two vector clocks:
-- If V1 dominates V2 (all V1 counters >= V2 counters, at least one strictly greater), V1 causally follows V2 — V1 is newer, no conflict
-- If neither dominates the other, the writes are **concurrent** — a true conflict requiring resolution
-
-```
-Client A writes at [A:1, B:0] → "Alice"
-Client B writes at [A:0, B:1] → "Alicia"
-Neither dominates → sibling versions, conflict surfaced to client
-```
-
-Amazon's original DynamoDB paper described surfacing siblings to the client for application-level resolution. Riak implements this. The trade-off: the application must handle multiple values being returned for a single key.
-
-**Version Vectors vs. Vector Clocks:**
-In systems like Riak, each **replica** has a version vector (not each client). This avoids unbounded growth of the clock when many clients write. Vector clocks grow with the number of writers; version vectors grow with the number of replicas.
-
-**CRDTs (Conflict-free Replicated Data Types):**
-CRDTs are data structures mathematically designed so that any two replicas can be merged in any order, and the result is the same. No conflict resolution logic needed.
-
-Two types:
-1. **State-based CRDTs (CvRDTs)**: Replicas periodically merge their full state. The merge function must be commutative, associative, and idempotent (a join-semilattice)
-2. **Operation-based CRDTs (CmRDTs)**: Replicate operations (not state); requires reliable delivery
-
-Common CRDTs:
-| CRDT | Use Case | Merge Rule |
-|------|----------|------------|
-| G-Counter | Distributed counter (increment only) | Max per node |
-| PN-Counter | Bidirectional counter | Two G-Counters (P and N) |
-| LWW-Register | Single value (with LWW semantics) | Higher timestamp wins |
-| OR-Set | Set with add/remove | Tag elements with unique IDs; remove only removes specific tagged element |
-| RGA (Replicated Growable Array) | Collaborative text editing | Position-aware ordering |
-
-Figma, Notion, and Google Docs use CRDT-based approaches for real-time collaboration. Redis has CRDT data types in Redis Enterprise (CRDB).
-
-**Read Repair:**
-When a read coordinator queries R replicas and finds different versions, it:
-1. Returns the most recent version to the client
-2. Asynchronously writes the most recent version back to stale replicas (read repair)
-Read repair converges stale replicas but only for hot keys — cold keys may stay stale for a long time.
-
-**Anti-Entropy (Background Repair):**
-A background process (Cassandra's `nodetool repair`) compares replicas using **Merkle trees** (hash trees). Each leaf is a hash of a data range; internal nodes hash their children. Two replicas can compare their Merkle tree roots — if equal, they are in sync. If not, binary search down the tree to find the divergent leaf range. Only the divergent data is transferred.
-- Cassandra: run `nodetool repair` weekly (or continuously in newer versions)
-- DynamoDB: internal anti-entropy service runs continuously
-
-**Real-World Example:**
-Amazon's shopping cart (from the Dynamo paper) uses an OR-Set CRDT. Adding an item tags it with a unique identifier. Deleting removes that specific tag. If two offline clients both add different items and then sync, both additions are preserved (union of item sets). If one client deletes and the other adds the same item concurrently, the add wins — which is the correct business semantics for a shopping cart (prefer data retention over deletion consistency).
-
-**Code Example:**
-```java
-// G-Counter CRDT: increment-only distributed counter
-public class GCounter {
-    private final String nodeId;
-    private final Map<String, Long> counts = new ConcurrentHashMap<>();
-
-    public GCounter(String nodeId) {
-        this.nodeId = nodeId;
-        counts.put(nodeId, 0L);
-    }
-
-    public void increment() {
-        counts.merge(nodeId, 1L, Long::sum);
-    }
-
-    public long value() {
-        return counts.values().stream().mapToLong(Long::longValue).sum();
-    }
-
-    // Merge two replicas: take element-wise max (join operation)
-    public GCounter merge(GCounter other) {
-        GCounter result = new GCounter(nodeId);
-        Set<String> allNodes = new HashSet<>(this.counts.keySet());
-        allNodes.addAll(other.counts.keySet());
-        for (String node : allNodes) {
-            result.counts.put(node, Math.max(
-                this.counts.getOrDefault(node, 0L),
-                other.counts.getOrDefault(node, 0L)
-            ));
-        }
-        return result;
-    }
-}
-
-// Vector clock implementation
-public class VectorClock {
-    private final Map<String, Long> clock = new HashMap<>();
-
-    public void increment(String nodeId) {
-        clock.merge(nodeId, 1L, Long::sum);
-    }
-
-    // Returns true if this clock causally dominates other (this happened after other)
-    public boolean dominates(VectorClock other) {
-        boolean strictlyGreater = false;
-        for (String node : other.clock.keySet()) {
-            long mine = clock.getOrDefault(node, 0L);
-            long theirs = other.clock.get(node);
-            if (mine < theirs) return false;
-            if (mine > theirs) strictlyGreater = true;
-        }
-        return strictlyGreater || clock.keySet().stream()
-            .anyMatch(n -> clock.get(n) > other.clock.getOrDefault(n, 0L));
-    }
-
-    public boolean isConcurrentWith(VectorClock other) {
-        return !this.dominates(other) && !other.dominates(this);
-    }
-}
-```
-
-**Follow-up Questions:**
-1. What is the "tombstone" problem in Cassandra, and how does it relate to eventual consistency and LWW deletion?
-2. How does a Merkle tree enable efficient anti-entropy between two replicas? What is the time complexity?
-3. Explain the difference between a state-based and operation-based CRDT. When does each become impractical?
-
-**Common Mistakes:**
-- Conflating "eventual consistency" with "inconsistent forever" — eventual consistency is a liveness property, not a safety failure
-- Assuming LWW is safe because clocks are "usually accurate" — NTP has millisecond-level drift; at high write rates, this causes real data loss
-- Implementing a custom conflict resolution strategy when an OR-Set or PN-Counter CRDT would give provably correct semantics
-
-**Interview Traps:**
-- "Just use timestamps" — The interviewer wants to hear you identify clock skew as a fundamental problem, not just a corner case
-- "Is Cassandra eventually consistent?" — Nuanced: at quorum=ALL it is strongly consistent; below quorum, it is eventually consistent. The model is tunable
-
-**Quick Revision:** Eventual consistency resolves conflicts via LWW (lossy), vector clocks (detect concurrent writes for app-level resolution), or CRDTs (provably conflict-free data structures); background anti-entropy via Merkle trees ensures cold data also converges.
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
 
 ---
 
-### Topic 5: Distributed Caching Architecture
-**Difficulty:** Medium-Hard | **Frequency:** Very High | **Companies:** Amazon, Meta, Twitter, Netflix, Cloudflare
+##### Q1 — Concept Check
+**"What is the difference between synchronous and asynchronous replication, and when would you choose each?"**
 
-**Q:** How does Redis Cluster use consistent hashing for shard key routing? What is the hot key problem and how do you solve it?
+**One-line answer:** Synchronous replication waits for replica acknowledgement before confirming a write — zero data loss but higher latency; asynchronous replication confirms immediately and syncs in the background — lower latency but risk of data loss if the primary crashes.
 
-**Short Answer:**
-Redis Cluster partitions keys across 16,384 hash slots (not pure consistent hashing — it uses a fixed slot space), with each master node owning a range of slots. A key's slot is `CRC16(key) % 16384`. The hot key problem occurs when a single key (e.g., a celebrity's profile) concentrates disproportionate traffic on one shard, causing CPU saturation.
+**Full answer to give in an interview:**
 
-**Deep Explanation:**
+> "With synchronous replication, after the primary writes to its own storage it sends the write to one or more replicas and waits for them to confirm before responding to the client with 'success.' The client's write is not considered done until at least one replica has it. The guarantee: if the primary crashes immediately after responding, the replica has a complete copy and can take over with no data loss. The cost: every write is as slow as the round-trip to the replica — if the replica is in a different availability zone, you add 5–20ms to every write.
+>
+> With asynchronous replication, the primary writes locally, responds to the client immediately, and replicates to followers in the background. Writes are fast — only limited by local disk I/O. The risk: if the primary crashes after responding to the client but before replicating, that write is gone. The replica that takes over is missing the last few writes — called replication lag.
+>
+> Most production systems use semi-synchronous replication as a pragmatic middle ground: wait for at least one replica to confirm, then respond. MySQL calls this 'semi-sync.' You get durability against single-node failure without waiting for all replicas. Asynchronous is the right choice for analytics replicas where you accept some lag in exchange for not slowing down primary writes."
 
-**Redis Cluster Architecture:**
-Redis Cluster does not use traditional consistent hashing. Instead:
-1. The key space is divided into 16,384 hash slots
-2. Each master node owns a contiguous range of slots (e.g., node1: 0–5460, node2: 5461–10922, node3: 10923–16383)
-3. Key routing: `slot = CRC16(key) % 16384`
-4. Every Redis Cluster node knows the full slot-to-node mapping (gossip protocol)
-5. If a client sends a command to the wrong node, the node responds with `MOVED <slot> <host>:<port>`
+> *Note: MySQL defaults to asynchronous replication. A common interview trap is assuming MySQL is synchronous — it is not unless you explicitly enable semi-sync with `rpl_semi_sync_master_enabled=1`.*
 
-This is closer to range-based sharding on a fixed keyspace than true consistent hashing. Adding a node requires resharding — migrating specific slot ranges using `CLUSTER SETSLOT` commands (can be done online).
+**Gotcha follow-up they'll ask:** *"What is replication lag and what problems does it cause?"*
 
-**Hash Tags:**
-To force multiple keys to the same slot (enabling multi-key operations): use `{tag}` in the key name.
-- `{user:123}.profile` and `{user:123}.settings` both hash to slot `CRC16("user:123") % 16384`
-- Allows MGET, MSET, Lua scripts, and transactions across these keys
+> "Replication lag is the delay between a write hitting the primary and that write becoming visible on a replica. In asynchronous replication this can range from milliseconds to seconds. It causes two practical problems: first, stale reads — if your application reads from a replica to offload the primary, a user who just wrote something may not see it when they immediately read it back, because their read hit a lagging replica. Second, failover data loss — if the primary crashes and the replica is elected as new primary, any writes that were in-flight in the replication stream are lost. Read-your-writes consistency and monotonic reads are the application-level strategies for handling lag — I cover those in the eventual consistency topic."
 
-**Cache Sharding Strategies (beyond Redis Cluster):**
-1. **Client-side sharding**: Application decides which Redis shard based on consistent hashing. Simple, no proxy overhead, but resharding requires application changes
-2. **Proxy-based sharding**: Twemproxy (nutcracker) or Envoy proxy handles routing. Transparent to application; single point of failure risk
-3. **Redis Cluster**: Native cluster mode; most production setups use this
+---
 
-**The Hot Key Problem:**
-Scenario: A celebrity tweet is retweeted 10M times. The tweet object `tweet:elonmusk:12345` maps to one Redis slot, which maps to one Redis master. All 1M cache reads/sec hit that single 1-CPU Redis process.
+##### Q2 — Tradeoff Question
+**"Explain leaderless replication and the quorum condition W + R > N."**
 
-**Solutions:**
-1. **Key replication / read replicas**: Redis replica nodes serve reads. Add replicas for hot shards (Redis Cluster supports per-slot replica counts, though less common)
-2. **Local in-process cache**: Application-level cache (Caffeine/Guava) holds hot keys in JVM heap. Reads never leave the process. TTL of 100ms is sufficient for most hot keys
-3. **Key segmentation**: Append a random suffix: `tweet:12345:shard_1`, `tweet:12345:shard_2`, ..., `tweet:12345:shard_K`. Write to all K shards; read randomly from one shard. Distributes read load K-fold. Consistency trade-off: invalidation must hit all K shards
-4. **Request coalescing (request collapsing)**: When many requests arrive for the same key simultaneously (thundering herd), coalesce them into one backend request and fan out the result
-5. **Micro-sharding via consistent hashing**: Increase the number of Redis instances just for hot keys
+**One-line answer:** In leaderless replication any replica can accept writes, and W + R > N ensures every read overlaps with at least one node that has the latest write, giving strong consistency.
 
-**Cache Invalidation Patterns:**
-- **Cache-aside (lazy loading)**: Read from cache; on miss, load from DB and populate cache
-- **Write-through**: Write to cache and DB simultaneously; always consistent but slower writes
-- **Write-behind (write-back)**: Write to cache immediately, flush to DB asynchronously; fast writes but risk of data loss on cache failure
-- **Refresh-ahead**: Proactively refresh cache entries before they expire based on access frequency
+**Full answer to give in an interview:**
 
-**Real-World Example:**
-Facebook's Memcached (McSqueal, Tao) handles hot keys via "lease" mechanisms. When a cache miss occurs during a thundering herd, the first requesting client gets a lease token to populate the cache. All other clients wait briefly and then retry. This prevents the "cache stampede" (all clients simultaneously hammering the DB on a popular cache miss).
+> "In leaderless replication — used by Cassandra and the original Amazon Dynamo paper — there is no single designated primary. Any of the N replicas can accept a write. The client (or a coordinator node) sends the write to all N replicas simultaneously and waits for W of them to confirm. For reads, it sends the read to all N replicas and waits for R responses, then returns the value with the highest version number.
+>
+> The quorum condition W + R greater than N guarantees that the read set and the write set overlap by at least one node. That overlapping node holds the latest write, so the read always sees it. Classic example: N equals 3, W equals 2, R equals 2. Write quorum: 2 of 3 nodes have the write. Read quorum: 2 of 3 nodes respond. By the pigeonhole principle, at least one node is in both sets. So the read always gets the latest value.
+>
+> You can tune this for different trade-offs. W equals 3, R equals 1 — every replica has every write, reads are fast single-node lookups, writes are slow. W equals 1, R equals 3 — writes are instant, reads are slow. W equals 1, R equals 1 — eventual consistency, no overlap guarantee, highest throughput. Systems like Cassandra let you pick the consistency level per query: ONE, QUORUM, ALL."
 
-**Code Example:**
+> *The formula W + R > N is the exact thing interviewers check — say it explicitly.*
+
+**Gotcha follow-up they'll ask:** *"Can you still lose data with W=2, R=2, N=3?"*
+
+> "Yes — there is an edge case. Suppose 2 nodes acknowledge the write so the client gets a success response. Both of those 2 nodes then crash before replicating to the third. When the system recovers, the only surviving node is the one that never received the write. The quorum condition guarantees overlap while all N nodes are alive and responding, but it does not protect against simultaneous failure of W nodes. This is why durability also depends on the replication factor N — a larger N reduces the probability of simultaneous failure of W nodes."
+
+---
+
+##### Q3 — Design Scenario
+**"Design a globally distributed database that accepts writes in both the US and Europe with no cross-region write latency."**
+
+**One-line answer:** Use multi-leader replication with one leader per region and a last-write-wins or CRDT conflict resolution strategy, accepting that conflicting concurrent writes to the same record require explicit handling.
+
+**Full answer to give in an interview:**
+
+> "A globally distributed system where US and European users both write needs multi-leader replication — one leader per region, each accepting writes locally without waiting for the cross-Atlantic round trip, which would be 80–100ms and unacceptable for interactive workloads.
+>
+> Each leader replicates its writes to the other asynchronously in the background. Replication lag across regions is typically 100–200ms. This is fine for records that are only written in one region — a European user's profile is mostly written from Europe. The problem arises when the same record is written in both regions simultaneously: both leaders accept the conflicting writes and then discover the conflict during replication.
+>
+> Conflict resolution strategies: last-write-wins uses timestamps to keep the later write and discard the earlier one — simple but loses data. Application-level merge passes both versions to application code to merge — correct but requires custom logic. CRDTs, conflict-free replicated data types, are data structures designed to auto-merge without conflicts — counters, sets, and maps have well-known CRDT implementations. Google Docs uses a variant of this.
+>
+> I'd design the data model to minimise cross-region conflicts: user records are 'owned' by a region, and other regions only read them. Only shared global counters or globally-contested records need CRDT treatment."
+
+> *This answer shows you understand the trade-offs at the system design level, not just the replication mechanism.*
+
+---
+
+> **Common Mistake — Assuming MySQL replication is synchronous:** MySQL uses asynchronous replication by default. Replicas lag behind the primary. If you failover to a replica during that lag window, you lose the unsynced writes. Semi-synchronous mode (`rpl_semi_sync_master_enabled`) waits for at least one replica before confirming — but this is not the default and must be explicitly configured.
+
+---
+
+**Quick Revision (one line):**
+Synchronous replication gives zero data loss at the cost of write latency; asynchronous is fast but risks data loss on primary failure; leaderless quorum systems achieve strong consistency when W + R > N, meaning every read overlaps with at least one node that holds the latest write.
+
+---
+
+## Topic 4: Eventual Consistency in Practice
+
+---
+
+#### The Idea
+
+Strong consistency means every read sees the most recent write, as if the database were a single machine. It is the easiest model to reason about — but in a distributed system, achieving it means writes must synchronise across all nodes before completing, which costs latency and availability. When a network partition occurs, a strongly consistent system must refuse writes to avoid serving stale data — it sacrifices availability for correctness.
+
+Eventual consistency is the pragmatic alternative: replicas are allowed to be temporarily out of sync, but they will converge to the same state given enough time and no new writes. Most distributed systems — Cassandra, DynamoDB, Riak — operate in this mode by default. The challenge for application developers is that "eventually consistent" is not a programming model — it is a vague promise. You need more concrete guarantees.
+
+Three widely used models fill the gap between "eventually consistent" and "strongly consistent." **Read-your-writes** guarantees that after you write something, your subsequent reads will see that write — even if other users may not yet. **Monotonic reads** guarantees that once you see a value at version V, you will never see an older version V-1 in a subsequent read — reads don't go backwards. **Causal consistency** is stronger: if write B depends on write A (B was made after observing A), any reader who sees B must also see A. All three are weaker than strong consistency but strong enough for most user-facing applications.
+
+---
+
+#### How It Works
+
+```
+// Read-your-writes: route reads to the same replica you wrote to
+// (or to the primary if you can't track which replica received the write)
+
+function readAfterWrite(userId, key):
+    lastWriteReplica = sessionStore.getLastWriteReplica(userId)
+    if lastWriteReplica != null:
+        return lastWriteReplica.read(key)   // guaranteed to have your write
+    else:
+        return anyReplica.read(key)
+
+// Monotonic reads: track the version (timestamp) of the last read per session
+// Always read from a replica at least as up-to-date as your last read
+
+function monotonicRead(sessionToken, key):
+    minVersion = sessionStore.getLastSeenVersion(sessionToken)
+    for replica in replicas:
+        if replica.version >= minVersion:
+            value = replica.read(key)
+            sessionStore.setLastSeenVersion(sessionToken, replica.version)
+            return value
+    throw NoSuitableReplicaException("all replicas are behind session version")
+
+// Causal consistency: attach a vector clock or logical timestamp to writes
+// Readers reject responses from replicas that haven't yet seen a causally prior write
+
+function causalRead(key, causalContext):
+    for replica in replicas:
+        if replica.hasSeen(causalContext):
+            return replica.read(key)
+    // wait or retry until a replica catches up
+```
+
+**Read-your-writes** is implemented by session affinity: route a user's reads to the same node that accepted their last write, or always route reads to the primary for data that the user wrote recently. The cost is that reads can't be freely distributed across all replicas.
+
+**Monotonic reads** is implemented by tracking a session's "read version" — the most recent replica version the user has seen — and only routing subsequent reads to replicas at or beyond that version. This prevents a user from seeing a comment appear, then disappear, then reappear as their requests hit replicas at different lag points.
+
+**Causal consistency** uses vector clocks or logical timestamps attached to each operation. Every write carries the context of what it observed before writing. Replicas defer reads until they have applied all causally prior writes. DynamoDB and Cosmos DB expose this as "session tokens" that clients pass with each request.
+
+---
+
+#### Interview Lens
+
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
+
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
+
+---
+
+##### Q1 — Concept Check
+**"What is eventual consistency and what practical consistency guarantees sit between it and strong consistency?"**
+
+**One-line answer:** Eventual consistency means replicas converge over time but may be temporarily stale; read-your-writes, monotonic reads, and causal consistency are intermediate models that give application-level guarantees without requiring full strong consistency.
+
+**Full answer to give in an interview:**
+
+> "Eventual consistency is the weakest useful consistency guarantee: the system promises that, if no new writes arrive, all replicas will eventually converge to the same value. While convergence is in progress, different replicas may return different values. This is acceptable for many use cases — a product's view count being off by a few seconds is fine; a bank balance must not be.
+>
+> Three practical models strengthen eventual consistency without requiring the full coordination cost of strong consistency. Read-your-writes: after I post a comment, I will always see my own comment when I reload the page — even if other users might not yet. This is implemented by routing my reads to the same replica that accepted my write, or to the primary. Monotonic reads: once I see that a comment was posted at timestamp T, I will never subsequently see the page as if that comment doesn't exist — reads don't go backward in time. Implemented by tracking the latest version seen per session and only hitting replicas at or beyond that version. Causal consistency: if I post a reply to your comment, anyone who sees my reply must also see your comment — causally related operations are seen in order. Implemented with vector clocks.
+>
+> These models are composable. Most real applications need read-your-writes and monotonic reads. Few need full causal consistency. Strong consistency is reserved for financial ledgers, inventory counts, and other domains where stale reads have direct business consequences."
+
+> *The three models in order — read-your-writes, monotonic reads, causal consistency — are the key content. Name them, define them, give an example.*
+
+**Gotcha follow-up they'll ask:** *"How do you implement read-your-writes in a system that routes reads to replicas?"*
+
+> "Two approaches. Session stickiness: record which replica received the user's last write and always route that user's subsequent reads to the same replica. This is simple but means reads aren't freely load-balanced. Primary fallback: for any data the user wrote in the last N seconds, read from the primary instead of a replica. The window N is typically slightly larger than the maximum expected replication lag. This is less efficient — it puts more load on the primary — but requires no per-session state about which replica holds which write. AWS DynamoDB's 'strongly consistent read' option essentially does this: it reads from the primary leader for that partition key."
+
+---
+
+##### Q2 — Tradeoff Question
+**"Explain the difference between monotonic reads and causal consistency with a concrete example."**
+
+**One-line answer:** Monotonic reads prevents your own reads from going backward in time; causal consistency prevents you from seeing an effect before its cause, even across different users' writes.
+
+**Full answer to give in an interview:**
+
+> "Monotonic reads is about a single reader's experience. Imagine I load a social media feed and I see a post that was published at 10:00:01. I refresh the page. Monotonic reads guarantees I will not see a version of the feed that shows the page as it was at 09:59:59 — I will never go backward. Without this guarantee, my requests could round-robin across replicas at different lag points, making items appear and disappear as I browse. The fix is session-level version tracking: each response carries the replica's current version, my session records it, and subsequent requests are only routed to replicas at or beyond that version.
+>
+> Causal consistency is stronger and involves multiple users. Suppose Alice posts a question: 'Should we move the meeting?' Bob reads Alice's question and replies: 'Yes, let's move it.' Causal consistency guarantees that anyone who sees Bob's reply also sees Alice's original question — because Bob's reply is causally dependent on Alice's question. Without causal consistency, a third user could see Bob's reply ('Yes, let's move it') on a less-lagged replica without seeing Alice's question, which is confusing and potentially incorrect.
+>
+> Causal consistency requires propagating the causal context — a vector clock or logical timestamp — with every write. Replicas delay serving a read until they have applied all causally prior writes. It is more expensive than monotonic reads but necessary for any system where users interact with each other's writes — comment threads, collaborative editing, messaging."
+
+> *Concrete examples are the key to this answer. The Alice/Bob example is memorable and correct.*
+
+**Gotcha follow-up they'll ask:** *"Does Cassandra provide any of these consistency guarantees?"*
+
+> "Cassandra provides tunable consistency at the query level — you choose ONE, QUORUM, or ALL per request. With QUORUM reads and QUORUM writes where W plus R is greater than N, you get strong consistency for that record. But Cassandra's default consistency level is ONE, which gives eventual consistency only. Cassandra does not natively provide session-level read-your-writes or monotonic reads — those must be implemented in the application layer or by routing reads to the same coordinator node as writes. For causal consistency, Cassandra's lightweight transactions use Paxos but are expensive — typically avoided for high-throughput workloads."
+
+---
+
+##### Q3 — Design Scenario
+**"A user posts a comment on a social platform and immediately reloads the page but doesn't see their comment. What consistency model was violated and how would you fix it?"**
+
+**One-line answer:** Read-your-writes consistency was violated; fix it by routing the user's immediate post-write reads to the primary or to the replica that accepted their write.
+
+**Full answer to give in an interview:**
+
+> "The user wrote to the primary — or to any replica in a leaderless system — and got a success response. They then reloaded the page, which issued a read. That read was load-balanced to a replica that hadn't yet received the write due to replication lag — even a few hundred milliseconds of lag is enough. The user's own write was not visible to them. This is a violation of read-your-writes consistency.
+>
+> The fix: after a write, tag the user's session with the write's replication timestamp or a flag indicating 'this user wrote in the last T seconds.' On the next read, check that tag. If it is set, route the read to the primary or to the specific replica that accepted the write. If the tag is expired or not set, allow free load balancing across replicas as normal.
+>
+> Implementation detail: the write response from the database should include a 'consistency token' — a monotonically increasing version number or timestamp. Store this in the user's session cookie or server-side session store. On subsequent reads within the same session, pass this token to the read path. The read path selects a replica at or beyond that version. After the replication lag window passes — say 5 seconds — the token expires and reads return to normal load balancing.
+>
+> This is exactly how DynamoDB session consistency tokens work and how many applications implement read-your-writes on top of eventually consistent storage."
+
+> *Close with the implementation pattern — it's the part that separates a textbook answer from an engineering answer.*
+
+---
+
+> **Common Mistake — Treating "eventual consistency" as a single thing:** Eventual consistency is a spectrum. Saying "we use eventual consistency" tells an interviewer almost nothing — they want to know which specific model you're targeting: read-your-writes? Monotonic reads? Causal? Quorum-based strong consistency? Always name the specific model you need for the specific access pattern you're designing for.
+
+---
+
+**Quick Revision (one line):**
+Eventual consistency means replicas converge over time; read-your-writes, monotonic reads, and causal consistency are progressively stronger intermediate models that give practical application guarantees without the full coordination cost of strong consistency.
+
+---
+
+## Topic 5: Distributed Caching Architecture
+
+---
+
+#### The Idea
+
+A cache is a fast, temporary store that sits in front of a slow store — typically between your application and your database. Instead of hitting the database for every read, you check the cache first. A cache hit returns data in under a millisecond; a cache miss falls through to the database. For read-heavy applications, a well-tuned cache can reduce database load by 90% or more and cut response times from tens of milliseconds to fractions of a millisecond.
+
+A single cache server is itself a single point of failure and has finite memory. Distributed caching spreads the cached data across a cluster of cache nodes. The same consistent hashing principle from Topic 2 applies: each key is mapped to a cache node, so the cache scales horizontally and no single node holds all the data. Redis Cluster and Memcached are the two most common distributed cache technologies. Redis Cluster shards data across nodes automatically and supports replication of each shard to a replica node for fault tolerance.
+
+The hardest problems in distributed caching are not performance — they are correctness: when does the cache become stale, what happens when the cache is empty and a thousand requests arrive simultaneously for the same key, and what happens when a frequently-read key (a "hot key") overwhelms a single cache node? Each of these failure modes has a name — cache invalidation, cache stampede, and hot key problem — and each has a well-known solution pattern that interviewers specifically test for.
+
+---
+
+#### How It Works
+
+```
+// Cache-aside pattern (most common)
+function getUser(userId):
+    value = cache.get("user:" + userId)
+    if value != null:
+        return value                          // cache hit
+    value = database.query("SELECT * FROM users WHERE id = ?", userId)
+    cache.set("user:" + userId, value, TTL=300)   // cache for 5 minutes
+    return value
+
+// Write-through pattern
+function updateUser(userId, data):
+    database.update(userId, data)             // write to DB first
+    cache.set("user:" + userId, data, TTL=300) // immediately update cache
+
+// Write-behind (write-back) pattern
+function updateUser(userId, data):
+    cache.set("user:" + userId, data)         // write to cache first
+    queue.publish("db-write", {userId, data}) // DB write is async
+    return                                    // respond immediately; DB catches up
+
+// Cache stampede prevention — only one goroutine/thread fetches from DB
+function getWithSingleFlight(key):
+    value = cache.get(key)
+    if value != null: return value
+    // acquire distributed lock before hitting DB
+    lock = redisLock.acquire("lock:" + key, ttl=5s)
+    if lock.acquired:
+        value = database.query(key)
+        cache.set(key, value, TTL=300)
+        lock.release()
+        return value
+    else:
+        sleep(50ms)
+        return getWithSingleFlight(key)   // retry after lock holder populates cache
+```
+
+**Cache invalidation strategies:** TTL (time-to-live) — the cache entry expires after a fixed duration, simplest but may serve stale data until expiry. Event-driven invalidation — when a database record is updated, publish an event that deletes the cache entry; lower staleness but adds complexity. Write-through — on every database write, update the cache atomically; freshest but doubles write latency.
+
+**Hot key problem:** a single cache key (e.g., a celebrity's profile) receives so many reads per second that the single cache node handling it becomes a bottleneck. Solutions: local in-process caching (cache the value in application memory for a short window, say 1 second), read replicas for the hot cache node, or key sharding (store the hot key under multiple names — `user:123:shard:0`, `user:123:shard:1` — and round-robin reads across them).
+
+Must-memorise gotcha — the real production code for hot key local caching:
+
 ```java
-// Local hot-key cache with random shard selection for distributed Redis
-@Component
+// Local hot-key cache: reduces Redis load for extremely hot keys
+// by caching the value in application memory for a brief window
+
 public class HotKeyAwareCacheClient {
-    private final RedisCluster redisCluster;
-    private final LoadingCache<String, String> localHotCache;
-    private static final int HOT_KEY_SHARDS = 10;
+    private final RedisClient redis;
+    // Local in-process cache: key -> (value, expiry_time)
+    private final ConcurrentHashMap<String, CachedEntry> localCache = new ConcurrentHashMap<>();
+    private static final long LOCAL_TTL_MS = 1000; // 1 second local cache
 
-    public HotKeyAwareCacheClient(RedisCluster redisCluster) {
-        this.redisCluster = redisCluster;
-        // Local in-process cache for hot keys: max 1000 entries, 100ms TTL
-        this.localHotCache = Caffeine.newBuilder()
-            .maximumSize(1000)
-            .expireAfterWrite(100, TimeUnit.MILLISECONDS)
-            .build(key -> fetchFromRedis(key));
-    }
-
-    public String get(String key, boolean isHotKey) {
-        if (isHotKey) {
-            // Check local cache first (0 network hops)
-            return localHotCache.get(key);
+    public String get(String key) {
+        // Check local cache first — zero network round-trip
+        CachedEntry local = localCache.get(key);
+        if (local != null && !local.isExpired()) {
+            return local.value;
         }
-        return fetchFromRedis(key);
-    }
 
-    public void setHotKey(String key, String value, int ttlSeconds) {
-        // Write to all shards for a hot key
-        for (int i = 0; i < HOT_KEY_SHARDS; i++) {
-            redisCluster.setex(key + ":shard:" + i, ttlSeconds, value);
+        // Fall through to Redis
+        String value = fetchFromRedis(key);
+        if (value != null) {
+            localCache.put(key, new CachedEntry(value, System.currentTimeMillis() + LOCAL_TTL_MS));
         }
+        return value;
     }
 
-    public String getHotKey(String key) {
-        // Read from random shard to distribute load
-        int shard = ThreadLocalRandom.current().nextInt(HOT_KEY_SHARDS);
-        String shardedKey = key + ":shard:" + shard;
-        return redisCluster.get(shardedKey);
-    }
-
-    // Request coalescing: prevent thundering herd
-    private final ConcurrentHashMap<String, CompletableFuture<String>> inflightRequests
-        = new ConcurrentHashMap<>();
-
-    public CompletableFuture<String> getWithCoalescing(String key) {
-        return inflightRequests.computeIfAbsent(key, k ->
-            CompletableFuture
-                .supplyAsync(() -> fetchFromDbAndCache(k))
-                .whenComplete((v, e) -> inflightRequests.remove(k))
-        );
-        // All concurrent callers for the same key share this future
+    // CachedEntry is a simple struct: value + expiry timestamp
+    static class CachedEntry {
+        final String value;
+        final long expiresAt;
+        CachedEntry(String value, long expiresAt) {
+            this.value = value; this.expiresAt = expiresAt;
+        }
+        boolean isExpired() { return System.currentTimeMillis() > expiresAt; }
     }
 }
 ```
 
-**Follow-up Questions:**
-1. How does Redis Cluster handle node failures and slot reassignment? What is the role of replicas during failover?
-2. What is a cache stampede (thundering herd), and how do probabilistic early expiration (PER) or mutex-based solutions address it?
-3. How would you implement a circuit breaker pattern for a Redis cache to protect the database during cache failures?
-
-**Common Mistakes:**
-- Not setting TTLs on cached values — cache grows unbounded, evicts LRU, unpredictable behavior
-- Using `KEYS *` in production Redis (O(N) scan blocks the single-threaded event loop)
-- Forgetting that Redis Cluster requires that multi-key operations use hash tags to guarantee same-slot placement
-
-**Interview Traps:**
-- "Redis is strongly consistent" — Redis is not strongly consistent by default. Async replication means a master failure can lose recent writes. Redis with `WAIT` command provides stronger guarantees but is not the default
-- "Just add more Redis replicas to solve the hot key problem" — Redis replicas are not automatically read-load-balanced in Redis Cluster; you need client-side read replica routing
-
-**Quick Revision:** Redis Cluster uses 16,384 hash slots (not pure consistent hashing); hot keys are solved through local in-process caches, key segmentation across N shards, or request coalescing — never by adding replicas alone.
+This pattern reduces Redis load for hot keys by orders of magnitude: 10 000 req/s hitting the same key across 100 application instances generates only 100 Redis calls per second (one per instance per second) instead of 10 000.
 
 ---
 
-### Topic 6: Time in Distributed Systems
-**Difficulty:** Hard | **Frequency:** Medium-High | **Companies:** Google (Spanner), Amazon, Cockroach Labs, Stripe
+#### Interview Lens
 
-**Q:** Why can't we rely on wall clocks in distributed systems? Explain Lamport timestamps, vector clocks, and Google TrueTime.
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
 
-**Short Answer:**
-Wall clocks (system clocks) in distributed systems are unreliable due to clock skew (different machines disagree on current time) and clock drift (clocks run at slightly different rates). Lamport timestamps provide causal ordering without wall clocks. TrueTime (Google Spanner) uses GPS/atomic clocks with explicit uncertainty intervals to enable globally consistent transactions.
-
-**Deep Explanation:**
-
-**Why Wall Clocks Fail:**
-1. **Clock skew**: Two machines read `System.currentTimeMillis()` simultaneously and get different values. NTP (Network Time Protocol) synchronizes clocks but only to ~1–10ms accuracy over the internet, ~0.1ms on a LAN
-2. **Clock drift**: CPU oscillators run at slightly different frequencies. Without NTP correction, clocks drift ~100–200 ppm (parts per million) = 8–17 seconds/day
-3. **NTP step adjustments**: NTP can jump the clock backward or forward, causing `System.currentTimeMillis()` to be non-monotonic. Using `System.nanoTime()` (monotonic clock) avoids backward jumps but is only valid within one JVM instance
-4. **VM clock issues**: On virtualized infrastructure, the VM clock is managed by the hypervisor and can stall (during live migration) or jump unexpectedly
-
-**Implications for LWW:**
-If you use timestamps for last-write-wins and node A's clock is 50ms ahead, all writes from A win over concurrent writes from B — even if B's write was logically later. This silently discards data.
-
-**Lamport Timestamps:**
-A logical clock that captures causal ordering without wall clocks:
-- Each process maintains a counter C, initialized to 0
-- On send: increment C, attach C to message
-- On receive: C = max(local_C, message_C) + 1
-- Guarantee: if event A causally precedes event B, then L(A) < L(B)
-- Limitation: if L(A) < L(B), it does NOT mean A causally preceded B (false positives). Cannot detect concurrent events
-
-**Vector Clocks:**
-Extend Lamport clocks to detect concurrency (covered in Topic 4). Each process tracks a counter per process in the system. Allows detecting whether two events are concurrent or causally related.
-
-**Hybrid Logical Clocks (HLC):**
-Combine wall clock time with a logical counter:
-- `HLC = (physical_time, logical_counter)`
-- Normal operation: HLC tracks wall clock time
-- On message receive: if wall clock has advanced, use wall clock; otherwise increment logical counter
-- Guarantee: monotonically increasing, close to wall clock time, captures causality
-- Used by: CockroachDB, YugabyteDB
-
-HLC provides the best of both worlds: causality tracking AND approximate real-world time alignment.
-
-**Google TrueTime:**
-Spanner's innovation — explicitly model clock uncertainty:
-- GPS receivers and atomic clocks in each Google datacenter
-- TrueTime API: `TT.now()` returns `[earliest, latest]` — an interval guaranteed to contain the true current time
-- Typical uncertainty: 1–7ms
-- **Commit wait**: Before committing a transaction, Spanner waits until `TT.after(commit_timestamp)` is true — i.e., the uncertainty interval has passed, guaranteeing the commit timestamp is definitively in the past
-- This enables **external consistency** (linearizability) across globally distributed data without coordination
-
-```
-TT.now() returns [t - ε, t + ε]
-Spanner waits at least 2ε before returning, so all subsequent transactions
-see a higher timestamp → global linearizability guaranteed
-```
-
-**Practical Timeline of Distributed Time Solutions:**
-1. Wall clocks + NTP: 1ms–10ms accuracy; sufficient for LWW if you accept occasional conflicts
-2. Lamport clocks: total order without wall clocks; doesn't capture real time
-3. Vector clocks: detect concurrent events; space O(N) per event
-4. HLC: causality + wall clock proximity; used in NewSQL databases
-5. TrueTime: true wall clock with explicit uncertainty; requires hardware (GPS/atomic clocks)
-
-**Real-World Example:**
-CockroachDB uses HLC for multi-region transactions. When a transaction spans datacenters, HLC ensures that reads in datacenter B always see writes committed in datacenter A before them (causal consistency). CockroachDB also uses HLC for MVCC — each row version is tagged with an HLC timestamp, enabling time-travel queries (`AS OF SYSTEM TIME`).
-
-**Code Example:**
-```java
-// Lamport Clock implementation
-public class LamportClock {
-    private final AtomicLong counter = new AtomicLong(0);
-
-    public long tick() {
-        return counter.incrementAndGet();
-    }
-
-    public long onSend() {
-        return counter.incrementAndGet(); // Attach this to outgoing message
-    }
-
-    public long onReceive(long receivedTimestamp) {
-        return counter.updateAndGet(current -> Math.max(current, receivedTimestamp) + 1);
-    }
-
-    public long current() { return counter.get(); }
-}
-
-// Hybrid Logical Clock (simplified)
-public class HybridLogicalClock {
-    private volatile long wallTime = 0;    // last known physical time
-    private volatile long logicalCounter = 0;
-
-    public synchronized long[] tick() {
-        long now = System.currentTimeMillis();
-        if (now > wallTime) {
-            wallTime = now;
-            logicalCounter = 0;
-        } else {
-            logicalCounter++;
-        }
-        return new long[]{wallTime, logicalCounter};
-    }
-
-    public synchronized long[] onReceive(long msgWallTime, long msgLogical) {
-        long now = System.currentTimeMillis();
-        long newWall = Math.max(Math.max(wallTime, msgWallTime), now);
-        if (newWall == wallTime && newWall == msgWallTime) {
-            logicalCounter = Math.max(logicalCounter, msgLogical) + 1;
-        } else if (newWall == wallTime) {
-            logicalCounter++;
-        } else if (newWall == msgWallTime) {
-            logicalCounter = msgLogical + 1;
-        } else {
-            logicalCounter = 0;
-        }
-        wallTime = newWall;
-        return new long[]{wallTime, logicalCounter};
-    }
-}
-
-// TrueTime-style API (conceptual — requires hardware)
-public class TrueTime {
-    private final AtomicReference<Interval> uncertainty = new AtomicReference<>();
-
-    public Interval now() {
-        // In reality: query GPS/atomic clock service
-        long epsilon = 4; // ms, typical Spanner uncertainty
-        long now = System.currentTimeMillis();
-        return new Interval(now - epsilon, now + epsilon);
-    }
-
-    public boolean before(long timestamp) {
-        return now().getLatest() < timestamp;
-    }
-
-    public boolean after(long timestamp) {
-        return now().getEarliest() > timestamp;
-    }
-}
-```
-
-**Follow-up Questions:**
-1. CockroachDB doesn't have Google's atomic clock hardware. How does it approximate TrueTime semantics, and what consistency trade-offs result?
-2. Why does Spanner's commit-wait introduce latency proportional to the TrueTime uncertainty, and how does this affect cross-region transaction performance?
-3. What is "clock bound" in distributed systems, and how does Amazon's TimeSync service compare to Google TrueTime?
-
-**Common Mistakes:**
-- Using `System.currentTimeMillis()` for ordering distributed events — it's not monotonic and varies across machines
-- Assuming `System.nanoTime()` works across machines — it doesn't; it's only monotonic within a single JVM and not correlated between machines
-- Forgetting that even with perfect time sync, the definition of "simultaneous" is ambiguous in physics (relativity), which is why TrueTime uses intervals rather than points
-
-**Interview Traps:**
-- "Just use a centralized timestamp server" — Single point of failure; the timestamp server itself becomes a bottleneck and its clock can drift
-- "NTP is good enough" — For LWW conflict resolution in databases, a 10ms NTP error translates directly to a 10ms window where writes can be silently reordered; at high write rates this is unacceptable
-
-**Quick Revision:** Wall clocks can't be trusted due to NTP skew and drift; Lamport clocks give causal ordering, vector clocks detect concurrency, HLC combines both, and TrueTime provides bounded uncertainty using GPS/atomic clocks for global linearizability in Spanner.
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
 
 ---
 
-### Topic 7: Consensus Algorithms
-**Difficulty:** Very Hard | **Frequency:** Medium | **Companies:** Google, Amazon, Cloudflare, HashiCorp, etcd/Kubernetes
+##### Q1 — Concept Check
+**"What is a cache stampede and how do you prevent it?"**
 
-**Q:** Explain the Raft consensus algorithm. How does leader election work, and how does log replication guarantee safety?
+**One-line answer:** A cache stampede happens when a popular cache entry expires and many concurrent requests all miss and hammer the database simultaneously; prevent it with a distributed lock or probabilistic early expiry.
 
-**Short Answer:**
-Raft is a consensus algorithm designed for understandability. A cluster elects a single leader via randomized election timeouts; the leader receives all writes, replicates log entries to followers, and commits once a majority acknowledge. Safety is guaranteed by the log matching property: if two logs agree on an entry's index and term, they agree on all preceding entries.
+**Full answer to give in an interview:**
 
-**Deep Explanation:**
+> "A cache stampede — also called a thundering herd — occurs when a highly-requested cache key expires. At the moment of expiry, all in-flight requests for that key get a cache miss simultaneously and each one independently tries to fetch from the database. For a popular key this could mean hundreds or thousands of concurrent database queries for the same record in the same millisecond, overloading the database and potentially causing a cascade failure.
+>
+> The primary prevention technique is the single-flight pattern or mutex-on-miss: when a cache miss occurs, only one thread or process is allowed to fetch from the database and populate the cache. The others either wait for that one fetch to complete or are served a slightly stale value from the previous cache entry while the refresh happens in the background.
+>
+> In a distributed system where multiple application servers all miss the same key, use a distributed lock — a short-lived Redis lock keyed on the cache key itself. The first process to acquire the lock fetches from the database and sets the cache. All others that fail to acquire the lock either sleep briefly and retry (by which time the cache is populated) or serve the previous stale value if it is still available.
+>
+> A softer technique is probabilistic early expiry: instead of expiring at exactly TTL, each process probabilistically decides to refresh the key slightly before it expires — the probability increases as the key approaches its TTL. This staggers the refresh work over a window of time rather than concentrating it at the exact expiry moment."
 
-**Why Consensus Matters:**
-In a distributed system, getting N nodes to agree on a single value (or sequence of values) is the fundamental problem. Consensus is needed for: leader election, distributed locks, atomic broadcast, replicated state machines.
+> *The distributed lock approach is the most commonly expected answer. Name it explicitly.*
 
-**Paxos — the original (and hard to understand):**
-Leslie Lamport's Paxos (1989) has two phases:
-1. **Prepare phase**: Proposer sends `Prepare(n)` to majority. Each acceptor promises to ignore proposals < n and replies with the highest-numbered accepted value
-2. **Accept phase**: Proposer sends `Accept(n, v)` where v is the highest-valued proposal from prepare responses. Acceptors accept if they haven't promised to ignore n
+**Gotcha follow-up they'll ask:** *"What is cache penetration and how is it different from a cache stampede?"*
 
-Problems: Paxos specifies agreement on a single value (single-decree Paxos). Multi-Paxos (for a log) requires significant additional protocol. The original paper doesn't specify many practical details (leader election, log compaction, membership changes). Result: every Paxos implementation is effectively a unique protocol.
-
-**Raft — designed for understandability:**
-Raft decomposes consensus into three separable subproblems:
-1. **Leader election**
-2. **Log replication**
-3. **Safety**
-
-**Raft Terms:**
-Time is divided into **terms** (monotonically increasing integers). Each term begins with an election. If a candidate wins, it leads for the remainder of the term. Terms serve as logical clocks — a node receiving a message with a higher term immediately updates and reverts to follower.
-
-**Leader Election:**
-- All nodes start as **followers**
-- Followers expect a heartbeat from the leader. Each follower has a random **election timeout** (150–300ms)
-- If no heartbeat received within the timeout, follower becomes a **candidate** and increments its term
-- Candidate sends `RequestVote` RPC to all peers
-- A node grants its vote if: (a) it hasn't voted in this term yet, AND (b) the candidate's log is at least as up-to-date as its own (log completeness check)
-- If a candidate receives votes from majority (N/2 + 1), it becomes **leader**
-- Randomized timeouts prevent split votes: if two candidates start simultaneously, one will win before the other's timeout fires in the next attempt
-
-**Log Replication:**
-1. Client sends command to leader
-2. Leader appends entry to its local log with current term
-3. Leader sends `AppendEntries` RPC (also serves as heartbeat) to all followers
-4. Once majority acknowledge, leader **commits** the entry (applies to state machine)
-5. Leader includes `commitIndex` in subsequent RPCs; followers commit up to that index
-
-**Safety — Log Matching Property:**
-If two log entries at the same index have the same term, the logs are identical up to that index. This is maintained by `AppendEntries` consistency check: the RPC includes the previous entry's index and term; a follower rejects if its log doesn't match at that point.
-
-**Election Restriction (Vote Safety):**
-A candidate's log must be at least as up-to-date as any majority member before it can win. "Up-to-date" means: higher term in last entry, or same term with longer log. This ensures that leaders always have all committed entries.
-
-**Log Compaction (Snapshots):**
-Logs grow unbounded. Raft uses snapshots: state machine periodically serializes its state, and all log entries up to that point are discarded. Lagging followers receive the snapshot via `InstallSnapshot` RPC.
-
-**Cluster Membership Changes:**
-Adding/removing nodes without taking the cluster offline uses joint consensus: first commit a log entry specifying the joint configuration (old + new); then commit the new configuration. During joint consensus, both configurations must agree on any decision.
-
-**Raft vs. Paxos:**
-| Aspect | Raft | Multi-Paxos |
-|--------|------|-------------|
-| Understandability | Designed for it | Notoriously complex |
-| Leader | Explicit, one per term | Can have multiple proposers |
-| Log gaps | Not allowed | Allowed (must be filled) |
-| Implementation | etcd, CockroachDB, TiKV | Chubby (Google), some DBs |
-
-**Real-World Example:**
-etcd (used by Kubernetes for cluster state) uses Raft. When a Kubernetes API server writes a pod spec, etcd's Raft leader replicates it to a majority of etcd members before responding. If the leader crashes, etcd elects a new leader within the election timeout (default: 1s). During the election, writes are unavailable — Kubernetes operators see this as brief API server unresponsiveness.
-
-**Code Example:**
-```java
-// Raft state machine (simplified — key structures and transitions)
-public class RaftNode {
-    enum State { FOLLOWER, CANDIDATE, LEADER }
-
-    private volatile State state = State.FOLLOWER;
-    private volatile int currentTerm = 0;
-    private volatile String votedFor = null;
-    private final List<LogEntry> log = new ArrayList<>();
-    private volatile int commitIndex = 0;
-    private volatile int lastApplied = 0;
-    private final String nodeId;
-    private final List<String> peers;
-
-    // Leader state (reinitialized after election)
-    private final Map<String, Integer> nextIndex = new HashMap<>();   // for each server: next log index to send
-    private final Map<String, Integer> matchIndex = new HashMap<>();  // for each server: highest known replicated index
-
-    // Election timeout: 150-300ms random
-    private ScheduledFuture<?> electionTimer;
-
-    public synchronized void onReceiveRequestVote(RequestVoteRequest req, ResponseCallback cb) {
-        if (req.getTerm() > currentTerm) {
-            currentTerm = req.getTerm();
-            state = State.FOLLOWER;
-            votedFor = null;
-        }
-
-        boolean logUpToDate = isLogAtLeastAsUpToDate(req.getLastLogIndex(), req.getLastLogTerm());
-        boolean voteGranted = req.getTerm() == currentTerm
-            && (votedFor == null || votedFor.equals(req.getCandidateId()))
-            && logUpToDate;
-
-        if (voteGranted) votedFor = req.getCandidateId();
-        cb.reply(new RequestVoteResponse(currentTerm, voteGranted));
-    }
-
-    public synchronized void onReceiveAppendEntries(AppendEntriesRequest req, ResponseCallback cb) {
-        if (req.getTerm() < currentTerm) {
-            cb.reply(new AppendEntriesResponse(currentTerm, false));
-            return;
-        }
-        // Reset election timer — valid leader heartbeat received
-        resetElectionTimer();
-        if (req.getTerm() > currentTerm) {
-            currentTerm = req.getTerm();
-            state = State.FOLLOWER;
-        }
-
-        // Log consistency check
-        if (req.getPrevLogIndex() > 0
-            && (log.size() < req.getPrevLogIndex()
-                || log.get(req.getPrevLogIndex() - 1).getTerm() != req.getPrevLogTerm())) {
-            cb.reply(new AppendEntriesResponse(currentTerm, false));
-            return;
-        }
-
-        // Append new entries (remove conflicting suffix first)
-        for (int i = 0; i < req.getEntries().size(); i++) {
-            int logIndex = req.getPrevLogIndex() + i;
-            if (logIndex < log.size()) {
-                if (log.get(logIndex).getTerm() != req.getEntries().get(i).getTerm()) {
-                    // Conflict: truncate and replace
-                    while (log.size() > logIndex) log.remove(log.size() - 1);
-                    log.add(req.getEntries().get(i));
-                }
-            } else {
-                log.add(req.getEntries().get(i));
-            }
-        }
-
-        if (req.getLeaderCommit() > commitIndex) {
-            commitIndex = Math.min(req.getLeaderCommit(), log.size());
-            applyCommitted();
-        }
-        cb.reply(new AppendEntriesResponse(currentTerm, true));
-    }
-
-    private boolean isLogAtLeastAsUpToDate(int candidateLastIndex, int candidateLastTerm) {
-        if (log.isEmpty()) return true;
-        LogEntry lastEntry = log.get(log.size() - 1);
-        if (candidateLastTerm != lastEntry.getTerm()) return candidateLastTerm > lastEntry.getTerm();
-        return candidateLastIndex >= log.size();
-    }
-}
-```
-
-**Follow-up Questions:**
-1. What happens in Raft if the network partitions and the leader gets isolated with a minority of nodes? Can it continue to serve reads?
-2. How does Raft handle a scenario where a leader crashes after committing to its own log but before replicating to any follower?
-3. What is "pre-vote" in Raft, and why does it prevent disruptive elections?
-
-**Common Mistakes:**
-- Thinking Raft provides strong consistency for reads by default — a leader can serve stale reads if it's been partitioned (it may not know it's no longer leader). Solutions: leader leases, read-index protocol
-- Forgetting that Raft requires an odd number of nodes: with 4 nodes, you need 3 for majority, tolerating only 1 failure — same as 3 nodes. Always use 3, 5, or 7 nodes
-- Assuming Raft is linearizable out of the box for read operations — writes are linearizable, reads require the ReadIndex protocol to avoid stale reads
-
-**Interview Traps:**
-- "Can Raft have multiple leaders?" — No, but a node might believe it's still leader after a partition. The key safety property is that committed entries are never overridden — a new leader will have all committed entries due to the election restriction
-- "How is Raft different from 2PC?" — 2PC requires all participants to agree (blocking on any failure); Raft only requires majority agreement (tolerates minority failures)
-
-**Quick Revision:** Raft achieves consensus via an elected leader that replicates a log to majority; safety relies on the election restriction (leaders must have all committed entries) and log matching property; used in etcd, CockroachDB, TiKV.
+> "Cache penetration is a different failure mode: requests for a key that does not exist in either the cache or the database. The cache always misses and every request hits the database — for zero gain. This is often triggered maliciously by querying random non-existent IDs. The fix: cache negative results — when the database returns nothing for a key, store a 'null' or 'not found' sentinel in the cache with a short TTL. Subsequent requests for the same non-existent key hit the cache and get the sentinel immediately, protecting the database. A Bloom filter is a more memory-efficient alternative: a probabilistic data structure that returns 'definitely not in the database' for unknown keys, allowing you to skip both cache and database lookups entirely for provably absent keys."
 
 ---
 
-### Topic 8: Leader Election
-**Difficulty:** Hard | **Frequency:** Medium-High | **Companies:** Amazon, Google, HashiCorp, Confluent, Netflix
+##### Q2 — Tradeoff Question
+**"Compare cache-aside, write-through, and write-behind caching patterns. When would you use each?"**
 
-**Q:** How would you implement distributed leader election? Compare ZooKeeper ephemeral nodes, etcd distributed locks, and Redis Redlock. What makes leader election fundamentally hard?
+**One-line answer:** Cache-aside is the safest default; write-through keeps the cache always fresh at the cost of double write latency; write-behind is the fastest for write-heavy workloads but risks data loss if the cache node fails before the async DB write completes.
 
-**Short Answer:**
-Leader election requires that exactly one node believes it is the leader at any time (the safety property). ZooKeeper uses ephemeral znodes with sequential numbering to elect leaders safely. Redis Redlock distributes lock acquisition across multiple Redis instances. The fundamental difficulty is preventing two nodes from simultaneously believing they are leader (split-brain) in the presence of network partitions and timing assumptions.
+**Full answer to give in an interview:**
 
-**Deep Explanation:**
+> "Cache-aside — also called lazy loading — is the most common pattern. The application checks the cache, misses, reads from the database, and populates the cache. The cache only contains data that has been read at least once. Simple to implement, no wasted cache space on write-only data. The downside is that the first read for any key is always slow (cache miss), and cache entries can become stale — if the database is updated directly without touching the cache, the cache serves the old value until TTL expiry.
+>
+> Write-through always updates the cache synchronously on every database write. The cache is always fresh — no staleness. But every write now does two things: database write plus cache write. Write latency doubles, and you cache every written key even if it is never read. Good for read-heavy workloads where you want guaranteed freshness and can afford slightly higher write latency.
+>
+> Write-behind accepts writes into the cache immediately and writes to the database asynchronously in the background. Write latency is minimal — just a cache write. This is suitable for very write-heavy workloads, like game leaderboards or real-time counters, where database write throughput is the bottleneck. The risk: if the cache node crashes before the background database write completes, those writes are lost. You need a persistent cache (Redis with AOF persistence) or a write-ahead log to recover from failures.
+>
+> My default recommendation: cache-aside for most applications. Write-through if cache freshness is critical and write volume is moderate. Write-behind only when write throughput is the bottleneck and you can tolerate a small window of data loss."
 
-**Why Leader Election is Hard:**
-The core challenge: you cannot reliably distinguish between "the leader crashed" and "the leader is temporarily unreachable due to a network partition." If you revoke leadership too eagerly, you get split-brain (two leaders). If you wait too long, availability suffers.
+> *Naming the trade-off for each pattern shows depth. Interviewers listen for the failure mode of each approach.*
 
-**The GC Pause / Stop-the-World Problem:**
-Consider: Leader L holds a lease until time T. At T-1 second, L experiences a JVM garbage collection pause lasting 15 seconds. During the pause, the lease expires and a new leader L2 is elected. L resumes and doesn't know it lost leadership — it attempts to write, now competing with L2. This is the fundamental timing problem.
+**Gotcha follow-up they'll ask:** *"How do you handle cache invalidation when multiple services share the same cache?"*
 
-Solution: **fencing tokens**. Every time a leader is elected, it receives a monotonically increasing token from the lock service. Any write to external storage must include the fencing token. Storage systems (ZooKeeper, DynamoDB conditional writes) reject writes with old tokens.
-
-**ZooKeeper Ephemeral Nodes:**
-ZooKeeper nodes (znodes) can be **ephemeral**: they are automatically deleted when the client's session expires (session = TCP connection + heartbeat). This makes them ideal for leader election.
-
-*Recipe:*
-1. All nodes create an ephemeral sequential znode at `/election/candidate-` (ZooKeeper assigns sequential numbers: candidate-001, candidate-002, ...)
-2. Each node reads all children of `/election/` and sorts them
-3. If your znode has the lowest sequence number → you are the leader
-4. Otherwise → watch the znode with the next lower sequence number for deletion
-5. When the watched znode is deleted (node crashed), re-evaluate — if you now have the lowest number, become leader
-
-*Why watch the predecessor (not all children)?*
-If all nodes watch the same leader znode (the minimum), when it disappears, all N-1 followers trigger simultaneously → herd effect → O(N) ZooKeeper requests at once. Watching only predecessor creates a chain: O(1) notifications.
-
-*Session timeout:* ZooKeeper default session timeout is ~30 seconds. If the leader's network connection is lost but the process is alive, it may still believe it's leader for up to 30 seconds — another process is elected. Both believe they are leader. Fencing tokens prevent dangerous concurrent actions.
-
-**etcd Distributed Lock:**
-etcd provides a lock primitive via its client library using leases:
-1. Create a lease with TTL: `etcd.grant(15, TimeUnit.SECONDS)`
-2. Put a key `/locks/my-service` with the lease ID attached
-3. If the put uses `txn` with `createRevision == 0` (key doesn't exist), the lock is acquired
-4. If createRevision != 0, watch the key for deletion and retry
-5. Renew the lease periodically; if the process dies, the lease expires and the key is deleted
-
-etcd uses Raft internally, so the lock is consistent: at most one node can acquire it at any time (unlike Redis without Raft). The lock service itself is fault-tolerant: etcd's Raft quorum means the lock state survives minority node failures.
-
-**Redis Redlock:**
-Proposed by Redis creator Salvatore Sanfilippo for fault-tolerant locking when a single Redis instance is unreliable.
-
-*Algorithm:*
-1. Deploy N independent Redis instances (no replication between them), typically N=5
-2. To acquire lock: for each Redis instance, attempt `SET key token NX PX ttl_ms`
-3. Lock is acquired if majority (N/2 + 1 = 3) succeed within a validity window
-4. Validity time = TTL - time_to_acquire - clock_drift_buffer
-5. To release: send a Lua script to each instance to delete only if value matches token
-
-*Controversy:*
-Martin Kleppmann (author of DDIA) published a critique of Redlock:
-- **Clock jump problem**: Redis uses TTL based on wall clock. If a Redis server's clock jumps forward (e.g., NTP step adjustment), the lock expires before the client expects, and two clients can both believe they hold the lock
-- **GC pause problem**: Same as ZooKeeper — a client can experience a GC pause longer than the lock TTL, regain execution, and believe it still holds the lock while another client has acquired it
-- **Network timing**: Redlock makes timing assumptions about network delays that cannot be guaranteed in asynchronous networks (FLP impossibility applies)
-
-Salvatore's counter-argument: Redlock is designed for efficiency (avoiding duplicate work), not correctness-critical mutual exclusion. For true safety, use fencing tokens with a backend that supports conditional writes.
-
-**Summary Comparison:**
-
-| Aspect | ZooKeeper | etcd | Redlock |
-|--------|-----------|------|---------|
-| Consensus | ZAB (Paxos-like) | Raft | None (multi-instance voting) |
-| Consistency | Strong | Strong | Weak (clock-dependent) |
-| Fencing tokens | Yes (zxid) | Yes (revision) | No (requires external implementation) |
-| Lease renewal | Session heartbeat | Lease keepalive | EXPIRE reset |
-| Safety under GC | Requires fencing | Requires fencing | Vulnerable without fencing |
-| Operational complexity | High (JVM, ZooKeeper knowledge) | Low (single binary) | Medium |
-
-**Real-World Example:**
-Kafka uses ZooKeeper for broker leader election (Kafka 2.x and earlier). Each partition has a leader broker; ZooKeeper ephemeral nodes track which broker is alive. When the partition leader crashes, its ephemeral node disappears, triggering a re-election for that partition. Kafka 3.x introduces KRaft (Kafka Raft metadata) to remove the ZooKeeper dependency — Kafka's own Raft implementation handles leader election internally, reducing operational complexity.
-
-**Code Example:**
-```java
-// etcd distributed lock for leader election using Jetcd client
-public class DistributedLeaderElection {
-    private final Client etcdClient;
-    private final String serviceName;
-    private volatile boolean isLeader = false;
-    private volatile long leaseId;
-
-    public DistributedLeaderElection(String etcdEndpoint, String serviceName) {
-        this.etcdClient = Client.builder().endpoints(etcdEndpoint).build();
-        this.serviceName = serviceName;
-    }
-
-    public void startElection() throws Exception {
-        // 1. Create a lease with 15-second TTL
-        LeaseGrantResponse leaseResp = etcdClient.getLeaseClient()
-            .grant(15).get();
-        leaseId = leaseResp.getID();
-
-        // 2. Start keepalive to renew lease while we're alive
-        etcdClient.getLeaseClient().keepAlive(leaseId, new StreamObserver<>() {
-            @Override public void onNext(LeaseKeepAliveResponse r) { /* renewed */ }
-            @Override public void onError(Throwable t) { onLeadershipLost(); }
-            @Override public void onCompleted() { onLeadershipLost(); }
-        });
-
-        // 3. Try to acquire lock atomically (only if key doesn't exist)
-        String lockKey = "/election/" + serviceName + "/leader";
-        String nodeId = InetAddress.getLocalHost().getHostName() + ":" + System.currentTimeMillis();
-        ByteSequence key = ByteSequence.from(lockKey, StandardCharsets.UTF_8);
-        ByteSequence val = ByteSequence.from(nodeId, StandardCharsets.UTF_8);
-
-        // Conditional put: createRevision == 0 means key doesn't exist
-        Txn txn = etcdClient.getKVClient().txn();
-        TxnResponse txnResp = txn
-            .If(new Cmp(key, Cmp.Op.EQUAL, CmpTarget.createRevision(0)))
-            .Then(Op.put(key, val, PutOption.newBuilder().withLeaseId(leaseId).build()))
-            .commit().get();
-
-        if (txnResp.isSucceeded()) {
-            isLeader = true;
-            onLeadershipAcquired();
-        } else {
-            // Watch the key; when it's deleted (leader dies), retry election
-            watchAndRetry(key);
-        }
-    }
-
-    private void watchAndRetry(ByteSequence key) {
-        etcdClient.getWatchClient().watch(key, WatchOption.DEFAULT, response -> {
-            for (WatchEvent event : response.getEvents()) {
-                if (event.getEventType() == WatchEvent.EventType.DELETE) {
-                    try { startElection(); } catch (Exception e) { /* retry with backoff */ }
-                }
-            }
-        });
-    }
-
-    private void onLeadershipAcquired() {
-        System.out.println("This node is now the leader. LeaseId=" + leaseId);
-        // Begin leader tasks: e.g., coordinate workers, accept writes
-    }
-
-    private void onLeadershipLost() {
-        isLeader = false;
-        System.err.println("Leadership lost! Stopping leader activities.");
-        // Immediately stop all leader activities to prevent split-brain
-    }
-
-    // Fencing token: use etcd's revision number as a monotonic token
-    // Pass this to storage systems on every write operation
-    public long getFencingToken() {
-        return leaseId; // In practice, use the key's modifyRevision from etcd
-    }
-}
-```
-
-**Follow-up Questions:**
-1. What is a "zombie leader" in distributed systems, and how do fencing tokens prevent it from causing data corruption?
-2. How would you implement a distributed cron scheduler (single instance running a job at a time) using leader election?
-3. Martin Kleppmann argues that Redlock is unsafe even with fencing. Do you agree? Under what conditions would you still use Redlock?
-
-**Common Mistakes:**
-- Implementing leader election without fencing tokens — the GC pause / long STW issue can cause split-brain even with perfect lock acquisition logic
-- Using a single Redis instance for distributed locking — a single instance is a SPOF; if it fails, the lock is gone; if it restarts and loses data (no persistence), old lock holders may act without knowing the lock was reassigned
-- Not handling the "I think I'm still leader" scenario — after acquiring leadership, always check on every operation whether the lease/lock is still valid before acting
-
-**Interview Traps:**
-- "Is etcd distributed lock perfectly safe?" — No: a process that acquires the lock can pause (GC, OS scheduling) longer than the TTL. After waking up, it believes it still holds the lock. Fencing tokens + conditional writes in the downstream system are required for true safety
-- "Can you use database row locking for leader election?" — Yes (SELECT ... FOR UPDATE on a heartbeat table is a common pattern), but the database itself must be highly available and the row lock must expire if the leader crashes (requires a watchdog or TTL mechanism)
-- "Just use a single strong master database for coordination" — The point of leader election is to handle the case where that master fails; circular dependency
-
-**Quick Revision:** Leader election ensures exactly one active leader using ZooKeeper ephemeral nodes (ZAB consensus), etcd leases (Raft consensus), or Redlock (majority Redis quorum); the core challenge is preventing split-brain during GC pauses or network partitions — fencing tokens with conditional writes are the only safe solution.
+> "Shared caches across services are dangerous because Service A may not know when Service B updates a record that Service A has cached. Two approaches. First, publish invalidation events: when Service B updates a record, it publishes a 'user:123 updated' event to a message bus. All services that care about user:123 subscribe and delete or refresh their cached copies. This gives near-real-time invalidation but couples services through the event bus. Second, use short TTLs as a backstop: even without explicit invalidation, entries expire quickly — say every 30 seconds — limiting staleness to an acceptable window. Most production systems combine both: explicit invalidation for correctness on important data, plus short TTLs as a safety net in case invalidation events are missed."
 
 ---
 
-## Chapter 17 Part A — Quick Reference Card
+##### Q3 — Design Scenario
+**"Design the caching layer for a social media feed that needs to handle a celebrity with 50 million followers posting a new photo."**
 
-| Topic | Key Algorithm | Production System | Interview Trigger |
-|-------|--------------|-------------------|-------------------|
-| Sharding | Hash/Range/Directory | Vitess, Citus | "Scale MySQL to 1B rows" |
-| Consistent Hashing | Ring + vnodes | Cassandra, Redis Cluster | "Add cache nodes without downtime" |
-| Replication | Leader/Leaderless + Quorum | DynamoDB, Cassandra | "How does replication work in Cassandra?" |
-| Eventual Consistency | LWW / Vector Clocks / CRDTs | Riak, Cassandra | "How do you handle write conflicts?" |
-| Distributed Cache | Redis Cluster + 16384 slots | Redis, Memcached | "Handle 1M reads/sec on a hot key" |
-| Time | Lamport → HLC → TrueTime | CockroachDB, Spanner | "How does Spanner achieve global consistency?" |
-| Consensus | Raft (leader + log replication) | etcd, TiKV | "Explain how etcd works" |
-| Leader Election | Ephemeral znodes / etcd lease | ZooKeeper, etcd | "How does Kafka elect a partition leader?" |
+**One-line answer:** Pre-compute and fan-out the feed update to follower caches at write time for the top users, use local in-process hot-key caching to absorb the celebrity's own profile read storm, and design for cache misses during the fan-out window.
 
----
+**Full answer to give in an interview:**
 
-*Part B continues with: Distributed Transactions (2PC, Saga, Outbox Pattern), CRDB Architecture, NewSQL vs NoSQL trade-offs, Read/Write Path of DynamoDB, and Distributed Query Execution.*
+> "A celebrity posting a photo creates two distinct problems. First, 50 million follower feeds need to be updated — a write fan-out problem. Second, the celebrity's profile and the photo itself will receive millions of concurrent reads in the seconds after posting — a hot key read problem.
+>
+> For the feed update, the standard approach is a fan-out-on-write strategy for non-celebrities: when a user posts, write the post ID into each follower's feed cache immediately. But for a user with 50 million followers, this fan-out would take minutes and saturate the cache write tier. The hybrid approach: for users above a follower threshold, use fan-out-on-read — store the post in a 'celebrity posts' list and merge it into follower feeds at read time. Twitter called this the 'Lady Gaga problem' and moved to this hybrid model for high-follower accounts.
+>
+> For the hot key read problem — the celebrity's profile and the new photo being read by millions simultaneously — a single Redis node will saturate its network bandwidth. Solutions: local in-process caching in each application server with a 1-second TTL dramatically reduces Redis calls; what was 10 million req/s to Redis becomes one req/s per application instance. CDN caching for the photo binary itself — the photo is served from edge nodes, not the origin cache. Read replicas for the Redis cluster shard holding the celebrity's key, with the hot-key router distributing reads across replicas.
+>
+> The key design insight: the caching architecture for high-follower users must be explicitly different from the architecture for normal users. A one-size-fits-all caching strategy will fail at celebrity scale."
 
-
----
-
-# Chapter 17 — Distributed Databases & Sharding: PART B
-## Topics 9–15 + Cheat Sheet
+> *This answer references real architectural decisions (Twitter's hybrid fan-out) and shows end-to-end system thinking.*
 
 ---
 
-### Topic 9: DynamoDB Deep Dive
-
-**Difficulty:** Hard | **Frequency:** Very High | **Companies:** Amazon, Netflix, Lyft, Airbnb, Snap
-
-**Q:** Explain DynamoDB's data model, indexing strategies (LSI vs GSI), capacity planning, and how you would design a single-table schema for an e-commerce application.
-
-**Short Answer:**
-DynamoDB is a fully managed, serverless key-value and document store where every item is identified by a partition key (and optionally a sort key). LSIs share the base table's partition key but allow a different sort key, while GSIs allow entirely different partition and sort keys and are stored as separate, eventually-consistent projections. Single-table design collapses multiple entity types into one table to enable efficient, low-latency access patterns without JOINs.
-
-**Deep Explanation:**
-
-**Data Model Fundamentals:**
-- **Partition Key (PK):** Determines the partition node. DynamoDB hashes the PK to route requests. High-cardinality PKs distribute load evenly.
-- **Sort Key (SK):** Enables range queries within a partition. Items with the same PK are stored contiguously, sorted by SK.
-- **Item size:** Max 400 KB. Attribute names count toward the limit.
-- **Partition capacity:** Each partition handles up to 3,000 RCUs and 1,000 WCUs. Hot partitions cause throttling.
-
-**Index Types:**
-
-| Feature | LSI (Local Secondary Index) | GSI (Global Secondary Index) |
-|---|---|---|
-| Partition Key | Same as base table | Different from base table |
-| Sort Key | Different from base table | Any attribute |
-| Consistency | Strong or eventual | Eventual only |
-| Storage | Shares base table partition | Separate partition space |
-| Limit per table | 5 | 20 |
-| Created after table creation | No | Yes |
-| Throttling | Shares base table capacity | Separate capacity units |
-
-**Capacity Modes:**
-- **Provisioned:** Specify RCUs and WCUs. Auto-scaling adjusts within min/max bounds. Cost-effective for predictable workloads.
-- **On-Demand:** Pay per request. No capacity planning. 2–3x more expensive but scales instantly.
-- **Read Capacity Unit (RCU):** 1 strongly consistent read or 2 eventually consistent reads of up to 4 KB/s.
-- **Write Capacity Unit (WCU):** 1 write of up to 1 KB/s.
-- **Transactional reads/writes:** Consume 2x the normal capacity.
-
-**DynamoDB Streams:**
-- Ordered, time-limited (24h) log of item-level changes (INSERT, MODIFY, REMOVE).
-- Stream record contains old image, new image, or both.
-- Powers Lambda triggers for event-driven architectures (CDC, cache invalidation, search index sync).
-- Exactly-once delivery per shard via Lambda event source mapping.
-
-**Single-Table Design Philosophy:**
-- One table per service/application. Entity types coexist using PK/SK conventions.
-- Access patterns drive schema design — identify all read/write patterns before modeling.
-- Overloaded indexes: multiple entity types share the same GSI using different PK/SK semantics.
-- Sparse indexes: GSIs only index items that have the GSI attribute, reducing cost.
-
-**Real-World Example:**
-An e-commerce platform needs: get order by ID, list orders by customer, list items in an order, get product by ID. Single-table design:
-
-```
-PK=CUSTOMER#c1   SK=CUSTOMER#c1          → customer profile
-PK=CUSTOMER#c1   SK=ORDER#2024-01-15#o1  → order (sort by date)
-PK=ORDER#o1      SK=ITEM#p1              → order line item
-PK=PRODUCT#p1    SK=PRODUCT#p1           → product catalog
-```
-
-GSI1 on (GSI1PK, GSI1SK) for inverted access patterns (e.g., find all customers who ordered product P).
-
-**Code Example:**
-
-```java
-// Spring Boot + AWS SDK v2 DynamoDB Enhanced Client
-// Entity definition with single-table design
-
-@DynamoDbBean
-public class Order {
-
-    private String pk;        // "ORDER#orderId"
-    private String sk;        // "ORDER#orderId"
-    private String customerId;
-    private String gsi1Pk;    // "CUSTOMER#customerId"
-    private String gsi1Sk;    // "ORDER#2024-01-15T10:00:00#orderId"
-    private String status;
-    private BigDecimal total;
-    private String createdAt;
-
-    @DynamoDbPartitionKey
-    @DynamoDbAttribute("PK")
-    public String getPk() { return pk; }
-
-    @DynamoDbSortKey
-    @DynamoDbAttribute("SK")
-    public String getSk() { return sk; }
-
-    @DynamoDbSecondaryPartitionKey(indexNames = "GSI1")
-    @DynamoDbAttribute("GSI1PK")
-    public String getGsi1Pk() { return gsi1Pk; }
-
-    @DynamoDbSecondarySortKey(indexNames = "GSI1")
-    @DynamoDbAttribute("GSI1SK")
-    public String getGsi1Sk() { return gsi1Sk; }
-
-    // getters/setters omitted for brevity
-}
-
-@Service
-public class OrderRepository {
-
-    private final DynamoDbTable<Order> table;
-    private final DynamoDbIndex<Order> gsi1;
-
-    public OrderRepository(DynamoDbEnhancedClient client) {
-        this.table = client.table("ecommerce", TableSchema.fromBean(Order.class));
-        this.gsi1 = table.index("GSI1");
-    }
-
-    // Get single order
-    public Optional<Order> getOrder(String orderId) {
-        Key key = Key.builder()
-            .partitionValue("ORDER#" + orderId)
-            .sortValue("ORDER#" + orderId)
-            .build();
-        return Optional.ofNullable(table.getItem(key));
-    }
-
-    // List orders for a customer (paginated, sorted by date desc)
-    public List<Order> getOrdersByCustomer(String customerId, String exclusiveStartKey) {
-        QueryEnhancedRequest request = QueryEnhancedRequest.builder()
-            .queryConditional(QueryConditional.keyEqualTo(
-                Key.builder().partitionValue("CUSTOMER#" + customerId).build()))
-            .scanIndexForward(false)  // descending sort
-            .limit(20)
-            .build();
-
-        return gsi1.query(request)
-            .stream()
-            .flatMap(page -> page.items().stream())
-            .collect(Collectors.toList());
-    }
-
-    // Transactional write: create order + decrement inventory
-    public void createOrderWithInventoryUpdate(Order order, String productId, int quantity) {
-        TransactWriteItemsEnhancedRequest txRequest = TransactWriteItemsEnhancedRequest.builder()
-            .addPutItem(table, TransactPutItemEnhancedRequest.builder(Order.class)
-                .item(order)
-                .conditionExpression(Expression.builder()
-                    .expression("attribute_not_exists(PK)")
-                    .build())
-                .build())
-            .addUpdateItem(/* inventory table */ table,
-                TransactUpdateItemEnhancedRequest.builder(Order.class)
-                    .item(buildInventoryUpdate(productId, quantity))
-                    .conditionExpression(Expression.builder()
-                        .expression("quantity >= :qty")
-                        .expressionValues(Map.of(":qty",
-                            AttributeValue.fromN(String.valueOf(quantity))))
-                        .build())
-                    .build())
-            .build();
-
-        // DynamoDbEnhancedClient handles transaction
-        // client.transactWriteItems(txRequest);
-    }
-
-    // DynamoDB Streams processor (Lambda handler pattern)
-    public void processStreamRecord(Map<String, Object> event) {
-        List<Map<String, Object>> records = (List<Map<String, Object>>) event.get("Records");
-        for (Map<String, Object> record : records) {
-            String eventName = (String) record.get("eventName");
-            Map<String, Object> dynamodb = (Map<String, Object>) record.get("dynamodb");
-
-            switch (eventName) {
-                case "INSERT":
-                    handleNewOrder(dynamodb.get("NewImage"));
-                    break;
-                case "MODIFY":
-                    handleOrderUpdate(dynamodb.get("OldImage"), dynamodb.get("NewImage"));
-                    break;
-                case "REMOVE":
-                    handleOrderDelete(dynamodb.get("OldImage"));
-                    break;
-            }
-        }
-    }
-
-    private void handleNewOrder(Object newImage) {
-        // Trigger fulfillment, send confirmation email, update search index
-    }
-
-    private void handleOrderUpdate(Object oldImage, Object newImage) {
-        // Detect status changes, notify customer
-    }
-
-    private void handleOrderDelete(Object oldImage) {
-        // Audit log, cleanup
-    }
-
-    private Order buildInventoryUpdate(String productId, int quantity) {
-        // Build inventory decrement item
-        return new Order(); // simplified
-    }
-}
-
-// Capacity planning utility
-public class DynamoCapacityCalculator {
-
-    /**
-     * Calculate required RCUs for a given workload.
-     * @param readsPerSecond  expected read operations per second
-     * @param avgItemSizeKb   average item size in KB
-     * @param strongConsistency whether strong consistency is required
-     */
-    public static int calculateRCU(int readsPerSecond, double avgItemSizeKb,
-                                    boolean strongConsistency) {
-        // Round up to nearest 4KB
-        int roundedSizeKb = (int) Math.ceil(avgItemSizeKb / 4.0) * 4;
-        int rcuPerRead = strongConsistency ? 1 : (int) Math.ceil(0.5);  // 0.5 for eventual
-        return readsPerSecond * (roundedSizeKb / 4) * rcuPerRead;
-    }
-
-    public static int calculateWCU(int writesPerSecond, double avgItemSizeKb) {
-        int roundedSizeKb = (int) Math.ceil(avgItemSizeKb);
-        return writesPerSecond * roundedSizeKb;
-    }
-}
-```
-
-**Follow-up Questions:**
-1. How do you handle DynamoDB hot partition problems when a single product goes viral?
-2. What is the difference between optimistic locking with a version attribute and DynamoDB conditional expressions?
-3. How would you migrate from a multi-table design to single-table design without downtime?
-
-**Common Mistakes:**
-- Using low-cardinality partition keys (e.g., `status` field) causing hot partitions.
-- Forgetting that GSIs are eventually consistent — critical for financial read-after-write scenarios.
-- Not accounting for GSI write costs when planning capacity (every write to a base table propagates to all GSIs).
-- Using scan operations instead of designing proper access patterns upfront.
-
-**Interview Traps:**
-- "DynamoDB is just a key-value store" — it also supports rich query semantics via sort key range queries, filter expressions, and projection expressions.
-- Confusing LSI (must be created at table creation, strong consistency possible) with GSI (can be added later, eventual consistency only).
-- Assuming DynamoDB transactions are free — they cost 2x RCU/WCU.
-
-**Quick Revision:** DynamoDB: partition key routes to shard, sort key enables range queries; LSIs share PK + strong consistency, GSIs are separate + eventual; single-table design models all entity access patterns in one table using PK/SK conventions and sparse GSIs.
+> **Common Mistake — Ignoring the hot key problem:** Many candidates design a distributed cache as if all keys receive uniform traffic. In production, a tiny fraction of keys receive a disproportionate share of requests — celebrity profiles, trending products, viral content. A cache node holding a hot key can saturate its CPU and network regardless of how many other nodes are in the cluster. Always ask: "what is the traffic distribution?" and explicitly address hot keys in your design.
 
 ---
 
-### Topic 10: Cassandra Deep Dive
-
-**Difficulty:** Hard | **Frequency:** High | **Companies:** Netflix, Apple, Instagram, Uber, Discord
-
-**Q:** Explain Cassandra's ring architecture, how it achieves high availability, and how you would design a partition key for a time-series IoT sensor data workload.
-
-**Short Answer:**
-Cassandra uses a consistent hashing ring where each node owns a range of token values; data is replicated to N consecutive nodes on the ring, and the replication factor and consistency level together determine the availability/consistency trade-off. Gossip protocol disseminates node state across the cluster without a single coordinator. Partition key design is critical because all data for a partition key must fit on one node and be read/written atomically.
-
-**Deep Explanation:**
-
-**Ring Architecture:**
-- The keyspace is a circular token space (typically -2^63 to 2^63-1 for Murmur3 partitioner).
-- Each node is assigned one or more token ranges (vnodes/virtual nodes, typically 256 per node).
-- Vnodes distribute data more evenly and simplify node addition/removal.
-- The coordinator node (the node that received the client request) routes requests to the appropriate replica nodes.
-
-**Replication Strategies:**
-- **SimpleStrategy:** Replicas placed on next N nodes clockwise. Single datacenter only.
-- **NetworkTopologyStrategy:** Specifies replica count per datacenter. Rack-aware placement.
-- `CREATE KEYSPACE ks WITH replication = {'class': 'NetworkTopologyStrategy', 'dc1': 3, 'dc2': 2};`
-
-**Consistency Levels:**
-- **ONE/TWO/THREE:** Specific replica count must acknowledge.
-- **QUORUM:** (RF/2 + 1) replicas. LOCAL_QUORUM for multi-DC.
-- **ALL:** All replicas must respond. Highest consistency, lowest availability.
-- **ANY:** Even a hint counts. Lowest consistency, highest availability.
-- Strong consistency: write CL + read CL > RF (e.g., QUORUM + QUORUM with RF=3).
-
-**Gossip Protocol:**
-- Each node gossips with 1–3 peers every second, exchanging endpoint state (status, load, schema version).
-- Convergence is O(log N) rounds. All nodes learn about failures within seconds.
-- `nodetool gossipinfo` shows gossip state; `nodetool status` shows ring topology.
-
-**Compaction Strategies:**
-
-| Strategy | Use Case | How It Works |
-|---|---|---|
-| STCS (Size-Tiered) | Write-heavy, few reads | Merges SSTables of similar size |
-| LCS (Leveled) | Read-heavy, mixed | Maintains leveled structure, O(10) file count per level |
-| TWCS (Time-Window) | Time-series, TTL | Groups SSTables by time window, drops entire windows on expiry |
-| DTCS (Date-Tiered) | Legacy time-series | Precursor to TWCS |
-
-**Tombstones:**
-- Deletes in Cassandra write a tombstone marker rather than removing data immediately.
-- Tombstones accumulate until gc_grace_seconds (default 10 days) expires, after which compaction removes them.
-- Excessive tombstones cause read latency (Cassandra must scan past them).
-- Mitigation: use TTL instead of explicit deletes where possible, tune gc_grace_seconds for short-lived data.
-
-**Partition Key Design for IoT:**
-- Bad: `sensor_id` alone — one sensor could generate billions of rows → partition overflow.
-- Better: `(sensor_id, date)` — time-bucketed partition. Known partition size.
-- Best: `(sensor_id, bucket)` where bucket = `floor(timestamp / BUCKET_SIZE)` — tunable bucket size.
-
-**Real-World Example:**
-Netflix uses Cassandra for viewing history. Partition key: `(account_id, content_type)`, clustering key: `(watched_at DESC)` for recent history queries. TWCS compaction drops old SSTables without tombstone overhead. 99th-percentile read latency < 1ms at 1M+ ops/sec globally.
-
-**Code Example:**
-
-```java
-// Spring Data Cassandra — IoT sensor time-series
-
-// Schema (CQL)
-/*
-CREATE TABLE sensor_readings (
-    sensor_id   UUID,
-    bucket      INT,           -- floor(epoch_seconds / 86400) = daily bucket
-    recorded_at TIMESTAMP,
-    temperature DOUBLE,
-    humidity    DOUBLE,
-    PRIMARY KEY ((sensor_id, bucket), recorded_at)
-) WITH CLUSTERING ORDER BY (recorded_at DESC)
-  AND compaction = {
-      'class': 'TimeWindowCompactionStrategy',
-      'compaction_window_unit': 'DAYS',
-      'compaction_window_size': 1
-  }
-  AND default_time_to_live = 2592000;  -- 30 days TTL
-*/
-
-@Table("sensor_readings")
-public class SensorReading {
-
-    @PrimaryKeyClass
-    public static class SensorReadingKey implements Serializable {
-        @PrimaryKeyColumn(name = "sensor_id", ordinal = 0, type = PrimaryKeyType.PARTITIONED)
-        private UUID sensorId;
-
-        @PrimaryKeyColumn(name = "bucket", ordinal = 1, type = PrimaryKeyType.PARTITIONED)
-        private int bucket;
-
-        @PrimaryKeyColumn(name = "recorded_at", ordinal = 2,
-                          type = PrimaryKeyType.CLUSTERED,
-                          ordering = Ordering.DESCENDING)
-        private Instant recordedAt;
-
-        public SensorReadingKey(UUID sensorId, Instant recordedAt) {
-            this.sensorId = sensorId;
-            this.recordedAt = recordedAt;
-            this.bucket = (int) (recordedAt.getEpochSecond() / 86400);
-        }
-        // getters/setters
-    }
-
-    @PrimaryKey
-    private SensorReadingKey key;
-
-    @Column("temperature")
-    private double temperature;
-
-    @Column("humidity")
-    private double humidity;
-
-    // getters/setters
-}
-
-@Repository
-public interface SensorReadingRepository
-        extends CassandraRepository<SensorReading, SensorReading.SensorReadingKey> {
-
-    // Query recent readings within a time range (single partition = fast)
-    @Query("SELECT * FROM sensor_readings WHERE sensor_id = ?0 AND bucket = ?1 " +
-           "AND recorded_at >= ?2 AND recorded_at <= ?3")
-    List<SensorReading> findByTimeRange(UUID sensorId, int bucket,
-                                         Instant from, Instant to);
-
-    // Multi-partition query for longer ranges (use ALLOW FILTERING cautiously)
-    @Query("SELECT * FROM sensor_readings WHERE sensor_id = ?0 " +
-           "AND bucket IN ?1 AND recorded_at >= ?2 LIMIT 1000")
-    List<SensorReading> findAcrossBuckets(UUID sensorId, List<Integer> buckets, Instant from);
-}
-
-@Service
-public class SensorService {
-
-    private final SensorReadingRepository repository;
-    private final CassandraOperations cassandraOps;
-
-    // Batch insert for high-throughput ingestion
-    public void bulkInsert(List<SensorReading> readings) {
-        // Use unlogged batch for same-partition writes (logged batch is an anti-pattern)
-        BatchStatements batch = BatchStatements.of(readings.stream()
-            .map(r -> QueryBuilder.insertInto("sensor_readings")
-                .value("sensor_id", r.getKey().getSensorId())
-                .value("bucket", r.getKey().getBucket())
-                .value("recorded_at", r.getKey().getRecordedAt())
-                .value("temperature", r.getTemperature())
-                .value("humidity", r.getHumidity())
-                .build())
-            .collect(Collectors.toList()));
-        // cassandraOps.execute(batch);
-    }
-
-    // Query spanning multiple daily buckets
-    public List<SensorReading> getReadingsForDateRange(UUID sensorId,
-                                                         LocalDate startDate,
-                                                         LocalDate endDate) {
-        List<Integer> buckets = startDate.datesUntil(endDate.plusDays(1))
-            .map(d -> (int) d.toEpochDay())
-            .collect(Collectors.toList());
-
-        return buckets.stream()
-            .flatMap(bucket -> repository.findByTimeRange(
-                sensorId, bucket,
-                startDate.atStartOfDay().toInstant(ZoneOffset.UTC),
-                endDate.atTime(23, 59, 59).toInstant(ZoneOffset.UTC)).stream())
-            .collect(Collectors.toList());
-    }
-}
-
-// Cassandra configuration with retry and load balancing policies
-@Configuration
-public class CassandraConfig extends AbstractCassandraConfiguration {
-
-    @Override
-    protected String getKeyspaceName() { return "iot_platform"; }
-
-    @Bean
-    public CqlSessionFactoryBean cassandraSession() {
-        CqlSessionFactoryBean session = new CqlSessionFactoryBean();
-        session.setContactPoints("cassandra-node1:9042,cassandra-node2:9042");
-        session.setLocalDatacenter("dc1");
-        session.setKeyspaceName(getKeyspaceName());
-        // Driver handles retry, load balancing, and speculative execution
-        // via application.conf (DataStax driver config)
-        return session;
-    }
-}
-```
-
-**Follow-up Questions:**
-1. How does Cassandra handle a node failure during a write with QUORUM consistency?
-2. What is the difference between a logged batch and an unlogged batch, and when should you use each?
-3. How would you perform a schema migration in a running Cassandra cluster without downtime?
-
-**Common Mistakes:**
-- Using logged batches for performance (they are for atomicity across partitions, not throughput; unlogged batches on a single partition are the performance tool).
-- Designing wide rows without TTL or compaction strategy, leading to unbounded partition growth.
-- Using secondary indexes (`CREATE INDEX`) on high-cardinality columns — Cassandra's secondary indexes are local to each node, causing full-cluster scatter-gather reads.
-- Querying with `ALLOW FILTERING` in production — always a table scan on affected partitions.
-
-**Interview Traps:**
-- "Cassandra is AP" — partially true; consistency level is tunable. With ALL + RF=1 it is CP.
-- Cassandra does not support JOINs or subqueries. Data must be denormalized.
-- "Last Write Wins" conflict resolution uses client-provided timestamps, not server time. Clock skew matters.
-
-**Quick Revision:** Cassandra: consistent hashing ring + vnodes for data distribution; gossip for failure detection; QUORUM reads+writes for tunable strong consistency; TWCS for time-series compaction; partition key must be high-cardinality and time-bucketed for IoT.
+**Quick Revision (one line):**
+Distributed caching spreads keys across nodes via consistent hashing; cache-aside is the default pattern, write-through keeps the cache always fresh, write-behind maximises write throughput; the three failure modes to know are cache stampede (concurrent misses on expiry), cache penetration (non-existent key hammers DB), and hot key (single key saturates one node — fix with local in-process caching).
 
 ---
 
-### Topic 11: MongoDB Deep Dive
-
-**Difficulty:** Medium-Hard | **Frequency:** High | **Companies:** MongoDB, Lyft, Expedia, Bosch, Verizon
-
-**Q:** Explain MongoDB's document model advantages, how the aggregation pipeline works, and how sharding with mongos differs from application-level sharding.
-
-**Short Answer:**
-MongoDB stores data as BSON documents (binary JSON), enabling flexible schemas and embedded sub-documents that eliminate JOIN overhead for co-located data. The aggregation pipeline processes documents through sequential stages (match, group, lookup, project) with server-side computation. Sharding in MongoDB is transparent to the application: mongos (query router) intercepts queries, consults the config server for chunk metadata, and routes to the appropriate shard replica sets.
-
-**Deep Explanation:**
-
-**Document Model:**
-- Documents are BSON (Binary JSON) — supports rich types: Date, ObjectId, Decimal128, Binary, Array.
-- Flexible schema: documents in the same collection can have different fields. Schema validation via JSON Schema optional.
-- Embedding vs referencing: embed for 1:1 and 1:few with co-access patterns; reference (DBRef or manual) for 1:many and many:many.
-- 16 MB document size limit. GridFS for larger files.
-
-**Index Types:**
-
-| Index Type | Use Case |
-|---|---|
-| Single Field | Equality and range queries on one field |
-| Compound | Multi-field queries, covered indexes |
-| Multikey | Array fields — one index entry per array element |
-| Text | Full-text search (English stemming, stop words) |
-| Geospatial 2dsphere | GeoJSON queries (near, within) |
-| Hashed | Shard key with uniform distribution |
-| Wildcard | Dynamic/unknown field schemas |
-| TTL | Auto-expire documents (e.g., sessions, logs) |
-| Partial | Index subset of documents meeting a filter expression |
-
-**Aggregation Pipeline:**
-Sequential stages, each transforming the document stream:
-- `$match` — filter (uses indexes if first stage)
-- `$group` — group by key + accumulators (`$sum`, `$avg`, `$push`, `$addToSet`)
-- `$project` — reshape documents, add computed fields
-- `$lookup` — left outer join to another collection
-- `$unwind` — deconstruct array into individual documents
-- `$sort` / `$limit` / `$skip` — ordering and pagination
-- `$facet` — multiple pipelines in parallel for faceted search
-- `$bucket` / `$bucketAuto` — histogram bucketing
-
-**Replica Sets:**
-- Primary handles all writes. Secondaries replicate via oplog (operations log — a capped collection).
-- Elections: Raft-based. Majority vote required. Minimum 3 nodes (1 primary + 2 secondaries or 1 arbiter).
-- Read preferences: `primary`, `primaryPreferred`, `secondary`, `secondaryPreferred`, `nearest`.
-- `writeConcern: {w: "majority", j: true}` — written to majority + journaled before acknowledgment.
-- Replica set lag monitoring: `rs.printReplicationInfo()`.
-
-**Sharding Architecture:**
-- **Shard:** Replica set holding a subset of data.
-- **mongos:** Stateless query router. Application connects to mongos, not shards directly.
-- **Config servers:** 3-node replica set storing chunk metadata (which shard owns which range).
-- **Chunk:** 64 MB range of shard key values. Auto-split and auto-balance.
-- Shard key strategies:
-  - **Ranged:** Efficient range queries but susceptible to hot spots on monotonically increasing keys.
-  - **Hashed:** Uniform distribution but range queries scatter across all shards.
-  - **Zone sharding:** Pin data to specific shards by key range (multi-region, tiered storage).
-
-**Real-World Example:**
-An e-commerce product catalog: shard key `{category: 1, _id: "hashed"}` — zone sharding pins popular categories to high-memory shards. Aggregation pipeline computes "top 10 products by revenue in last 30 days" server-side, avoiding data transfer to application.
-
-**Code Example:**
-
-```java
-// Spring Data MongoDB — aggregation pipeline and sharding config
-
-@Document(collection = "orders")
-public class Order {
-
-    @Id
-    private ObjectId id;
-
-    @Field("customer_id")
-    private String customerId;
-
-    @Field("product_id")
-    private String productId;
-
-    @Field("category")
-    private String category;
-
-    @Field("amount")
-    private BigDecimal amount;
-
-    @Field("status")
-    private String status;
-
-    @Field("created_at")
-    private LocalDateTime createdAt;
-
-    // getters/setters
-}
-
-@Repository
-public class OrderAnalyticsRepository {
-
-    private final MongoTemplate mongoTemplate;
-
-    public OrderAnalyticsRepository(MongoTemplate mongoTemplate) {
-        this.mongoTemplate = mongoTemplate;
-    }
-
-    // Aggregation: top 10 products by revenue in last 30 days
-    public List<ProductRevenue> getTopProductsByRevenue(int days) {
-        LocalDateTime cutoff = LocalDateTime.now().minusDays(days);
-
-        Aggregation aggregation = Aggregation.newAggregation(
-            // Stage 1: filter — uses index on created_at + status
-            Aggregation.match(Criteria.where("created_at").gte(cutoff)
-                                      .and("status").is("COMPLETED")),
-
-            // Stage 2: group by product, sum revenue
-            Aggregation.group("product_id")
-                       .sum("amount").as("totalRevenue")
-                       .count().as("orderCount"),
-
-            // Stage 3: sort by revenue descending
-            Aggregation.sort(Sort.Direction.DESC, "totalRevenue"),
-
-            // Stage 4: limit to top 10
-            Aggregation.limit(10),
-
-            // Stage 5: lookup product details
-            Aggregation.lookup("products", "_id", "_id", "productDetails"),
-
-            // Stage 6: unwind the joined array
-            Aggregation.unwind("productDetails"),
-
-            // Stage 7: project final shape
-            Aggregation.project("totalRevenue", "orderCount")
-                       .and("productDetails.name").as("productName")
-                       .and("productDetails.category").as("category")
-        );
-
-        AggregationResults<ProductRevenue> results =
-            mongoTemplate.aggregate(aggregation, "orders", ProductRevenue.class);
-
-        return results.getMappedResults();
-    }
-
-    // Aggregation: revenue by category per month (faceted analytics)
-    public List<CategoryMonthlyRevenue> getRevenueByCategoryMonth(int year) {
-        Aggregation aggregation = Aggregation.newAggregation(
-            Aggregation.match(Criteria.where("created_at")
-                .gte(LocalDateTime.of(year, 1, 1, 0, 0))
-                .lt(LocalDateTime.of(year + 1, 1, 1, 0, 0))),
-
-            Aggregation.project("category", "amount")
-                .andExpression("month(created_at)").as("month"),
-
-            Aggregation.group(Fields.fields("category", "month"))
-                       .sum("amount").as("revenue"),
-
-            Aggregation.sort(Sort.by("_id.category", "_id.month"))
-        );
-
-        return mongoTemplate.aggregate(aggregation, "orders",
-                                        CategoryMonthlyRevenue.class)
-                            .getMappedResults();
-    }
-
-    // Change Streams (MongoDB equivalent of DynamoDB Streams / Kafka CDC)
-    public void watchOrderChanges() {
-        List<Bson> pipeline = List.of(
-            Aggregates.match(Filters.in("operationType", List.of("insert", "update")))
-        );
-
-        // Non-blocking reactive change stream
-        mongoTemplate.getCollection("orders")
-            .watch(pipeline)
-            .forEach(event -> {
-                String opType = event.getOperationType().getValue();
-                Document fullDoc = event.getFullDocument();
-                // Process change event
-                System.out.printf("Operation: %s, Document: %s%n", opType, fullDoc);
-            });
-    }
-}
-
-// Repository with Spring Data MongoDB
-@Repository
-public interface OrderRepository extends MongoRepository<Order, ObjectId> {
-
-    // Uses compound index on (customer_id, created_at)
-    List<Order> findByCustomerIdOrderByCreatedAtDesc(String customerId);
-
-    // Partial index query — only completed orders (partial index: {status: "COMPLETED"})
-    @Query("{'status': 'COMPLETED', 'amount': {$gte: ?0}}")
-    List<Order> findHighValueCompletedOrders(BigDecimal minAmount);
-
-    // Geospatial query — find orders from users near a location
-    @Query("{'location': {$near: {$geometry: {type: 'Point', coordinates: [?0, ?1]}, $maxDistance: ?2}}}")
-    List<Order> findNearLocation(double longitude, double latitude, double maxDistanceMeters);
-}
-
-// Index creation
-@Configuration
-public class MongoIndexConfig {
-
-    @Bean
-    public MongoCustomConversions mongoCustomConversions() {
-        return new MongoCustomConversions(Collections.emptyList());
-    }
-
-    // Programmatic index creation
-    @EventListener(ApplicationReadyEvent.class)
-    public void initIndexes(ApplicationReadyEvent event) {
-        MongoTemplate mongoTemplate = event.getApplicationContext()
-                                          .getBean(MongoTemplate.class);
-
-        // Compound index for common query pattern
-        mongoTemplate.indexOps("orders").ensureIndex(
-            new Index()
-                .on("customer_id", Sort.Direction.ASC)
-                .on("created_at", Sort.Direction.DESC)
-                .named("customer_created_compound")
-        );
-
-        // TTL index for session expiry
-        mongoTemplate.indexOps("sessions").ensureIndex(
-            new Index()
-                .on("expires_at", Sort.Direction.ASC)
-                .expire(0)  // expire at the time specified in the field
-                .named("session_ttl")
-        );
-
-        // Partial index — only index active products
-        mongoTemplate.indexOps("products").ensureIndex(
-            new CompoundIndexDefinition(
-                new org.bson.Document("category", 1).append("price", 1))
-                .named("active_category_price")
-                .partial(PartialIndexFilter.of(Criteria.where("active").is(true)))
-        );
-    }
-}
-```
-
-**Follow-up Questions:**
-1. How does MongoDB's WiredTiger storage engine handle concurrent reads and writes differently from the old MMAPv1 engine?
-2. What are the trade-offs of embedding vs referencing documents, and how do access patterns influence this decision?
-3. How does MongoDB handle a mongos router failure in a sharded cluster?
-
-**Common Mistakes:**
-- Choosing a monotonically increasing shard key (e.g., ObjectId, timestamp) with ranged sharding — all writes go to the last chunk (hot spot).
-- Using `$lookup` (server-side join) across shards — cross-shard lookups do not use indexes on the joined collection.
-- Neglecting `writeConcern` defaults — MongoDB 5.0+ defaults to `w: majority`, but older versions default to `w: 1` (not durable across replica failover).
-- Not capping pipeline memory — aggregation stages default to 100 MB RAM limit; use `allowDiskUse: true` for large datasets.
-
-**Interview Traps:**
-- MongoDB is not ACID — False. Since 4.0, multi-document transactions with ACID guarantees are supported (but expensive; prefer single-document atomicity when possible).
-- "Schema-less means no schema" — MongoDB should have an implicit or explicit schema (JSON Schema validation) to avoid data quality issues.
-
-**Quick Revision:** MongoDB: BSON documents with flexible schema; aggregation pipeline for server-side analytics; replica set oplog for replication; mongos routes sharded queries transparently; choose hashed shard key for write distribution, ranged for range query efficiency.
+## Topic 6: Time in Distributed Systems
 
 ---
 
-### Topic 12: Time-Series Databases
+#### The Idea
 
-**Difficulty:** Medium | **Frequency:** Medium | **Companies:** Datadog, InfluxData, Timescale, AWS, Azure, Google
+Imagine you and a friend are each writing entries in separate notebooks, and you want to know whose entry came first. The obvious solution is to check your watches — but what if your watches are five seconds apart? In a network of computers, every machine has its own hardware clock, and those clocks drift apart over time. Even with clock-synchronisation software like NTP, two machines can disagree on the current time by several milliseconds — and at high write rates, that window is enough to silently reorder events and lose data.
 
-**Q:** What makes time-series data special, and how do databases like InfluxDB and TimescaleDB handle retention policies and downsampling differently from general-purpose databases?
+The fix is to stop using wall-clock time for ordering and instead use *logical clocks* — counters that track cause-and-effect relationships between events, not calendar time. If event A caused event B (A sent a message that B received), a logical clock guarantees A's timestamp is lower than B's, regardless of what the wall clock says.
 
-**Short Answer:**
-Time-series data is append-only, high-frequency, and queried as recent-first ranges or aggregated over time windows — patterns that general-purpose databases handle inefficiently due to index overhead and lack of native time-bucketing. InfluxDB stores data in time-ordered TSM (Time-Structured Merge Tree) files optimized for high write throughput and column compression, while TimescaleDB extends PostgreSQL with automatic hypertable partitioning (chunks) on the time dimension, enabling familiar SQL alongside time-series optimizations.
-
-**Deep Explanation:**
-
-**Time-Series Data Characteristics:**
-- **Append-mostly:** Inserts dominate; updates and deletes are rare (only for late-arriving data corrections).
-- **High cardinality:** Many independent series (e.g., one per device × metric × tag combination).
-- **Temporal locality:** Recent data is accessed far more frequently than old data.
-- **Regular intervals:** Lends itself to column-store compression (delta encoding, run-length encoding, Gorilla float compression).
-- **Time-range queries:** "Give me CPU usage for host A between 14:00 and 15:00" is the dominant pattern.
-
-**InfluxDB Architecture:**
-- **Line Protocol:** `measurement,tag1=v1,tag2=v2 field1=1.5,field2=2.0 1694000000000000000`
-- **TSM (Time-Structured Merge Tree):** Like LSM but optimized for time. Data organized by measurement + tag set. WAL + in-memory cache + TSM files.
-- **Series:** Unique combination of measurement + tag set. High cardinality of series (millions) can cause memory issues (series index).
-- **Retention Policies (InfluxDB 1.x) / Buckets (InfluxDB 2.x):** Define how long data is stored. Data outside retention window is dropped at shard group boundaries (not row-by-row).
-- **Continuous Queries (1.x) / Tasks (2.x):** Schedule downsampling: aggregate raw 1-second data into 1-minute summaries, store in a separate bucket with longer retention.
-
-**TimescaleDB Architecture:**
-- PostgreSQL extension — full SQL, all PostgreSQL indexes, foreign keys, JOINs.
-- **Hypertable:** A PostgreSQL table that is automatically partitioned into "chunks" by time (and optionally by space/hash).
-- **Chunk:** A regular PostgreSQL table. Old chunks can be compressed, tiered to object storage, or dropped.
-- **Continuous Aggregates:** Materialized views that incrementally refresh as new data arrives. SQL-defined downsampling.
-- **Compression:** Column-oriented storage within chunks. 10–20x compression typical. Compressed chunks are read-only.
-
-**Downsampling:**
-Converting high-resolution raw data to lower-resolution summaries (e.g., 1s → 1m → 1h → 1d) to:
-1. Reduce storage cost.
-2. Speed up long-range queries.
-3. Enforce retention policies (keep 1d raw, 30d 1m, 1y 1h, forever 1d).
-
-**Real-World Example:**
-Datadog ingests 10 trillion data points per day. InfluxDB (Gorilla compression + TSM) stores raw metrics for 15 days. A continuous task downsamples to 1-minute averages stored for 90 days, and 1-hour P95 values stored for 2 years. The monitoring dashboard queries the appropriate resolution tier based on the time range selected.
-
-**Code Example:**
-
-```java
-// Spring Boot + TimescaleDB (via Spring Data JPA + JDBC)
-
-// TimescaleDB Hypertable setup (executed via Flyway migration)
-/*
--- V1__create_metrics_hypertable.sql
-CREATE TABLE sensor_metrics (
-    time        TIMESTAMPTZ NOT NULL,
-    sensor_id   UUID        NOT NULL,
-    metric_name TEXT        NOT NULL,
-    value       DOUBLE PRECISION NOT NULL,
-    tags        JSONB
-);
-
--- Convert to hypertable, partition by time with 1-day chunks
-SELECT create_hypertable('sensor_metrics', 'time',
-                          chunk_time_interval => INTERVAL '1 day');
-
--- Composite index for common query pattern
-CREATE INDEX ON sensor_metrics (sensor_id, time DESC);
-
--- Enable compression on chunks older than 7 days
-ALTER TABLE sensor_metrics SET (
-    timescaledb.compress,
-    timescaledb.compress_segmentby = 'sensor_id, metric_name',
-    timescaledb.compress_orderby = 'time DESC'
-);
-
-SELECT add_compression_policy('sensor_metrics', INTERVAL '7 days');
-
--- Auto-drop chunks older than 90 days
-SELECT add_retention_policy('sensor_metrics', INTERVAL '90 days');
-
--- Continuous aggregate: 1-minute averages
-CREATE MATERIALIZED VIEW sensor_metrics_1min
-WITH (timescaledb.continuous) AS
-SELECT
-    time_bucket('1 minute', time) AS bucket,
-    sensor_id,
-    metric_name,
-    AVG(value)  AS avg_value,
-    MIN(value)  AS min_value,
-    MAX(value)  AS max_value,
-    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY value) AS p95_value,
-    COUNT(*)    AS sample_count
-FROM sensor_metrics
-GROUP BY bucket, sensor_id, metric_name;
-
-SELECT add_continuous_aggregate_policy('sensor_metrics_1min',
-    start_offset => INTERVAL '1 hour',
-    end_offset   => INTERVAL '1 minute',
-    schedule_interval => INTERVAL '1 minute');
-*/
-
-// Java entity and repository
-@Entity
-@Table(name = "sensor_metrics")
-public class SensorMetric {
-
-    @Id
-    @Column(name = "time")
-    private OffsetDateTime time;
-
-    @Column(name = "sensor_id")
-    private UUID sensorId;
-
-    @Column(name = "metric_name")
-    private String metricName;
-
-    @Column(name = "value")
-    private double value;
-
-    @Type(JsonBinaryType.class)
-    @Column(name = "tags", columnDefinition = "jsonb")
-    private Map<String, String> tags;
-
-    // getters/setters
-}
-
-@Repository
-public class MetricsRepository {
-
-    private final JdbcTemplate jdbcTemplate;
-    private final NamedParameterJdbcTemplate namedJdbc;
-
-    // Time-bucketed query using time_bucket() function
-    public List<MetricBucket> getMinuteAverages(UUID sensorId, String metric,
-                                                  OffsetDateTime from, OffsetDateTime to) {
-        String sql = """
-            SELECT
-                time_bucket('1 minute', time) AS bucket,
-                AVG(value) AS avg_value,
-                MIN(value) AS min_value,
-                MAX(value) AS max_value
-            FROM sensor_metrics
-            WHERE sensor_id = :sensorId
-              AND metric_name = :metric
-              AND time BETWEEN :from AND :to
-            GROUP BY bucket
-            ORDER BY bucket ASC
-            """;
-
-        MapSqlParameterSource params = new MapSqlParameterSource()
-            .addValue("sensorId", sensorId)
-            .addValue("metric", metric)
-            .addValue("from", from)
-            .addValue("to", to);
-
-        return namedJdbc.query(sql, params, (rs, rowNum) -> new MetricBucket(
-            rs.getObject("bucket", OffsetDateTime.class),
-            rs.getDouble("avg_value"),
-            rs.getDouble("min_value"),
-            rs.getDouble("max_value")
-        ));
-    }
-
-    // Batch insert using COPY protocol (high throughput)
-    public void bulkInsert(List<SensorMetric> metrics) {
-        jdbcTemplate.batchUpdate(
-            "INSERT INTO sensor_metrics (time, sensor_id, metric_name, value, tags) " +
-            "VALUES (?, ?, ?, ?, ?::jsonb) ON CONFLICT DO NOTHING",
-            metrics.stream()
-                .map(m -> new Object[]{
-                    m.getTime(), m.getSensorId(), m.getMetricName(),
-                    m.getValue(), toJsonString(m.getTags())
-                })
-                .collect(Collectors.toList())
-        );
-    }
-
-    // Query the continuous aggregate for fast dashboard rendering
-    public List<MetricBucket> getDashboardData(UUID sensorId, String metric,
-                                                 OffsetDateTime from, OffsetDateTime to) {
-        // For ranges > 1 hour, query the 1-min aggregate instead of raw data
-        Duration range = Duration.between(from, to);
-        String table = range.toHours() > 1 ? "sensor_metrics_1min" : "sensor_metrics";
-
-        if ("sensor_metrics_1min".equals(table)) {
-            String sql = """
-                SELECT bucket, avg_value, min_value, max_value
-                FROM sensor_metrics_1min
-                WHERE sensor_id = :sensorId
-                  AND metric_name = :metric
-                  AND bucket BETWEEN :from AND :to
-                ORDER BY bucket ASC
-                """;
-            // execute and return
-        }
-
-        return getMinuteAverages(sensorId, metric, from, to);
-    }
-
-    private String toJsonString(Map<String, String> tags) {
-        try {
-            return new ObjectMapper().writeValueAsString(tags);
-        } catch (Exception e) { return "{}"; }
-    }
-}
-
-// InfluxDB 2.x client (Spring Boot integration)
-@Service
-public class InfluxMetricsService {
-
-    private final InfluxDBClient influxClient;
-    private final WriteApiBlocking writeApi;
-    private final QueryApi queryApi;
-
-    public InfluxMetricsService(InfluxDBClient influxClient) {
-        this.influxClient = influxClient;
-        this.writeApi = influxClient.getWriteApiBlocking();
-        this.queryApi = influxClient.getQueryApi();
-    }
-
-    public void writeSensorReading(UUID sensorId, String metric,
-                                    double value, Map<String, String> tags) {
-        Point point = Point.measurement("sensor_readings")
-            .addTag("sensor_id", sensorId.toString())
-            .addTag("metric", metric)
-            .addTags(tags)
-            .addField("value", value)
-            .time(Instant.now(), WritePrecision.NS);
-
-        writeApi.writePoint("my-bucket", "my-org", point);
-    }
-
-    public List<FluxRecord> queryLastHour(String sensorId, String metric) {
-        String flux = String.format("""
-            from(bucket: "my-bucket")
-              |> range(start: -1h)
-              |> filter(fn: (r) => r._measurement == "sensor_readings")
-              |> filter(fn: (r) => r.sensor_id == "%s")
-              |> filter(fn: (r) => r.metric == "%s")
-              |> aggregateWindow(every: 1m, fn: mean, createEmpty: false)
-              |> yield(name: "mean")
-            """, sensorId, metric);
-
-        return queryApi.query(flux, "my-org").stream()
-            .flatMap(table -> table.getRecords().stream())
-            .collect(Collectors.toList());
-    }
-}
-```
-
-**Follow-up Questions:**
-1. How does TimescaleDB's chunk exclusion work, and why is it important for query performance?
-2. What is the "high cardinality problem" in InfluxDB, and how do you mitigate it in tag design?
-3. How would you handle late-arriving data (out-of-order writes) in a time-series database?
-
-**Common Mistakes:**
-- Treating timestamps as strings rather than native timestamp types — loses index efficiency and timezone handling.
-- Storing too many unique tag values in InfluxDB (e.g., user_id as a tag) — creates a new series per user, blowing up the series cardinality.
-- Not planning downsampling strategy upfront — trying to add continuous aggregates retroactively requires backfilling.
-- Using raw-data table for long-range dashboard queries (weeks/months) when continuous aggregates would be 100x faster.
-
-**Interview Traps:**
-- TimescaleDB is not a separate database — it is a PostgreSQL extension. You get full SQL, foreign keys, and JOINs.
-- InfluxDB 2.x (Flux query language) is very different from InfluxDB 1.x (InfluxQL). Know which version is in use.
-
-**Quick Revision:** Time-series DBs: optimized for append-heavy, time-ordered data; InfluxDB uses TSM column storage + retention policies + continuous tasks for downsampling; TimescaleDB uses PostgreSQL hypertable chunks + continuous aggregates + compression policies — full SQL with time-series superpowers.
+Different logical clock designs offer different power: Lamport clocks give a total order but cannot detect when two events are truly independent; vector clocks detect independent (concurrent) events at the cost of more storage; hybrid logical clocks (HLC) combine a logical counter with wall-clock proximity so you get causality tracking *and* approximate real-world time. Google's Spanner goes further still, using GPS and atomic clocks to bound clock uncertainty to a few milliseconds and wait out that uncertainty before committing.
 
 ---
 
-### Topic 13: Full-Text Search with Elasticsearch
-
-**Difficulty:** Hard | **Frequency:** High | **Companies:** Elastic, Uber, LinkedIn, GitHub, Netflix, Shopify
-
-**Q:** Explain Elasticsearch's shard and segment architecture, how the inverted index enables relevance scoring, and how you would integrate Elasticsearch with a Spring Boot application.
-
-**Short Answer:**
-Elasticsearch distributes data across shards (each a self-contained Lucene index); each shard contains multiple immutable segments which are the unit of the inverted index. The inverted index maps terms to posting lists (document IDs + term frequencies + positions), enabling O(1) term lookup. BM25 scoring computes relevance using term frequency, inverse document frequency, and field length normalization to rank results.
-
-**Deep Explanation:**
-
-**Architecture:**
+#### How It Works
 
 ```
-Cluster
-├── Node 1 (Master-eligible, Data)
-│   ├── Shard P0 (Primary)   — Lucene Index
-│   │   ├── Segment 1 (immutable)
-│   │   ├── Segment 2 (immutable)
-│   │   └── In-memory buffer → flush → new segment
-│   └── Shard R1 (Replica of P1)
-├── Node 2 (Data)
-│   ├── Shard P1 (Primary)
-│   └── Shard R0 (Replica of P0)
-└── Node 3 (Master-eligible, Data)
-    └── Shard P2, R2...
+LAMPORT CLOCK — causal ordering without wall clocks
+
+Each node keeps counter C, starts at 0.
+
+  On send:
+    C = C + 1
+    attach C to outgoing message
+
+  On receive(msg):
+    C = max(local_C, msg.C) + 1
+
+Guarantee: if A → B (A caused B), then L(A) < L(B).
+Limitation: L(A) < L(B) does NOT prove A caused B — only the converse holds.
+Cannot detect concurrent events.
 ```
 
-**Index vs Shard vs Segment:**
-- **Index:** Logical namespace. Backed by multiple shards.
-- **Shard:** Lucene index. Primary shard count is fixed at index creation (cannot change without reindexing). Replica shards can be added/removed live.
-- **Segment:** Immutable unit within a Lucene index. Writes buffer in memory, flush creates a new segment. Segment merge (background) reclaims space from deleted documents. Forcing a merge reduces segment count, improving read performance.
-- **Refresh:** Makes in-memory data searchable (creates new segment). Default: 1 second. `refresh_interval: -1` during bulk indexing.
-- **Flush:** Writes memory buffer + translog to a new Lucene commit point (durable). Default: every 30 minutes or when translog exceeds 512 MB.
-
-**Inverted Index:**
 ```
-Term       → Document IDs (posting list)   + TF    + Positions
-"java"     → [doc1(tf:3), doc4(tf:1)]       ...     [doc1: [2,8,15]]
-"spring"   → [doc1(tf:2), doc2(tf:5)]       ...
-"microservice" → [doc1(tf:1), doc3(tf:2)]   ...
-```
+VECTOR CLOCK — detects concurrency
 
-**BM25 Relevance Scoring (default since ES 5.0):**
-- `score(q, d) = IDF(t) × (TF(t,d) × (k1+1)) / (TF(t,d) + k1 × (1 - b + b × |d|/avgdl))`
-- IDF penalizes common terms ("the", "a"); TF rewards documents with more occurrences; field length normalization (`b` parameter) penalizes longer documents.
-- Boosting: multiply scores at query time (`^2`), index time (field mapping `boost`), or function score query (custom formula).
+Each node i keeps a vector V[0..N-1], all zeros.
 
-**Analyzers:**
-- Text analysis pipeline: character filter → tokenizer → token filter.
-- Standard analyzer: lowercase + stop words + unicode normalization.
-- Custom: `edge_ngram` for autocomplete, `keyword` for exact match, `icu_analyzer` for multilingual.
+  On event at node i:   V[i]++
+  On send:              attach full vector
+  On receive at i:
+    V[j] = max(V[j], msg.V[j])  for all j
+    V[i]++
 
-**Query DSL Types:**
-- **Full-text:** `match`, `match_phrase`, `multi_match`, `query_string`
-- **Term-level:** `term`, `terms`, `range`, `exists`, `prefix`, `wildcard`, `regexp`
-- **Compound:** `bool` (must/should/must_not/filter), `dis_max`, `function_score`
-- **Geo:** `geo_distance`, `geo_bounding_box`
-- **Aggregations:** `terms`, `date_histogram`, `range`, `avg`, `percentiles`, `nested`
-
-**Real-World Example:**
-GitHub's code search uses Elasticsearch for full-text search across 10+ billion files. Shard count is set at 5 per index; indices are rolled over (index lifecycle management — ILM) monthly. Custom analyzers handle language-specific tokenization. `function_score` boosts results from popular repositories.
-
-**Code Example:**
-
-```java
-// Spring Data Elasticsearch + Spring Boot
-
-// Entity mapping
-@Document(indexName = "products")
-@Setting(settingPath = "elasticsearch/product-settings.json")
-@Mapping(mappingPath = "elasticsearch/product-mapping.json")
-public class ProductDocument {
-
-    @Id
-    private String id;
-
-    @Field(type = FieldType.Text, analyzer = "english")
-    private String name;
-
-    @Field(type = FieldType.Text, analyzer = "english")
-    private String description;
-
-    @Field(type = FieldType.Keyword)
-    private String category;
-
-    @Field(type = FieldType.Double)
-    private double price;
-
-    @Field(type = FieldType.Double)
-    private double rating;
-
-    @Field(type = FieldType.Integer)
-    private int reviewCount;
-
-    @Field(type = FieldType.Keyword)
-    private List<String> tags;
-
-    @Field(type = FieldType.Date, format = DateFormat.date_time)
-    private LocalDateTime createdAt;
-
-    // Nested objects for complex queries
-    @Field(type = FieldType.Nested)
-    private List<ProductVariant> variants;
-
-    // getters/setters
-}
-
-// product-settings.json (analyzer configuration)
-/*
-{
-  "settings": {
-    "number_of_shards": 3,
-    "number_of_replicas": 1,
-    "refresh_interval": "1s",
-    "analysis": {
-      "filter": {
-        "autocomplete_filter": {
-          "type": "edge_ngram",
-          "min_gram": 2,
-          "max_gram": 20
-        }
-      },
-      "analyzer": {
-        "autocomplete": {
-          "type": "custom",
-          "tokenizer": "standard",
-          "filter": ["lowercase", "autocomplete_filter"]
-        },
-        "autocomplete_search": {
-          "type": "custom",
-          "tokenizer": "standard",
-          "filter": ["lowercase"]
-        }
-      }
-    }
-  }
-}
-*/
-
-@Repository
-public interface ProductSearchRepository
-        extends ElasticsearchRepository<ProductDocument, String> {
-
-    // Spring Data method derivation
-    List<ProductDocument> findByCategory(String category);
-    Page<ProductDocument> findByPriceBetween(double min, double max, Pageable pageable);
-}
-
-@Service
-public class ProductSearchService {
-
-    private final ElasticsearchOperations esOps;
-    private final ProductSearchRepository repository;
-
-    public ProductSearchService(ElasticsearchOperations esOps,
-                                  ProductSearchRepository repository) {
-        this.esOps = esOps;
-        this.repository = repository;
-    }
-
-    // Full-text search with boosting and filtering
-    public SearchHits<ProductDocument> search(String query, String category,
-                                               Double minPrice, Double maxPrice,
-                                               int page, int size) {
-        // Full-text match on name (boosted) and description
-        Query textQuery = NativeQuery.builder()
-            .withQuery(q -> q
-                .bool(b -> {
-                    // Must: text relevance
-                    b.must(m -> m.multiMatch(mm -> mm
-                        .query(query)
-                        .fields(List.of("name^3", "description^1", "tags^2"))
-                        .type(TextQueryType.BestFields)
-                        .fuzziness("AUTO")
-                    ));
-
-                    // Filter: exact matches, no scoring impact
-                    if (category != null) {
-                        b.filter(f -> f.term(t -> t.field("category").value(category)));
-                    }
-                    if (minPrice != null) {
-                        b.filter(f -> f.range(r -> r.field("price").gte(JsonData.of(minPrice))));
-                    }
-                    if (maxPrice != null) {
-                        b.filter(f -> f.range(r -> r.field("price").lte(JsonData.of(maxPrice))));
-                    }
-
-                    return b;
-                })
-            )
-            // Function score: boost high-rated, popular products
-            .withQuery(q -> q
-                .functionScore(fs -> fs
-                    .functions(
-                        FunctionScore.of(f -> f
-                            .fieldValueFactor(fvf -> fvf
-                                .field("rating")
-                                .factor(1.2)
-                                .modifier(FieldValueFactorModifier.Sqrt)
-                                .missing(1.0)
-                            )
-                        )
-                    )
-                    .boostMode(FunctionBoostMode.Multiply)
-                )
-            )
-            .withPageable(PageRequest.of(page, size))
-            .withSort(Sort.by(Sort.Direction.DESC, "_score"))
-            .withHighlightQuery(HighlightQuery.of(h -> h
-                .fields("name", "description")
-                .preTags("<em>")
-                .postTags("</em>")
-            ))
-            .build();
-
-        return esOps.search(textQuery, ProductDocument.class);
-    }
-
-    // Aggregation for faceted search
-    public Map<String, List<BucketResult>> getFacets(String query) {
-        NativeQuery nativeQuery = NativeQuery.builder()
-            .withQuery(q -> q.match(m -> m.field("name").query(query)))
-            .withAggregation("by_category", Aggregation.of(a -> a
-                .terms(t -> t.field("category").size(20))
-            ))
-            .withAggregation("price_ranges", Aggregation.of(a -> a
-                .range(r -> r
-                    .field("price")
-                    .ranges(
-                        AggregationRange.of(ar -> ar.to(50.0)),
-                        AggregationRange.of(ar -> ar.from(50.0).to(200.0)),
-                        AggregationRange.of(ar -> ar.from(200.0))
-                    )
-                )
-            ))
-            .build();
-
-        SearchHits<ProductDocument> hits = esOps.search(nativeQuery, ProductDocument.class);
-        // Extract aggregation results from hits.getAggregations()
-        return Map.of(); // simplified
-    }
-
-    // Bulk indexing for initial load / reindexing
-    public void bulkIndex(List<ProductDocument> products) {
-        // Disable refresh during bulk load for performance
-        IndexOperations indexOps = esOps.indexOps(ProductDocument.class);
-
-        List<IndexQuery> queries = products.stream()
-            .map(p -> new IndexQueryBuilder()
-                .withId(p.getId())
-                .withObject(p)
-                .build())
-            .collect(Collectors.toList());
-
-        esOps.bulkIndex(queries, ProductDocument.class);
-        indexOps.refresh();  // manual refresh after bulk
-    }
-
-    // Index lifecycle management (ILM) — rolling indices for logs
-    public void setupILMPolicy() {
-        // Typically done via Kibana or REST API during cluster setup
-        // Roll over when index > 50GB or > 30 days old
-        // Hot → Warm (force merge, shrink) → Cold (freeze) → Delete
-    }
-}
+Compare V_a and V_b:
+  A happened-before B  →  V_a[j] <= V_b[j] for ALL j, strict for at least one
+  Concurrent           →  neither dominates the other
 ```
 
-**Follow-up Questions:**
-1. How would you handle a near-real-time search requirement where documents must be searchable within 100ms of creation, while also minimizing segment proliferation?
-2. What is the difference between `query` context and `filter` context in Elasticsearch, and why does it matter for performance?
-3. How do you perform a zero-downtime reindex when you need to change a field's mapping (e.g., keyword to text)?
+```
+HYBRID LOGICAL CLOCK (HLC) — causality + wall clock proximity
 
-**Common Mistakes:**
-- Using `_all` field queries instead of `multi_match` (deprecated and removed in ES 7.0).
-- Setting too many shards at index creation — more shards = more overhead per query (scatter-gather). Rule of thumb: 20-40 GB per shard.
-- Ignoring `filter` context — filters are cached and do not compute scores; using `must` for non-text filters wastes CPU.
-- Not using `_bulk` API for large indexing jobs — individual index requests have 10x the overhead.
-- Using wildcard queries on un-analyzed keyword fields for large datasets — full-scan of the posting list.
+HLC = (wallTime, logicalCounter)
 
-**Interview Traps:**
-- Elasticsearch is not a primary database — it should be treated as a search replica with eventual consistency from the primary store (CDC pattern).
-- Split-brain prevention: since ES 7.0, Zen2 discovery (Raft-based) prevents split-brain by requiring majority quorum for master election. The `minimum_master_nodes` setting from 6.x is gone.
+  On tick at node:
+    now = System.currentTimeMillis()
+    if now > wallTime:
+      wallTime = now; logicalCounter = 0
+    else:
+      logicalCounter++
 
-**Quick Revision:** Elasticsearch: inverted index in immutable segments per Lucene shard; BM25 relevance scoring; `filter` context is cached + no scoring; use `bool` query for compound logic; bulk API for indexing; ILM for index lifecycle management; treat ES as a search projection, not a source of truth.
+  On receive(msg.wallTime, msg.logical):
+    newWall = max(wallTime, msg.wallTime, now)
+    update logicalCounter based on which source provided newWall
+    wallTime = newWall
 
----
-
-### Topic 14: Database Migration Strategies
-
-**Difficulty:** Medium | **Frequency:** High | **Companies:** All (critical production engineering skill)
-
-**Q:** Compare Flyway and Liquibase for schema migration management, and explain the expand-contract pattern for zero-downtime migrations.
-
-**Short Answer:**
-Flyway uses versioned SQL scripts applied in order with a checksum validation to prevent modification; Liquibase uses an XML/YAML/JSON changelog with more flexibility (rollback support, database-agnostic abstractions). The expand-contract pattern (also called parallel-change) is the key technique for zero-downtime migrations: first expand the schema to be backward-compatible with both old and new code, deploy new code, then contract by removing the old schema once no code references it.
-
-**Deep Explanation:**
-
-**Flyway:**
-- Versioned migrations: `V1__Create_users.sql`, `V2__Add_email_index.sql`.
-- Repeatable migrations: `R__Create_views.sql` (re-runs when content changes).
-- Undo migrations (Flyway Teams): `U2__Undo_email_index.sql`.
-- Checksums prevent modification of applied migrations (fail-fast on tampering).
-- Baseline: marks an existing schema as already at a given version.
-- Repair: fixes failed migrations by removing failed entries from `flyway_schema_history`.
-- Spring Boot auto-configuration: `spring.flyway.enabled=true`, scripts in `classpath:db/migration`.
-
-**Liquibase:**
-- Changesets: individual units of change with `author` + `id` attributes.
-- Changelogs: master changelog references other changelog files.
-- `preconditions`: run changeset only if condition met (e.g., table does not exist).
-- Built-in rollback: `<rollback>` tag per changeset; `liquibase rollbackCount 1`.
-- Database-agnostic: `createTable`, `addColumn`, `createIndex` generate appropriate DDL per database.
-- Spring Boot: `spring.liquibase.change-log=classpath:db/changelog/db.changelog-master.yaml`.
-
-**Comparison:**
-
-| Feature | Flyway | Liquibase |
-|---|---|---|
-| Primary format | SQL | XML/YAML/JSON/SQL |
-| Rollback support | Manual (Undo migrations, Teams only) | Built-in per changeset |
-| Database abstraction | SQL dialect variants | Full abstraction layer |
-| Learning curve | Low | Medium |
-| Flexibility | Lower (SQL only for complex ops) | Higher (changesets + preconditions) |
-| Community | Large | Large |
-| Best for | SQL-first teams, simple workflows | Complex multi-DB, enterprise rollbacks |
-
-**Expand-Contract Pattern (Zero-Downtime Migrations):**
-
-The pattern consists of three phases:
-
-**Phase 1: Expand**
-- Add new column/table/index alongside the old one.
-- New column is nullable (or has a default) so existing code can still insert without providing it.
-- New code writes to both old and new columns.
-
-**Phase 2: Migrate + Transition**
-- Backfill new column from old: `UPDATE table SET new_col = transform(old_col) WHERE new_col IS NULL`.
-- Deploy new application version that reads from new column, writes to both.
-- Verify: confirm new column is fully populated and correct.
-
-**Phase 3: Contract**
-- Once all application instances read from the new column and no code touches the old column, drop the old column.
-- This is a separate migration deployed after confirming no rollback to old code is needed.
-
-**Common Zero-Downtime Migration Scenarios:**
-
-1. **Rename a column:** Add new column → backfill → dual-write → switch reads → drop old column.
-2. **Change column type:** Add new typed column → backfill with cast → switch → drop old.
-3. **Add NOT NULL constraint:** Add column as nullable → backfill → add `CHECK (col IS NOT NULL)` → `ALTER COLUMN SET NOT NULL` (validates inline on Postgres 12+ with NOT VALID then VALIDATE CONSTRAINT).
-4. **Add index:** `CREATE INDEX CONCURRENTLY` — non-blocking on PostgreSQL (cannot be in a transaction).
-5. **Split a table:** Add new table → dual-write → backfill → switch reads → remove writes to old table → drop old table.
-
-**Real-World Example:**
-At a fintech startup, renaming `user.phone` to `user.phone_number` without downtime: add `phone_number` column (V5 migration), deploy v2 app writing both columns, run backfill job for existing rows, verify 100% populated, deploy v2.1 reading from `phone_number`, wait 1 week, deploy V6 migration dropping `phone`.
-
-**Code Example:**
-
-```java
-// Flyway versioned migration examples
-
-// V1__Create_users_table.sql
-/*
-CREATE TABLE users (
-    id          BIGSERIAL PRIMARY KEY,
-    username    VARCHAR(50)  NOT NULL UNIQUE,
-    email       VARCHAR(255) NOT NULL,
-    created_at  TIMESTAMP    NOT NULL DEFAULT NOW()
-);
-CREATE INDEX idx_users_email ON users(email);
-*/
-
-// V2__Add_phone_column.sql  (EXPAND phase - backward compatible)
-/*
-ALTER TABLE users ADD COLUMN phone VARCHAR(20);  -- nullable, old app still works
-*/
-
-// V3__Backfill_phone_from_contact.sql  (MIGRATE phase)
-/*
--- Backfill from a contacts table migration
-UPDATE users u
-SET phone = c.phone_number
-FROM contacts c
-WHERE c.user_id = u.id
-  AND u.phone IS NULL;
-*/
-
-// V4__Add_phone_not_null_constraint.sql  (phase 2 of EXPAND - after backfill)
-/*
--- Add NOT VALID first (does not scan existing rows, fast)
-ALTER TABLE users ADD CONSTRAINT users_phone_not_null
-    CHECK (phone IS NOT NULL) NOT VALID;
-
--- Validate separately (can be interrupted, no full table lock in Postgres 12+)
-ALTER TABLE users VALIDATE CONSTRAINT users_phone_not_null;
-*/
-
-// V5__Create_index_concurrently.sql  (cannot be in transaction, use Flyway's outOfOrder or separate)
-/*
--- Note: Flyway wraps migrations in transactions by default.
--- For CONCURRENTLY, use: spring.flyway.mixed=true or split to separate migration
--- with executeInTransaction=false annotation.
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_phone ON users(phone);
-*/
-
-// Flyway Java migration for CONCURRENTLY (must disable transaction wrapping)
-@Component
-public class V5__Create_phone_index_concurrently implements JavaMigration {
-
-    @Override
-    public MigrationVersion getVersion() {
-        return MigrationVersion.fromVersion("5");
-    }
-
-    @Override
-    public String getDescription() {
-        return "Create phone index concurrently";
-    }
-
-    @Override
-    public boolean canExecuteInTransaction() {
-        return false;  // CONCURRENTLY cannot run inside a transaction
-    }
-
-    @Override
-    public void migrate(Context context) throws Exception {
-        try (Statement stmt = context.getConnection().createStatement()) {
-            stmt.execute(
-                "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_phone ON users(phone)"
-            );
-        }
-    }
-}
-
-// Liquibase YAML changelog example
-/*
-# db/changelog/003-expand-phone-column.yaml
-databaseChangeLog:
-  - changeSet:
-      id: 003-add-phone-number-column
-      author: prince.singh
-      preConditions:
-        onFail: MARK_RAN
-        - not:
-            columnExists:
-              tableName: users
-              columnName: phone_number
-      changes:
-        - addColumn:
-            tableName: users
-            columns:
-              - column:
-                  name: phone_number
-                  type: VARCHAR(20)
-                  constraints:
-                    nullable: true
-      rollback:
-        - dropColumn:
-            tableName: users
-            columnName: phone_number
-
-  - changeSet:
-      id: 004-backfill-phone-number
-      author: prince.singh
-      runOnChange: false
-      changes:
-        - sql:
-            sql: >
-              UPDATE users SET phone_number = phone WHERE phone_number IS NULL AND phone IS NOT NULL
-        - sql:
-            sql: >
-              UPDATE users SET phone_number = 'UNKNOWN' WHERE phone_number IS NULL
-      rollback:
-        - sql:
-            sql: UPDATE users SET phone_number = NULL
-*/
-
-// Spring Boot migration configuration
-@Configuration
-public class MigrationConfig {
-
-    // Flyway configuration with repair on checksum mismatch
-    @Bean
-    public FlywayMigrationInitializer flywayInitializer(Flyway flyway) {
-        return new FlywayMigrationInitializer(flyway, f -> {
-            FlywayMigrationStrategy strategy = applicationContext -> {
-                // Repair before migrate to handle failed migrations
-                f.repair();
-                f.migrate();
-            };
-            strategy.migrate(f);
-        });
-    }
-}
-
-// application.yml
-/*
-spring:
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: false
-    out-of-order: false
-    validate-on-migrate: true
-    # For teams: connect-retries for cloud DB startup lag
-    connect-retries: 10
-    connect-retries-interval: 3
-*/
-
-// Zero-downtime migration orchestration service
-@Service
-public class SchemaMigrationOrchestrator {
-
-    private final JdbcTemplate jdbcTemplate;
-    private final MeterRegistry meterRegistry;
-
-    // Backfill with progress tracking and batching (avoid long-running transactions)
-    public void backfillPhoneNumber(int batchSize) {
-        int totalUpdated = 0;
-        int updated;
-
-        do {
-            // Small batch — keeps transaction short, reduces lock contention
-            updated = jdbcTemplate.update(
-                "UPDATE users SET phone_number = phone " +
-                "WHERE id IN (SELECT id FROM users WHERE phone_number IS NULL LIMIT ?)",
-                batchSize
-            );
-            totalUpdated += updated;
-
-            meterRegistry.counter("migration.backfill.rows",
-                Tags.of("table", "users", "column", "phone_number"))
-                .increment(updated);
-
-            if (updated > 0) {
-                try { Thread.sleep(10); }  // brief pause to reduce DB pressure
-                catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
-            }
-        } while (updated > 0);
-
-        log.info("Backfill complete. Total rows updated: {}", totalUpdated);
-    }
-
-    // Verify migration readiness before contracting (removing old column)
-    public MigrationReadiness checkReadiness(String tableName, String newColumn) {
-        Long nullCount = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM " + tableName + " WHERE " + newColumn + " IS NULL",
-            Long.class);
-
-        Long totalCount = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM " + tableName, Long.class);
-
-        return new MigrationReadiness(
-            nullCount == 0,
-            totalCount,
-            nullCount,
-            (nullCount * 100.0) / Math.max(totalCount, 1) + "% null"
-        );
-    }
-}
+Guarantee: monotonically increasing, tracks wall clock closely, captures causality.
+Used by: CockroachDB, YugabyteDB.
 ```
 
-**Follow-up Questions:**
-1. How would you handle a long-running backfill migration on a 500-million-row table without impacting production query performance?
-2. What happens if a Flyway migration fails halfway through, and how do you recover?
-3. How do you coordinate schema migrations with application deployments in a Kubernetes rolling update scenario?
+**Tradeoff table:**
 
-**Common Mistakes:**
-- Modifying already-applied Flyway migration scripts — Flyway detects the checksum change and fails.
-- Adding `NOT NULL` constraint directly without `NOT VALID` + `VALIDATE CONSTRAINT` — causes full table lock in PostgreSQL.
-- Running `CREATE INDEX` (not `CONCURRENTLY`) in a Flyway migration — locks the table for the duration.
-- Deploying new application code before the expand migration is applied — new code expects new column that doesn't exist yet.
-
-**Interview Traps:**
-- "You can just rename a column in one migration" — renaming a column in one step breaks existing application code that has the old column name in queries.
-- Liquibase rollback is not magic — it generates `DROP TABLE` or `DROP COLUMN` DDL; data is lost for add-column rollbacks.
-
-**Quick Revision:** Flyway: versioned SQL scripts + checksum integrity, simple but SQL-only; Liquibase: changesets + built-in rollback + DB abstraction; expand-contract: add backward-compatible changes first, backfill, then contract once all code is updated — never in one step for zero downtime.
-
----
-
-### Topic 15: Performance Benchmarking
-
-**Difficulty:** Medium-Hard | **Frequency:** Medium | **Companies:** All (SRE, Platform Engineering roles)
-
-**Q:** How do you benchmark a PostgreSQL database to establish performance baselines, and how do you identify whether a production slowdown is caused by CPU, I/O, network, or lock contention?
-
-**Short Answer:**
-Database benchmarking uses standardized workloads (TPC-C for OLTP, TPC-H for OLAP) or workload-specific tools (pgbench for PostgreSQL, sysbench for MySQL) to measure throughput (TPS), latency percentiles, and saturation under varying concurrency. Production slowdowns are diagnosed by correlating database metrics (wait events, lock views, query stats) with OS-level metrics (CPU saturation, iowait, network throughput) to pinpoint the bottleneck tier.
-
-**Deep Explanation:**
-
-**Industry Benchmarks:**
-
-| Benchmark | Type | Measures | Use Case |
-|---|---|---|---|
-| TPC-C | OLTP | Transactions per minute (tpmC), mixed read/write | Order entry simulation, RDBMS comparison |
-| TPC-H | OLAP | Query execution time for 22 analytical queries | Data warehouse query engines |
-| TPC-E | OLTP | More realistic than TPC-C, brokerage workload | Modern OLTP systems |
-| YCSB | NoSQL | Configurable read/write/scan mix | Comparing NoSQL databases |
-| HammerDB | Free TPC-C/TPC-H | Open-source TPC testing | PostgreSQL, MySQL benchmarking |
-
-**pgbench (PostgreSQL):**
-- Built-in: `pgbench -i -s 10 mydb` (initialize, scale factor 10 = 1M rows).
-- Run: `pgbench -c 50 -j 4 -T 300 mydb` (50 clients, 4 workers, 300 seconds).
-- Reports: TPS, latency average, latency stddev.
-- Custom scripts: `-f custom.sql` for workload-specific queries.
-- Read-only mode: `-S` (SELECT only).
-
-**sysbench (MySQL/PostgreSQL):**
-- `sysbench oltp_read_write --db-driver=pgsql --pgsql-db=mydb --tables=10 --table-size=1000000 prepare`
-- `sysbench oltp_read_write ... --threads=32 --time=300 run`
-- Reports: TPS, QPS, P95/P99 latency, errors.
-
-**Identifying Bottlenecks:**
-
-**CPU Bottleneck:**
-- OS: `top`, `vmstat`, `mpstat` showing >80% CPU utilization.
-- PostgreSQL: `pg_stat_activity` showing many active queries; `EXPLAIN ANALYZE` showing high execution time without I/O waits.
-- Root cause: inefficient queries (missing index → sequential scan), high connection count (each connection = OS process in PostgreSQL).
-- Fix: add indexes, query optimization, PgBouncer connection pooling, read replicas.
-
-**I/O Bottleneck:**
-- OS: `iostat -x` showing `%util` > 80%, high `await` (queue latency), low `r/s` or `w/s` throughput headroom.
-- PostgreSQL: `pg_stat_bgwriter` showing high `buffers_clean` (background writer running out); `pg_stat_user_tables` showing high `seq_scan` (missing indexes causing full table scans).
-- Wait events: `pg_stat_activity.wait_event_type = 'IO'`, `wait_event = 'DataFileRead'`.
-- Fix: add indexes (eliminate sequential scans), increase `shared_buffers` (reduce disk reads), upgrade to NVMe/SSD, enable `pg_prewarm`.
-
-**Network Bottleneck:**
-- OS: `sar -n DEV`, `netstat -s`, `ss -s` showing high packet loss, retransmits, or near-bandwidth utilization.
-- Common causes: chatty application (N+1 queries), large result sets, no connection pooling (TLS handshake overhead).
-- Fix: batching, pagination, connection pooling, compression for large results.
-
-**Lock Contention:**
-- PostgreSQL: `pg_locks` joined with `pg_stat_activity` reveals blocking queries.
-- `pg_stat_activity.wait_event_type = 'Lock'` identifies lock waiters.
-- Common culprits: long-running transactions holding row locks, DDL migrations taking table-level locks, deadlocks.
-- Fix: shorter transactions, `SELECT FOR UPDATE SKIP LOCKED` for queue processing, advisory locks for application-level coordination.
-
-**Connection Pool Monitoring:**
-- PgBouncer: `SHOW POOLS;` — `cl_waiting` > 0 means clients queuing for a connection.
-- HikariCP: `hikaricp.connections.active`, `hikaricp.connections.pending`, `hikaricp.connections.timeout.total`.
-- Signs of pool exhaustion: `Connection is not available, request timed out after Xms` errors; all connections in `active` state.
-- Sizing: `pool_size = (core_count × 2) + effective_spindle_count` (HikariCP recommended formula).
-
-**Real-World Example:**
-A fintech company notices P99 checkout latency increased from 200ms to 2s after deploying a new version. Investigation: `pg_stat_activity` shows 40 queries waiting on `Lock` type (`relation` subtype). Root cause: a new nightly batch job runs `UPDATE orders SET status = 'archived'` in a single transaction, holding a `RowExclusiveLock` on all matching rows, blocking checkout queries that `SELECT FOR UPDATE` on individual order rows. Fix: batch job processes 1000 rows per transaction with `pg_sleep(10ms)` between batches.
-
-**Code Example:**
-
-```java
-// Spring Boot — database performance monitoring and diagnostics
-
-// HikariCP pool metrics integration with Micrometer
-@Configuration
-public class DatabaseMetricsConfig {
-
-    @Bean
-    public DataSource dataSource(MeterRegistry meterRegistry) {
-        HikariConfig config = new HikariConfig();
-        config.setJdbcUrl("jdbc:postgresql://localhost:5432/mydb");
-        config.setUsername("app_user");
-        config.setPassword("password");
-        config.setMaximumPoolSize(20);
-        config.setMinimumIdle(5);
-        config.setConnectionTimeout(30_000);
-        config.setIdleTimeout(600_000);
-        config.setMaxLifetime(1_800_000);
-        config.setLeakDetectionThreshold(60_000);  // warn if connection held > 60s
-
-        // Register Micrometer metrics
-        config.setMetricRegistry(meterRegistry);
-
-        return new HikariDataSource(config);
-    }
-}
-
-// Lock contention diagnostic queries
-@Repository
-public class DatabaseDiagnosticsRepository {
-
-    private final JdbcTemplate jdbcTemplate;
-
-    // Find blocking queries and their victims
-    public List<LockInfo> findBlockingQueries() {
-        String sql = """
-            SELECT
-                blocked.pid          AS blocked_pid,
-                blocked.query        AS blocked_query,
-                blocked.wait_event   AS blocked_wait_event,
-                blocking.pid         AS blocking_pid,
-                blocking.query       AS blocking_query,
-                blocking.query_start AS blocking_query_start,
-                NOW() - blocking.query_start AS blocking_duration
-            FROM pg_stat_activity blocked
-            JOIN pg_locks          blocked_locks  ON blocked.pid = blocked_locks.pid
-            JOIN pg_locks          blocking_locks ON blocked_locks.transactionid = blocking_locks.transactionid
-                                                  AND blocked_locks.pid != blocking_locks.pid
-            JOIN pg_stat_activity  blocking       ON blocking.pid = blocking_locks.pid
-            WHERE NOT blocked_locks.granted
-            ORDER BY blocking_duration DESC
-            """;
-
-        return jdbcTemplate.query(sql, (rs, rowNum) -> new LockInfo(
-            rs.getInt("blocked_pid"),
-            rs.getString("blocked_query"),
-            rs.getInt("blocking_pid"),
-            rs.getString("blocking_query"),
-            rs.getObject("blocking_duration", Duration.class)
-        ));
-    }
-
-    // Identify slow queries from pg_stat_statements
-    public List<SlowQuery> findTopSlowQueries(int limit) {
-        String sql = """
-            SELECT
-                query,
-                calls,
-                total_exec_time / calls AS avg_exec_ms,
-                (total_exec_time / calls) * calls / 1000.0 AS total_exec_seconds,
-                rows / NULLIF(calls, 0) AS avg_rows,
-                stddev_exec_time AS stddev_ms,
-                shared_blks_hit,
-                shared_blks_read,
-                shared_blks_hit::float / NULLIF(shared_blks_hit + shared_blks_read, 0) AS cache_hit_ratio
-            FROM pg_stat_statements
-            WHERE calls > 10
-            ORDER BY avg_exec_ms DESC
-            LIMIT ?
-            """;
-
-        return jdbcTemplate.query(sql, (rs, rowNum) -> new SlowQuery(
-            rs.getString("query"),
-            rs.getLong("calls"),
-            rs.getDouble("avg_exec_ms"),
-            rs.getDouble("stddev_ms"),
-            rs.getDouble("cache_hit_ratio")
-        ), limit);
-    }
-
-    // Cache hit ratio — should be > 99% for OLTP
-    public double getBufferCacheHitRatio() {
-        String sql = """
-            SELECT
-                ROUND(100.0 * sum(blks_hit) / NULLIF(sum(blks_hit) + sum(blks_read), 0), 2)
-                AS cache_hit_ratio
-            FROM pg_stat_database
-            WHERE datname = current_database()
-            """;
-        return jdbcTemplate.queryForObject(sql, Double.class);
-    }
-
-    // Table bloat estimate
-    public List<TableBloat> getTopBloatedTables(int limit) {
-        String sql = """
-            SELECT
-                schemaname || '.' || relname AS table_name,
-                n_dead_tup AS dead_tuples,
-                n_live_tup AS live_tuples,
-                ROUND(100.0 * n_dead_tup / NULLIF(n_live_tup + n_dead_tup, 0), 1) AS dead_pct,
-                last_autovacuum,
-                last_autoanalyze
-            FROM pg_stat_user_tables
-            WHERE n_dead_tup > 10000
-            ORDER BY dead_pct DESC
-            LIMIT ?
-            """;
-
-        return jdbcTemplate.query(sql, (rs, rowNum) -> new TableBloat(
-            rs.getString("table_name"),
-            rs.getLong("dead_tuples"),
-            rs.getLong("live_tuples"),
-            rs.getDouble("dead_pct"),
-            rs.getObject("last_autovacuum", LocalDateTime.class)
-        ), limit);
-    }
-
-    // Connection pool utilization
-    public ConnectionPoolStats getConnectionStats() {
-        String sql = """
-            SELECT
-                count(*) FILTER (WHERE state = 'active')   AS active_connections,
-                count(*) FILTER (WHERE state = 'idle')     AS idle_connections,
-                count(*) FILTER (WHERE state = 'idle in transaction') AS idle_in_tx,
-                count(*) AS total_connections,
-                (SELECT setting::int FROM pg_settings WHERE name = 'max_connections') AS max_connections
-            FROM pg_stat_activity
-            WHERE datname = current_database()
-            """;
-
-        return jdbcTemplate.queryForObject(sql, (rs, rowNum) -> new ConnectionPoolStats(
-            rs.getInt("active_connections"),
-            rs.getInt("idle_connections"),
-            rs.getInt("idle_in_tx"),
-            rs.getInt("total_connections"),
-            rs.getInt("max_connections")
-        ));
-    }
-}
-
-// Performance monitoring scheduled task
-@Component
-public class DatabaseHealthMonitor {
-
-    private final DatabaseDiagnosticsRepository diagnostics;
-    private final MeterRegistry meterRegistry;
-    private final AlertService alertService;
-
-    @Scheduled(fixedDelay = 30_000)  // every 30 seconds
-    public void checkDatabaseHealth() {
-        // 1. Check cache hit ratio
-        double cacheHitRatio = diagnostics.getBufferCacheHitRatio();
-        meterRegistry.gauge("db.cache.hit_ratio", cacheHitRatio);
-        if (cacheHitRatio < 95.0) {
-            alertService.warn("Low DB cache hit ratio: " + cacheHitRatio + "% (target >99%)");
-        }
-
-        // 2. Check for lock contention
-        List<LockInfo> locks = diagnostics.findBlockingQueries();
-        meterRegistry.gauge("db.locks.blocking_count", locks.size());
-        locks.stream()
-            .filter(l -> l.getBlockingDuration().toSeconds() > 30)
-            .forEach(l -> alertService.alert("Long-running blocking query: " + l));
-
-        // 3. Check connection pool
-        ConnectionPoolStats pool = diagnostics.getConnectionStats();
-        double utilization = (double) pool.getTotalConnections() / pool.getMaxConnections();
-        meterRegistry.gauge("db.connections.utilization", utilization);
-        if (pool.getIdleInTransaction() > 5) {
-            alertService.warn("Idle-in-transaction connections: " + pool.getIdleInTransaction());
-        }
-    }
-}
-
-// pgbench equivalent: custom load test with Spring
-@Component
-public class DatabaseLoadTester {
-
-    private final JdbcTemplate jdbcTemplate;
-    private final ExecutorService executor = Executors.newFixedThreadPool(50);
-
-    public LoadTestResult runBenchmark(int concurrency, int durationSeconds) throws Exception {
-        AtomicLong totalOps = new AtomicLong();
-        AtomicLong totalLatencyNs = new AtomicLong();
-        AtomicLong errors = new AtomicLong();
-        CountDownLatch startLatch = new CountDownLatch(1);
-        CountDownLatch doneLatch = new CountDownLatch(concurrency);
-        AtomicBoolean running = new AtomicBoolean(true);
-
-        for (int i = 0; i < concurrency; i++) {
-            executor.submit(() -> {
-                try {
-                    startLatch.await();
-                    while (running.get()) {
-                        long start = System.nanoTime();
-                        try {
-                            jdbcTemplate.queryForObject(
-                                "SELECT balance FROM accounts WHERE id = ?",
-                                Long.class,
-                                ThreadLocalRandom.current().nextLong(100_000));
-                            totalOps.incrementAndGet();
-                            totalLatencyNs.addAndGet(System.nanoTime() - start);
-                        } catch (Exception e) {
-                            errors.incrementAndGet();
-                        }
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                } finally {
-                    doneLatch.countDown();
-                }
-            });
-        }
-
-        long startTime = System.currentTimeMillis();
-        startLatch.countDown();
-        Thread.sleep(durationSeconds * 1000L);
-        running.set(false);
-        doneLatch.await();
-
-        long elapsedMs = System.currentTimeMillis() - startTime;
-        long ops = totalOps.get();
-
-        return new LoadTestResult(
-            (double) ops / (elapsedMs / 1000.0),  // TPS
-            ops > 0 ? (totalLatencyNs.get() / ops / 1_000_000.0) : 0,  // avg latency ms
-            errors.get()
-        );
-    }
-}
-```
-
-**Follow-up Questions:**
-1. What is the difference between `pg_stat_statements` and `EXPLAIN ANALYZE` for query performance analysis, and when do you use each?
-2. How would you detect and fix N+1 query problems in a Spring Data JPA application automatically?
-3. What is connection pool oversizing, and why can adding more connections sometimes make performance worse?
-
-**Common Mistakes:**
-- Benchmarking with a single thread — doesn't reveal concurrency-related bottlenecks (lock contention, connection pool exhaustion).
-- Not warming up the buffer cache before measuring — cold benchmarks are not representative of production.
-- Ignoring P99/P99.9 latency — average latency hides tail latency that affects 1% of users at scale.
-- Benchmarking on a different hardware profile than production — especially storage (HDD vs SSD vs NVMe).
-- Not resetting `pg_stat_statements` (`SELECT pg_stat_statements_reset()`) between test runs.
-
-**Interview Traps:**
-- "More connections = more throughput" — false above a threshold. PostgreSQL's process-per-connection model means high connection counts cause OS scheduling overhead and memory pressure. PgBouncer transaction pooling is the answer.
-- TPC-C results from different vendors are not directly comparable — hardware, OS, and configuration differ.
-
-**Quick Revision:** Benchmark with pgbench/sysbench (TPS + P99 latency); diagnose CPU via `pg_stat_activity` active query count; I/O via `pg_stat_bgwriter` + `wait_event='DataFileRead'`; locks via `pg_locks` join; connection pressure via PgBouncer `SHOW POOLS`; cache hit ratio should exceed 99% for OLTP.
-
----
-
-## Cheat Sheet: Distributed Databases & Sharding Quick Reference
-
-### NoSQL Database Selection Guide
-
-| Use Case | Database Type | Best Choice | Why |
-|---|---|---|---|
-| User sessions, caching | Key-Value | Redis | Sub-millisecond, TTL support, data structures |
-| Shopping cart, user prefs | Document | DynamoDB, MongoDB | Flexible schema, nested objects |
-| Social graph, fraud detection | Graph | Neo4j, Amazon Neptune | Traversal queries, relationship-first |
-| IoT sensor telemetry | Time-Series | TimescaleDB, InfluxDB | Compression, downsampling, retention |
-| Product catalog, content | Document | MongoDB, Elasticsearch | Rich queries, full-text, aggregations |
-| E-commerce order history | Wide-Column | Cassandra, DynamoDB | High write throughput, time-based queries |
-| Real-time leaderboards | Key-Value | Redis Sorted Sets | O(log N) rank queries |
-| Full-text search | Search Engine | Elasticsearch, Solr | Inverted index, relevance scoring |
-| Financial transactions | Relational | PostgreSQL, CockroachDB | ACID, strong consistency, complex joins |
-| Analytics / OLAP | Columnar | Redshift, BigQuery, Snowflake | Column compression, vectorized execution |
-| Multi-region, active-active | Wide-Column | Cassandra, DynamoDB Global Tables | Tunable consistency, multi-DC replication |
-| Hierarchical/config data | Document | MongoDB, Couchbase | Nested document model |
-
----
-
-### Sharding Strategy Comparison
-
-| Strategy | How It Works | Pros | Cons | Best For |
+| Clock | Detects causality | Detects concurrency | Real-world time | Cost |
 |---|---|---|---|---|
-| **Range Sharding** | Each shard owns a key range (e.g., A–M, N–Z) | Range queries stay on one shard; easy shard management | Hot spots on monotonic keys (e.g., timestamps, auto-increment IDs) | Non-monotonic keys with range queries |
-| **Hash Sharding** | Hash(key) mod N → shard | Uniform distribution, no hot spots | Range queries scatter across all shards | Write-heavy workloads, no range queries |
-| **Directory Sharding** | Lookup table maps key → shard | Maximum flexibility, supports irregular distributions | Lookup table becomes a bottleneck; single point of failure if not replicated | Custom routing, tenant-based sharding |
-| **Geo/Zone Sharding** | Shard assigned by geographic region or data attribute | Data locality, regulatory compliance (GDPR) | Uneven shard sizes if regions differ; increased complexity | Multi-region applications, data residency requirements |
-| **Consistent Hashing** | Virtual nodes on a hash ring; key → nearest node | Minimal data movement on node add/remove; natural replication | Complex implementation; requires vnodes for uniformity | Distributed caches (Redis Cluster), Cassandra, DynamoDB |
-| **Entity-Group / Application-Level** | Application routes by entity type or tenant ID | Full control; can co-locate related entities | Application complexity; requires custom routing logic | Multi-tenant SaaS, microservice databases |
+| Lamport | Yes | No | No | O(1) per message |
+| Vector | Yes | Yes | No | O(N) per message |
+| HLC | Yes | Partial | Approximate | O(1) per message |
+| TrueTime | Yes | Yes | Exact (bounded) | GPS/atomic hardware |
+
+**Google TrueTime (Spanner):** `TT.now()` returns an interval `[earliest, latest]` guaranteed to contain the true time, typically 1–7 ms wide. Before committing, Spanner waits until the entire uncertainty interval has elapsed — so every subsequent transaction sees a strictly higher timestamp, giving global linearizability without cross-datacenter coordination locks.
+
+**Must-memorise gotcha — wall-clock time is unreliable:**
+
+```java
+// WRONG: using wall clock to order distributed writes
+event.setTimestamp(System.currentTimeMillis()); // node A's clock may be 50ms ahead of node B's
+
+// If node A's clock is ahead, ALL of A's writes win last-write-wins
+// even when B's write was logically later — data is silently discarded.
+
+// RIGHT: use a logical clock or HLC for ordering
+long[] hlc = hybridLogicalClock.tick(); // (wallTime, logicalCounter) — monotonic, causal
+event.setHlcWall(hlc[0]);
+event.setHlcLogical(hlc[1]);
+```
+
+*Two nodes can have system clocks that differ by seconds after a VM migration or NTP step adjustment. Never rely on `System.currentTimeMillis()` to order events across machines.*
 
 ---
 
-### Replication Topology Comparison
+#### Interview Lens
 
-| Topology | Architecture | Consistency | Availability | Use Cases | Examples |
-|---|---|---|---|---|---|
-| **Single Primary (Leader-Follower)** | One write node, N read replicas | Strong on primary; eventual on replicas | Primary SPOF unless promoted | OLTP read scaling, reporting replicas | PostgreSQL streaming replication, MySQL replica |
-| **Multi-Primary (Multi-Master)** | Multiple write nodes, all replicate to each other | Conflict resolution needed (last-write-wins or application) | High (any node accepts writes) | Active-active multi-region, geo-distributed writes | MySQL Group Replication, CockroachDB |
-| **Quorum-Based (Paxos/Raft)** | Leader elected by majority; writes to quorum | Strong consistency if W + R > N | Survives minority node failures | Consensus-critical systems (etcd, ZooKeeper, CockroachDB) | etcd, CockroachDB, MongoDB replica sets |
-| **Masterless (Leaderless)** | Any node accepts writes; replication to N peers | Tunable (ONE/QUORUM/ALL) | Extremely high (no leader election) | High-availability, AP systems | Cassandra, DynamoDB, Riak |
-| **Chain Replication** | Writes to head, propagate through chain, ack at tail | Strong (tail-read guarantee) | Tail is bottleneck; head failure needs reconfiguration | Object storage, file systems | Azure Storage, CRAQ |
-| **Synchronous Replication** | Primary waits for all replicas to acknowledge | Strong | Lower availability (slow replica = slow writes) | Regulatory/financial systems, RPO=0 | PostgreSQL synchronous_commit = on |
-| **Asynchronous Replication** | Primary acknowledges before replicas confirm | Eventual (potential data loss on failover) | Higher availability (primary not blocked) | Read scaling, non-critical replicas | PostgreSQL default streaming replication |
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
+
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
 
 ---
 
-### Key Distributed Systems Theorems
+##### Q1 — Concept Check
+**"Why can't distributed systems just use wall-clock timestamps to order events?"**
 
-#### CAP Theorem (Brewer, 2000)
-A distributed system can only guarantee **two of three** properties simultaneously:
+**One-line answer:** Wall clocks drift and can be adjusted by NTP, so two machines can disagree on the current time by milliseconds or more — using them for ordering silently discards data.
 
-| Property | Definition |
-|---|---|
-| **Consistency (C)** | Every read receives the most recent write or an error (linearizability) |
-| **Availability (A)** | Every request receives a non-error response (but may not be latest data) |
-| **Partition Tolerance (P)** | System continues to operate despite arbitrary network partitions |
+**Full answer to give in an interview:**
 
-**Key insight:** Network partitions are unavoidable in distributed systems, so the real choice is **CP vs AP**:
-- **CP systems:** PostgreSQL (with sync replication), HBase, ZooKeeper, etcd — reject writes or return error during partitions to maintain consistency.
-- **AP systems:** Cassandra, DynamoDB (eventual), CouchDB — remain available with possible stale reads during partitions.
-- **Not a binary choice:** Cassandra with `QUORUM` consistency is effectively CP for that request; with `ONE` it is AP. Many systems are tunable.
+> "Wall clocks on different machines are not synchronised to the microsecond. Even with NTP — the standard clock-sync protocol — clocks on a LAN can disagree by around 0.1 ms, and over the internet by 1–10 ms. More dangerously, NTP can step a clock backward or forward to correct drift, which means `System.currentTimeMillis()` is not even monotonic on a single machine. If you use wall-clock timestamps for last-write-wins conflict resolution — as many NoSQL databases do — a node whose clock runs 50 ms fast will win every conflict against nodes with slower clocks, even if those nodes wrote logically later. The result is silent data loss with no error. The standard fix is to use logical clocks: Lamport clocks assign a counter that increments on every send and receive, guaranteeing that if A causally preceded B then A's counter is lower than B's. Vector clocks extend this to a vector per node, allowing you to detect concurrent events. Hybrid logical clocks, used in CockroachDB and YugabyteDB, combine wall time with a logical counter so you get causality tracking *and* timestamps that are close to real time. Google's Spanner goes further: it uses GPS receivers and atomic clocks to bound time uncertainty to a few milliseconds and waits out that window before committing."
 
----
+> *Mention NTP inaccuracy first, then LWW consequence, then the logical clock solutions in order of sophistication.*
 
-#### PACELC Theorem (Abadi, 2012)
-Extends CAP to address the trade-off that exists **even without partitions**:
+**Gotcha follow-up they'll ask:** *"Isn't `System.nanoTime()` monotonic? Why can't you use that?"*
 
-> If there is a **Partition (P)**, choose **Availability (A)** or **Consistency (C)**;
-> **Else (E)** (no partition), choose **Latency (L)** or **Consistency (C)**.
-
-| System | Partition Behavior | Normal Behavior | Classification |
-|---|---|---|---|
-| DynamoDB (default) | Available | Low Latency | PA/EL |
-| DynamoDB (strong consistency) | Consistent | Higher Latency | PC/EC |
-| Cassandra (ONE) | Available | Low Latency | PA/EL |
-| Cassandra (QUORUM) | Consistent | Higher Latency | PC/EC |
-| PostgreSQL (sync replication) | Consistent | Higher Latency | PC/EC |
-| CRDT-based systems | Available | Low Latency | PA/EL |
-
-**Key insight:** PACELC is more practical than CAP because real systems are almost never partitioned but are always trading latency for consistency.
+> "`System.nanoTime()` is monotonic within a single JVM process, so it won't jump backward on that one machine. But it has no correlation between machines — two different JVMs calling `nanoTime()` at the same physical instant will return completely unrelated numbers. It's a hardware cycle counter, not a wall clock, and it is only valid for measuring elapsed time on one node. For cross-node event ordering you still need a logical clock."
 
 ---
 
-#### FLP Impossibility Theorem (Fischer, Lynch, Paterson, 1985)
-> In a fully **asynchronous** distributed system, there is no deterministic consensus algorithm that can tolerate even a **single crash failure** and still guarantee termination.
+##### Q2 — Tradeoff Question
+**"When would you choose a vector clock over a Lamport clock, and what is the cost?"**
 
-**Implications:**
-- Explains why Paxos and Raft use timeouts and randomization (not pure determinism).
-- Real-world systems add **synchrony assumptions** (timeouts, heartbeats, leases) to work around FLP.
-- **Paxos:** Uses a two-phase protocol with an elected proposer; relies on timeouts for liveness.
-- **Raft:** Simplifies Paxos with leader election, log replication, and safety via term numbers.
-- **ZAB (ZooKeeper Atomic Broadcast):** Crash-recovery variant of Paxos used in ZooKeeper.
+**One-line answer:** Use vector clocks when you need to detect whether two events are concurrent rather than just knowing their causal order; the cost is O(N) storage per event where N is the number of nodes.
 
----
+**Full answer to give in an interview:**
 
-#### Additional Distributed Systems Principles
+> "A Lamport clock gives you a total order: if event A causally preceded B, A's counter is strictly less than B's. But the reverse is not true — if A's counter is less than B's, all you know is that B did not cause A; they might still be concurrent. A vector clock fixes this by keeping one counter per node. Each event increments the local counter and attaches the full vector. To compare two events, you check whether one vector dominates the other element-wise: if every entry in V_a is less than or equal to V_b, and at least one is strictly less, then A happened before B. If neither vector dominates the other, the events are concurrent — neither caused the other. This is the foundation of how systems like Riak and Amazon Dynamo detect write conflicts and trigger reconciliation. The cost is real: every message and every stored record must carry a vector of N counters, where N is the number of nodes. In large clusters this becomes expensive, which is why most production systems use HLC instead — it captures causality in a single (wallTime, counter) pair while staying close to real time."
 
-**Two Generals Problem:**
-- It is impossible to achieve guaranteed agreement between two nodes over an unreliable communication channel.
-- Explains why TCP's three-way handshake can still theoretically fail (SYN-ACK-ACK can be lost).
-- **Application:** Distributed transaction coordinators (2PC) can block indefinitely if the coordinator crashes mid-commit — solved by 3PC, Paxos, or Saga pattern.
+> *The word 'dominate' is the right term here — use it; it signals fluency.*
 
-**Byzantine Fault Tolerance (BFT):**
-- Handles **malicious/arbitrary failures** (not just crashes). Requires 3f+1 nodes to tolerate f Byzantine failures.
-- Used in: blockchain consensus (PBFT, Tendermint), aerospace systems.
-- **Not used in:** most distributed databases (assume crash-fail model, not Byzantine).
+**Gotcha follow-up they'll ask:** *"How does HLC differ from a vector clock?"*
 
-**Eventual Consistency + CRDT:**
-- **Conflict-free Replicated Data Type (CRDT):** Data structures that merge concurrently without conflicts.
-- Types: G-Counter (grow-only), PN-Counter, LWW-Register (last-write-wins), OR-Set (observed-remove set).
-- **Application:** Collaborative editing (Google Docs), shopping carts, presence systems.
-
-**Vector Clocks vs Lamport Timestamps:**
-
-| Feature | Lamport Timestamp | Vector Clock |
-|---|---|---|
-| What it captures | Causal ordering (happens-before) | Full causal history per node |
-| Size | Single integer | Array of size N (one per node) |
-| Detects concurrency | No | Yes |
-| Application | Log ordering, mutual exclusion | Version conflict detection (Riak, DynamoDB) |
+> "HLC uses just two numbers — a wall time component and a logical counter — rather than a vector of N numbers. It guarantees monotonic increase and captures happens-before relationships, but it does not distinguish between concurrent events as cleanly as a vector clock. In practice that is fine for databases: CockroachDB uses HLC for MVCC versioning and time-travel queries, not for conflict detection. The real benefit is constant space per event regardless of cluster size."
 
 ---
 
-*End of Chapter 17 Part B — Distributed Databases & Sharding*
+> **Common Mistake — Using wall-clock time for event ordering:** Relying on `System.currentTimeMillis()` across nodes causes last-write-wins to silently drop writes from nodes with slower clocks. The consequence in production is undetected data loss, not an error.
 
-*Volume 4: Databases | Backend Interview Handbook*
-*Target Audience: SDE2–Senior / FAANG+ | Topics 9–15 + Cheat Sheet*
+---
 
+**Quick Revision (one line):**
+Wall clocks drift and cannot be trusted for distributed ordering — use Lamport clocks for causal order, vector clocks to detect concurrency, HLC for causality plus real-time proximity, and TrueTime for bounded-uncertainty global linearizability.
 
+---
 
+## Topic 7: Consensus Algorithms
 
+---
 
+#### The Idea
+
+Imagine five people in separate rooms trying to agree on a single answer, but they can only communicate by passing notes, and some notes get lost or delayed. One room may go dark at any moment. How do you guarantee all surviving rooms end up with the same answer, and once they commit to it, they never contradict it? This is the distributed consensus problem, and it is the foundation of every replicated database, distributed lock, and configuration store.
+
+Consensus is needed whenever multiple nodes must agree on a sequence of values — for leader election, distributed locks, or replicated state machines. Paxos was the first rigorous solution, published by Leslie Lamport in 1989, but it is notoriously hard to reason about and implement. Raft was designed a decade later with one explicit goal: understandability. It decomposes consensus into three separate sub-problems — leader election, log replication, and safety — and solves each cleanly.
+
+The key intuition is that you do not need every node to agree; you only need a *majority* (a quorum). A 5-node cluster can lose 2 nodes and still make progress because the 3 survivors form a majority. This is the core durability guarantee of every Raft-based system from etcd to CockroachDB.
+
+---
+
+#### How It Works
+
+```
+RAFT — three sub-problems
+
+1. LEADER ELECTION
+   All nodes start as followers.
+   Each follower waits a random timeout (150–300ms) for a heartbeat.
+   If no heartbeat → become candidate, increment term, send RequestVote to all peers.
+
+   A node grants vote if:
+     (a) has not voted this term, AND
+     (b) candidate's log is at least as up-to-date as own log
+
+   Candidate wins if it receives votes from majority (N/2 + 1).
+   Randomised timeouts prevent split votes.
+
+2. LOG REPLICATION
+   Client sends command to leader.
+   Leader appends to local log with current term.
+   Leader sends AppendEntries RPC to all followers.
+   Once majority acknowledge → leader commits entry (applies to state machine).
+   Leader includes commitIndex in next RPC; followers commit up to that index.
+
+3. SAFETY — LOG MATCHING PROPERTY
+   If two log entries at the same index have the same term,
+   the logs are identical up to that index.
+   Maintained by: AppendEntries includes prevLogIndex + prevLogTerm;
+   follower rejects if its log doesn't match there.
+```
+
+```
+PAXOS vs RAFT — quick comparison
+
+Paxos:
+  Phase 1 (Prepare): proposer sends Prepare(n) to majority;
+    each acceptor promises to ignore proposals < n, replies with highest accepted value.
+  Phase 2 (Accept): proposer sends Accept(n, v) to majority.
+
+  Problems:
+  - Specifies single-value agreement; multi-Paxos for a log requires significant extra protocol.
+  - Original paper omits leader election, log compaction, membership changes.
+  - Every real implementation is a unique variant.
+  Used by: Google Chubby, Apache ZooKeeper (ZAB is Paxos-like).
+
+Raft:
+  Explicit leader, one per term.
+  No log gaps allowed.
+  Membership changes via joint consensus.
+  Used by: etcd, CockroachDB, TiKV.
+```
+
+**Must-memorise gotcha — quorum math:**
+
+```java
+// A 5-node Raft cluster requires a majority to commit.
+// Majority = floor(N/2) + 1
+
+int nodes = 5;
+int majority = nodes / 2 + 1;  // = 3
+
+// Can tolerate 2 failures (5 - 3 = 2 nodes can go down).
+
+// WRONG assumption: 4-node cluster tolerates 2 failures.
+// 4-node majority = 3. Can only tolerate 1 failure.
+// Adding a 4th node does NOT increase fault tolerance vs 3 nodes.
+// Always use ODD cluster sizes: 3, 5, or 7.
+
+// During leader election, ALL writes are unavailable.
+// etcd default election timeout: 1 second.
+// Design your clients with retry + backoff for this window.
+```
+
+*A 5-node cluster can tolerate 2 failures. A 4-node cluster can only tolerate 1 — same as a 3-node cluster. Always use odd cluster sizes.*
+
+---
+
+#### Interview Lens
+
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
+
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
+
+---
+
+##### Q1 — Concept Check
+**"Explain how Raft leader election works."**
+
+**One-line answer:** Nodes use randomised election timeouts; the first node to time out requests votes, and whichever candidate collects a majority first becomes leader for that term.
+
+**Full answer to give in an interview:**
+
+> "Raft divides time into numbered terms. Within each term there is at most one leader. All nodes start as followers and wait for a heartbeat from the leader. Each follower's wait time is a random duration between 150 and 300 milliseconds — the randomisation is the key trick that prevents multiple nodes from timing out simultaneously. When a follower's timer fires without receiving a heartbeat, it becomes a candidate: it increments its term counter and sends a RequestVote RPC to all other nodes. A node grants its vote if two conditions hold: it has not already voted in this term, and the candidate's log is at least as up-to-date as its own. 'At least as up-to-date' means the candidate's last log entry has a higher term, or the same term and a longer log. This second condition is the election safety guarantee — it ensures a new leader always has all entries that were committed in previous terms. If the candidate receives votes from a strict majority — for a 5-node cluster that means at least 3 — it becomes leader and immediately starts sending heartbeats to suppress other elections."
+
+> *The randomised timeout is the mechanism; the log-completeness check is the safety property. Mention both.*
+
+**Gotcha follow-up they'll ask:** *"What happens to writes during a leader election?"*
+
+> "Writes are unavailable for the duration of the election — typically under a second in a healthy network. The new leader cannot accept writes until it has established its authority by sending heartbeats. Reads may also be stale: a node that was partitioned away might believe it is still leader and serve reads from its own log, which could be behind. The safe solution is the ReadIndex protocol: before serving a read, the leader confirms it is still the leader by getting acknowledgement from a majority, then serves the read at the latest committed index."
+
+---
+
+##### Q2 — Tradeoff Question
+**"How is Raft different from Paxos, and why does it matter in practice?"**
+
+**One-line answer:** Raft was designed for understandability — it has an explicit leader, no log gaps, and clean separation of concerns, while Paxos is a family of complex variants with no standard implementation.
+
+**Full answer to give in an interview:**
+
+> "Paxos, in its original single-decree form, specifies how nodes agree on one value. Extending it to a replicated log — called multi-Paxos — requires significant additional protocol that the original paper doesn't fully specify: how to elect a leader, how to fill log gaps, how to handle membership changes. The result is that every production Paxos implementation — Google's Chubby, ZooKeeper's ZAB — is effectively a unique protocol. Raft was designed to be teachable and complete: it cleanly separates leader election, log replication, and membership changes, and forbids log gaps entirely. A follower that is missing entries always gets them from the leader via the AppendEntries RPC rather than having the leader work around gaps. In practice this means Raft implementations like etcd and CockroachDB are far easier to reason about, test, and operate. The performance difference is negligible — both require a majority round trip per commit. The operational difference is significant."
+
+> *State the Paxos incompleteness problem first, then contrast with Raft's completeness. That framing is what interviewers want.*
+
+**Gotcha follow-up they'll ask:** *"Does Raft guarantee linearizable reads?"*
+
+> "Writes are linearizable in Raft because they go through the leader and are committed to a majority before the client gets a response. Reads are not automatically linearizable: a partitioned leader may serve stale reads without knowing it lost its leadership. The fix is the ReadIndex protocol — before serving a read, the leader confirms it still has a majority by exchanging one round of heartbeats, then serves the read at the committed index. etcd implements this and calls it 'serializable reads' versus 'linearizable reads' at the API level."
+
+---
+
+> **Common Mistake — Using even cluster sizes:** A 4-node cluster requires 3 nodes for a majority — tolerating only 1 failure, the same as a 3-node cluster. The extra node adds cost and operational complexity with no gain in fault tolerance. Always use 3, 5, or 7 nodes.
+
+---
+
+**Quick Revision (one line):**
+Raft elects a single leader per term via randomised timeouts, replicates a log to a majority before committing, and guarantees safety via the log-completeness election restriction — used in etcd, CockroachDB, and TiKV.
+
+---
+
+## Topic 8: Leader Election
+
+---
+
+#### The Idea
+
+Imagine a team of servers all capable of doing the same job, but to avoid conflicts only one should act as coordinator at a time. The challenge is not electing a leader when everything is working — it is handling the moment when the leader goes silent. Did it crash? Is it just slow? If you declare it dead too quickly and elect a new leader, you might end up with two servers both believing they are in charge — a situation called *split-brain* — and they will overwrite each other's work. If you wait too long, the system is down unnecessarily.
+
+The fundamental obstacle is a JVM garbage-collection pause or an OS scheduling hiccup. A leader that holds a distributed lock can experience a stop-the-world pause lasting several seconds, long enough for the lock service to declare it dead and give the lock to another node. When it wakes up, it does not know it lost leadership and will attempt to write — now competing with the new leader. No amount of careful lock acquisition logic prevents this.
+
+The only robust solution is *fencing tokens*: every time a leader is elected, it receives a monotonically increasing number from the lock service. Every write to shared storage must include that number, and storage systems reject any write whose token is lower than the highest they have seen. This ensures a zombie leader's stale writes are silently rejected even if it never learns it lost its position.
+
+---
+
+#### How It Works
+
+```
+ZOOKEEPER EPHEMERAL NODE RECIPE
+
+All nodes compete to become leader:
+
+  1. Each node creates an ephemeral sequential znode at /election/candidate-
+     ZooKeeper assigns: candidate-001, candidate-002, candidate-003 ...
+
+  2. Each node reads all children of /election/ and sorts them.
+
+  3. If your znode has the lowest sequence number → you are the leader.
+
+  4. Otherwise → watch the znode with the NEXT LOWER sequence number.
+     (Not all nodes watch the minimum — that causes a herd effect on deletion.)
+
+  5. When the watched znode is deleted (that node crashed) → re-read children.
+     If you now have the minimum → become leader.
+
+Ephemeral znode auto-deletes when the client's session expires (~30s default).
+This is the automatic crash detection mechanism.
+```
+
+```
+ETCD LEASE RECIPE
+
+  1. Create a lease: etcd.grant(15, SECONDS) → leaseId
+  2. Start keepalive to renew lease while process is alive.
+  3. PUT /election/leader = nodeId WITH leaseId attached,
+     conditional on: createRevision == 0 (key must not already exist).
+
+  4. If txn succeeds → you are the leader.
+  5. If txn fails → watch /election/leader for DELETE event, then retry.
+
+  On process death: keepalive stops → lease expires → key deleted → next node wins.
+
+etcd uses Raft internally: at most one node can hold the key at any time.
+Use etcd's key revision as your fencing token for downstream writes.
+```
+
+```
+REDLOCK (5 independent Redis instances)
+
+  To acquire:
+    for each of 5 Redis instances:
+      SET lockKey token NX PX ttl_ms
+    if 3 or more succeed within validity window → lock acquired
+
+  To release:
+    Lua script: DEL key only if value == token (atomic check-and-delete)
+
+  Controversy (Martin Kleppmann):
+    - Clock jump: a Redis server's wall clock can jump forward (NTP step),
+      expiring the lock before the client expects → two holders simultaneously.
+    - GC pause: client pauses > TTL, wakes up believing lock is still held.
+    - No fencing tokens → cannot protect against zombie writers.
+
+  Safe use: efficiency locks (avoid duplicate work), not correctness-critical mutual exclusion.
+```
+
+**Must-memorise gotcha — fencing tokens:**
+
+```java
+// Without fencing: GC pause causes split-brain
+// Leader L holds lease until T. At T-1s, JVM pauses for 15s GC.
+// Lease expires. New leader L2 is elected. L wakes up, still thinks it's leader.
+// L and L2 both write to the same storage → data corruption.
+
+// With fencing: storage rejects stale writes
+// Every leader election produces a monotonically increasing token.
+long fencingToken = etcdKeyRevision; // increases on every new leader
+
+// On every write to shared storage, pass the token:
+storageClient.write(key, value, fencingToken);
+// Storage layer: reject write if fencingToken < lastSeenToken
+
+// This is the ONLY robust defence against zombie leaders.
+// ZooKeeper uses zxid. etcd uses key modifyRevision.
+// Implement this in your downstream storage system, not the lock client.
+```
+
+*A GC pause longer than the lock TTL makes split-brain possible in any lease-based system. Fencing tokens are the only defence.*
+
+---
+
+#### Interview Lens
+
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
+
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
+
+---
+
+##### Q1 — Concept Check
+**"How does ZooKeeper implement leader election, and why do nodes watch their predecessor rather than the current leader?"**
+
+**One-line answer:** Each node creates an ephemeral sequential znode and watches the one directly ahead of it in sequence, so only one notification fires per failure instead of N-1.
+
+**Full answer to give in an interview:**
+
+> "ZooKeeper offers ephemeral znodes — nodes that are automatically deleted when the client's TCP session expires. Leader election uses this property. Every candidate creates an ephemeral sequential znode under a common path, for example `/election/candidate-`. ZooKeeper appends a unique monotonically increasing number to each, so you get `candidate-001`, `candidate-002`, and so on. Each node then reads all children and sorts them. If you hold the lowest sequence number, you are the leader. If not, rather than watching the current minimum — which every follower would do — you watch only the znode with the next lower number than yours. This is crucial: when the leader's znode disappears, if all N-1 followers were watching it, they would all fire simultaneously, generating N-1 watch callbacks and N-1 re-reads of the children list at the same instant — the herd effect. By watching only the predecessor, each deletion triggers exactly one watcher, creating an orderly chain of promotions."
+
+> *The herd effect explanation is what separates a strong answer from a textbook recitation — include it.*
+
+**Gotcha follow-up they'll ask:** *"Is the node with the ZooKeeper session truly safe to act as leader?"*
+
+> "Not without fencing. The ZooKeeper session timeout is around 30 seconds by default. If the leader's network connection is severed but the process is still running, the leader continues to believe it holds its position for up to 30 seconds while ZooKeeper elects a new leader. Both nodes believe they are the leader simultaneously. The safe pattern is to pass ZooKeeper's transaction ID — the zxid — as a fencing token with every write to downstream storage. Any storage system that tracks the highest fencing token it has seen will silently reject the old leader's writes."
+
+---
+
+##### Q2 — Tradeoff Question
+**"When would you choose etcd over ZooKeeper for leader election, and what are the limitations of Redlock?"**
+
+**One-line answer:** Prefer etcd for new systems — it is operationally simpler, uses Raft with well-understood semantics, and provides revision numbers as built-in fencing tokens; avoid Redlock for correctness-critical mutual exclusion.
+
+**Full answer to give in an interview:**
+
+> "ZooKeeper is mature and battle-tested — Kafka used it for broker leader election for years — but it requires running a separate JVM-based cluster and deep operational knowledge of ZAB, its Paxos-like consensus protocol. etcd is a single Go binary that uses Raft, has a simpler API, and is already present in any Kubernetes cluster. For new distributed systems I would default to etcd leases: you create a lease with a TTL, attach it to a key with a conditional transaction that only succeeds if the key does not exist, and use the key's revision number as your fencing token for downstream writes. Redlock is different in kind: it does not use any consensus algorithm. It relies on acquiring the same key on a majority of independent Redis instances, and it assumes that clock drift and network delays stay within a predictable bound. Martin Kleppmann's critique is correct — if a Redis server's NTP clock jumps forward, or if the lock-holding client experiences a GC pause longer than the TTL, two clients can simultaneously believe they hold the lock. Redlock is appropriate for reducing duplicate work in idempotent jobs, not for protecting correctness-critical mutual exclusion."
+
+> *Name Kleppmann and the specific vulnerabilities — clock jumps and GC pauses. That signals you have read the literature.*
+
+**Gotcha follow-up they'll ask:** *"Can you make Redlock safe with fencing tokens?"*
+
+> "Redlock itself does not produce fencing tokens — there is no monotonically increasing counter that downstream storage can check. You would need to implement a separate counter, at which point you are essentially implementing a different protocol. If you need fencing tokens, use etcd or ZooKeeper, both of which expose revision or zxid natively. Redlock's author Salvatore Sanfilippo acknowledges this — his position is that Redlock is for efficiency, not for systems where two clients holding the lock simultaneously would corrupt data."
+
+---
+
+> **Common Mistake — Implementing election without fencing tokens:** Acquiring the lock correctly is not enough. A GC pause or OS scheduling delay can cause a node to hold the lock past its TTL expiry. Without fencing tokens accepted by the downstream storage layer, split-brain corruption is possible even with perfect lock acquisition logic.
+
+---
+
+**Quick Revision (one line):**
+Leader election uses ZooKeeper ephemeral sequential nodes (ZAB), etcd conditional leases (Raft), or Redlock (majority Redis quorum) — but only fencing tokens plus conditional writes in downstream storage prevent a zombie leader from causing data corruption after a GC pause.
+
+---
+
+## Topic 9: DynamoDB Deep Dive
+
+---
+
+#### The Idea
+
+DynamoDB is Amazon's fully managed NoSQL database, and its central design philosophy is that every query must be answerable by looking up a single partition — no joins, no full-table scans in the critical path. You achieve this by choosing a *partition key* that routes each item to a specific shard, and an optional *sort key* that lets you range-query or sort items within that partition. The data model forces you to think about access patterns first and schema second.
+
+The most important concept to internalise is the hot partition problem. DynamoDB divides its capacity across partitions, and each partition handles a fixed ceiling of read and write units. If every request goes to the same partition key — for example, all traffic for a viral product ID — that one partition is saturated even if the rest of the table is completely idle and has spare capacity. This is the single most common production failure mode with DynamoDB.
+
+DynamoDB offers two index types to support secondary access patterns. A Local Secondary Index (LSI) keeps the same partition key as the base table but uses a different sort key — it must be created at table creation time and supports strongly consistent reads. A Global Secondary Index (GSI) can use entirely different partition and sort keys, can be added to an existing table, but only supports eventually consistent reads. Understanding which to use and when is a core interview topic.
+
+---
+
+#### How It Works
+
+```
+DATA MODEL
+
+Table = collection of items
+Item  = set of attributes (like a JSON object), max 400 KB
+Every item identified by: partition key (PK) + optional sort key (SK)
+
+DynamoDB hashes PK → routes to a partition node.
+Items with the same PK are stored contiguously, sorted by SK.
+
+Partition limits:
+  3,000 RCU  (read capacity units) per partition per second
+  1,000 WCU  (write capacity units) per partition per second
+
+1 RCU  = 1 strongly consistent read of up to 4 KB
+       = 2 eventually consistent reads of up to 4 KB
+1 WCU  = 1 write of up to 1 KB
+Transactions cost 2× normal RCU/WCU.
+```
+
+```
+INDEX TYPES
+
+LSI (Local Secondary Index):
+  Same PK as base table, different SK.
+  Created at table creation only (cannot add later).
+  Shares base table's capacity.
+  Supports strong OR eventual consistency.
+  Max 5 per table.
+
+GSI (Global Secondary Index):
+  Entirely different PK and SK.
+  Can be added after table creation.
+  Separate capacity (every base-table write propagates to all GSIs).
+  Eventually consistent only.
+  Max 20 per table.
+
+Rule of thumb:
+  Need strong consistency → LSI.
+  Need flexible access pattern after launch → GSI.
+  Writes to GSI cost extra RCU/WCU — include in capacity planning.
+```
+
+```
+SINGLE-TABLE DESIGN (example: e-commerce)
+
+Access patterns: get order, list orders by customer, list items in order.
+
+PK                  SK                      Entity
+CUSTOMER#c1         CUSTOMER#c1             customer profile
+CUSTOMER#c1         ORDER#2024-01-15#o1     order (sortable by date)
+ORDER#o1            ITEM#p1                 order line item
+PRODUCT#p1          PRODUCT#p1             product catalog
+
+GSI1: (GSI1PK, GSI1SK) for inverted patterns
+  e.g., find all customers who ordered product P:
+    GSI1PK = PRODUCT#p1, GSI1SK = CUSTOMER#c1
+
+Pattern: overload PK/SK with entity-type prefixes so one table holds all entities.
+Use sparse GSIs: only items with the GSI attribute are indexed → lower cost.
+```
+
+**Must-memorise gotcha — hot partition:**
+
+```java
+// HOT PARTITION PROBLEM
+// Bad partition key: low-cardinality or traffic-skewed attribute
+
+// WRONG: status as partition key — all "PENDING" orders go to one partition
+String pk = "STATUS#PENDING";  // every new order hits the same partition
+// Result: partition saturated at 1,000 WCU/s even if table has 100,000 WCU provisioned.
+
+// WRONG: product ID when one product is viral
+String pk = "PRODUCT#bestseller-123";  // all reads for the hit product → one partition
+
+// RIGHT: high-cardinality partition key
+String pk = "ORDER#" + orderId;  // each order in its own partition → even distribution
+
+// RIGHT: write sharding for truly hot keys
+String pk = "PRODUCT#bestseller-123#" + (writerId % 10);  // spread across 10 partitions
+// Then query all 10 shards and aggregate at the application layer.
+
+// DynamoDB Adaptive Capacity (automatic) partially mitigates hot partitions
+// by redistributing capacity, but it has limits — design your key first.
+```
+
+*All traffic to one partition key saturates that partition's capacity ceiling even if the rest of the table's total provisioned capacity is unused. Design partition keys for uniform distribution.*
+
+---
+
+#### Interview Lens
+
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
+
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
+
+---
+
+##### Q1 — Concept Check
+**"What is the difference between a Local Secondary Index and a Global Secondary Index in DynamoDB?"**
+
+**One-line answer:** An LSI shares the base table's partition key and supports strong consistency but must be created at table creation; a GSI uses a different partition key, can be added later, but is always eventually consistent and has its own capacity cost.
+
+**Full answer to give in an interview:**
+
+> "Both LSIs and GSIs let you query a DynamoDB table on attributes other than the primary key, but they work differently. An LSI keeps the same partition key as the base table and only changes the sort key — so it is useful when you always know the partition (the customer ID, say) but want to sort or filter by a different attribute (order status instead of order date). Because it shares the base table's partition, it can serve strongly consistent reads. The constraint is that LSIs must be declared at table creation time — you cannot add one to an existing table. A GSI, by contrast, can project any attribute as the new partition key, effectively creating a separate view of the data stored on its own partitions. This means a GSI can only serve eventually consistent reads — its data is replicated asynchronously from the base table. GSIs can be added after table creation, which is important for evolving schemas. The hidden cost of GSIs is that every write to the base table propagates to all GSIs, consuming additional write capacity units. If you have five GSIs and write one item, you pay for up to six writes. For read-after-write consistency requirements — for example, in payment systems where you just wrote a record and immediately read it back to confirm — use an LSI or query the base table directly."
+
+> *The read-after-write consistency trap with GSIs is the most common interview follow-up — proactively mention it.*
+
+**Gotcha follow-up they'll ask:** *"Can you make a GSI strongly consistent?"*
+
+> "No. GSIs are replicated asynchronously from the base table, and DynamoDB does not expose a way to request strongly consistent reads on a GSI. If you need strong consistency on a secondary access pattern, you have two options: use an LSI if you can accept the same partition key and the index can be defined at table creation time, or query the base table directly using a filter expression — which may be less efficient but gives you strong consistency."
+
+---
+
+##### Q2 — Design Scenario
+**"A product on your DynamoDB-backed e-commerce platform goes viral. How do you handle the hot partition?"**
+
+**One-line answer:** Spread writes across multiple partition key shards by appending a random or modulo suffix, then fan out reads across all shards and aggregate.
+
+**Full answer to give in an interview:**
+
+> "DynamoDB assigns a fixed ceiling to each partition — 3,000 read capacity units and 1,000 write capacity units per second. When a single product ID becomes the partition key and millions of users read it simultaneously, all those requests hit the same physical partition. Even if you have provisioned 100,000 RCUs across the whole table, only 3,000 of them can serve that one partition — you get throttling errors. DynamoDB's Adaptive Capacity feature can partially mitigate this by redistributing capacity to hot partitions automatically, but it has limits and is not a substitute for good key design. The standard solution is write sharding: instead of storing the viral product as a single item under `PRODUCT#p123`, store it as ten items: `PRODUCT#p123#0` through `PRODUCT#p123#9`. On each write, randomly pick a shard. On reads, query all ten keys in parallel and merge the results at the application layer. For read-heavy hot keys that rarely change — like a product catalogue entry — the better solution is to put a cache in front: ElastiCache or DAX (DynamoDB Accelerator), which is a write-through cache native to DynamoDB. DAX reduces read latency from single-digit milliseconds to microseconds and absorbs the hot-key read traffic entirely."
+
+> *Name DAX by name — it signals AWS-specific knowledge that interviewers at Amazon and AWS-heavy shops will notice.*
+
+**Gotcha follow-up they'll ask:** *"What is DynamoDB Adaptive Capacity and does it solve the hot partition problem?"*
+
+> "Adaptive Capacity automatically shifts capacity from cool partitions to hot ones, allowing a single partition to temporarily exceed its baseline allocation. It kicks in within seconds and is transparent to the application. However, it has a hard physical limit — one partition's throughput is bounded by the throughput of the underlying storage node, which DynamoDB does not publish but is finite. For sustained viral traffic, adaptive capacity buys you time but does not solve the problem. It is not a substitute for high-cardinality partition key design or write sharding."
+
+---
+
+##### Q3 — Tradeoff Question
+**"When would you choose on-demand capacity mode over provisioned capacity mode?"**
+
+**One-line answer:** Use on-demand for unpredictable or spiky workloads where you cannot forecast traffic; use provisioned with auto-scaling for steady or predictable workloads where cost matters.
+
+**Full answer to give in an interview:**
+
+> "On-demand mode charges per request and scales instantly — there is no capacity to provision or auto-scaling policy to tune. It is the right choice when traffic is genuinely unpredictable, such as a new product launch, a batch job that fires irregularly, or a development table. The cost per request is roughly two to three times higher than provisioned mode at equivalent throughput, so for steady workloads on-demand is significantly more expensive. Provisioned mode lets you set read and write capacity units, optionally with auto-scaling policies that adjust within a min/max range in response to CloudWatch metrics. For production services with predictable traffic patterns — or ones you can model — provisioned with auto-scaling gives you cost control and protection against runaway spend. One important asymmetry: you can switch a table from provisioned to on-demand at any time, but you can only switch back from on-demand to provisioned once every 24 hours. This matters during an incident: switching to on-demand during a traffic spike is easy; switching back cheaply requires planning."
+
+> *The 24-hour cooldown on switching back from on-demand is a real operational gotcha — mention it.*
+
+---
+
+> **Common Mistake — Low-cardinality partition keys:** Using an attribute like `status` (`PENDING`, `SHIPPED`, `DELIVERED`) as the partition key routes the majority of new writes to the `PENDING` partition and causes immediate hot partition throttling. Partition keys must have high cardinality and uniform access distribution.
+
+---
+
+**Quick Revision (one line):**
+DynamoDB routes items by partition key hash and range-queries by sort key; LSIs share the PK and support strong consistency, GSIs use independent keys and are eventually consistent; the hot partition problem occurs when all traffic concentrates on one key — fix with write sharding or DAX for reads.
+
+---
+
+## Topic 10: Cassandra Deep Dive
+
+---
+
+#### The Idea
+
+Imagine a circular arrangement of servers — a ring. Every piece of data gets hashed to a point on the ring, and the server that owns that point stores the data. To tolerate failures, data is replicated to the next two servers clockwise. Any server can accept any request and route it to the right replicas. There is no master, no single coordinator, and no single point of failure. This is Cassandra's ring architecture, and it is the reason Cassandra can serve millions of writes per second across multiple datacenters with no downtime for node additions or removals.
+
+The design forces a fundamental constraint: all data for a given partition key lives on the same set of replicas and must be read or written together. You cannot ask Cassandra to join two tables across partitions — there is no cross-partition transaction, no ad-hoc query engine. Before you write a single line of CQL, you must know every read pattern your application needs. This is called *query-first design*, and violating it is the single most common Cassandra mistake in production.
+
+Consistency in Cassandra is tunable. The same cluster can serve requests at eventual consistency (ONE — only one replica must acknowledge) for maximum throughput, or at strong consistency (QUORUM — a majority must acknowledge both reads and writes) when correctness matters. You choose per-request, which means different parts of the same application can have different guarantees from the same cluster.
+
+---
+
+#### How It Works
+
+```
+RING ARCHITECTURE
+
+Token space: -2^63 to +2^63 (Murmur3 partitioner)
+Each node owns one or more token ranges (vnodes, typically 256 per node).
+Vnodes make load distribution even and simplify adding/removing nodes.
+
+To write a row:
+  1. Hash(partition_key) → token value
+  2. Route to coordinator node (any node can be coordinator)
+  3. Coordinator finds the N replica nodes that own the token range
+  4. Sends write to all N replicas
+  5. Waits for CL acknowledgements before returning to client
+
+Gossip protocol: each node gossips with 1–3 peers every second.
+All nodes learn about topology and failures within seconds. No master required.
+```
+
+```
+REPLICATION STRATEGIES
+
+SimpleStrategy:
+  Replicas = next N nodes clockwise on ring.
+  Single datacenter only.
+
+NetworkTopologyStrategy:
+  Replicas per datacenter specified separately.
+  CREATE KEYSPACE ks WITH replication = {
+    'class': 'NetworkTopologyStrategy', 'dc1': 3, 'dc2': 2
+  };
+  Rack-aware: replicas placed on different racks within each DC.
+
+CONSISTENCY LEVELS (read and write):
+  ONE    = 1 replica must ack
+  QUORUM = RF/2 + 1 replicas must ack (LOCAL_QUORUM for single DC)
+  ALL    = all RF replicas must ack
+  ANY    = even a hinted handoff counts (write only)
+
+Strong consistency: write CL + read CL > RF
+  e.g., QUORUM write + QUORUM read with RF=3: 2+2>3 → guaranteed overlap
+```
+
+```
+COMPACTION STRATEGIES
+
+STCS (Size-Tiered):  merges SSTables of similar size.
+  Best for: write-heavy workloads with few reads.
+
+LCS (Leveled):  maintains N levels, each 10× larger than previous.
+  Best for: read-heavy workloads; reduces read amplification.
+
+TWCS (Time-Window):  groups SSTables by time window, drops entire windows on TTL expiry.
+  Best for: time-series data with TTL — compaction drops old windows without tombstones.
+  Use with: default_time_to_live on the table.
+
+Tombstones:
+  Deletes write a marker, not a removal.
+  Removed after gc_grace_seconds (default 10 days) by compaction.
+  Excessive tombstones cause read latency — prefer TTL over explicit deletes.
+```
+
+```
+PARTITION KEY DESIGN FOR TIME-SERIES (IoT)
+
+Bad:   sensor_id alone
+       → one sensor generates billions of rows → partition overflow
+
+Better: (sensor_id, date)
+       → known partition size, but fixed bucket granularity
+
+Best:  (sensor_id, bucket)
+       bucket = floor(epoch_seconds / BUCKET_SIZE)
+       → tunable; e.g., daily bucket = floor(epoch_seconds / 86400)
+
+Clustering key: recorded_at DESC
+       → most-recent-first queries read the top of the SSTable
+```
+
+**Must-memorise gotcha — no joins, no transactions, query-first design:**
+
+```java
+// WRONG: designing schema like a relational database
+// Table: orders (order_id, customer_id, product_id, status, created_at)
+// Table: customers (customer_id, name, email)
+// Plan: JOIN orders o ON o.customer_id = c.customer_id WHERE c.email = 'x'
+// → Cassandra cannot do this. No JOINs. No subqueries. Full table scan required.
+
+// RIGHT: one table per query pattern
+// Query: "get all orders for a customer, sorted by date"
+// Table: orders_by_customer
+//   PRIMARY KEY ((customer_id), created_at, order_id)
+//   CLUSTERING ORDER BY (created_at DESC)
+
+// Query: "get order by ID"
+// Table: orders_by_id
+//   PRIMARY KEY (order_id)
+
+// You maintain TWO tables and write to BOTH on every order creation.
+// This is the Cassandra way: denormalize, duplicate, design around reads.
+
+// Cassandra's "transactions":
+// - Lightweight transactions (LWT): IF NOT EXISTS / IF condition → uses Paxos, slow
+// - Use only for uniqueness checks, not as a general transaction mechanism
+// - Batch: provides atomicity for same-partition writes, NOT cross-partition
+```
+
+*Cassandra does not support joins or multi-partition transactions. Every query pattern requires its own table. Design the tables from the queries, not the data.*
+
+---
+
+#### Interview Lens
+
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
+
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
+
+---
+
+##### Q1 — Concept Check
+**"Explain Cassandra's ring architecture and how replication works."**
+
+**One-line answer:** Each node owns a range of hash values on a token ring, and data is replicated to the next N nodes clockwise; any node can serve any request as coordinator with no single master.
+
+**Full answer to give in an interview:**
+
+> "Cassandra maps the entire key space — typically a 64-bit integer range from negative two to the sixty-third to positive two to the sixty-third — onto a circular ring. Each node is assigned one or more token ranges on that ring using virtual nodes, or vnodes. By default each physical node owns 256 vnodes spread across the ring, which means data is distributed evenly even if nodes have different capacities, and adding a new node only requires migrating a fraction of the data from many existing nodes rather than half the data from one. When a client writes a row, the partition key is hashed by the Murmur3 algorithm to produce a token. The coordinator node — any node that received the request — looks up which replica nodes own that token range according to the replication factor and the replication strategy. With NetworkTopologyStrategy and a replication factor of 3 in a datacenter, three replicas are placed on different racks within that datacenter. The coordinator sends the write to all replicas simultaneously and waits for the number of acknowledgements specified by the consistency level before responding to the client. There is no master: every node knows the full ring topology through the gossip protocol, which exchanges state between one to three random peers every second. A node failure is detected within seconds without any central coordinator."
+
+> *Mention vnodes explicitly — they are the mechanism for even distribution and easy rebalancing; many candidates skip them.*
+
+**Gotcha follow-up they'll ask:** *"How does Cassandra handle a node failure during a write?"*
+
+> "When a replica is down at write time, the coordinator uses hinted handoff: it stores the write locally as a 'hint' — a record of the write that was intended for the failed node. When that node comes back online, the coordinator replays the hints. Hinted handoff is configurable; hints are stored for a maximum window (default 3 hours). For longer outages, the recovered node uses read repair and anti-entropy repair — a background process that uses Merkle trees to compare data across replicas and synchronise differences. If you write at consistency level ONE and the only available replica is storing a hint, the write succeeds but the data is not yet on any permanent replica — this is the tradeoff of low consistency levels."
+
+---
+
+##### Q2 — Design Scenario
+**"Design a Cassandra schema for an IoT platform storing sensor readings that needs to query the last 24 hours of data for a specific sensor."**
+
+**One-line answer:** Use a composite partition key of (sensor_id, daily_bucket) and a clustering column of recorded_at DESC so each day's readings for one sensor form a single, bounded partition.
+
+**Full answer to give in an interview:**
+
+> "The query pattern drives everything in Cassandra. The query is: give me all readings for sensor X in the last 24 hours. That translates to: I know the sensor ID, I know the time range. The partition key must contain sensor ID so all of a sensor's data lands on the same set of replicas. But using sensor ID alone is dangerous for a busy sensor that writes every second — over months that partition grows unbounded and eventually cannot be read efficiently. The fix is time-bucketing: add a daily bucket to the partition key, computed as the floor of the Unix timestamp divided by 86,400 — the number of seconds in a day. Now each partition holds exactly one day of data for one sensor, which is predictable and bounded. For a 24-hour query you almost always hit just one partition. For a query spanning midnight you query two partitions — both known before you start — and merge the results at the application layer. The clustering key is `recorded_at DESC` so the most recent readings are at the head of each SSTable and short-range queries avoid scanning the entire partition. Use TimeWindowCompactionStrategy with a one-day window to match the bucket size, and set a TTL of 30 days — TWCS drops entire expired windows without accumulating tombstones, which is critical for read latency."
+
+> *Explaining why TWCS matches the bucket size is the detail that separates a senior answer — make that connection explicit.*
+
+**Gotcha follow-up they'll ask:** *"What happens if you use `ALLOW FILTERING` in production?"*
+
+> "`ALLOW FILTERING` tells Cassandra to perform a full scan of all partitions that match the partition key criteria, applying a filter in memory on each node that receives the scatter request. For a single partition this is merely inefficient. For a query without a partition key predicate it is a cluster-wide full table scan — every node reads every SSTable, applies the filter, and the coordinator merges the results. At any non-trivial scale this saturates disk I/O, causes garbage collection pressure, and starves concurrent reads. It is effectively `SELECT *` with a `WHERE` clause executed in Java. The correct fix is always to create a new table or GSI — in Cassandra's case, a new denormalised table — that makes the desired access pattern a partition-key lookup."
+
+---
+
+##### Q3 — Tradeoff Question
+**"Cassandra is described as an AP database. Is that accurate?"**
+
+**One-line answer:** It depends on the consistency level — with QUORUM reads and writes Cassandra is effectively CP; the AP characterisation applies at low consistency levels like ONE.
+
+**Full answer to give in an interview:**
+
+> "The CAP theorem classification is a simplification, and Cassandra is a good example of why. The AP label means: in a partition, choose availability over consistency. That is true when you use low consistency levels like ONE — a write succeeds as long as one replica acknowledges, even if the others are unreachable, so you have high availability but potentially stale reads. But Cassandra's consistency level is tunable per request. If you write at QUORUM — which requires acknowledgement from the majority of replicas — and read at QUORUM, the read and write sets are guaranteed to overlap because two times (RF divided by two plus one) is greater than RF. That is strong consistency. With ALL consistency level — all replicas must respond — Cassandra is effectively CP: it will refuse to serve a request if any replica is unreachable. So Cassandra's position on the CAP spectrum depends entirely on how you configure it. Most teams use LOCAL_QUORUM for cross-datacenter deployments, which gives strong consistency within each datacenter while allowing each datacenter to operate independently if the inter-DC link fails."
+
+> *The formula — write quorum plus read quorum greater than RF implies overlap — is the key mathematical point. State it explicitly.*
+
+---
+
+> **Common Mistake — Modelling data like a relational schema:** Cassandra cannot join tables or run ad-hoc queries across partitions. Designing tables first and figuring out queries later always results in full-cluster `ALLOW FILTERING` scans in production. Always start with the access patterns, then design one table per query.
+
+---
+
+**Quick Revision (one line):**
+Cassandra's masterless ring replicates data to N consecutive nodes; consistency is tunable per-request from ONE to ALL; TWCS compaction is optimal for time-series with TTL; and because Cassandra has no joins or multi-partition transactions, every read pattern requires its own denormalised table — design queries first, schema second.
+
+---
+
+## Topic 11: MongoDB Deep Dive
+
+---
+
+#### The Idea
+
+Imagine you have a filing cabinet full of paper forms. A relational database forces every form to have the same fields — you pre-print 50 columns and most stay blank. MongoDB works the opposite way: each document is a flexible JSON envelope. A user record can embed an array of addresses right inside it instead of joining across three tables. You query one document, you get everything you need — no JOIN tax.
+
+The aggregation pipeline is MongoDB's answer to SQL's GROUP BY and JOINs. Instead of writing a SQL statement, you describe a sequence of stages — filter here, group there, reshape the output at the end — and MongoDB executes them on the server in one round trip.
+
+Sharding is how MongoDB scales writes beyond one machine. A mongos router sits in front of the cluster. Your application talks only to mongos; it consults a config server to find which shard holds which chunk of data, then routes the request transparently. From your application's perspective, there is one database; behind the scenes, data is spread across many replica sets.
+
+---
+
+#### How It Works
+
+```
+Document model
+  Collection: "orders"
+  Document:   { _id, customerId, items: [...], shippingAddress: {...} }
+  Flexible schema — each document can differ in fields
+  16 MB BSON size limit — embed for 1:few, reference for 1:many high-cardinality
+
+Aggregation pipeline (server-side, sequential stages)
+  db.orders.aggregate([
+    { $match:   { status: "completed" } },   // stage 1: filter
+    { $unwind:  "$items" },                   // stage 2: flatten array
+    { $group:   { _id: "$items.productId",    // stage 3: aggregate
+                  total: { $sum: "$items.qty" } } },
+    { $sort:    { total: -1 } },              // stage 4: order
+    { $limit:   10 }                          // stage 5: top-10
+  ])
+  RAM limit per stage: 100 MB — use allowDiskUse: true for large datasets
+
+Replica set
+  1 primary (reads + writes) + N secondaries (read replicas + failover)
+  Oplog: capped collection on primary, secondaries tail it to stay in sync
+  Election: if primary is unreachable, secondaries elect a new primary (Raft-like)
+  writeConcern w:majority — write acknowledged only after majority of nodes persist it
+
+Transactions (MongoDB 4.0+)
+  Multi-document ACID transactions within a replica set
+  Multi-shard transactions supported from 4.2+
+  Expensive — grab a session, start transaction, commit/abort
+  Prefer single-document atomicity when possible (faster, no 2PC overhead)
+
+Sharding
+  mongos (router) — your app talks only here
+  Config servers — store chunk metadata (which shard owns which key range)
+  Chunks — 64 MB key-range segments, auto-balanced across shards
+  Shard key choice:
+    Hashed  → uniform write distribution, no range scans
+    Ranged  → range scans fast, but risk hot-spot on monotonic keys (ObjectId, timestamp)
+```
+
+Must-memorise gotcha — unbounded array growth:
+
+```java
+// DANGEROUS: storing every event inside the parent document
+db.users.updateOne(
+    { _id: userId },
+    { $push: { events: newEvent } }   // array grows forever
+);
+// When the array hits thousands of entries the document
+// approaches the 16 MB BSON limit and update latency spikes.
+// MongoDB must rewrite the entire document on disk when it outgrows its allocated space.
+
+// CORRECT: reference pattern — store events in a separate collection
+db.userEvents.insertOne({ userId, timestamp, type, payload });
+// Query with a targeted index — no document size ceiling.
+```
+
+---
+
+#### Interview Lens
+
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
+
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
+
+---
+
+##### Q1 — Concept Check
+**"What is MongoDB's aggregation pipeline, and how does it differ from a SQL GROUP BY query?"**
+
+**One-line answer:** The aggregation pipeline is a sequence of data-transformation stages executed server-side, equivalent to chained SQL clauses but composable and more expressive for document reshaping.
+
+**Full answer to give in an interview:**
+
+> "In SQL you write one declarative statement — SELECT, FROM, WHERE, GROUP BY, HAVING, ORDER BY — and the database figures out execution. MongoDB's aggregation pipeline is more explicit: you describe each transformation step in sequence. A `$match` stage filters documents (like WHERE), a `$group` stage aggregates them (like GROUP BY), a `$project` stage reshapes the output (like SELECT with computed fields), and a `$lookup` stage joins another collection (like a LEFT JOIN). Each stage outputs documents that flow into the next stage. The advantage is composability — you can insert a `$unwind` to flatten an embedded array before grouping, which has no clean SQL equivalent. The trade-off is that aggregation pipelines have a 100 MB per-stage RAM limit by default, so you need `allowDiskUse: true` for large datasets. For analytics on huge collections, a dedicated tool like Spark reading from MongoDB is often more appropriate."
+
+> *Keep it concrete — mention the stage names and the RAM limit. That signals hands-on experience.*
+
+**Gotcha follow-up they'll ask:** *"What happens if an aggregation pipeline stage exceeds 100 MB of memory?"*
+
+> "The stage throws an error — `'Exceeded memory limit for $group, but did not opt in to external sorting'`. The fix is to add `{ allowDiskUse: true }` to the aggregate options, which lets MongoDB spill intermediate results to disk. For very large aggregations you should also push the `$match` and `$sort` stages as early as possible so subsequent stages process a smaller dataset."
+
+---
+
+##### Q2 — Tradeoff Question
+**"When would you embed a sub-document versus using a reference in MongoDB, and what is the risk of getting this wrong?"**
+
+**One-line answer:** Embed when data is co-accessed and bounded in size; reference when the nested data can grow unboundedly or is shared across many parent documents.
+
+**Full answer to give in an interview:**
+
+> "The embedding-versus-reference decision in MongoDB is driven by two questions: how often is the nested data accessed together with the parent, and how large can the nested data grow? If a user always needs their shipping addresses when you fetch their profile, embed the addresses array — one document read, no join. But if a user can place thousands of orders, embedding all orders inside the user document is dangerous. MongoDB has a hard 16 MB BSON document size limit. An embedded array that grows without bound will eventually hit that ceiling, causing write failures and performance degradation as MongoDB rewrites larger and larger documents on disk. The correct pattern for high-cardinality one-to-many relationships — user to events, product to reviews — is a reference: store the parent ID in the child collection and use an index on that foreign key. You trade one extra query for safety and scalability. The rule of thumb: embed for `1:1` and `1:few` with stable, bounded size; reference for `1:many` and `many:many`."
+
+> *The 16 MB limit is the interviewer's target — mention it explicitly.*
+
+**Gotcha follow-up they'll ask:** *"How does MongoDB 4.0's multi-document transaction support change this design decision?"*
+
+> "Before 4.0, MongoDB guaranteed atomicity only within a single document, which was a strong incentive to embed related data. Since 4.0, multi-document ACID transactions are available — you can update a parent document and a separate child collection atomically. This makes the reference pattern safer for use-cases that previously needed embedding for atomicity. However, transactions in MongoDB are still more expensive than in a relational database because they involve two-phase commit across replica set nodes and hold locks during the transaction. The guidance remains: prefer single-document atomicity for performance-critical paths, and use transactions only when you genuinely need cross-document consistency."
+
+---
+
+##### Q3 — Design Scenario
+**"You are designing a sharded MongoDB cluster for a high-write IoT system. What shard key would you choose and why?"**
+
+**One-line answer:** Use a hashed shard key on the device ID to distribute writes uniformly across shards and avoid hot-spotting.
+
+**Full answer to give in an interview:**
+
+> "The biggest mistake in shard key selection is choosing a monotonically increasing value like a timestamp or MongoDB ObjectId with ranged sharding. All new writes land on the last chunk — the one with the highest key values — turning that shard into a hot spot while the others sit idle. For an IoT system with continuous high-frequency writes, I would use a hashed shard key on `deviceId`. Hashing converts the device ID into a uniform distribution across chunks, so writes spread evenly regardless of insertion order. The trade-off is that range queries on `deviceId` — 'give me all readings for devices D1 through D100' — become scatter-gather operations across all shards, which is slower than a ranged shard key would allow. For IoT analytics that query by time range across all devices, I would add a compound index on `{ deviceId, timestamp }` and accept the scatter-gather cost for dashboard queries, since write throughput is the bottleneck. If range queries are equally critical, a compound shard key of `{ deviceId, timestamp }` with zone sharding can co-locate each device's data on one shard while still distributing devices across shards."
+
+> *Mention hot-spotting by name — it shows you know the canonical failure mode.*
+
+**Gotcha follow-up they'll ask:** *"How does mongos handle a query that does not include the shard key in its filter?"*
+
+> "Without the shard key in the filter, mongos cannot determine which shard holds the matching documents. It broadcasts the query to all shards — a scatter-gather — and merges the results. This is correct but expensive: latency scales with the slowest shard, and every shard bears the read load. For collections where non-shard-key queries are frequent, add secondary indexes on the query fields. Each shard maintains its own index, so mongos still scatters the query, but each shard uses the index locally instead of doing a full collection scan."
+
+---
+
+> **Common Mistake — Unbounded Array Growth:** Pushing events, logs, or messages into an embedded array without a growth ceiling will eventually cause the document to exceed MongoDB's 16 MB BSON limit, resulting in `BSONObjectTooLarge` write errors in production. Always use a reference collection for one-to-many relationships with high or unbounded cardinality.
+
+---
+
+**Quick Revision (one line):**
+MongoDB stores flexible BSON documents; use the aggregation pipeline for server-side analytics; replica sets provide HA via oplog replication; mongos routes sharded queries transparently; never embed unbounded arrays — reference instead to stay within the 16 MB document limit.
+
+---
+
+## Topic 12: Time-Series Databases
+
+---
+
+#### The Idea
+
+Imagine a power meter that records voltage 10 times per second for every device in a factory. Over a month, that is billions of rows. A traditional relational database stores each reading as a separate row — an INSERT per event, a B-tree index update per row, and a table that grows until queries grind to a halt. Time-series databases are purpose-built for this exact pattern: an append-only, time-ordered flood of numeric measurements.
+
+The key insight is that time-series data is almost never updated or deleted randomly. Readings arrive in timestamp order and are mostly read in time ranges — "give me the last hour of CPU metrics." This access pattern allows a fundamentally different storage design: column-oriented storage where all values for one metric are stored together, compressed aggressively because adjacent values are similar.
+
+Downsampling is the other killer feature. You do not need millisecond resolution for a trend chart covering six months. Time-series databases let you define continuous aggregates — "pre-compute the 1-minute average of every metric every minute" — so dashboards query a 100-row summary instead of 600,000 raw rows. InfluxDB calls these continuous queries; TimescaleDB calls them continuous aggregates.
+
+---
+
+#### How It Works
+
+```
+Why NOT a relational DB for high-frequency time-series
+  Each event = one INSERT + one B-tree index update
+  Index update is random I/O — amplified write cost
+  Table bloat: 10,000 sensors × 10 readings/sec × 1 month = 26 billion rows
+  Vacuum, autovacuum, MVCC overhead compounds the problem
+
+Column-oriented storage (InfluxDB TSM, TimescaleDB compression)
+  Traditional row store: [time, sensor, value] [time, sensor, value] ...
+  Column store:          [time, time, time, ...] | [sensor, sensor, ...] | [value, value, ...]
+  Numeric columns compress 10-50x (delta encoding + run-length encoding)
+  Sequential disk reads for time-range queries — CPU cache friendly
+
+Time-based partitioning (TimescaleDB hypertables)
+  One logical table "sensor_readings" splits into chunks by time interval (e.g. 7 days)
+  Query planner applies chunk exclusion: "WHERE time > NOW() - INTERVAL '1 hour'"
+  Only the current chunk is scanned — past chunks are skipped entirely
+  Old chunks can be compressed independently or tiered to cold storage
+
+InfluxDB concepts
+  Measurement  → table analogy
+  Tags         → indexed string dimensions (device_id, region) — low cardinality!
+  Fields       → numeric values (temperature, voltage) — not indexed
+  Retention policy → auto-delete data older than N days
+  Series cardinality = unique (measurement, tag-set) combinations
+    → High cardinality (e.g., user_id as a tag) blows up the in-memory index
+
+Downsampling (continuous aggregates)
+  TimescaleDB:
+    CREATE MATERIALIZED VIEW sensor_1min
+    WITH (timescaledb.continuous) AS
+    SELECT time_bucket('1 minute', time), sensor_id,
+           avg(value), max(value), min(value)
+    FROM sensor_readings GROUP BY 1, 2;
+
+  InfluxDB task (Flux):
+    every: 1m, query raw, write 1-min averages to a separate bucket
+    Raw bucket: 7-day retention. Aggregate bucket: 1-year retention.
+```
+
+Must-memorise gotcha — never use row-per-event in a relational DB for high-frequency time-series:
+
+```sql
+-- WRONG: relational DB, one row per IoT event, 10k sensors at 10 Hz
+CREATE TABLE sensor_events (
+    id          BIGSERIAL PRIMARY KEY,   -- B-tree index updated every insert
+    sensor_id   UUID NOT NULL,
+    recorded_at TIMESTAMPTZ NOT NULL,
+    value       DOUBLE PRECISION
+);
+-- After 1 month: 26 billion rows, index bloat, autovacuum can't keep up,
+-- writes slow from microseconds to milliseconds.
+-- Symptom: pg_stat_bgwriter shows constant checkpoint pressure.
+
+-- CORRECT: TimescaleDB hypertable (PostgreSQL extension)
+SELECT create_hypertable('sensor_events', 'recorded_at',
+                         chunk_time_interval => INTERVAL '1 day');
+-- Now: chunk exclusion skips all but the relevant day-partition,
+-- compression reduces storage 10x, continuous aggregates serve dashboards.
+```
+
+---
+
+#### Interview Lens
+
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
+
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
+
+---
+
+##### Q1 — Concept Check
+**"Why is a standard relational database a poor fit for high-frequency time-series data, and what specifically makes InfluxDB or TimescaleDB better?"**
+
+**One-line answer:** Relational databases incur write amplification from B-tree index updates on every INSERT; time-series databases use column-oriented storage and time-based partitioning to achieve 10-100x better write throughput and compression.
+
+**Full answer to give in an interview:**
+
+> "The core problem is write amplification. A relational database like PostgreSQL maintains a B-tree index on every indexed column. Every INSERT updates the index — that is a random write to a page that may not be in memory. At 10,000 sensors writing 10 readings per second, you have 100,000 random I/Os per second just for index maintenance. SSDs handle this better than spinning disks, but it still burns I/O bandwidth and causes page eviction pressure in the buffer pool. InfluxDB addresses this with its TSM — Time-Structured Merge — storage engine: writes go to an in-memory store first, then are flushed to immutable columnar files and compacted in the background, similar to an LSM tree. Reads scan compressed column files sequentially rather than traversing a B-tree. TimescaleDB takes a different approach: it is a PostgreSQL extension that partitions your table into time-based chunks automatically. Queries with a time-range filter skip irrelevant chunks entirely — chunk exclusion — so a query for the last hour only touches the current chunk, not five years of history. Both solutions also offer native downsampling — pre-aggregated rollups — so dashboards query a summary table with hundreds of rows instead of billions of raw measurements."
+
+> *Mention write amplification and chunk exclusion by name — they are the canonical technical terms.*
+
+**Gotcha follow-up they'll ask:** *"What is the high-cardinality problem in InfluxDB and how do you avoid it?"*
+
+> "In InfluxDB, tags are indexed dimensions — every unique combination of tag values defines a separate time series in memory. If you use `user_id` as a tag, and you have one million users, you create one million series. InfluxDB keeps the series index in memory, so high cardinality causes memory exhaustion and slow compaction. The fix is to keep tags genuinely low-cardinality — device type, region, environment — and put high-cardinality identifiers like user IDs or request IDs in fields instead of tags. Fields are not indexed, so queries on them do a full scan within the time range, but that is usually acceptable."
+
+---
+
+##### Q2 — Tradeoff Question
+**"What is downsampling in a time-series context, and how would you implement a tiered retention strategy?"**
+
+**One-line answer:** Downsampling pre-aggregates raw high-resolution data into lower-resolution summaries, allowing you to discard raw data after a short window while retaining trends for years.
+
+**Full answer to give in an interview:**
+
+> "Raw time-series data is enormous and most of it goes stale quickly. For a CPU metric sampled every second, you need second-level resolution only for incident investigation over the last few hours. For a quarterly capacity planning report, one-minute or one-hour averages are sufficient. Downsampling is the process of computing those averages — min, max, avg, percentile — and writing them to a lower-resolution series or table. A tiered retention strategy stacks this: keep raw data for 7 days, keep 1-minute aggregates for 90 days, keep 1-hour aggregates for 2 years, keep daily aggregates forever. In TimescaleDB I would implement this with continuous aggregates — a materialized view that automatically refreshes every minute — plus a data retention policy that drops raw chunks older than 7 days. In InfluxDB 2.x I would use tasks to write downsampled data to a separate bucket with a longer retention policy, and set a short TTL on the raw bucket. The key design principle is that continuous aggregation must happen before the raw data expires — if the refresh interval is 1 hour and retention is 7 days, the aggregate lags by at most 1 hour, which is acceptable."
+
+> *Mentioning the refresh-before-expiry constraint shows operational maturity.*
+
+**Gotcha follow-up they'll ask:** *"How do you handle late-arriving data — events that arrive after the time window has already been aggregated?"*
+
+> "Late-arriving data is a genuine challenge for continuous aggregates. In TimescaleDB, continuous aggregates have a `refresh_lag` parameter that keeps a refresh window open for late data — for example, always recompute the last 2 hours. If data arrives within that window, the aggregate is updated correctly. For data arriving beyond the lag window, you have to manually trigger a refresh: `CALL refresh_continuous_aggregate('sensor_1min', older_bound, newer_bound)`. In streaming systems like Kafka with Flink, the standard pattern is watermarking — accept events up to a configurable late-arrival tolerance, then close the window and emit the result."
+
+---
+
+##### Q3 — Design Scenario
+**"Design a metrics pipeline for 50,000 IoT sensors each writing 1 reading per second. What database would you use and how would you structure the schema?"**
+
+**One-line answer:** Use TimescaleDB with a hypertable partitioned by time, compressed chunks, and a continuous aggregate for dashboard queries.
+
+**Full answer to give in an interview:**
+
+> "Fifty thousand sensors at one reading per second is 50,000 writes per second — well within TimescaleDB's range on modest hardware. I would create a hypertable on the `time` column with a 1-day chunk interval. Chunk interval choice matters: too small means too many chunks and planning overhead; too large means compressing a big chunk takes longer. One day is a safe default for this volume. For compression I would set a compression policy that compresses chunks older than 7 days — this uses delta-delta encoding for timestamps and delta encoding for numeric values, achieving roughly 10x compression. For the schema I would use `(time TIMESTAMPTZ, sensor_id UUID, metric_name TEXT, value DOUBLE PRECISION)`. I would add a compound index on `(sensor_id, time DESC)` for per-sensor queries and rely on chunk exclusion for time-range queries. For dashboards I would create a continuous aggregate at 1-minute resolution refreshing every minute. Dashboard queries would hit the aggregate — a few thousand rows — rather than the 50,000-row-per-second raw table. I would also add a data retention policy dropping raw chunks after 90 days to control storage growth."
+
+> *Walk through the chunk interval, compression policy, and continuous aggregate in sequence — it shows end-to-end operational thinking.*
+
+**Gotcha follow-up they'll ask:** *"Why is TimescaleDB sometimes preferred over InfluxDB for teams already using PostgreSQL?"*
+
+> "TimescaleDB is a PostgreSQL extension — it speaks standard SQL, supports foreign keys, JOINs, and transactions, and works with every PostgreSQL-compatible tool: psql, pgAdmin, JDBC, Hibernate. Teams do not need to learn a new query language like InfluxQL or Flux, and they can JOIN time-series data with relational tables in the same query — for example, joining sensor readings with a devices reference table to filter by device location. InfluxDB is purpose-built for time-series and can be faster at extreme ingest rates, but it requires a separate query language, separate tooling, and cannot do cross-data-model JOINs without application-level logic."
+
+---
+
+> **Common Mistake — Row-per-Event in a Relational DB:** Using a plain PostgreSQL table with a BIGSERIAL primary key for high-frequency time-series data causes write amplification from B-tree index maintenance, autovacuum lag, and table bloat. Performance degrades non-linearly as the table grows. Always use a time-series-native engine (InfluxDB, TimescaleDB) for data volumes above a few thousand writes per second.
+
+---
+
+**Quick Revision (one line):**
+Time-series DBs solve write amplification with column-oriented storage and time-partitioning; InfluxDB uses TSM + tags/fields + retention policies; TimescaleDB uses PostgreSQL hypertables + chunk exclusion + continuous aggregates; never store high-frequency events row-per-event in a plain relational table.
+
+---
+
+## Topic 13: Full-Text Search with Elasticsearch
+
+---
+
+#### The Idea
+
+Imagine a library with a million books. Finding all books that contain the word "distributed" on any page requires reading every page of every book — that is a full table scan. An inverted index solves this: before any query arrives, the library builds a lookup table that maps every word to the list of books containing it. "distributed" → [Book 42, Book 107, Book 953]. Elasticsearch is built on this data structure.
+
+Relevance scoring is what separates a search engine from a simple keyword filter. When you search for "distributed systems", you do not just want all documents that contain those words — you want the most relevant ones first. Elasticsearch scores documents using BM25 (an evolution of TF-IDF): documents where your search terms appear more frequently and in a smaller document score higher. Terms that appear in many documents are less informative (stop words like "the"), so they contribute less to the score.
+
+The critical distinction to carry into every design conversation: Elasticsearch is a search and analytics engine, not a primary database. It does not support ACID transactions. Writes are eventually consistent — an indexed document may not be searchable for a fraction of a second. Always maintain a source-of-truth database (PostgreSQL, MongoDB) and sync to Elasticsearch asynchronously.
+
+---
+
+#### How It Works
+
+```
+Inverted index construction (at index time)
+  Document: "Distributed systems use consensus algorithms"
+  Analyzer pipeline:
+    1. Tokenizer:   ["Distributed", "systems", "use", "consensus", "algorithms"]
+    2. Lowercase:   ["distributed", "systems", "use", "consensus", "algorithms"]
+    3. Stop words:  ["distributed", "systems", "consensus", "algorithms"]  (remove "use")
+    4. Stemmer:     ["distribut", "system", "consensus", "algorithm"]
+  Inverted index:
+    "distribut"  → [doc1, doc5, doc12]
+    "system"     → [doc1, doc3, doc8, doc12]
+    "consensus"  → [doc1, doc7]
+    "algorithm"  → [doc1, doc2, doc7]
+
+Relevance scoring: BM25
+  Score(doc, query) = Σ IDF(term) × TF(term, doc) / (TF + k1 × (1 - b + b × docLen/avgDocLen))
+  IDF (Inverse Document Frequency): rare terms score higher than common ones
+  TF  (Term Frequency): more occurrences in a document = higher score, but with diminishing returns
+  k1, b: tuning parameters (default k1=1.2, b=0.75)
+
+Query context vs Filter context
+  Query context  → calculates a relevance _score (expensive, not cacheable)
+    { "match": { "title": "distributed systems" } }
+  Filter context → yes/no match, no score (cheap, results are cached)
+    { "filter": { "term": { "status": "published" } } }
+  Best practice: combine — filter first to shrink the candidate set, then score
+
+Shards vs Replicas
+  Shard   = a self-contained Lucene index (primary copy)
+  Replica = copy of a shard (read scalability + fault tolerance)
+  Index:  { "settings": { "number_of_shards": 3, "number_of_replicas": 1 } }
+  Shards cannot be changed after index creation (reindex required)
+  Rule of thumb: shard size 10–50 GB; too many small shards wastes memory on overhead
+
+Mapping types
+  text    → analyzed, full-text searchable, not aggregatable
+  keyword → not analyzed, exact match, aggregatable (facets, sorting)
+  date, integer, float, boolean → structured, filterable
+  Dual-field mapping: title.keyword (exact) + title (analyzed)
+  Dynamic mapping: risky in production — can explode mapping with unexpected fields
+```
+
+Must-memorise gotcha — Elasticsearch is NOT a primary database:
+
+```java
+// WRONG: using Elasticsearch as the source of truth
+public Order getOrder(String orderId) {
+    // If ES hasn't indexed this yet (eventual consistency window),
+    // or if an index corruption forces a reindex, order is "lost"
+    return elasticsearchClient.get(orderId, Order.class);
+}
+
+// CORRECT: dual-write architecture
+public Order createOrder(OrderRequest req) {
+    // 1. Write to the source-of-truth DB first (ACID guaranteed)
+    Order order = postgresRepository.save(req.toOrder());
+
+    // 2. Publish event; async consumer indexes to ES
+    eventBus.publish(new OrderCreatedEvent(order));
+
+    // 3. Return from the authoritative store
+    return order;
+}
+
+// Read path:
+//   Search queries  → Elasticsearch (relevance, full-text)
+//   ID lookups      → PostgreSQL (authoritative, consistent)
+```
+
+---
+
+#### Interview Lens
+
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
+
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
+
+---
+
+##### Q1 — Concept Check
+**"How does Elasticsearch's inverted index work, and how does BM25 score a document?"**
+
+**One-line answer:** An inverted index maps every analyzed token to the list of documents containing it; BM25 scores documents by weighing term frequency with diminishing returns against inverse document frequency, penalising very long documents.
+
+**Full answer to give in an interview:**
+
+> "When you index a document in Elasticsearch, an analyzer pipeline runs over the text fields. It tokenizes the text into terms, lowercases them, removes stop words like 'the' and 'a', and optionally applies a stemmer so 'running' and 'runs' map to the same root token 'run'. These processed tokens are added to an inverted index — a sorted map from token to a posting list containing the IDs of every document that contains that token, plus metadata like term frequency and field positions. At query time, Elasticsearch looks up your query terms in the inverted index, retrieves the candidate document sets, takes their intersection or union depending on the query type, and scores them. BM25 — the default scoring algorithm since Elasticsearch 5.0 — is an improvement over plain TF-IDF. It rewards documents where query terms appear frequently, but with diminishing returns: the tenth occurrence of 'distributed' in a document adds far less to the score than the first. It also uses IDF — inverse document frequency — so terms that appear in almost every document (like common nouns) contribute less to relevance than rare, specific terms. Finally, BM25 normalises for document length: a short document where 'distributed' appears once is more relevant than a long document where it also appears once buried in 10,000 words."
+
+> *Mention the analyzer pipeline and the BM25 length normalisation — these are the details that distinguish strong answers.*
+
+**Gotcha follow-up they'll ask:** *"What is the difference between query context and filter context, and why does it matter for performance?"*
+
+> "In Elasticsearch, a query clause in query context calculates a floating-point relevance score — `_score` — for every matching document. This computation is expensive and the results are not cacheable because scores depend on the overall index statistics. A query clause in filter context answers only yes/no: does this document match? There is no score computation. Filter results are cached in a bit-set per segment, so re-running the same filter is essentially free. The practical pattern is to use filter context for structured criteria — status equals 'published', date in a range, category equals 'electronics' — to eliminate non-matching documents cheaply, and then use query context only for the full-text search part that needs scoring. In a bool query this looks like: `must` clause with the `match` query (scored), and a `filter` clause with `term` and `range` queries (not scored, cached)."
+
+---
+
+##### Q2 — Tradeoff Question
+**"What is the difference between shards and replicas in Elasticsearch, and how do you choose shard count for an index?"**
+
+**One-line answer:** Shards are the unit of horizontal scaling for both storage and write throughput; replicas are copies of shards that add read throughput and fault tolerance but do not increase write capacity.
+
+**Full answer to give in an interview:**
+
+> "Each Elasticsearch index is divided into a configurable number of primary shards. Each shard is a self-contained Lucene index — it holds a subset of the documents and can be placed on any node. Adding more primary shards lets you spread storage across more nodes and parallelize writes. Replicas are additional copies of primary shards. A primary shard with one replica means two copies of the data exist. Replicas serve read requests, so adding replicas increases search throughput. However, writes must be replicated to all copies — replicas do not help write throughput, they increase it slightly because the primary must do more work. The critical constraint is that the number of primary shards cannot be changed after the index is created without a full reindex operation, which involves creating a new index and using the `_reindex` API to copy all documents. This makes initial shard sizing important. The rule of thumb is to target shard sizes between 10 and 50 GB and to keep the number of shards proportional to the number of data nodes. Too many small shards are expensive because Elasticsearch allocates memory overhead per shard regardless of its size — each shard is a Lucene instance with open file handles, segment metadata, and JVM heap usage."
+
+> *The reindex-required constraint is the key gotcha — mention it explicitly.*
+
+**Gotcha follow-up they'll ask:** *"What happens to search availability when a primary shard's node fails?"*
+
+> "If a node fails and it held a primary shard, Elasticsearch promotes one of that shard's replicas to become the new primary automatically. This is handled by the cluster master node — it detects the failure, updates the cluster state, and promotes the replica, typically within a few seconds. During this window, the shard is unavailable for writes but can still serve reads from the replica. If no replica exists — `number_of_replicas: 0` — the shard is lost until the node recovers. For production clusters, always set at least one replica, and distribute primary shards and their replicas across different availability zones."
+
+---
+
+##### Q3 — Design Scenario
+**"Design a product search feature for an e-commerce site using Elasticsearch. What fields would you map, and how would you keep ES in sync with your primary database?"**
+
+**One-line answer:** Map text fields as both analyzed and keyword sub-fields, use a dual-write pattern via an event queue to sync from PostgreSQL to ES, and use filter context for structured facets plus query context for full-text scoring.
+
+**Full answer to give in an interview:**
+
+> "For an e-commerce product search I would define the ES mapping with `name` and `description` as `text` fields using a custom analyzer — standard tokenizer, lowercase, optional synonym filter for 'laptop' / 'notebook'. I would also add a `.keyword` sub-field on `name` for exact-match sorting. Structured dimensions like `category`, `brand`, and `status` would be `keyword` — not analyzed — for faceted filtering and aggregation. `price` and `stock_count` would be numeric. For the sync architecture, PostgreSQL is the source of truth. On every product create/update/delete, the application publishes an event to a Kafka topic. A separate consumer service reads from Kafka and writes to Elasticsearch using the bulk API for throughput efficiency. This gives eventual consistency — there is a short lag between a product update and its appearance in search results, which is acceptable for e-commerce. For the query itself, I would build a bool query with a `filter` clause for facets — `term: {category: 'laptops'}`, `range: {price: {gte: 500}}` — and a `must` clause with a `multi_match` query on `name` and `description` for full-text scoring. Filter clauses are cached; the multi_match clause computes BM25 scores only on the filtered subset."
+
+> *Calling out the filter-before-score pattern and the Kafka sync is the signal of a production-aware answer.*
+
+**Gotcha follow-up they'll ask:** *"How would you handle a full reindex without downtime when you need to change the mapping?"*
+
+> "The standard pattern is index aliasing. Instead of pointing the application directly at `products_v1`, you point it at an alias called `products`. To reindex: create `products_v2` with the new mapping, run the `_reindex` API to copy documents from `products_v1` to `products_v2`, and once the reindex completes, atomically swap the alias with a single API call — remove `products → products_v1`, add `products → products_v2`. The application sees no interruption. During the reindex, writes that arrive must go to both the old and new index — either via dual-write in the sync consumer or by re-processing the event queue from a point-in-time offset."
+
+---
+
+> **Common Mistake — Elasticsearch as Primary Database:** Storing records only in Elasticsearch and querying it for ID lookups or transactional reads exposes you to eventual consistency gaps (a document just written may not yet be searchable) and data loss risk (Elasticsearch's replication is best-effort, not ACID). Always keep a relational or document database as the authoritative source and treat Elasticsearch as a derived, queryable projection.
+
+---
+
+**Quick Revision (one line):**
+Elasticsearch builds an inverted index at ingest time; BM25 scores documents by term frequency and inverse document frequency; primary shards determine storage scaling, replicas add read capacity; never use ES as a primary DB — maintain a source-of-truth store and sync asynchronously.
+
+---
+
+## Topic 14: Database Migration Strategies
+
+---
+
+#### The Idea
+
+Imagine you need to rename a street while cars are still driving on it. You cannot close the street, rename it, and reopen it — that is offline maintenance with downtime. Instead, you add the new street sign alongside the old one, let traffic learn the new name gradually, then remove the old sign once no one references it. This is the expand-contract pattern for database migrations.
+
+Database schema changes are among the riskiest operations in production engineering. Adding a column is usually safe. Renaming a column without coordination can silently break the running application because old code writes to the old name and new code reads from the new name — these are different columns, so data is lost. The critical skill is sequencing migrations so any schema state is compatible with both the currently deployed code and the code about to be deployed.
+
+Flyway and Liquibase are migration management tools that track which SQL scripts have already been applied and ensure they are applied in order across every environment — development, staging, production — reproducibly. The difference is in philosophy: Flyway is SQL-first and simple; Liquibase is database-agnostic and supports rollback.
+
+---
+
+#### How It Works
+
+```
+Migration tool concepts
+
+Flyway
+  Versioned scripts: V1__create_users.sql, V2__add_email_index.sql
+    Applied in order, checksums prevent modification of applied scripts
+  Repeatable scripts: R__create_views.sql (re-runs when content changes)
+  flyway_schema_history table tracks applied migrations
+  Spring Boot: spring.flyway.enabled=true, classpath:db/migration/
+
+Liquibase
+  Changelog: XML, YAML, JSON, or SQL format
+  Changesets: <changeSet id="1" author="alice"> ... </changeSet>
+  Rollback: each changeset can define a rollback block (Flyway Teams only)
+  generateChangeLog: reverse-engineer existing schema
+  Database-agnostic: same changelog deploys to PostgreSQL or Oracle
+
+Zero-downtime migration patterns
+
+1. Adding a new column (safe)
+   ALTER TABLE users ADD COLUMN phone VARCHAR(20);   -- nullable, instant
+   → Old code ignores it. New code starts writing it.
+
+2. Adding NOT NULL column (DANGEROUS without planning)
+   ALTER TABLE users ADD COLUMN phone VARCHAR(20) NOT NULL;
+   → On large tables: full table rewrite, exclusive lock, minutes of downtime
+
+3. Correct NOT NULL pattern (expand-contract, 3 deployments)
+   Step 1 - Expand:
+     ALTER TABLE users ADD COLUMN phone VARCHAR(20);  -- nullable
+     Deploy code that writes phone on new records
+   Step 2 - Backfill:
+     UPDATE users SET phone = ... WHERE phone IS NULL; -- batched, no lock
+   Step 3 - Contract:
+     ALTER TABLE users ALTER COLUMN phone SET NOT NULL;  -- fast, all rows populated
+     ALTER TABLE users ADD CONSTRAINT phone_not_null CHECK (phone IS NOT NULL) NOT VALID;
+     ALTER TABLE users VALIDATE CONSTRAINT phone_not_null;  -- offline validate, no lock
+
+4. Zero-downtime column rename (4 deployments)
+   Step 1: Add new column "new_name", write to both old and new
+   Step 2: Backfill new_name from old_name for existing rows
+   Step 3: Read from new_name, stop writing to old_name
+   Step 4: Drop old_name column
+```
+
+Must-memorise gotcha — NOT NULL without default causes full table rewrite:
+
+```sql
+-- DANGEROUS: adding NOT NULL column to a live 100M-row table
+ALTER TABLE users ADD COLUMN phone VARCHAR(20) NOT NULL DEFAULT 'unknown';
+-- PostgreSQL must rewrite every row to include the default value.
+-- On a 100M-row table: 10–30 minutes, exclusive lock, full outage.
+
+-- CORRECT: three-phase migration
+-- Phase 1: Add nullable column (sub-second, no lock)
+ALTER TABLE users ADD COLUMN phone VARCHAR(20);
+
+-- Phase 2: Backfill in small batches (runs live, no lock)
+DO $$
+DECLARE
+  batch_size INT := 10000;
+  last_id BIGINT := 0;
+BEGIN
+  LOOP
+    UPDATE users
+    SET phone = lookup_phone(id)
+    WHERE id > last_id AND phone IS NULL
+    RETURNING id INTO last_id;
+    EXIT WHEN NOT FOUND;
+    PERFORM pg_sleep(0.01);  -- yield to avoid I/O saturation
+  END LOOP;
+END $$;
+
+-- Phase 3: Add NOT NULL constraint (validates without full rewrite in PostgreSQL 12+)
+ALTER TABLE users ADD CONSTRAINT users_phone_not_null
+  CHECK (phone IS NOT NULL) NOT VALID;          -- metadata only, instant
+ALTER TABLE users VALIDATE CONSTRAINT users_phone_not_null;  -- scans, but no lock
+ALTER TABLE users ALTER COLUMN phone SET NOT NULL;  -- fast: constraint already validated
+```
+
+---
+
+#### Interview Lens
+
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
+
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
+
+---
+
+##### Q1 — Concept Check
+**"What is the expand-contract pattern for database migrations, and when is it necessary?"**
+
+**One-line answer:** Expand-contract is a three-phase technique — add the new schema alongside the old, migrate data, then remove the old — so any intermediate schema state is compatible with both the old and new version of the deployed application.
+
+**Full answer to give in an interview:**
+
+> "The expand-contract pattern, sometimes called parallel-change, solves the deployment ordering problem: you cannot atomically replace both your schema and your running application. There will always be a window — however brief — where the old code and new schema coexist, or the new code and old schema coexist. The expand phase makes the schema backward-compatible: if you are renaming a column from `user_name` to `username`, you add the new column and update the application to write to both. The old code still writes to the old column, the new code writes to both. In the contract phase, once you are certain no running instance references the old column, you drop it. This pattern is necessary whenever you are removing or renaming a column, changing a column's type, or splitting a column — any structural change that would break existing code that runs against the new schema. It is not needed for pure additions that are nullable and have no application-level mandatory constraint."
+
+> *Distinguish additive-safe migrations from structural changes — that is what interviewers are testing.*
+
+**Gotcha follow-up they'll ask:** *"How do Flyway and Liquibase differ in their approach to rollbacks?"*
+
+> "Flyway's free tier does not support automated rollback. If a migration fails, you manually fix the data and then run `flyway repair` to clear the failed entry from the schema history table. Flyway Teams adds `U` (undo) migrations — `U2__Undo_add_email.sql` — which you write manually and Flyway can run on demand. Liquibase supports rollback natively via a `rollback` block inside each changeset — you declare exactly what SQL to run to reverse the change. However, rollback is not magic: if the changeset added a column and you roll it back, the `DROP COLUMN` DDL loses the data in that column permanently. Rollback scripts are most useful for structural changes that have no data in the new columns yet, or for reverting indexes and constraints. For data migrations, a forward-only strategy — write a new migration to undo what the bad one did — is often safer because it preserves the audit trail in the schema history."
+
+---
+
+##### Q2 — Tradeoff Question
+**"How do you rename a column in PostgreSQL without causing downtime?"**
+
+**One-line answer:** Use a four-phase expand-contract: add the new column, dual-write in application code, backfill old data, then drop the old column — never use ALTER TABLE RENAME COLUMN on a live table with active application deployments.
+
+**Full answer to give in an interview:**
+
+> "A direct `ALTER TABLE users RENAME COLUMN user_name TO username` is a metadata-only operation in PostgreSQL — it is very fast and acquires only a brief lock. The danger is not the DDL itself; it is the deployment sequencing. The moment the rename executes, any running application instance that reads or writes `user_name` gets a column-not-found error. In a rolling deployment with 20 application pods, some pods will be on the old version and some on the new version simultaneously. If the rename has already run, all old-version pods break. The expand-contract sequence avoids this entirely. Migration 1: add column `username` as nullable, deploy app version 2 that writes to both `user_name` and `username`. Migration 2: run a backfill script — `UPDATE users SET username = user_name WHERE username IS NULL` — in batches to populate historical rows. Migration 3: deploy app version 3 that reads from `username` and stops writing to `user_name`. Migration 4: once all version 2 pods are drained, run `ALTER TABLE users DROP COLUMN user_name`. Each migration is independently safe with the corresponding app version."
+
+> *Walking through the four phases in sequence is the full answer — most candidates stop at 'use the expand-contract pattern' without the specifics.*
+
+**Gotcha follow-up they'll ask:** *"What risk does Flyway's checksum validation introduce for hotfix deployments?"*
+
+> "Flyway computes a checksum of every applied migration script and stores it in `flyway_schema_history`. If anyone edits a migration script after it has been applied — even to fix a comment — Flyway will refuse to run on the next deployment with a checksum mismatch error. This is intentional: it prevents accidental schema drift between environments. The problem in a hotfix scenario is that a developer might try to modify an already-applied migration instead of creating a new one. The correct response is: never edit applied migrations. Create a new versioned migration that corrects the mistake. If a migration was only applied in development and genuinely needs fixing before it reaches staging, use `flyway repair` to remove the history entry, fix the script, and re-apply — but only before the migration has been promoted beyond the local environment."
+
+---
+
+##### Q3 — Design Scenario
+**"You need to split a `full_name` column into `first_name` and `last_name` with zero downtime. Walk through the migration plan."**
+
+**One-line answer:** Use expand-contract over four deployments: add the new columns, dual-write in code, backfill, then drop the old column.
+
+**Full answer to give in an interview:**
+
+> "This is a classic structural split migration. Step one — expand: write and apply a Flyway migration that adds `first_name VARCHAR(100)` and `last_name VARCHAR(100)` as nullable columns. Both columns are nullable so the DDL is instant with no table rewrite. Deploy application version 2 alongside version 1 — version 2 parses `full_name` on write and populates all three columns. Step two — backfill: run a data migration script that loops over rows where `first_name IS NULL`, splits the existing `full_name` on the first space, and writes the parts. This runs against the live table in small batches with a brief sleep between batches to avoid overwhelming I/O. Step three — contract the reads: deploy application version 3 that reads exclusively from `first_name` and `last_name`, writes to all three columns for backward compatibility with any lagging version 2 pods. Step four — contract the schema: once all version 2 and version 3 pods are confirmed drained from the load balancer, apply the final migration: `ALTER TABLE users DROP COLUMN full_name`. Add NOT NULL constraints on `first_name` and `last_name` using the NOT VALID / VALIDATE CONSTRAINT pattern to avoid a table rewrite. The whole process spans four separate deployments spread over days or weeks depending on the team's deployment cadence."
+
+> *The key detail is that version 2 writes to all three columns during the transition — that is what protects you if you need to roll back to version 1.*
+
+**Gotcha follow-up they'll ask:** *"What happens if your Flyway migration runs on startup and the migration script throws an error halfway through on a production server?"*
+
+> "Flyway marks the migration as failed in the `flyway_schema_history` table — the entry gets a state of `FAILED`. On the next startup attempt Flyway refuses to run any further migrations until the failure is resolved, to prevent applying migrations out of order. If the DDL was wrapped in a transaction — which PostgreSQL supports for most DDL — the partial changes are rolled back automatically. If it was not transactional — for example, a concurrent index creation or a large backfill — the partial changes remain on disk. The resolution steps are: fix the data manually to restore a consistent state, then run `flyway repair` to remove or mark-as-successful the failed history entry, then restart the application. This is why large data migrations — backfills of millions of rows — should never be part of a Flyway migration that runs on startup. They should be separate operational scripts run by an engineer with monitoring and the ability to pause."
+
+---
+
+> **Common Mistake — NOT NULL Column Without Default on a Live Table:** Running `ALTER TABLE ADD COLUMN phone VARCHAR(20) NOT NULL` or `NOT NULL DEFAULT 'x'` on a large live table causes PostgreSQL to rewrite every row to include the default, holding an access exclusive lock for the duration — potentially minutes. Always add the column as nullable first, backfill in batches, then add the constraint using `NOT VALID` / `VALIDATE CONSTRAINT` to avoid a blocking rewrite.
+
+---
+
+**Quick Revision (one line):**
+Use expand-contract for zero-downtime structural changes; Flyway tracks versioned SQL scripts via checksum, Liquibase adds native rollback; never add a NOT NULL column without a default to a live table — add nullable, backfill, then add constraint.
+
+---
+
+## Topic 15: Performance Benchmarking
+
+---
+
+#### The Idea
+
+Imagine tuning a car engine. You would not claim the car is fast based on how it sounds — you would put it on a dyno and measure horsepower and torque under controlled load. Database performance benchmarking is the same discipline: measure actual throughput and latency under realistic conditions before claiming the system is production-ready.
+
+The trap most engineers fall into is measuring the wrong thing. A single-threaded benchmark cannot reveal lock contention. A test run on cold storage does not reflect the steady-state behaviour of a warmed buffer cache. And averages lie: if 99% of requests complete in 5 ms but 1% take 10 seconds, the average looks fine while real users experience timeouts. Percentile latency — P95, P99, P99.9 — is the correct metric.
+
+Diagnosing a slow database is a structured process. First, identify whether the bottleneck is CPU, I/O, memory, or network. PostgreSQL's system views — `pg_stat_activity`, `pg_stat_user_tables`, `pg_stat_bgwriter`, `pg_locks` — expose the internal state of the database engine at query time. The skill is knowing which view answers which question.
+
+---
+
+#### How It Works
+
+```
+Benchmark tools
+  pgbench (PostgreSQL built-in)
+    pgbench -i -s 100 mydb          # initialise 100x scale (1.4M rows)
+    pgbench -c 50 -j 4 -T 60 mydb   # 50 clients, 4 threads, 60-second run
+    Reports: TPS, latency average, latency stddev
+    Custom scripts: -f custom.sql for application-realistic workloads
+
+  sysbench (MySQL, general purpose)
+    sysbench oltp_read_write --threads=32 --time=60 run
+    TPC-C: standard OLTP benchmark (orders, stock, warehouses) — vendor-neutral
+
+Key metrics
+  TPS (Transactions Per Second)  — throughput
+  P50, P95, P99, P99.9 latency   — distribution tells the story averages hide
+  Cache hit ratio                 — should exceed 99% for OLTP
+    SELECT sum(blks_hit) / (sum(blks_hit)+sum(blks_read)) FROM pg_stat_database;
+  Connection utilisation          — active vs idle vs idle_in_transaction
+
+Diagnosing bottlenecks with PostgreSQL system views
+
+  1. Long-running queries (CPU / bad plan)
+     SELECT pid, now()-query_start AS duration, query
+     FROM pg_stat_activity
+     WHERE state = 'active' AND query_start < now() - INTERVAL '5s'
+     ORDER BY duration DESC;
+
+  2. I/O pressure (buffer misses)
+     SELECT relname, heap_blks_read, heap_blks_hit,
+            heap_blks_hit::float/(heap_blks_hit+heap_blks_read) AS hit_ratio
+     FROM pg_statio_user_tables
+     WHERE heap_blks_read > 0
+     ORDER BY heap_blks_read DESC LIMIT 10;
+
+  3. Lock waits (contention)
+     SELECT blocked.pid, blocked.query AS blocked_query,
+            blocking.pid AS blocking_pid, blocking.query AS blocking_query
+     FROM pg_locks blocked_locks
+     JOIN pg_stat_activity blocked ON blocked.pid = blocked_locks.pid
+     JOIN pg_locks blocking_locks ON blocking_locks.transactionid = blocked_locks.transactionid
+     JOIN pg_stat_activity blocking ON blocking.pid = blocking_locks.pid
+     WHERE NOT blocked_locks.granted;
+
+  4. Checkpoint pressure (write I/O)
+     SELECT checkpoints_timed, checkpoints_req,
+            buffers_checkpoint, buffers_clean, buffers_backend
+     FROM pg_stat_bgwriter;
+     -- buffers_backend high → WAL writes are forced by backends, not checkpointer
+     -- Increase checkpoint_completion_target and shared_buffers
+
+  5. Slow queries (aggregate over time)
+     SELECT query, calls, total_exec_time/calls AS avg_ms,
+            rows/calls AS avg_rows
+     FROM pg_stat_statements
+     ORDER BY total_exec_time DESC LIMIT 10;
+     -- Reset between test runs: SELECT pg_stat_statements_reset();
+
+Connection pooling
+  PostgreSQL: one process per connection = ~5–10 MB RAM, OS scheduling overhead
+  Above ~200 connections: throughput plateaus, latency rises (context switching)
+  PgBouncer: connection pool proxy
+    Session pooling:     1:1 client-to-server connection (no benefit)
+    Transaction pooling: server connection held only for duration of transaction
+                         supports hundreds of app threads on 20 server connections
+    Statement pooling:   only for simple autocommit queries
+```
+
+Must-memorise gotcha — single-threaded benchmark hides concurrency bottlenecks:
+
+```java
+// WRONG: benchmark with a single thread
+public void benchmarkSingleThread() {
+    long start = System.currentTimeMillis();
+    for (int i = 0; i < 100_000; i++) {
+        orderRepo.findByCustomerId(customerId);  // serialised, no lock contention
+    }
+    long elapsed = System.currentTimeMillis() - start;
+    System.out.println("TPS: " + (100_000_000.0 / elapsed));
+    // Reports 50,000 TPS — sounds great.
+    // Under 200 concurrent users, real TPS drops to 800 due to connection pool
+    // exhaustion and row-level lock contention. The single-thread test never saw this.
+}
+
+// CORRECT: concurrent benchmark with pgbench or a custom multi-threaded harness
+// pgbench -c 200 -j 8 -T 120 mydb -f order_lookup.sql
+// Reports: TPS under realistic concurrency, P99 latency, stddev
+// Reveals: connection pool saturation, hot-row lock contention, index bloat under load
+
+// After the benchmark, diagnose with:
+// SELECT wait_event_type, wait_event, count(*)
+// FROM pg_stat_activity WHERE state != 'idle'
+// GROUP BY 1, 2 ORDER BY 3 DESC;
+// Lock waits appear as wait_event_type = 'Lock'
+```
+
+---
+
+#### Interview Lens
+
+> **How to use this section:** Each question is self-contained — read it the night before an interview and walk in prepared. Every concept is explained inline.
+
+> *Tip: Lead with the one-line answer. Pause. Expand only if the interviewer nods or probes.*
+
+---
+
+##### Q1 — Concept Check
+**"How would you identify whether a slow PostgreSQL database is bottlenecked on CPU, I/O, or lock contention?"**
+
+**One-line answer:** Query `pg_stat_activity` for active query count and wait events, `pg_statio_user_tables` for cache hit ratios to identify I/O pressure, and `pg_locks` joined to `pg_stat_activity` to find blocked queries and their blockers.
+
+**Full answer to give in an interview:**
+
+> "I approach this as a layered diagnosis. First I check `pg_stat_activity` filtered to state equals 'active' — if there are dozens of long-running queries all with `wait_event_type` of 'CPU', the bottleneck is the query plan and possibly missing indexes. If `wait_event` shows 'DataFileRead', queries are reading from disk rather than the buffer pool — I/O is the bottleneck. To confirm I/O pressure I check `pg_statio_user_tables`: the ratio of `heap_blks_hit` to `heap_blks_hit + heap_blks_read` should be above 99% for an OLTP workload. A ratio of 80% means 20% of block reads are going to disk — either the buffer pool (`shared_buffers`) is too small, or a large table scan is evicting hot pages. For lock contention I join `pg_locks` to `pg_stat_activity` to find queries waiting for a lock and the query that is holding it. A long-running UPDATE or an idle transaction that forgot to commit are common culprits. Checkpoint pressure — excessive write I/O from WAL flushing — shows up in `pg_stat_bgwriter`: if `buffers_backend` is high relative to `buffers_checkpoint`, backends are being forced to write dirty buffers themselves, and `checkpoint_completion_target` or `shared_buffers` needs tuning."
+
+> *Walking through all three diagnostic paths — CPU, I/O, lock — is the complete answer.*
+
+**Gotcha follow-up they'll ask:** *"Why does adding more database connections sometimes make performance worse?"*
+
+> "PostgreSQL's architecture spawns a separate OS process for every client connection. Each process consumes roughly 5–10 MB of RSS memory plus a share of the buffer pool. At low connection counts the bottleneck is query execution. Above roughly 100–200 connections, the OS scheduler has to context-switch between hundreds of processes on a handful of CPU cores, and memory pressure from the per-process overhead starts evicting buffer pages. The result is counter-intuitive: TPS goes up until around 150 connections, then plateaus, then drops as connections increase further. The correct solution is not to limit connections at the application level — that means threads wait for a connection and you lose the ability to burst. The correct solution is PgBouncer with transaction pooling: application threads each get a client connection to PgBouncer immediately, but only 20–50 actual server-side PostgreSQL connections exist. Each server connection is leased for the duration of one transaction, then returned to the pool."
+
+---
+
+##### Q2 — Tradeoff Question
+**"What is the difference between `EXPLAIN` and `EXPLAIN ANALYZE` in PostgreSQL, and when should you use each?"**
+
+**One-line answer:** `EXPLAIN` shows the query planner's estimated execution plan without running the query; `EXPLAIN ANALYZE` executes the query and shows actual row counts and timings, revealing where the planner's estimates are wrong.
+
+**Full answer to give in an interview:**
+
+> "`EXPLAIN` is safe to run on any query including destructive writes — it outputs the planner's chosen execution plan: index scans versus sequential scans, nested loop versus hash join, estimated rows and cost at each node. The cost numbers are in arbitrary units calibrated to the planner's cost model. `EXPLAIN ANALYZE` runs the query for real and adds two critical fields to each node: the actual row count versus the estimated row count, and the actual time in milliseconds. The gap between estimated and actual rows is where most performance problems hide. If the planner estimated 100 rows but 10 million were returned, the hash join it chose is catastrophically wrong — it should have used a merge join or a different index. The planner's row estimates come from the statistics in `pg_statistic`, updated by `ANALYZE`. Stale statistics after a large data import cause exactly this kind of mis-estimate. `EXPLAIN ANALYZE` with `BUFFERS` adds cache hit and miss counts per node, pinpointing which join or scan is doing the most physical I/O. For a complex query in production, I always use `EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)` to get the full picture. One important caution: `EXPLAIN ANALYZE` runs the query — if it is a write, the write happens. Wrap it in a transaction and roll back if you need to analyze a destructive query safely."
+
+> *The estimated vs actual row count gap is the killer detail — it is what most candidates miss.*
+
+**Gotcha follow-up they'll ask:** *"How does `pg_stat_statements` differ from `EXPLAIN ANALYZE` for ongoing performance monitoring?"*
+
+> "`EXPLAIN ANALYZE` is a one-time diagnostic tool — you run it on a specific query you suspect is slow. `pg_stat_statements` is a PostgreSQL extension that automatically records aggregate statistics for every unique query shape — normalised to replace literal values with parameters. It accumulates total execution count, total execution time, min/max/mean time, rows returned, and block reads. You query it like a table: `SELECT query, calls, total_exec_time/calls AS avg_ms FROM pg_stat_statements ORDER BY total_exec_time DESC LIMIT 10`. This tells you which query patterns consume the most total database time across all executions — not just the slowest single execution, but the most impactful. An individual query that takes 500 ms and runs 100,000 times per day is more important to optimise than one that takes 5 seconds and runs once a week. Reset it before a benchmark run with `SELECT pg_stat_statements_reset()` so you capture only the test workload."
+
+---
+
+##### Q3 — Design Scenario
+**"Production PostgreSQL is showing elevated P99 latency (2 seconds) on an endpoint that usually responds in 50 ms. Walk through your diagnosis."**
+
+**One-line answer:** Check active queries and wait events in `pg_stat_activity`, then check lock contention via `pg_locks`, then check I/O via cache hit ratio, then check for checkpoint pressure in `pg_stat_bgwriter`.
+
+**Full answer to give in an interview:**
+
+> "My first query is always `pg_stat_activity`: `SELECT pid, now()-query_start AS age, wait_event_type, wait_event, left(query,80) FROM pg_stat_activity WHERE state='active' ORDER BY age DESC`. If I see dozens of sessions with `wait_event_type='Lock'`, it is a lock contention spike — a slow transaction is holding a row or table lock and everyone else is queued. I then run the lock contention query against `pg_locks` to find the blocking pid and its query. The fix is usually to kill the blocking session or to find the long-running transaction that forgot to commit. If wait events show `DataFileRead`, I check the cache hit ratio in `pg_statio_user_tables`. A drop from 99.5% to 85% means something is doing large sequential scans and evicting the buffer pool — often a new slow query, a missing index, or an autovacuum full-table scan running concurrently. If `pg_stat_bgwriter` shows `checkpoints_req` rising — meaning checkpoints are triggered by dirty buffer pressure rather than on schedule — I/O is saturated by write amplification. I would check `pg_stat_statements` for queries with high `blk_write_time` and look at whether a bulk import or update is running. Finally I check connection counts: `SELECT state, count(*) FROM pg_stat_activity GROUP BY state`. If `idle_in_transaction` is high, leaked transactions are holding locks and connections, compounding everything else."
+
+> *Running through the four views in sequence — activity, locks, I/O, bgwriter — is the structured answer interviewers are looking for.*
+
+**Gotcha follow-up they'll ask:** *"What is connection pool oversizing and how does PgBouncer solve it?"*
+
+> "Connection pool oversizing is when an application maintains more simultaneous database connections than PostgreSQL can efficiently serve. Because each PostgreSQL connection is a separate OS process, 500 connections means 500 processes competing for CPU time on perhaps 16 cores. Even if most connections are idle, the kernel's process scheduler and the PostgreSQL lock manager incur overhead proportional to connection count. PgBouncer sits between the application and PostgreSQL as a proxy. In transaction pooling mode, the application's connection pool can have 500 logical connections to PgBouncer, but PgBouncer maintains only, say, 30 physical server-side connections to PostgreSQL. When a transaction begins, PgBouncer leases one of the 30 physical connections; when the transaction commits, the physical connection returns to the pool immediately, ready for the next application request. The application never waits for a physical connection as long as total concurrent transactions stay below 30. This decouples application-level concurrency from PostgreSQL process count, eliminating the degradation curve above 200 connections."
+
+---
+
+> **Common Mistake — Single-Threaded Benchmarking:** Running a load test with a single thread produces misleadingly optimistic throughput numbers because it serialises all operations and eliminates lock contention, connection pool pressure, and cache thrashing. Production workloads are concurrent — always benchmark with at least as many threads as the expected peak connection count, and measure P99 latency, not averages.
+
+---
+
+**Quick Revision (one line):**
+Benchmark with pgbench at realistic concurrency and measure P99 latency; diagnose via `pg_stat_activity` (wait events), `pg_statio_user_tables` (cache hit ratio), `pg_locks` (contention), and `pg_stat_bgwriter` (checkpoint pressure); use PgBouncer transaction pooling to decouple application connection count from PostgreSQL process overhead.

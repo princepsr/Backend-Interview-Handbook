@@ -1,2826 +1,1536 @@
-﻿# Chapter 4: Java 8+ Features — Lambdas, Streams, Optional, and Modern Java
-
-> Java 17 LTS baseline. Java 21 notes included where relevant. Target: SDE2 candidates at FAANG+, FinTech, and SaaS/Enterprise companies.
+﻿# Volume 1: Core Java
+# Chapter 4: Java 8+ Features
 
 ---
 
 ## Table of Contents
-
-1. [Lambdas](#lambdas)
-   - Lambda Expressions
-   - Method References
-2. [Functional Interfaces](#functional-interfaces)
-   - Built-in Functional Interfaces
-   - Custom Functional Interfaces
-3. [Streams](#streams)
-   - Stream Pipeline and Lazy Evaluation
-   - Intermediate Operations
-   - Terminal Operations
-   - Collectors
-   - Stream vs Collection
-   - Parallel Streams
-   - Primitive Streams
-   - Stream Reuse
-   - Infinite Streams
-4. [Optional](#optional)
-   - Optional Basics
-   - Optional Methods
-   - orElse vs orElseGet
-5. [CompletableFuture](#completablefuture)
-   - Basics
-   - Combining Futures
-   - CompletableFuture vs Future
-   - Exception Handling
-   - Parallel API Calls Pattern
-6. [Java 9–17 Key Additions](#java-9-17-key-additions)
-   - var keyword
-   - Records
-   - Sealed Classes
-   - Text Blocks
-   - Pattern Matching instanceof
-7. [Streams Cheat Sheet](#streams-cheat-sheet)
+1. Lambdas & Method References
+2. Functional Interfaces
+3. Streams — Pipeline, Operations & Collectors
+4. Streams — Advanced Usage
+5. Optional
+6. CompletableFuture
+7. Java 9–17 Key Additions
+8. Java 8+ Quick Reference
 
 ---
 
-## Lambdas
-
-### Q1: What are lambda expressions and how does the compiler handle them?
-
-**Difficulty:** Medium | **Interview Frequency:** Very High
-
-**Companies:** Amazon, Google, Microsoft, Goldman Sachs, JPMorgan, Stripe, Uber, Atlassian
-
-**Short Answer (30–60 seconds)**
-
-A lambda expression is a concise way to represent an instance of a functional interface — an interface with exactly one abstract method. The compiler does not generate a new `.class` file for each lambda. Instead, it uses the `invokedynamic` bytecode instruction (introduced in Java 7) with a runtime bootstrap mechanism (`LambdaMetafactory`) to create the implementation at runtime. This is more efficient than anonymous inner classes.
-
-**Deep Explanation**
-
-Prior to Java 8, the idiomatic way to pass behavior was through anonymous inner classes. Each anonymous class produces a separate `.class` file (e.g., `Outer$1.class`), which has memory and class-loading overhead.
-
-Lambda expressions change this at the bytecode level:
-1. The compiler emits an `invokedynamic` call site in the bytecode.
-2. On first invocation, the JVM calls the bootstrap method `LambdaMetafactory.metafactory()`.
-3. `LambdaMetafactory` generates the functional interface implementation at runtime, typically as a hidden class.
-4. Subsequent calls hit a CallSite that is linked directly, eliminating repeated bootstrap overhead.
-
-**Variable Capture and Effectively Final**
-
-Lambdas can capture:
-- Instance variables and static variables freely.
-- Local variables **only if effectively final** — the variable is never reassigned after initialization.
-
-The "effectively final" rule exists because local variables live on the stack. If the lambda outlives the method (e.g., passed to another thread), the variable must be copied into the lambda's closure. Allowing mutation would introduce race conditions and semantic confusion.
-
-```java
-// ILLEGAL — i is not effectively final
-int i = 0;
-Runnable r = () -> System.out.println(i); // compile error if i is later modified
-i++;
-
-// LEGAL — i is effectively final
-int i = 0;
-Runnable r = () -> System.out.println(i); // fine, i never changes
-```
-
-**Real-World Backend Example**
-
-In a Spring service layer, lambdas are ubiquitous with streams, Optional, and CompletableFuture:
-
-```java
-List<Order> activeOrders = orders.stream()
-    .filter(order -> order.getStatus() == OrderStatus.ACTIVE)
-    .collect(Collectors.toList());
-```
-
-**Java 17 Code Example**
-
-```java
-import java.util.function.Function;
-import java.util.function.Predicate;
-
-public class LambdaDemo {
-
-    public static void main(String[] args) {
-        // Lambda as Predicate<String>
-        Predicate<String> isLongName = name -> name.length() > 5;
-
-        // Lambda as Function<String, Integer>
-        Function<String, Integer> nameLength = name -> name.length();
-
-        // Multi-line lambda body
-        Function<Integer, String> classify = n -> {
-            if (n < 0) return "negative";
-            if (n == 0) return "zero";
-            return "positive";
-        };
-
-        System.out.println(isLongName.test("Alexander")); // true
-        System.out.println(nameLength.apply("Java"));     // 4
-        System.out.println(classify.apply(-5));            // negative
-
-        // Lambda capturing effectively final local variable
-        String prefix = "ORDER-";
-        Function<Long, String> orderId = id -> prefix + id;
-        System.out.println(orderId.apply(1001L)); // ORDER-1001
-    }
-}
-```
-
-**Follow-up Questions**
-
-- "What is `invokedynamic`? How does it differ from `invokevirtual`?"
-- "Why can lambdas not capture mutable local variables?"
-- "Is a lambda a new object created every time it is evaluated?"
-- "What is the difference between a lambda and an anonymous inner class regarding `this`?"
-- "Can a lambda throw a checked exception?"
-
-**Common Mistakes**
-
-- Assuming lambdas are syntactic sugar for anonymous classes — they differ at the bytecode level and in the meaning of `this`.
-- Trying to assign to a local variable inside a lambda (`i++` inside lambda body).
-- Throwing checked exceptions without wrapping — lambda body must declare or handle checked exceptions matching the functional interface signature.
-
-**Interview Traps**
-
-- In a lambda, `this` refers to the enclosing class instance, not the lambda itself. In an anonymous inner class, `this` refers to the anonymous class instance.
-- Lambdas are not always a new object — the JVM may cache stateless lambdas (no captured variables) as a singleton.
-
-**Quick Revision Notes**
-
-- Lambda = instance of a functional interface, compiled via `invokedynamic`.
-- No separate `.class` file per lambda; runtime linkage via `LambdaMetafactory`.
-- Captured local variables must be effectively final.
-- `this` inside a lambda = enclosing class.
-- Stateless lambdas may be cached as singletons by the JVM.
+> **How to read this chapter:** Each topic has three layers.
+> - **The Idea** — start here, no prior knowledge needed.
+> - **How It Works** — the real mechanism, patterns, and tradeoffs.
+> - **Interview Lens** — what interviewers actually probe.
+>
+> Beginners: read all three layers top to bottom.
+> SDE2/Senior: skim "The Idea", focus on "How It Works" and "Interview Lens".
 
 ---
 
-### Q2: What are method references and what are the four types?
+## Topic 1: Lambdas & Method References
 
-**Difficulty:** Medium | **Interview Frequency:** High
+**Difficulty:** Medium | **Frequency:** Very High | **Companies:** Amazon, Google, Microsoft, Goldman Sachs, Atlassian, Netflix
 
-**Companies:** Amazon, Goldman Sachs, Atlassian, Netflix, Spotify
+---
 
-**Short Answer (30–60 seconds)**
+### The Idea
 
-Method references are shorthand for lambdas that do nothing but call an existing method. There are four types: static method reference, instance method reference on a specific object, instance method reference on an arbitrary object of a particular type, and constructor reference.
+Before Java 8, passing behavior meant writing an anonymous inner class — a verbose block of boilerplate just to say "do this one thing." A lambda expression is a shorthand for the same idea: it represents an instance of a functional interface (any interface with exactly one abstract method) without the ceremony.
 
-**Deep Explanation**
+Think of a lambda like a sticky note attached to a job description. The functional interface is the job description ("I need something that takes a String and returns a boolean"). The lambda is the sticky note you hand back: `name -> name.length() > 5`. No class name, no `new`, no `@Override` — just the logic.
 
-Method references improve readability when the lambda body is a direct method call. The compiler resolves them to the same `invokedynamic` mechanism as lambdas.
+Method references take this a step further. When your lambda body does nothing but call an existing method — `s -> s.toUpperCase()` — you can just write `String::toUpperCase`. Same compiled output, cleaner to read.
 
-| Type | Syntax | Lambda Equivalent |
+---
+
+### How It Works
+
+**Lambda compilation (pseudocode):**
+```
+Compiler sees lambda expression
+  → emits invokedynamic bytecode instruction (not a .class file)
+  → first call at runtime: JVM invokes LambdaMetafactory.metafactory()
+  → LambdaMetafactory generates a hidden class implementing the functional interface
+  → subsequent calls: reuse the linked CallSite — no repeated bootstrap cost
+```
+
+**Variable capture rules (pseudocode):**
+```
+Lambda can freely access:
+  → instance variables of the enclosing class
+  → static variables
+  → local variables ONLY IF they are effectively final
+      (never reassigned after initialization)
+
+Reason: local variables live on the stack.
+If the lambda outlives the method call (e.g. passed to another thread),
+the JVM must copy the variable into the lambda closure.
+Mutation would introduce race conditions.
+```
+
+**Four types of method reference:**
+
+| Type | Syntax | Equivalent lambda |
 |---|---|---|
 | Static method | `Integer::parseInt` | `s -> Integer.parseInt(s)` |
-| Instance — specific object | `str::toLowerCase` | `() -> str.toLowerCase()` |
-| Instance — arbitrary object | `String::toLowerCase` | `s -> s.toLowerCase()` |
+| Instance — specific object | `log::add` | `s -> log.add(s)` |
+| Instance — arbitrary object | `String::toUpperCase` | `s -> s.toUpperCase()` |
 | Constructor | `ArrayList::new` | `() -> new ArrayList<>()` |
 
-**Distinguishing Type 2 vs Type 3:**
-- Type 2: The object is **captured** (already known). The reference is `instance::method`.
-- Type 3: The object is **the first parameter** supplied at invocation. The reference is `ClassName::method`. The method receives the object as its implicit first argument.
+Key distinction for Type 2 vs Type 3: Type 2 captures a specific object already in scope. Type 3 receives the object as its first argument at call time — the stream element becomes the receiver.
 
-**Real-World Backend Example**
+**The one interview-critical gotcha — `this` inside a lambda vs anonymous class:**
 
 ```java
-// Type 3 is especially useful with streams
-List<String> names = List.of("alice", "bob", "carol");
-List<String> upper = names.stream()
-    .map(String::toUpperCase)  // instance method on arbitrary String object
-    .collect(Collectors.toList());
-```
+public class MyService {
+    private String name = "service";
 
-**Java 17 Code Example**
+    Runnable lambda = () -> System.out.println(this.name);
+    // 'this' = MyService instance — correct
 
-```java
-import java.util.*;
-import java.util.function.*;
-import java.util.stream.*;
-
-public class MethodReferenceDemo {
-
-    static String addPrefix(String s) {
-        return "PREFIX_" + s;
-    }
-
-    public static void main(String[] args) {
-        // 1. Static method reference
-        Function<String, Integer> parser = Integer::parseInt;
-        System.out.println(parser.apply("42")); // 42
-
-        // 2. Instance method reference on a specific object
-        String delimiter = ", ";
-        BinaryOperator<String> joiner = delimiter::concat; // not typical but valid
-        // More realistic:
-        List<String> log = new ArrayList<>();
-        Consumer<String> logger = log::add;
-        logger.accept("event1");
-        logger.accept("event2");
-        System.out.println(log); // [event1, event2]
-
-        // 3. Instance method reference on arbitrary object of a type
-        List<String> ids = List.of("user-1", "user-2", "user-3");
-        List<String> upper = ids.stream()
-            .map(String::toUpperCase)
-            .collect(Collectors.toList());
-        System.out.println(upper); // [USER-1, USER-2, USER-3]
-
-        // Also works for static methods on this class
-        List<String> prefixed = ids.stream()
-            .map(MethodReferenceDemo::addPrefix)
-            .collect(Collectors.toList());
-        System.out.println(prefixed);
-
-        // 4. Constructor reference
-        Supplier<List<String>> listFactory = ArrayList::new;
-        List<String> newList = listFactory.get();
-        newList.add("hello");
-        System.out.println(newList);
-    }
+    Runnable anon = new Runnable() {
+        @Override public void run() {
+            System.out.println(this.name); // compile error — 'this' = the anonymous class
+        }
+    };
 }
 ```
 
-**Follow-up Questions**
+---
 
-- "When would you prefer a lambda over a method reference?"
-- "Can you use a method reference for a method that throws a checked exception?"
-- "What functional interface would `String::valueOf` correspond to?"
+### Interview Lens
 
-**Common Mistakes**
+> **How to use this section:** Each question below is self-contained. You can read just this section the night before an interview and walk in prepared. Every concept referenced is explained inline — no need to flip back.
 
-- Confusing Type 2 and Type 3 — the difference is whether the object is captured or passed as the first argument.
-- Using method references where the lambda has additional logic, making the code less clear.
-
-**Interview Traps**
-
-- `String::compareTo` is a Type 3 reference. It corresponds to `Comparator<String>` because `compareTo` takes one argument and the object (the first string) is the implicit receiver. This confuses candidates who expect a `BiFunction`.
-
-**Quick Revision Notes**
-
-- 4 types: static, instance on specific, instance on arbitrary, constructor.
-- Type 3: `ClassName::instanceMethod` — the stream element is the receiver.
-- Method references are compiled identically to equivalent lambdas.
-- Prefer method references for readability when no extra logic is needed.
+> *Tip: In a real interview, lead with the one-line answer first. Pause. Expand only if the interviewer nods or probes.*
 
 ---
 
-## Functional Interfaces
+#### Q1 — Concept Check
 
-### Q3: What are the built-in functional interfaces in Java 8?
+**"What is a lambda expression and how does the compiler handle it?"**
 
-**Difficulty:** Medium | **Interview Frequency:** Very High
+**One-line answer:** A lambda is a concise instance of a functional interface, compiled via `invokedynamic` rather than generating a separate `.class` file.
 
-**Companies:** Amazon, Microsoft, Goldman Sachs, JPMorgan, Stripe, Uber
+**Full answer to give in an interview:**
+> "A lambda expression lets me represent a single-method behavior — what Java calls a functional interface — without writing an anonymous inner class. The key difference from anonymous classes is at the bytecode level. The compiler emits an `invokedynamic` instruction, which is a special JVM opcode that defers method linkage to runtime. On the first call, the JVM invokes a bootstrap method called `LambdaMetafactory`, which generates a hidden class that implements the functional interface. After that first call, the CallSite is linked and subsequent calls go straight to it with no bootstrap overhead. This is why lambdas are more efficient than anonymous classes — no separate `.class` file, less class-loading pressure. There's also a capture rule: lambdas can freely read instance variables and static variables, but can only capture local variables if they are effectively final, meaning never reassigned after initialization. This exists because local variables live on the stack, and if the lambda outlives the stack frame — for example if it's passed to another thread — the JVM has to copy the value into the lambda's closure. Allowing mutation would cause race conditions."
 
-**Short Answer (30–60 seconds)**
+*Say this in about 60 seconds. Emphasize the invokedynamic/LambdaMetafactory point — interviewers at Goldman and Amazon ask this specifically.*
 
-Java 8 introduced a set of general-purpose functional interfaces in `java.util.function`. The core ones are: `Function<T,R>` (transforms T to R), `Predicate<T>` (tests T, returns boolean), `Consumer<T>` (consumes T, returns void), `Supplier<T>` (produces T, takes no input), `UnaryOperator<T>` (Function where T==R), and `BinaryOperator<T>` (BiFunction where all types are T).
+**Gotcha follow-up they'll ask:** *"Is a lambda expression always a new object every time it is evaluated?"*
 
-**Deep Explanation**
+> No. The JVM may cache stateless lambdas — lambdas that capture no variables — as singletons. When there's nothing to capture, the same object can be reused safely across invocations. Lambdas that capture variables must produce a new object each time, because the captured state is part of the instance. This is an optimization detail, not a guarantee in the spec, but it is worth knowing because interviewers use it to test whether you understand the difference between stateless and stateful lambdas.
 
-| Interface | Signature | Use case |
+---
+
+#### Q2 — Concept Check
+
+**"What are method references and what are the four types?"**
+
+**One-line answer:** Method references are shorthand lambdas that call an existing method directly, compiled via the same `invokedynamic` mechanism.
+
+**Full answer to give in an interview:**
+> "A method reference is just syntactic sugar for a lambda whose body does nothing but call one method. There are four types. First, a static method reference like `Integer::parseInt` — equivalent to `s -> Integer.parseInt(s)`. Second, an instance method reference on a specific captured object, like `log::add` where `log` is already in scope — equivalent to `s -> log.add(s)`. Third, an instance method reference on an arbitrary object of a type, like `String::toUpperCase` — here the stream element itself becomes the receiver, so `s -> s.toUpperCase()`. Fourth, a constructor reference like `ArrayList::new` — equivalent to `() -> new ArrayList<>()`. The confusing pair is type two versus type three. Type two captures a specific object. Type three has no captured object — the object is supplied as the first argument at call time, which is why you use the class name rather than an instance name. For example, `String::compareTo` as a `Comparator<String>` works because the two strings are passed as arguments — the first becomes the receiver, the second is the argument to `compareTo`."
+
+*Lead with the four types table mentally. Slow down on type 2 vs 3 — that's where interviewers probe.*
+
+**Gotcha follow-up they'll ask:** *"What functional interface does `String::valueOf` correspond to?"*
+
+> `String::valueOf` is a static method that takes an `Object` and returns a `String`, so it corresponds to `Function<Object, String>`. If used in a context expecting `Function<Integer, String>`, the compiler will resolve it as `Function<Integer, String>` because `valueOf` has an overload accepting `int`. The compiler picks the overload that matches the target functional interface's signature.
+
+---
+
+#### Q3 — Tradeoff Question
+
+**"When would you prefer a lambda over a method reference, or vice versa?"**
+
+**One-line answer:** Prefer method references for pure delegation to an existing method; prefer lambdas when you need additional logic, argument reordering, or clarity over a non-obvious reference.
+
+**Full answer to give in an interview:**
+> "Method references are more readable when the lambda body is a straightforward delegation — `String::toUpperCase` communicates intent instantly. But I prefer lambdas in a few cases. First, when additional logic is needed: `s -> s.trim().toUpperCase()` cannot become a single method reference. Second, when the method reference type would be ambiguous or confusing — `String::compareTo` technically works as a `Comparator<String>` because the first string becomes the receiver and the second is the argument, but a reader might not recognize this immediately. Third, for argument reordering: if I want `(a, b) -> b.compareTo(a)` for reverse order, there is no method reference form. The underlying execution cost is identical — both compile to `invokedynamic` — so the choice is purely about readability and maintainability."
+
+*This is a judgment question. Show you think about team readability, not just syntax tricks.*
+
+**Gotcha follow-up they'll ask:** *"Can a method reference be used for a method that throws a checked exception?"*
+
+> Only if the target functional interface's abstract method also declares that checked exception. Standard interfaces like `Function<T,R>` do not declare checked exceptions, so you cannot directly use a method reference to a method that throws `IOException` as a `Function`. The workaround is a custom functional interface — often called `ThrowingFunction` — whose abstract method declares `throws Exception`, plus a static wrapper that catches and re-throws as `RuntimeException`. This pattern is covered in the Functional Interfaces topic.
+
+---
+
+#### Q4 — Design Scenario
+
+**"How do lambdas interact with concurrency? What are the rules around captured variables and thread safety?"**
+
+**One-line answer:** Lambdas can only capture effectively final local variables, eliminating one class of race conditions, but captured instance state and shared mutable data structures still require explicit synchronization.
+
+**Full answer to give in an interview:**
+> "The effectively-final rule — meaning a captured local variable must never be reassigned after it is initialized — is a compile-time guarantee that prevents a specific concurrency bug: if a lambda is executed on a different thread and the capturing method has already returned, the local variable's stack frame is gone. The JVM copies the value into the lambda's closure at capture time. If mutation were allowed, you'd have a data race between the original stack frame and the copy. However, the rule only protects local variables. If the lambda captures an instance variable — for example `this.orders` — that's still shared mutable state. Two lambda instances running on separate threads can both read and write `this.orders` simultaneously unless I synchronize. Similarly, if I use a lambda with `parallelStream()` and the lambda has side effects on a shared list, I will get corruption or `ConcurrentModificationException`. Stateless lambdas — those that capture nothing — are inherently thread-safe and the JVM may even cache them as singletons."
+
+*Good answer for senior-level interviews. Mention parallelStream side effects — that's the practical trap.*
+
+**Gotcha follow-up they'll ask:** *"What's the difference between `this` inside a lambda vs `this` inside an anonymous inner class?"*
+
+> Inside a lambda, `this` refers to the enclosing class instance — the same object you'd get if you used `this` in a regular method. Inside an anonymous inner class, `this` refers to the anonymous class instance itself, not the outer class. To access the outer class from an anonymous inner class, you need `OuterClass.this`. This is one of the subtle semantic differences between lambdas and anonymous classes that the compiler does not sugar away.
+
+---
+
+> **Common Mistake — Treating lambdas as pure anonymous class sugar:** Lambdas and anonymous classes differ in `this` semantics, bytecode representation, and capture rules. Writing code that relies on a lambda having its own `this` (for self-reference, for example) will not compile or behave as expected.
+
+> **Common Mistake — Mutating captured variables via workaround:** Using a single-element array or an `AtomicInteger` to mutate a "captured" value from inside a lambda defeats the purpose of the effectively-final rule. It works at compile time but introduces the exact race condition the rule was designed to prevent if the lambda runs on another thread.
+
+**Quick Revision (one line):** Lambda = `invokedynamic` + `LambdaMetafactory`, effectively-final capture, `this` = enclosing class; method references are syntactic sugar with four types distinguished by whether the receiver is captured or supplied.
+
+---
+
+## Topic 2: Functional Interfaces
+
+**Difficulty:** Medium | **Frequency:** Very High | **Companies:** Amazon, Microsoft, Goldman Sachs, JPMorgan, Stripe, Uber
+
+---
+
+### The Idea
+
+Java's type system is built around types, so to pass a lambda around you need a type for it to inhabit. That type is a functional interface: any interface with exactly one abstract method. The interface is the contract ("I accept a String and return a boolean"). The lambda fills the contract.
+
+Java 8 ships a standard library of pre-built functional interfaces in `java.util.function` so you don't invent your own for every common pattern. There are five families: `Function` (transform), `Predicate` (test), `Consumer` (side effect), `Supplier` (produce), and `Operator` (same-type transform). Each also has two-input (`Bi-`) and primitive-specialized variants (`IntFunction`, `ToLongFunction`, etc.) to avoid boxing overhead.
+
+When the standard interfaces don't fit — for example, you need a function that throws a checked exception, or one that takes three arguments — you define your own. The `@FunctionalInterface` annotation is optional but recommended: it makes the compiler enforce the single-abstract-method contract and documents the intent to future readers.
+
+---
+
+### How It Works
+
+**Core functional interfaces at a glance:**
+
+| Interface | Abstract method | What it does |
 |---|---|---|
-| `Function<T,R>` | `R apply(T t)` | Transform/map values |
-| `BiFunction<T,U,R>` | `R apply(T t, U u)` | Two-input transform |
-| `Predicate<T>` | `boolean test(T t)` | Filter / condition check |
+| `Function<T,R>` | `R apply(T t)` | Transform T to R |
+| `BiFunction<T,U,R>` | `R apply(T t, U u)` | Two inputs, one output |
+| `Predicate<T>` | `boolean test(T t)` | Test a condition |
 | `BiPredicate<T,U>` | `boolean test(T t, U u)` | Two-input condition |
-| `Consumer<T>` | `void accept(T t)` | Side effects (logging, DB write) |
+| `Consumer<T>` | `void accept(T t)` | Side effect, no return |
 | `BiConsumer<T,U>` | `void accept(T t, U u)` | Two-input side effect |
-| `Supplier<T>` | `T get()` | Lazy value production, factories |
-| `UnaryOperator<T>` | `T apply(T t)` | In-place transformation |
-| `BinaryOperator<T>` | `T apply(T t1, T t2)` | Reduction, combining same-type values |
+| `Supplier<T>` | `T get()` | Produce a value, no input |
+| `UnaryOperator<T>` | `T apply(T t)` | Transform T to same type T |
+| `BinaryOperator<T>` | `T apply(T t1, T t2)` | Combine two T values into T |
 
-**Composition Methods**
+**Composition pseudocode:**
+```
+Function f, Function g:
+  f.andThen(g)  → input → f first → g second → output   (f then g)
+  f.compose(g)  → input → g first → f second → output   (g then f)
 
-`Function` provides `andThen()` and `compose()`:
-- `f.andThen(g)` = `x -> g(f(x))` (f first, then g)
-- `f.compose(g)` = `x -> f(g(x))` (g first, then f)
+Predicate p, Predicate q:
+  p.and(q)      → true only if both pass
+  p.or(q)       → true if either passes
+  p.negate()    → flips result
+  Predicate.not(p)  → same as negate, Java 11+
 
-`Predicate` provides `and()`, `or()`, `negate()`:
-```java
-Predicate<String> notEmpty = s -> !s.isEmpty();
-Predicate<String> shortEnough = s -> s.length() < 20;
-Predicate<String> valid = notEmpty.and(shortEnough);
+Consumer c1, Consumer c2:
+  c1.andThen(c2) → run c1 then c2 on the same input
+  (no compose — consumers return void, there is nothing to chain backward)
 ```
 
-**Real-World Backend Example**
-
-In a payment processing pipeline:
+**The one interview-critical gotcha — `andThen` vs `compose` order:**
 
 ```java
-Function<Transaction, Transaction> applyFee = tx ->
-    new Transaction(tx.id(), tx.amount() - calculateFee(tx));
+Function<Integer, Integer> times2 = x -> x * 2;
+Function<Integer, Integer> plus3  = x -> x + 3;
 
-Function<Transaction, Transaction> applyTax = tx ->
-    new Transaction(tx.id(), tx.amount() - calculateTax(tx));
+// andThen: times2 first, then plus3
+times2.andThen(plus3).apply(5);  // (5*2)+3 = 13
 
-Function<Transaction, Transaction> pipeline = applyFee.andThen(applyTax);
-Transaction result = pipeline.apply(rawTransaction);
+// compose: plus3 first, then times2
+times2.compose(plus3).apply(5);  // (5+3)*2 = 16
 ```
 
-**Java 17 Code Example**
-
-```java
-import java.util.function.*;
-
-public class FunctionalInterfaceDemo {
-
-    public static void main(String[] args) {
-        // Function: transform
-        Function<String, Integer> length = String::length;
-        Function<Integer, String> intToStr = Object::toString;
-        Function<String, String> lengthAsStr = length.andThen(intToStr);
-        System.out.println(lengthAsStr.apply("hello")); // "5"
-
-        // Predicate: filter with composition
-        Predicate<Integer> isPositive = n -> n > 0;
-        Predicate<Integer> isEven = n -> n % 2 == 0;
-        Predicate<Integer> isPositiveEven = isPositive.and(isEven);
-        System.out.println(isPositiveEven.test(4));  // true
-        System.out.println(isPositiveEven.test(-4)); // false
-
-        // Consumer: side effect chaining
-        Consumer<String> print = System.out::println;
-        Consumer<String> audit = s -> System.out.println("AUDIT: " + s);
-        Consumer<String> both = print.andThen(audit);
-        both.accept("payment processed");
-
-        // Supplier: lazy initialization
-        Supplier<List<String>> listSupplier = ArrayList::new;
-        List<String> list = listSupplier.get();
-
-        // UnaryOperator
-        UnaryOperator<String> trim = String::trim;
-        UnaryOperator<String> upper = String::toUpperCase;
-        Function<String, String> normalize = trim.andThen(upper);
-        System.out.println(normalize.apply("  hello world  ")); // HELLO WORLD
-
-        // BinaryOperator
-        BinaryOperator<Integer> add = Integer::sum;
-        System.out.println(add.apply(3, 4)); // 7
-    }
-}
+**Custom functional interface rules (pseudocode):**
 ```
+A custom functional interface needs:
+  → exactly ONE abstract method (the "functional method")
+  → any number of default methods    (allowed)
+  → any number of static methods     (allowed)
+  → Object methods (equals, toString) do NOT count as abstract
 
-**Follow-up Questions**
-
-- "What is the difference between `Function.andThen()` and `Function.compose()`?"
-- "Why does `Consumer` have `andThen()` but not `compose()`?"
-- "When would you use `Supplier` instead of just calling a method directly?"
-- "What is `BiFunction` and when would you use it?"
-
-**Common Mistakes**
-
-- Confusing `andThen` and `compose` order of execution.
-- Using `Consumer` where a `Function` is needed — confusing void return vs. value return.
-- Not using `Predicate.not()` (Java 11) for negation: `Predicate.not(String::isEmpty)`.
-
-**Interview Traps**
-
-- `Supplier` is critical for lazy evaluation — `orElseGet(supplier)` vs `orElse(value)` is a classic interview trap (covered in the Optional section).
-- `UnaryOperator<T>` extends `Function<T,T>` — you can pass a `UnaryOperator` anywhere a `Function<T,T>` is expected.
-
-**Quick Revision Notes**
-
-- Function=transform, Predicate=test, Consumer=side-effect, Supplier=produce, Operator=same-type transform.
-- `andThen` = apply this first, then the argument. `compose` = apply argument first, then this.
-- `Predicate.not()` available from Java 11.
-- All are `@FunctionalInterface` with one abstract method.
+@FunctionalInterface annotation:
+  → optional at runtime
+  → if present: compiler enforces exactly-one-abstract-method constraint
+  → strongly recommended for documentation and safety
+```
 
 ---
 
-### Q4: How do you create a custom functional interface?
+### Interview Lens
 
-**Difficulty:** Easy | **Interview Frequency:** Medium
+> **How to use this section:** Each question below is self-contained. You can read just this section the night before an interview and walk in prepared. Every concept referenced is explained inline — no need to flip back.
 
-**Companies:** Goldman Sachs, JPMorgan, Atlassian
-
-**Short Answer (30–60 seconds)**
-
-A functional interface is any interface with exactly one abstract method. The `@FunctionalInterface` annotation is optional but recommended — it makes the compiler enforce the single-abstract-method constraint and documents intent. The interface can have any number of default and static methods.
-
-**Deep Explanation**
-
-Rules for functional interfaces:
-1. Exactly one abstract method (the "functional method").
-2. May have multiple `default` methods.
-3. May have multiple `static` methods.
-4. Methods inherited from `Object` (like `equals`, `toString`) do not count as abstract methods.
-
-The `@FunctionalInterface` annotation causes a compile error if the interface has zero or more than one abstract method.
-
-**Real-World Backend Example**
-
-Custom functional interfaces are useful for domain-specific operations that don't fit the standard library:
-
-```java
-@FunctionalInterface
-public interface ThrowingFunction<T, R> {
-    R apply(T t) throws Exception;
-
-    static <T, R> Function<T, R> wrap(ThrowingFunction<T, R> f) {
-        return t -> {
-            try {
-                return f.apply(t);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        };
-    }
-}
-```
-
-**Java 17 Code Example**
-
-```java
-import java.util.function.Function;
-
-@FunctionalInterface
-interface TriFunction<A, B, C, R> {
-    R apply(A a, B b, C c);
-
-    // Default method is allowed
-    default <V> TriFunction<A, B, C, V> andThen(Function<? super R, ? extends V> after) {
-        return (a, b, c) -> after.apply(this.apply(a, b, c));
-    }
-}
-
-public class CustomFunctionalInterfaceDemo {
-
-    public static void main(String[] args) {
-        TriFunction<String, Integer, Boolean, String> formatter =
-            (name, score, passed) ->
-                String.format("Candidate: %s, Score: %d, Result: %s",
-                    name, score, passed ? "PASS" : "FAIL");
-
-        System.out.println(formatter.apply("Alice", 85, true));
-        // Candidate: Alice, Score: 85, Result: PASS
-
-        // Using ThrowingFunction wrapper for checked exceptions in streams
-        List<String> urls = List.of("https://api.example.com/orders");
-        // urls.stream().map(url -> fetchData(url)) // won't compile if fetchData throws
-        // urls.stream().map(ThrowingFunction.wrap(url -> fetchData(url))); // works
-    }
-}
-```
-
-**Follow-up Questions**
-
-- "Can a functional interface extend another interface?"
-- "What happens if two interfaces each have one abstract method and a class implements both?"
-
-**Common Mistakes**
-
-- Forgetting that `@FunctionalInterface` is optional — the annotation is documentation and enforcement, not a requirement.
-- Adding a second abstract method and wondering why lambdas no longer compile.
-
-**Interview Traps**
-
-- An interface that extends another interface can still be functional if the parent's abstract method is the only one inherited (or the child overrides the parent method with the same signature). The `Comparator<T>` interface is technically functional even though it has many methods, because `equals(Object)` from `Object` does not count.
-
-**Quick Revision Notes**
-
-- One abstract method = functional interface, regardless of `@FunctionalInterface`.
-- `@FunctionalInterface` enforces the constraint at compile time.
-- Default and static methods are allowed.
-- `Object` methods don't count as abstract.
+> *Tip: In a real interview, lead with the one-line answer first. Pause. Expand only if the interviewer nods or probes.*
 
 ---
 
-## Streams
+#### Q5 — Concept Check
 
-### Q5: How does a stream pipeline work? What is lazy evaluation?
+**"What are the core built-in functional interfaces in Java 8 and when do you use each?"**
 
-**Difficulty:** Medium | **Interview Frequency:** Very High
+**One-line answer:** The five families are `Function` (transform), `Predicate` (test), `Consumer` (side effect), `Supplier` (produce), and `Operator` (same-type transform) — each covering a distinct role in functional pipelines.
 
-**Companies:** Amazon, Google, Stripe, Netflix, Goldman Sachs, Uber, Atlassian
+**Full answer to give in an interview:**
+> "Java 8 introduced a standard library of functional interfaces in `java.util.function` so you don't need to define your own for common patterns. I'll walk through the five families. `Function<T,R>` transforms an input of type T to an output of type R — the workhorse of stream `map` operations. `Predicate<T>` takes a T and returns a boolean — used in `filter`, validation, and conditional logic. `Consumer<T>` takes a T and returns nothing — it exists purely for side effects like logging or writing to a database. `Supplier<T>` takes no input and returns a T — useful for lazy evaluation, factory patterns, and `orElseGet` on Optional. `UnaryOperator<T>` and `BinaryOperator<T>` are specializations of `Function` where all types are the same — `UnaryOperator` for in-place transformations, `BinaryOperator` for reductions like `reduce` in streams. Each family also has two-input `Bi-` variants and primitive-specialized variants to avoid autoboxing overhead. Composition is built in: `Function` has `andThen` and `compose`, `Predicate` has `and`, `or`, `negate`, and `Consumer` has `andThen`."
 
-**Short Answer (30–60 seconds)**
+*Mention the primitive variants (IntFunction, ToLongFunction) if you have time — it shows you think about performance.*
 
-A stream pipeline has three parts: a source, zero or more intermediate operations, and a terminal operation. Intermediate operations are lazy — they do not execute until a terminal operation is invoked. This allows the JVM to fuse operations and avoid creating intermediate collections, which improves performance especially with `limit()` or `findFirst()`.
+**Gotcha follow-up they'll ask:** *"What is the difference between `Function.andThen()` and `Function.compose()`?"*
 
-**Deep Explanation**
-
-**Pipeline Stages**
-
-1. **Source:** `collection.stream()`, `Stream.of(...)`, `Files.lines(path)`, etc. Creates a `Spliterator` which defines how to traverse and split the data.
-2. **Intermediate operations:** Each returns a new `Stream`. They build up a pipeline description (a chain of `ReferencePipeline` stages internally), but execute no element processing.
-3. **Terminal operation:** Triggers traversal. The terminal operation pulls elements through all pipeline stages one element (or chunk) at a time.
-
-**Spliterator**
-
-`Spliterator<T>` is the iterator abstraction used internally by streams. It supports:
-- `tryAdvance()` — process one element.
-- `trySplit()` — split for parallel processing.
-- Characteristics (`SIZED`, `ORDERED`, `DISTINCT`, `SORTED`, `IMMUTABLE`, `CONCURRENT`, `NONNULL`, `SUBSIZED`).
-
-Characteristics affect optimization: for example, if a stream is `SIZED`, `count()` can short-circuit without traversal.
-
-**Lazy Evaluation in Practice**
-
-Without lazy evaluation:
-- `filter()` would produce a new list.
-- `map()` would produce another new list.
-- Every intermediate step allocates memory.
-
-With lazy evaluation:
-- The pipeline fuses: for each element, filter → map → terminal are executed before moving to the next element.
-- `limit(n)` can stop the source after `n` elements pass the filter, even for potentially infinite sources.
-
-```java
-// Without limit: would process all 1 million elements
-// With limit: stops as soon as 5 elements pass the filter
-List<Integer> result = IntStream.range(0, 1_000_000)
-    .filter(n -> n % 2 == 0)
-    .limit(5)
-    .boxed()
-    .collect(Collectors.toList()); // [0, 2, 4, 6, 8]
-```
-
-**Real-World Backend Example**
-
-Processing a large paginated result from a database without loading everything:
-
-```java
-// Stream from a large dataset — lazy processing avoids loading all records
-Stream<Order> orderStream = orderRepository.findAllAsStream();
-Optional<Order> firstHighValue = orderStream
-    .filter(order -> order.getAmount().compareTo(BigDecimal.valueOf(10000)) > 0)
-    .findFirst(); // stops as soon as first match is found
-```
-
-**Java 17 Code Example**
-
-```java
-import java.util.List;
-import java.util.stream.*;
-
-public class LazyEvaluationDemo {
-
-    public static void main(String[] args) {
-        List<Integer> numbers = List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-
-        // Demonstrate laziness with peek (side-effect for debugging only)
-        List<Integer> result = numbers.stream()
-            .filter(n -> {
-                System.out.println("filter: " + n);
-                return n % 2 == 0;
-            })
-            .map(n -> {
-                System.out.println("map: " + n);
-                return n * n;
-            })
-            .limit(3)
-            .collect(Collectors.toList());
-
-        System.out.println(result);
-        // Output shows filter and map are called element-by-element,
-        // and stops after 3 elements pass (not all 10 are processed).
-    }
-}
-```
-
-**Follow-up Questions**
-
-- "What is a `Spliterator`? How is it different from `Iterator`?"
-- "If I have `filter().map().filter()`, how many passes does the stream make over the data?"
-- "What happens if I call a terminal operation on a stream that has already been consumed?"
-- "Why does `peek()` sometimes not fire in production? (Hint: short-circuiting)"
-
-**Common Mistakes**
-
-- Assuming intermediate operations execute immediately.
-- Using `peek()` for production logging assuming it always fires — it is skipped with short-circuit terminals.
-- Forgetting that streams are single-use.
-
-**Interview Traps**
-
-- A pipeline with only intermediate operations does nothing. `stream.filter(...).map(...)` alone produces no output and processes no elements until a terminal operation is added. This is a common debugging trap.
-- `sorted()` is a stateful intermediate operation — it must buffer all elements before producing any output, breaking the "one element at a time" fusion for that stage.
-
-**Quick Revision Notes**
-
-- Source → Intermediate (lazy, builds pipeline) → Terminal (triggers execution).
-- Lazy evaluation = no intermediate collections, elements processed one at a time.
-- `sorted()`, `distinct()` are stateful — they buffer; short-circuit fusion breaks there.
-- `Spliterator` is the internal traversal mechanism supporting parallel split.
-- One terminal operation per stream; reuse throws `IllegalStateException`.
-
+> Both compose two functions into one, but the order differs. `f.andThen(g)` means apply `f` first, then pass its result to `g` — reading left to right. `f.compose(g)` means apply `g` first, then pass its result to `f` — the argument function runs before `this`. A concrete example: if `f` doubles a number and `g` adds three, `f.andThen(g).apply(5)` gives 13 (double then add), while `f.compose(g).apply(5)` gives 16 (add then double). The confusion is common because `andThen` reads naturally but `compose` reads mathematically (like function composition f∘g where g runs first).
 
 ---
 
-### Q6: What are intermediate operations in streams? Explain map vs flatMap.
+#### Q6 — Concept Check
 
-**Difficulty:** Medium | **Interview Frequency:** Very High
+**"Why does `Consumer` have `andThen` but not `compose`?"**
 
-**Companies:** Amazon, Google, Goldman Sachs, Stripe, Netflix, Uber
+**One-line answer:** `Consumer` returns void, so there is no output to feed as input to a preceding function — composition in reverse is meaningless.
 
-**Short Answer (30"“60 seconds)**
+**Full answer to give in an interview:**
+> "Functional composition requires an output from one function to become the input of another. `Consumer<T>` accepts a value and returns nothing — void. `andThen` on `Consumer` threads the same original input to both consumers in sequence, which is valid and useful for chaining side effects like print then audit. But `compose` would mean: take my output, feed it to another function, then feed that result to me. Since my output is void, there is nothing to feed — the operation is undefined. The API designers simply omitted `compose` because it has no sensible semantics for a void-returning interface. The same logic applies to `BiConsumer`. This is also why `Consumer.andThen` takes a `Consumer` not a `Function` — you can only chain another consumer, not a transformer."
 
-Intermediate operations return a new Stream and are lazy "” they don't execute until a terminal operation triggers the pipeline. Key ones: `filter` (keep elements matching predicate), `map` (transform each element), `flatMap` (transform each element to a stream and flatten one level), `sorted`, `distinct`, `limit`, `skip`, `peek`.
+*Short question, short answer. This is a signal of whether you understand the type-level reasoning behind the API design.*
 
-`map` produces one output element per input element. `flatMap` produces zero or more output elements per input, flattening the resulting streams into one stream.
+**Gotcha follow-up they'll ask:** *"When would you use `Supplier` instead of just calling a method directly?"*
 
-**Deep Explanation**
+> The key word is lazy. If I call a method directly — `orElse(computeExpensiveDefault())` — the expensive computation runs whether or not the Optional is empty. If I use a `Supplier` — `orElseGet(() -> computeExpensiveDefault())` — the computation only runs if the Optional is actually empty. `Supplier` defers execution until the value is truly needed. This matters for expensive database lookups, object construction, or any computation with side effects that should not happen unconditionally.
 
-**map vs flatMap "” the critical difference:**
+---
 
-`map(f)` applies `f` to each element: `Stream<T>` â†’ `Stream<R>`.
-`flatMap(f)` applies `f` to each element where `f` returns a `Stream<R>`, then flattens all those streams: `Stream<T>` â†’ `Stream<Stream<R>>` â†’ `Stream<R>`.
+#### Q7 — Design Scenario
 
-Analogy: `map` is like multiplying each item by a factor. `flatMap` is like replacing each item with a list of items, then removing the outer list.
+**"How do you handle checked exceptions inside a lambda? `Function<T,R>` doesn't declare any."**
 
-**Stateful vs Stateless:**
-- Stateless: `filter`, `map`, `flatMap`, `peek` "” process each element independently.
-- Stateful: `sorted`, `distinct`, `limit`, `skip` "” require knowledge of other elements. `sorted` and `distinct` must buffer; `limit` and `skip` maintain a counter.
+**One-line answer:** Define a custom functional interface that declares `throws Exception`, then add a static wrapper method that catches and re-throws as `RuntimeException`.
 
-**Complete List of Intermediate Operations:**
+**Full answer to give in an interview:**
+> "The standard `Function<T,R>` interface does not declare any checked exceptions, so if my lambda calls a method that throws `IOException` — like a file read or HTTP call — it won't compile as a `Function`. There are two approaches. The quick approach is to wrap the exception inside the lambda: `t -> { try { return riskyCall(t); } catch (IOException e) { throw new RuntimeException(e); } }`. This works but is verbose and repeats at every use site. The cleaner approach is a custom functional interface — often called `ThrowingFunction<T,R>` — whose abstract method declares `throws Exception`. Then I add a static `wrap` method that converts a `ThrowingFunction` to a plain `Function` by doing the try-catch internally. That way I can write `.map(ThrowingFunction.wrap(url -> fetchData(url)))` cleanly throughout my codebase. The `wrap` method is a static method on the functional interface itself, which is allowed — functional interfaces can have any number of static methods."
 
-| Operation | Type | Description |
+*This comes up in any company that does stream-heavy data pipelines. Have the ThrowingFunction pattern memorized.*
+
+**Gotcha follow-up they'll ask:** *"Can a functional interface extend another interface?"*
+
+> Yes. A functional interface can extend another interface and still be functional if the result has exactly one abstract method. For example, `UnaryOperator<T>` extends `Function<T,T>` — it inherits `apply`, which is the one abstract method. The child interface adds no new abstract methods, just specializes the type. `Comparator<T>` is another example: it has many default and static methods, and even declares `equals(Object)`, but `equals` comes from `Object` and doesn't count as an abstract method in this context, so `Comparator` remains a valid functional interface with `compare` as its single abstract method.
+
+---
+
+#### Q8 — Tradeoff Question
+
+**"When should you define a custom functional interface vs reuse a standard one?"**
+
+**One-line answer:** Use standard interfaces whenever the signature fits; define custom ones when you need a checked exception declaration, more than two parameters, or domain-specific naming that improves readability.
+
+**Full answer to give in an interview:**
+> "The standard interfaces cover the vast majority of cases: transform, test, consume, produce, reduce. I default to them because they compose naturally with streams, Optional, and CompletableFuture — all of which are built around those types. I define a custom interface in three situations. First, when I need checked exceptions: as discussed, `Function` cannot declare them, so `ThrowingFunction` is necessary. Second, when the arity is wrong: the standard library goes up to `BiFunction` (two arguments) — if I need three parameters, I define `TriFunction`. Third, when domain naming makes the code significantly more readable: a `PricingStrategy` functional interface communicates intent better than a raw `BiFunction<Order, Context, Money>`, especially if that function is referenced in many places. The `@FunctionalInterface` annotation on custom interfaces is not required to make them work, but it is strongly recommended — it makes the compiler catch the mistake of accidentally adding a second abstract method, and it documents the intent."
+
+*Show you default to standard interfaces — that's the right instinct. Custom interfaces are the exception, not the rule.*
+
+**Gotcha follow-up they'll ask:** *"Does adding a second `default` method to a functional interface break it?"*
+
+> No. Functional interfaces can have any number of default methods and static methods. Only abstract methods count toward the one-abstract-method constraint. Default methods have a body and are inherited by implementing classes (or lambdas). Adding `andThen` as a default method to a custom functional interface is perfectly valid and is exactly what the standard library does — `Function`, `Consumer`, and `Predicate` all have default composition methods.
+
+---
+
+> **Common Mistake — Confusing `andThen` and `compose` execution order:** `f.andThen(g)` runs `f` first; `f.compose(g)` runs `g` first. Getting this backwards silently produces wrong results — no compile error, no runtime exception.
+
+> **Common Mistake — Using `orElse` with an expensive computation instead of `orElseGet`:** `orElse(expensiveMethod())` always evaluates the argument. `orElseGet(() -> expensiveMethod())` only evaluates it if the Optional is empty. The bug is silent — code is correct but wasteful, and in some cases causes unwanted side effects.
+
+**Quick Revision (one line):** Function=transform, Predicate=test, Consumer=void side-effect, Supplier=lazy produce, Operator=same-type; `andThen` runs this-then-argument, `compose` runs argument-then-this; custom interfaces need one abstract method and should declare `@FunctionalInterface`.
+
+---
+
+## Topic 3: Streams — Pipeline, Operations & Collectors
+
+**Difficulty:** Medium–Hard | **Frequency:** Very High | **Companies:** Amazon, Google, Goldman Sachs, Stripe, Netflix, Uber, JPMorgan
+
+---
+
+### The Idea
+
+A stream is a conveyor belt for data. You set up a sequence of processing steps — filter these items, transform those, stop after five — and nothing moves until you press the start button at the end. That start button is the terminal operation. Until you add one, the conveyor belt just sits there with your instructions written on it but no items moving.
+
+This is lazy evaluation: the pipeline description is built eagerly, but execution is deferred until a terminal operation pulls elements through. One element travels through all pipeline stages before the next element is fetched. This is why a `filter().limit(5)` on a million-element list only looks at the first handful of elements that pass the filter — it stops as soon as five pass, never touching the rest.
+
+Collectors are the packaging station at the end of the belt. `collect()` is a terminal operation that accumulates stream elements into a container — a list, a map, a grouped structure. `Collectors.groupingBy` is the most powerful: it partitions elements by a classifier key and optionally applies a downstream collector (count, average, max) to each group.
+
+---
+
+### How It Works
+
+**Pipeline structure (pseudocode):**
+```
+stream pipeline = source + zero or more intermediate ops + one terminal op
+
+Source creates a Spliterator:
+  → Spliterator knows how to traverse and optionally split the data source
+  → tryAdvance() = process one element
+  → trySplit()   = split for parallel processing
+  → characteristics (SIZED, ORDERED, SORTED, DISTINCT...) guide optimizations
+
+Intermediate ops (lazy):
+  → each returns a new Stream (a linked ReferencePipeline stage)
+  → no element processing happens yet
+  → builds a description of what to do
+
+Terminal op (triggers execution):
+  → pulls elements one at a time through all fused stages
+  → short-circuit terminals (findFirst, anyMatch) stop early
+  → stateful ops (sorted, distinct) must buffer all elements before emitting
+```
+
+**map vs flatMap (pseudocode):**
+```
+map(f):
+  for each element e → produce exactly ONE output: f(e)
+  Stream<T> → Stream<R>
+  shape is preserved: n inputs → n outputs
+
+flatMap(f):
+  for each element e → f(e) returns a Stream<R>
+  all resulting streams are flattened into ONE stream
+  Stream<T> → Stream<Stream<R>> → Stream<R>  (flatten removes one level)
+  n inputs → 0 or more outputs per element
+```
+
+**Stateful vs stateless intermediate ops:**
+
+| Operation | Type | Notes |
 |---|---|---|
-| `filter(Predicate)` | Stateless | Keep elements matching predicate |
-| `map(Function)` | Stateless | Transform each element |
-| `flatMap(Function<T, Stream<R>>)` | Stateless | Transform and flatten |
-| `mapToInt/Long/Double` | Stateless | Map to primitive stream |
-| `distinct()` | Stateful (buffered) | Remove duplicates using equals/hashCode |
-| `sorted()` / `sorted(Comparator)` | Stateful (buffered) | Sort all elements |
-| `limit(n)` | Short-circuit, stateful | Keep only first n elements |
-| `skip(n)` | Stateful | Skip first n elements |
-| `peek(Consumer)` | Stateless | Side effect, passes element through |
-| `takeWhile(Predicate)` | Short-circuit (Java 9) | Take while predicate true |
-| `dropWhile(Predicate)` | Stateful (Java 9) | Drop while predicate true |
+| `filter`, `map`, `flatMap`, `peek` | Stateless | Process each element independently |
+| `distinct`, `sorted` | Stateful (buffered) | Must see ALL elements before emitting any |
+| `limit`, `skip` | Stateful (counter) | `limit` is short-circuit; `skip` is not |
+| `takeWhile`, `dropWhile` (Java 9) | Stateful | Stop/start based on predicate |
 
-**Real-World Backend Example**
+**Terminal operations summary:**
 
-Orders with multiple line items "” flattening to get all products across all orders:
+| Operation | Short-circuit? | Returns |
+|---|---|---|
+| `collect(Collector)` | No | Container |
+| `forEach` | No | void |
+| `reduce` | No | `T` or `Optional<T>` |
+| `count` | Sometimes (SIZED) | `long` |
+| `findFirst`, `findAny` | Yes | `Optional<T>` |
+| `anyMatch`, `allMatch`, `noneMatch` | Yes | `boolean` |
+| `min`, `max` | No | `Optional<T>` |
+| `toArray` | No | `Object[]` or `T[]` |
 
-```java
-List<Order> orders = getOrders();
-
-// Each order has a list of LineItems
-// map would give Stream<List<LineItem>> "” not useful
-// flatMap gives Stream<LineItem> "” flat list of all items
-
-List<String> allProductIds = orders.stream()
-    .flatMap(order -> order.getLineItems().stream())
-    .map(LineItem::getProductId)
-    .distinct()
-    .sorted()
-    .collect(Collectors.toList());
-```
-
-**Java 17 Code Example**
+**The one interview-critical gotcha — `toMap` throws on duplicate keys:**
 
 ```java
-import java.util.*;
-import java.util.stream.*;
-
-public class IntermediateOpsDemo {
-
-    record LineItem(String productId, int quantity) {}
-    record Order(String orderId, List<LineItem> lineItems) {}
-
-    public static void main(String[] args) {
-        List<Order> orders = List.of(
-            new Order("O1", List.of(new LineItem("P1", 2), new LineItem("P2", 1))),
-            new Order("O2", List.of(new LineItem("P2", 3), new LineItem("P3", 5))),
-            new Order("O3", List.of(new LineItem("P1", 1)))
-        );
-
-        // map: one-to-one transform
-        List<String> orderIds = orders.stream()
-            .map(Order::orderId)
-            .collect(Collectors.toList());
-        System.out.println("Order IDs: " + orderIds);
-
-        // flatMap: one-to-many, then flatten
-        List<String> allProductIds = orders.stream()
-            .flatMap(order -> order.lineItems().stream())
-            .map(LineItem::productId)
-            .distinct()
-            .sorted()
-            .collect(Collectors.toList());
-        System.out.println("All product IDs: " + allProductIds); // [P1, P2, P3]
-
-        // Total quantity across all orders for product P2
-        int totalP2 = orders.stream()
-            .flatMap(order -> order.lineItems().stream())
-            .filter(item -> item.productId().equals("P2"))
-            .mapToInt(LineItem::quantity)
-            .sum();
-        System.out.println("Total P2 quantity: " + totalP2); // 4
-
-        // flatMap on Optional (common pattern)
-        Optional<Optional<String>> nested = Optional.of(Optional.of("value"));
-        Optional<String> flat = nested.flatMap(inner -> inner);
-        System.out.println(flat.get()); // value
-
-        // peek for debugging (not production logging)
-        List<String> result = List.of("  hello ", " world ", "java ")
-            .stream()
-            .peek(s -> System.out.println("before: '" + s + "'"))
-            .map(String::trim)
-            .peek(s -> System.out.println("after: '" + s + "'"))
-            .filter(s -> s.length() > 4)
-            .collect(Collectors.toList());
-        System.out.println(result);
-    }
-}
-```
-
-**Follow-up Questions**
-
-- "What does `flatMap` do internally at the stream pipeline level?"
-- "Can `flatMap` return an empty stream for some elements? What happens to those?"
-- "What is the difference between `map(Optional::of).flatMap(...)` and just `map(...)`?"
-- "Why is `sorted()` expensive on a parallel stream?"
-
-**Common Mistakes**
-
-- Using `map` when `flatMap` is needed, resulting in `Stream<List<T>>` instead of `Stream<T>`.
-- Relying on `peek` for logging in production "” it may not fire on all elements due to short-circuiting.
-- Calling `sorted()` on large parallel streams "” it requires gathering all elements, negating parallelism benefits.
-
-**Interview Traps**
-
-- `flatMap` with an empty stream for an element effectively filters that element out:
-  `stream.flatMap(x -> x.isEmpty() ? Stream.empty() : Stream.of(x))` is equivalent to `stream.filter(x -> !x.isEmpty())` but is less readable.
-- `distinct()` uses `equals()` and `hashCode()`. If your objects don't override these, it does nothing useful.
-
-**Quick Revision Notes**
-
-- `map` = 1-to-1. `flatMap` = 1-to-many, flattens one level.
-- `sorted`, `distinct` are stateful and buffer all elements before emitting.
-- `limit`, `skip` are short-circuit capable.
-- `peek` is for debugging only; never rely on it for logic.
-- `takeWhile`/`dropWhile` added in Java 9.
-
----
-
-### Q7: What are terminal operations in streams?
-
-**Difficulty:** Easy"“Medium | **Interview Frequency:** High
-
-**Companies:** Amazon, Stripe, Goldman Sachs, Atlassian
-
-**Short Answer (30"“60 seconds)**
-
-Terminal operations trigger the execution of the stream pipeline and produce a result or side effect. After a terminal operation, the stream is consumed and cannot be reused. Common ones: `collect`, `forEach`, `reduce`, `count`, `findFirst`, `findAny`, `anyMatch`, `allMatch`, `noneMatch`, `min`, `max`, `toArray`.
-
-**Deep Explanation**
-
-Terminal operations fall into three categories:
-
-1. **Reducing to a single value:** `reduce`, `count`, `min`, `max`, `sum` (primitive streams)
-2. **Collecting into a container:** `collect(Collector)`, `toArray()`
-3. **Short-circuit:** `findFirst`, `findAny`, `anyMatch`, `allMatch`, `noneMatch` "” may not process all elements
-
-**Short-circuit semantics:**
-- `anyMatch(p)` returns `true` as soon as one element matches.
-- `allMatch(p)` returns `false` as soon as one element fails.
-- `noneMatch(p)` returns `false` as soon as one element matches.
-- `findFirst()` returns the first element; `findAny()` is non-deterministic (useful for parallel streams).
-
-**reduce:**
-`reduce(identity, BinaryOperator)` folds the stream into a single value. The identity must be a neutral element (0 for addition, 1 for multiplication, `""` for string concat). Without an identity, returns `Optional<T>`.
-
-**Real-World Backend Example**
-
-```java
-List<Transaction> transactions = getTransactions();
-
-// reduce to sum amounts
-BigDecimal total = transactions.stream()
-    .map(Transaction::getAmount)
-    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-// findFirst for early exit
-Optional<Transaction> suspicious = transactions.stream()
-    .filter(t -> t.getAmount().compareTo(BigDecimal.valueOf(50000)) > 0)
-    .findFirst();
-
-// anyMatch for existence check
-boolean hasRefunds = transactions.stream()
-    .anyMatch(t -> t.getType() == TransactionType.REFUND);
-```
-
-**Java 17 Code Example**
-
-```java
-import java.util.*;
-import java.util.stream.*;
-
-public class TerminalOpsDemo {
-
-    public static void main(String[] args) {
-        List<Integer> numbers = List.of(3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5);
-
-        // count
-        long count = numbers.stream().filter(n -> n > 3).count();
-        System.out.println("count > 3: " + count); // 5
-
-        // min, max
-        Optional<Integer> max = numbers.stream().max(Integer::compareTo);
-        System.out.println("max: " + max.orElseThrow()); // 9
-
-        // reduce with identity
-        int sum = numbers.stream().reduce(0, Integer::sum);
-        System.out.println("sum: " + sum); // 44
-
-        // reduce without identity "” returns Optional
-        Optional<Integer> product = numbers.stream()
-            .reduce((a, b) -> a * b);
-        System.out.println("product present: " + product.isPresent());
-
-        // anyMatch, allMatch, noneMatch
-        System.out.println(numbers.stream().anyMatch(n -> n > 8));  // true
-        System.out.println(numbers.stream().allMatch(n -> n > 0));  // true
-        System.out.println(numbers.stream().noneMatch(n -> n > 10)); // true
-
-        // findFirst vs findAny
-        Optional<Integer> first = numbers.stream().filter(n -> n > 4).findFirst();
-        System.out.println("first > 4: " + first.orElseThrow()); // 5
-
-        // forEach "” side effect
-        numbers.stream().distinct().sorted().forEach(System.out::println);
-
-        // toArray
-        Object[] arr = numbers.stream().distinct().toArray();
-        Integer[] typedArr = numbers.stream().distinct().toArray(Integer[]::new);
-    }
-}
-```
-
-**Follow-up Questions**
-
-- "What is the difference between `findFirst` and `findAny`? When does it matter?"
-- "What happens if you call `reduce` on an empty stream without an identity value?"
-- "Is `forEach` guaranteed to process elements in order?"
-
-**Common Mistakes**
-
-- Using `reduce` without understanding the identity requirement "” passing a wrong identity corrupts results.
-- Assuming `findAny` returns a random element "” it returns any convenient element, often the first in sequential streams.
-
-**Interview Traps**
-
-- `forEach` on a sequential stream preserves order; on a parallel stream it does not. Use `forEachOrdered` if order matters in parallel.
-- `allMatch` on an empty stream returns `true` (vacuous truth). `anyMatch` on an empty stream returns `false`. This is logically correct but surprises candidates.
-
-**Quick Revision Notes**
-
-- Terminal ops trigger pipeline execution; stream is consumed afterward.
-- Short-circuit: `anyMatch`, `allMatch`, `noneMatch`, `findFirst`, `findAny`, `limit`.
-- `reduce` needs an identity that is neutral for the operation.
-- `forEach` does not guarantee order in parallel streams.
-- Empty stream: `allMatch` â†’ true, `anyMatch` â†’ false, `count` â†’ 0.
-
----
-
-### Q8: Explain Collectors. What are the most important ones?
-
-**Difficulty:** Medium"“Hard | **Interview Frequency:** Very High
-
-**Companies:** Amazon, Google, Goldman Sachs, JPMorgan, Stripe, Netflix
-
-**Short Answer (30"“60 seconds)**
-
-`Collectors` is a utility class providing common `Collector` implementations for `collect()`. The most important: `toList()`, `toSet()`, `toMap()`, `groupingBy()`, `partitioningBy()`, `joining()`, `counting()`. In Java 16+, use `Collectors.toUnmodifiableList()` or `Stream.toList()` for immutable results.
-
-**Deep Explanation**
-
-A `Collector<T,A,R>` has three type parameters: input element type `T`, mutable accumulation type `A`, and result type `R`. It defines four operations: `supplier()` (create accumulator), `accumulator()` (fold element into accumulator), `combiner()` (merge two accumulators in parallel), `finisher()` (convert accumulator to result).
-
-**groupingBy "” the most powerful Collector:**
-
-`groupingBy(classifier)` groups elements by key into a `Map<K, List<V>>`.
-`groupingBy(classifier, downstream)` applies a downstream collector to each group.
-
-**toMap "” the most dangerous Collector:**
-
-`Collectors.toMap(keyMapper, valueMapper)` throws `IllegalStateException` on duplicate keys by default. Always provide a merge function for potentially non-unique keys.
-
-**Java 17 / Stream.toList():**
-
-Java 16 added `Stream.toList()` as a terminal operation shorthand for `collect(Collectors.toUnmodifiableList())`. The result is unmodifiable.
-
-**Real-World Backend Example**
-
-Reporting: group transactions by merchant, then count and sum by type:
-
-```java
-Map<String, Map<TransactionType, Long>> report = transactions.stream()
-    .collect(Collectors.groupingBy(
-        Transaction::getMerchant,
-        Collectors.groupingBy(Transaction::getType, Collectors.counting())
+// DANGER: throws IllegalStateException if two employees share a dept
+Map<String, Employee> byDept = employees.stream()
+    .collect(Collectors.toMap(Employee::dept, e -> e)); // WRONG if depts repeat
+
+// SAFE: provide a merge function
+Map<String, Double> maxSalaryByDept = employees.stream()
+    .collect(Collectors.toMap(
+        Employee::dept,
+        Employee::salary,
+        Double::max   // merge: keep the higher salary on duplicate key
     ));
 ```
 
-**Java 17 Code Example**
+---
 
-```java
-import java.util.*;
-import java.util.stream.*;
-import java.util.function.*;
+### Interview Lens
 
-public class CollectorsDemo {
+> **How to use this section:** Each question below is self-contained. You can read just this section the night before an interview and walk in prepared. Every concept referenced is explained inline — no need to flip back.
 
-    record Employee(String name, String dept, double salary) {}
-
-    public static void main(String[] args) {
-        List<Employee> employees = List.of(
-            new Employee("Alice", "Engineering", 120000),
-            new Employee("Bob", "Engineering", 110000),
-            new Employee("Carol", "HR", 80000),
-            new Employee("Dave", "HR", 85000),
-            new Employee("Eve", "Engineering", 130000)
-        );
-
-        // toList (Java 16+) "” unmodifiable
-        List<String> names = employees.stream()
-            .map(Employee::name)
-            .toList();
-
-        // toSet
-        Set<String> depts = employees.stream()
-            .map(Employee::dept)
-            .collect(Collectors.toSet());
-
-        // toMap "” MUST provide merge function if keys may duplicate
-        Map<String, Double> salaryByName = employees.stream()
-            .collect(Collectors.toMap(Employee::name, Employee::salary));
-        // Safe here because names are unique
-
-        // toMap with merge function for duplicate keys
-        Map<String, Double> maxSalaryByDept = employees.stream()
-            .collect(Collectors.toMap(
-                Employee::dept,
-                Employee::salary,
-                Double::max  // merge: keep higher salary
-            ));
-        System.out.println(maxSalaryByDept); // {Engineering=130000.0, HR=85000.0}
-
-        // groupingBy
-        Map<String, List<Employee>> byDept = employees.stream()
-            .collect(Collectors.groupingBy(Employee::dept));
-
-        // groupingBy with downstream collector
-        Map<String, Double> avgSalaryByDept = employees.stream()
-            .collect(Collectors.groupingBy(
-                Employee::dept,
-                Collectors.averagingDouble(Employee::salary)
-            ));
-        System.out.println(avgSalaryByDept);
-
-        // groupingBy with counting
-        Map<String, Long> countByDept = employees.stream()
-            .collect(Collectors.groupingBy(Employee::dept, Collectors.counting()));
-        System.out.println(countByDept); // {Engineering=3, HR=2}
-
-        // partitioningBy "” splits into true/false
-        Map<Boolean, List<Employee>> seniorSplit = employees.stream()
-            .collect(Collectors.partitioningBy(e -> e.salary() > 100000));
-        System.out.println("Senior: " + seniorSplit.get(true).stream().map(Employee::name).toList());
-
-        // joining
-        String nameList = employees.stream()
-            .map(Employee::name)
-            .collect(Collectors.joining(", ", "[", "]"));
-        System.out.println(nameList); // [Alice, Bob, Carol, Dave, Eve]
-
-        // summarizingInt / summarizingDouble
-        DoubleSummaryStatistics stats = employees.stream()
-            .collect(Collectors.summarizingDouble(Employee::salary));
-        System.out.printf("Min=%.0f, Max=%.0f, Avg=%.0f%n",
-            stats.getMin(), stats.getMax(), stats.getAverage());
-    }
-}
-```
-
-**Follow-up Questions**
-
-- "What exception does `toMap` throw on duplicate keys? How do you fix it?"
-- "How do you create a `Map<String, Set<Employee>>` with streams?"
-- "What is the difference between `partitioningBy` and `groupingBy`?"
-- "How does `Collectors.counting()` differ from `Stream.count()`?"
-- "What does `Stream.toList()` return? Is it mutable?"
-
-**Common Mistakes**
-
-- Using `Collectors.toMap` without a merge function when keys might repeat "” causes `IllegalStateException` at runtime.
-- Using mutable list after `Stream.toList()` "” it throws `UnsupportedOperationException`.
-- Forgetting that `groupingBy` with no downstream collector produces `Map<K, List<V>>`, not `Map<K, V>`.
-
-**Interview Traps**
-
-- `Collectors.toMap` with a `null` value throws `NullPointerException` even with a merge function "” the implementation uses `HashMap.merge()` which rejects null values. Use `toMap` with `(k, v, map)` via a custom collector if nulls are possible.
-- `partitioningBy` always produces a `Map` with both `true` and `false` keys, even if one group is empty. `groupingBy` only produces keys for groups that exist.
-
-**Quick Revision Notes**
-
-- `toMap` = duplicate key â†’ `IllegalStateException`; always provide merge function.
-- `groupingBy(k, downstream)` is the most versatile; chain with `counting()`, `averagingDouble()`, etc.
-- `partitioningBy` = exactly two groups: true/false.
-- `Stream.toList()` (Java 16) returns unmodifiable list.
-- `joining(delimiter, prefix, suffix)` for CSV/formatted output.
+> *Tip: In a real interview, lead with the one-line answer first. Pause. Expand only if the interviewer nods or probes.*
 
 ---
 
-### Q9: Stream vs Collection "” when do you use streams vs loops?
+#### Q9 — Concept Check
 
-**Difficulty:** Easy"“Medium | **Interview Frequency:** High
+**"How does a stream pipeline work? What is lazy evaluation and why does it matter?"**
 
-**Companies:** Amazon, Goldman Sachs, Atlassian, Spotify
+**One-line answer:** A stream pipeline has a source, lazy intermediate operations, and a terminal operation that triggers execution; laziness means no element is processed until the terminal pulls it through.
 
-**Short Answer (30"“60 seconds)**
+**Full answer to give in an interview:**
+> "A stream pipeline has three parts. The source — typically a collection, a file, or a generator — creates a `Spliterator`, which is the internal iterator abstraction that knows how to traverse and optionally split the data. Intermediate operations like `filter`, `map`, and `sorted` each return a new `Stream` object representing an additional stage in the pipeline. Critically, they do not execute anything. They just describe what to do. The terminal operation — `collect`, `findFirst`, `forEach`, and so on — is what actually starts element processing. When the terminal fires, it pulls elements one at a time through all fused stages. Lazy evaluation is what makes this efficient: elements are processed one at a time end-to-end rather than the entire collection passing through each stage in sequence. This means `limit(5)` on a million-element source stops processing after five qualifying elements — it never looks at the rest. It also means no intermediate collections are allocated. The one exception is stateful operations like `sorted` and `distinct`, which must buffer all elements before they can emit any output, breaking the one-at-a-time fusion for that stage."
 
-Use streams for declarative data transformation pipelines "” filtering, mapping, reducing "” especially when readability and composability matter. Use traditional loops when you need complex control flow (break by condition across multiple variables), when performance profiling shows loop is faster, or when the logic is inherently imperative with multiple mutations per element.
+*Draw the mental picture of one element traveling through all stages before the next one is fetched. That visual lands well.*
 
-**Deep Explanation**
+**Gotcha follow-up they'll ask:** *"What happens if I call a terminal operation on a stream that has already been consumed?"*
 
-**Streams are better when:**
-- Expressing a pipeline of transformations declaratively.
-- You want lazy evaluation (short-circuit, infinite sources).
-- You need to parallelize easily (`.parallel()`).
-- The operation maps cleanly to filter/map/reduce/collect.
-
-**Loops are better when:**
-- You need to `break` out of a loop after non-trivial stateful decisions.
-- You are mutating multiple fields of the same object per iteration.
-- Performance-critical tight loops (streams have overhead from lambda dispatch, though JIT often eliminates this).
-- You are iterating with an index (`for (int i = 0; ...)`) and the index has semantic meaning.
-- Checked exceptions are heavily used "” streams do not handle checked exceptions without wrapper utilities.
-
-**Performance reality:**
-For small collections (< 1000 elements), loops are often as fast or faster than streams. Streams add JIT warm-up cost. However, for large datasets with parallelism, streams with `.parallel()` can outperform loops significantly.
-
-**Real-World Backend Example**
-
-```java
-// Streams: clean for read-only transformation pipeline
-List<String> activeUserEmails = users.stream()
-    .filter(User::isActive)
-    .map(User::getEmail)
-    .filter(email -> email.endsWith("@company.com"))
-    .sorted()
-    .collect(Collectors.toList());
-
-// Loop: better when you need to break on a complex condition
-// or when you're building results with non-trivial state
-List<Order> batch = new ArrayList<>();
-int totalValue = 0;
-for (Order order : pendingOrders) {
-    if (totalValue + order.getValue() > MAX_BATCH_VALUE) break;
-    batch.add(order);
-    totalValue += order.getValue();
-}
-```
-
-**Java 17 Code Example**
-
-```java
-import java.util.*;
-import java.util.stream.*;
-
-public class StreamVsLoopDemo {
-
-    record Product(String name, String category, double price, boolean available) {}
-
-    public static void main(String[] args) {
-        List<Product> products = List.of(
-            new Product("Laptop", "Electronics", 999.99, true),
-            new Product("Phone", "Electronics", 599.99, false),
-            new Product("Desk", "Furniture", 299.99, true),
-            new Product("Chair", "Furniture", 199.99, true),
-            new Product("Monitor", "Electronics", 449.99, true)
-        );
-
-        // Stream approach "” declarative, readable
-        Map<String, Double> avgPriceByCategory = products.stream()
-            .filter(Product::available)
-            .collect(Collectors.groupingBy(
-                Product::category,
-                Collectors.averagingDouble(Product::price)
-            ));
-        System.out.println(avgPriceByCategory);
-
-        // Loop approach "” necessary when building a cart with budget cap
-        double budget = 1200.0;
-        double spent = 0;
-        List<Product> cart = new ArrayList<>();
-        for (Product p : products) {
-            if (!p.available()) continue;
-            if (spent + p.price() > budget) continue; // can't break here "” might find cheaper later
-            cart.add(p);
-            spent += p.price();
-        }
-        System.out.println("Cart: " + cart.stream().map(Product::name).toList());
-    }
-}
-```
-
-**Follow-up Questions**
-
-- "Are streams always slower than loops?"
-- "When would you never use a stream?"
-- "How does the JIT compiler optimize stream pipelines?"
-
-**Common Mistakes**
-
-- Using streams for simple single-element lookups where a loop with break is clearer and faster.
-- Converting streams to/from collections unnecessarily mid-pipeline.
-
-**Interview Traps**
-
-- Streams have overhead "” lambda capturing, pipeline setup, boxing/unboxing. For `int` operations, always prefer `IntStream` over `Stream<Integer>` to avoid boxing.
-- `Stream.iterate` and `Stream.generate` create sequential streams; adding `.parallel()` does not guarantee equal workload distribution.
-
-**Quick Revision Notes**
-
-- Streams = declarative pipelines, lazy, parallelizable.
-- Loops = imperative, stateful, complex control flow, checked exceptions.
-- Use `IntStream`/`LongStream`/`DoubleStream` to avoid boxing.
-- Small collections: loop perf â‰ˆ stream. Large + parallel: stream wins.
-- Streams do not support checked exceptions natively.
+> It throws `IllegalStateException: stream has already been operated upon or closed`. A stream is single-use. Once a terminal operation has been called, the stream is considered consumed and cannot be reused. If you need to process the same data twice, you must either create two separate streams from the source, or collect to a list and stream from that. This is a common debugging trap — a `Stream` returned from a repository method might be consumed by one caller, and a second caller re-using the same reference gets the exception.
 
 ---
 
-### Q10: How do parallel streams work? When should you use them?
+#### Q10 — Concept Check
 
-**Difficulty:** Hard | **Interview Frequency:** High
+**"Explain the difference between `map` and `flatMap` in streams."**
 
-**Companies:** Amazon, Google, Goldman Sachs, Netflix, Stripe
+**One-line answer:** `map` transforms each element one-to-one; `flatMap` transforms each element into a stream and flattens all those streams into one — one-to-many with a flatten.
 
-**Short Answer (30"“60 seconds)**
+**Full answer to give in an interview:**
+> "Both are intermediate operations that transform elements, but they differ in output cardinality. `map(f)` applies a function to each element and produces exactly one output per input — a `Stream<T>` becomes a `Stream<R>`. `flatMap(f)` applies a function where the function itself returns a `Stream<R>`, and then flattens all those inner streams into a single output stream. So a `Stream<T>` effectively becomes a `Stream<R>` after the flatten, but the intermediate shape was `Stream<Stream<R>>`. The practical difference: if I have a list of orders and each order has a list of line items, `map(Order::getLineItems)` gives me a `Stream<List<LineItem>>` — a stream of lists, not a flat stream of items. `flatMap(o -> o.getLineItems().stream())` gives me a `Stream<LineItem>` — all line items from all orders in one flat stream. A useful edge case: if `flatMap` returns `Stream.empty()` for some elements, those elements effectively disappear from the output, making `flatMap` also usable as a combined filter-and-transform."
 
-Parallel streams split the data source using `Spliterator.trySplit()`, distribute work across threads in `ForkJoinPool.commonPool()`, and merge results. Use them for CPU-bound operations on large datasets where the operations are stateless and the overhead of splitting/merging is justified. Avoid them for IO-bound work, small datasets, stateful operations, or when thread-safety of shared mutable state is a concern.
+*The order-lineitem example is the clearest real-world illustration. Use it.*
 
-**Deep Explanation**
+**Gotcha follow-up they'll ask:** *"Why is `sorted()` expensive on a parallel stream?"*
 
-**How it works:**
-1. `stream.parallel()` or `parallelStream()` marks the stream as parallel.
-2. The `Spliterator` recursively splits the data source into subtasks.
-3. Each subtask runs in a thread from `ForkJoinPool.commonPool()` (default parallelism = number of CPU cores - 1).
-4. Results are merged using the combiner functions of intermediate/terminal operations.
-
-**ForkJoinPool.commonPool:**
-This is a shared pool used by all parallel streams in the JVM. If one parallel stream operation is long-running, it starves other streams (and CompletableFuture async tasks that also use this pool). For production workloads, consider a custom `ForkJoinPool`:
-
-```java
-ForkJoinPool customPool = new ForkJoinPool(4);
-List<Result> results = customPool.submit(
-    () -> largeList.parallelStream().map(this::expensive).collect(Collectors.toList())
-).get();
-```
-
-**When NOT to use parallel streams:**
-
-1. **Small datasets:** The overhead of splitting and merging exceeds the gain. Rule of thumb: < 10,000 elements, profile first.
-2. **IO-bound operations:** Thread pool is CPU-sized; IO blocks threads wastefully. Use async IO instead.
-3. **Stateful operations:** `sorted()`, `distinct()` require synchronization and buffering that negates parallelism.
-4. **Ordered operations on ordered sources:** `findFirst()`, `forEachOrdered()` force serial re-assembly.
-5. **Thread-unsafe shared state:** Any shared mutable state (non-atomic counters, non-concurrent collections) will produce incorrect results without explicit synchronization.
-
-**Real-World Backend Example**
-
-Batch processing of independent records (CPU-bound, no shared state):
-
-```java
-// Good use case: independent image resizing
-List<ResizedImage> thumbnails = largeImageList.parallelStream()
-    .map(img -> imageService.resize(img, 200, 200)) // CPU-bound, stateless
-    .collect(Collectors.toList());
-
-// Bad use case: incrementing a shared counter
-int[] count = {0};
-list.parallelStream().forEach(item -> count[0]++); // RACE CONDITION
-// Use: list.parallelStream().filter(predicate).count() instead
-```
-
-**Java 17 Code Example**
-
-```java
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.stream.*;
-
-public class ParallelStreamDemo {
-
-    // Simulates CPU-bound work
-    static long computeHash(int n) {
-        long hash = n;
-        for (int i = 0; i < 1000; i++) hash = hash * 31 + i;
-        return hash;
-    }
-
-    public static void main(String[] args) throws Exception {
-        List<Integer> data = IntStream.rangeClosed(1, 100_000)
-            .boxed()
-            .collect(Collectors.toList());
-
-        // Sequential
-        long t1 = System.currentTimeMillis();
-        long seqSum = data.stream().mapToLong(ParallelStreamDemo::computeHash).sum();
-        System.out.println("Sequential: " + (System.currentTimeMillis() - t1) + "ms");
-
-        // Parallel with common pool
-        long t2 = System.currentTimeMillis();
-        long parSum = data.parallelStream().mapToLong(ParallelStreamDemo::computeHash).sum();
-        System.out.println("Parallel (common pool): " + (System.currentTimeMillis() - t2) + "ms");
-
-        // Parallel with custom pool (avoid starving common pool)
-        ForkJoinPool customPool = new ForkJoinPool(4);
-        long t3 = System.currentTimeMillis();
-        long customSum = customPool.submit(
-            () -> data.parallelStream().mapToLong(ParallelStreamDemo::computeHash).sum()
-        ).get();
-        System.out.println("Parallel (custom pool): " + (System.currentTimeMillis() - t3) + "ms");
-        customPool.shutdown();
-
-        // Thread-safety demonstration "” WRONG
-        List<Integer> unsafeResults = new ArrayList<>();
-        // data.parallelStream().forEach(unsafeResults::add); // Race condition!
-
-        // CORRECT: use collect
-        List<Long> safeResults = data.parallelStream()
-            .mapToLong(ParallelStreamDemo::computeHash)
-            .boxed()
-            .collect(Collectors.toList());
-    }
-}
-```
-
-**Follow-up Questions**
-
-- "What is `ForkJoinPool.commonPool()`? How many threads does it have?"
-- "How do you run a parallel stream in a custom thread pool?"
-- "Why is `ArrayList` unsafe for parallel stream `forEach`?"
-- "What stream characteristics affect parallel performance?"
-
-**Common Mistakes**
-
-- Using parallel streams for IO-bound tasks (HTTP calls, DB queries).
-- Mutating shared collections inside `parallelStream().forEach()`.
-- Not measuring "” assuming parallel is always faster.
-
-**Interview Traps**
-
-- `parallelStream()` on an `ArrayList` works well; on a `LinkedList` it is poor because `LinkedList`'s `Spliterator` cannot split efficiently (it must traverse to find midpoint).
-- The common pool is shared with `CompletableFuture.supplyAsync()` "” a blocked parallel stream can starve async tasks.
-
-**Quick Revision Notes**
-
-- Parallel streams use `ForkJoinPool.commonPool()` (N-1 threads for N CPUs).
-- Best for: CPU-bound, large datasets, stateless, no ordering requirements.
-- Avoid: IO-bound, small data, stateful ops, shared mutable state.
-- Custom pool via `ForkJoinPool.submit(() -> stream.parallel()...)`.
-- `LinkedList` parallelizes poorly; `ArrayList` and arrays split efficiently.
+> `sorted()` is a stateful intermediate operation — it must see every element before it can emit any sorted output. In a parallel stream, the pipeline splits the data across multiple threads for concurrent processing. But `sorted()` requires all those partial results to be gathered and merged before sorting can proceed. This reassembly step negates the parallelism benefit for that stage and adds merge overhead on top. For large parallel streams, `sorted()` is often a bottleneck. If you need sorted output and the data is large, consider sorting at the database query level, sorting a list directly via `Collections.sort`, or accepting that the sorted stage will run serially.
 
 ---
 
-### Q11: What are primitive streams? Why do they exist?
+#### Q11 — Concept Check
 
-**Difficulty:** Easy | **Interview Frequency:** Medium
+**"What are the main terminal operations and what is `reduce`?"**
 
-**Companies:** Goldman Sachs, Amazon
+**One-line answer:** Terminal operations trigger pipeline execution and produce a result or side effect; `reduce` folds all elements into a single value using an identity and a combining function.
 
-**Short Answer (30"“60 seconds)**
+**Full answer to give in an interview:**
+> "Terminal operations are the trigger that starts element processing. They fall into a few categories. Aggregation: `count`, `min`, `max`, `sum` on primitive streams. Reduction to a single value: `reduce`. Collection into a container: `collect`. Short-circuit operations that may not process all elements: `findFirst`, `findAny`, `anyMatch`, `allMatch`, `noneMatch`. Side-effect operations: `forEach`, `forEachOrdered`. `reduce` works like this: you provide an identity value — a neutral starting point — and a `BinaryOperator` that combines two values of the same type. The stream folds left to right, combining the running accumulator with the next element repeatedly. For example, `reduce(0, Integer::sum)` starts at zero and adds each element. If you omit the identity, you get `Optional<T>` back because an empty stream has no result. One subtle rule: the identity must genuinely be neutral for the operation — `0` for addition, `1` for multiplication, empty string for concatenation — otherwise you corrupt the result."
 
-`IntStream`, `LongStream`, and `DoubleStream` are specialized stream implementations for primitive types. They exist to avoid the boxing overhead of `Stream<Integer>`, `Stream<Long>`, `Stream<Double>`. They also provide arithmetic terminal operations that are not available on object streams: `sum()`, `average()`, `min()`, `max()`, `summaryStatistics()`.
+*The identity-must-be-neutral point is an interview trap. Mention it.*
 
-**Deep Explanation**
+**Gotcha follow-up they'll ask:** *"Is `forEach` guaranteed to process elements in encounter order?"*
 
-Every time you use `Stream<Integer>`, each `int` value is autoboxed into an `Integer` object. For a stream of 1 million integers, that is 1 million `Integer` objects on the heap. `IntStream` operates on raw `int` values, eliminating boxing entirely.
-
-**Conversion methods:**
-
-- `Stream<T>.mapToInt(ToIntFunction)` â†’ `IntStream`
-- `IntStream.boxed()` â†’ `Stream<Integer>`
-- `IntStream.mapToObj(IntFunction)` â†’ `Stream<R>`
-- `IntStream.asLongStream()` â†’ `LongStream`
-
-**Factory methods:**
-
-- `IntStream.range(start, end)` "” exclusive end, like a for loop.
-- `IntStream.rangeClosed(start, end)` "” inclusive end.
-- `IntStream.of(1, 2, 3)` "” explicit values.
-- `Arrays.stream(int[])` "” from array.
-
-**Java 17 Code Example**
-
-```java
-import java.util.*;
-import java.util.stream.*;
-
-public class PrimitiveStreamDemo {
-
-    public static void main(String[] args) {
-        // IntStream.range "” exclusive end
-        int sumTo99 = IntStream.range(0, 100).sum();
-        System.out.println("Sum 0-99: " + sumTo99); // 4950
-
-        // IntStream.rangeClosed "” inclusive end
-        int sumTo100 = IntStream.rangeClosed(1, 100).sum();
-        System.out.println("Sum 1-100: " + sumTo100); // 5050
-
-        // summaryStatistics
-        IntSummaryStatistics stats = IntStream.rangeClosed(1, 10).summaryStatistics();
-        System.out.println("Count=" + stats.getCount() +
-            ", Min=" + stats.getMin() + ", Max=" + stats.getMax() +
-            ", Sum=" + stats.getSum() + ", Avg=" + stats.getAverage());
-
-        // Convert Stream<String> â†’ IntStream (map to lengths)
-        int totalChars = List.of("hello", "world", "java").stream()
-            .mapToInt(String::length)
-            .sum();
-        System.out.println("Total chars: " + totalChars); // 13
-
-        // IntStream â†’ Stream<Integer> (boxed)
-        List<Integer> squares = IntStream.rangeClosed(1, 5)
-            .map(n -> n * n)
-            .boxed()
-            .collect(Collectors.toList());
-        System.out.println(squares); // [1, 4, 9, 16, 25]
-
-        // average() returns OptionalDouble
-        OptionalDouble avg = IntStream.of(1, 2, 3, 4, 5).average();
-        System.out.println("Average: " + avg.getAsDouble()); // 3.0
-    }
-}
-```
-
-**Follow-up Questions**
-
-- "What does `IntStream.average()` return? Why?"
-- "How do you convert an `int[]` to `List<Integer>`?"
-
-**Common Mistakes**
-
-- Using `Stream<Integer>` with `map(...).sum()` "” `Stream<Integer>` doesn't have `sum()`; use `mapToInt` first.
-- Forgetting that `IntStream.range` is exclusive at the end.
-
-**Interview Traps**
-
-- `IntStream.range(0, n)` generates `n` elements (0 to n-1), not n+1. Candidates confuse this with `rangeClosed`.
-
-**Quick Revision Notes**
-
-- Primitive streams avoid boxing: `IntStream`, `LongStream`, `DoubleStream`.
-- Extra terminal ops: `sum()`, `average()` â†’ `OptionalDouble`, `summaryStatistics()`.
-- `range(a, b)` = [a, b), `rangeClosed(a, b)` = [a, b].
-- `mapToInt()` â†’ `IntStream`; `boxed()` â†’ `Stream<Integer>`.
+> On a sequential stream, yes — `forEach` processes elements in the stream's encounter order if one is defined (which it is for ordered sources like `List`). On a parallel stream, `forEach` does not guarantee order; threads process elements concurrently in whatever order they happen to complete. If order matters in a parallel stream, use `forEachOrdered`, which reestablishes encounter order at the cost of some parallelism benefit. There is also the vacuous truth trap: `allMatch` on an empty stream returns `true`, and `anyMatch` on an empty stream returns `false`. This is logically correct but frequently surprises developers who expect an empty stream to short-circuit to false for `allMatch`.
 
 ---
 
-### Q12: Why can't you reuse a stream after a terminal operation?
+#### Q12 — Design Scenario
 
-**Difficulty:** Easy | **Interview Frequency:** Medium
+**"Explain `Collectors.groupingBy`, `partitioningBy`, and the `toMap` pitfall."**
 
-**Companies:** Any company testing Java fundamentals
+**One-line answer:** `groupingBy` produces a `Map<K, List<V>>` grouped by a classifier; `partitioningBy` produces exactly two groups keyed by true/false; `toMap` throws `IllegalStateException` on duplicate keys unless you provide a merge function.
 
-**Short Answer (30"“60 seconds)**
+**Full answer to give in an interview:**
+> "A `Collector` is the abstraction behind `collect()`. It defines how to accumulate stream elements into a container: a supplier to create the container, an accumulator to fold in each element, a combiner to merge two containers in parallel, and a finisher to produce the final result. `Collectors` is the utility class with pre-built implementations. `groupingBy(classifier)` takes a function from element to key and produces a `Map<K, List<V>>` where each key maps to all elements that produced it. You can chain a downstream collector as a second argument — `groupingBy(Employee::dept, Collectors.averagingDouble(Employee::salary))` gives you average salary per department directly. `partitioningBy(predicate)` is a specialized `groupingBy` with a boolean classifier — it always produces a map with both `true` and `false` keys, even if one group is empty. This differs from `groupingBy`, which only creates keys for groups that actually exist. `toMap` is the most dangerous collector: if two elements produce the same key and you haven't provided a merge function, it throws `IllegalStateException` at runtime — no warning at compile time. Always provide a merge function when your key mapper might not be unique. Also: `toMap` uses `HashMap.merge` internally and will throw `NullPointerException` if a value is null even when a merge function is present."
 
-Streams are single-use. Once a terminal operation is invoked, the stream is marked as consumed. Any further operation on the same stream instance throws `IllegalStateException: stream has already been operated upon or closed`. This is by design "” a stream is a pipeline of operations over a data source, not the data itself.
+*The null-value NPE in `toMap` is the deep-level gotcha. Mentioning it marks you as someone who has actually debugged this in production.*
 
-**Deep Explanation**
+**Gotcha follow-up they'll ask:** *"What does `Stream.toList()` (Java 16) return — is it mutable?"*
 
-Internally, `AbstractPipeline` (the base class for stream implementations) maintains a `linkedOrConsumed` flag. When a terminal operation starts, it sets this flag to `true`. Any subsequent attempt to chain or execute on the same pipeline object checks this flag and throws.
-
-The fix is simple: call `stream()` again on the source collection to get a new stream.
-
-**Java 17 Code Example**
-
-```java
-import java.util.*;
-import java.util.stream.*;
-
-public class StreamReuseDemo {
-
-    public static void main(String[] args) {
-        List<String> names = List.of("Alice", "Bob", "Carol");
-
-        Stream<String> stream = names.stream();
-        long count = stream.count(); // terminal operation
-        System.out.println("Count: " + count);
-
-        // This throws IllegalStateException
-        try {
-            stream.forEach(System.out::println); // BOOM
-        } catch (IllegalStateException e) {
-            System.out.println("Error: " + e.getMessage());
-            // stream has already been operated upon or closed
-        }
-
-        // Correct: create a new stream
-        names.stream().forEach(System.out::println);
-
-        // Supplier pattern for reusable stream logic
-        java.util.function.Supplier<Stream<String>> streamSupplier = names::stream;
-        long count2 = streamSupplier.get().count();
-        String first = streamSupplier.get().findFirst().orElseThrow();
-        System.out.println(count2 + " " + first);
-    }
-}
-```
-
-**Follow-up Questions**
-
-- "How would you design a reusable stream operation?"
-
-**Common Mistakes**
-
-- Storing a stream in a field and reusing it across methods.
-
-**Interview Traps**
-
-- If you store a `Supplier<Stream<T>>` and call `get()` each time, you get a fresh stream each time "” this is the correct pattern for reusable stream logic.
-
-**Quick Revision Notes**
-
-- Streams are single-use: one terminal operation, then consumed.
-- Reuse â†’ `IllegalStateException`.
-- Pattern for reuse: `Supplier<Stream<T>> s = collection::stream`.
+> `Stream.toList()` introduced in Java 16 returns an unmodifiable list. It is a shorthand for `collect(Collectors.toUnmodifiableList())`. Attempting to call `add`, `remove`, or `set` on it throws `UnsupportedOperationException`. This is a silent behavioral change if you migrate code from `collect(Collectors.toList())` — the old form returns a mutable `ArrayList`, the new form does not. If mutability is needed after collection, keep using `collect(Collectors.toList())` or wrap the result in `new ArrayList<>(stream.toList())`.
 
 ---
 
-### Q13: What are infinite streams? How do you use them safely?
+> **Common Mistake — Building a pipeline with no terminal operation:** A stream with only intermediate operations executes nothing and produces no output. `list.stream().filter(...).map(...)` without a terminal call is completely inert. This is the most common stream debugging trap — the code looks like it should do something, but nothing happens.
 
-**Difficulty:** Medium | **Interview Frequency:** Medium
+> **Common Mistake — Calling `toMap` without a merge function on potentially non-unique keys:** The exception is thrown at runtime on the first duplicate key. If your data changes over time and keys that were once unique become duplicates, this is a latent production bug. Always ask: "Can two elements produce the same key?" before omitting the merge function.
 
-**Companies:** Google, Amazon
+**Quick Revision (one line):** Source → lazy intermediate ops → terminal triggers execution; `map` is 1:1, `flatMap` is 1:many-flattened; `sorted`/`distinct` buffer all elements; `reduce` folds with identity + BinaryOperator; `groupingBy` partitions into map, `toMap` needs a merge function for duplicate keys, `Stream.toList()` returns unmodifiable.
 
-**Short Answer (30"“60 seconds)**
+---
 
-`Stream.generate(Supplier)` and `Stream.iterate(seed, UnaryOperator)` create infinite streams. They are safe because streams are lazy "” elements are only produced on demand. You must pair them with a short-circuit terminal operation (`findFirst`, `findAny`) or a size-limiting intermediate operation (`limit(n)`) to avoid infinite loops.
+## Topic 4: Streams — Advanced Usage
 
-**Deep Explanation**
+**Difficulty:** Medium–Hard | **Frequency:** Very High | **Companies:** Amazon, Google, Goldman Sachs, Netflix, Stripe, Atlassian
 
-`Stream.generate(supplier)` produces an unordered infinite stream where each element is provided by calling the supplier repeatedly.
+---
 
-`Stream.iterate(seed, f)` produces an ordered infinite stream: `seed, f(seed), f(f(seed)), ...`.
+### The Idea
 
-Java 9 added `Stream.iterate(seed, hasNext, f)` "” a finite iterate with a predicate (analogous to a for loop):
-`Stream.iterate(0, n -> n < 10, n -> n + 1)` â‰¡ `for (int n = 0; n < 10; n++)`
+Think of a stream as a conveyor belt in a factory. Raw material (your collection) sits in a warehouse (memory). You don't move all the material onto the belt at once — you only pull the next item when the next workstation is ready. That pull-on-demand behaviour is called **laziness**, and it is the foundational idea behind every stream feature.
 
-**Real-World Backend Example**
+A collection owns its data; a stream is a view over data that describes *what to do*, not *how to store it*. Because the description is separate from the data, the same pipeline can be executed sequentially or handed off to multiple workers (parallel streams) with a single method call.
 
-Generating unique correlation IDs, retry sequences, or pagination tokens:
+Once you understand the lazy conveyor belt, four advanced topics fall into place naturally: (1) when to use streams vs. loops, (2) when to add more workers (parallel streams), (3) why there are special belts for numbers (primitive streams), and (4) why a used belt cannot be re-threaded (stream single-use rule) — plus the exotic case of a belt that never runs out of material (infinite streams).
+
+### How It Works
+
+**Stream vs. Collection — decision pseudocode:**
+
+```
+if operation is filter → map → reduce/collect
+    AND no complex stateful mutations per element
+    AND no checked exceptions to propagate
+    → use stream
+
+if you need index-based logic
+    OR break-on-complex-condition with multiple mutations
+    OR tight loop where profiling shows overhead matters
+    → use for/while loop
+```
+
+**Parallel stream — internal flow:**
+
+```
+parallelStream() called
+  → Spliterator.trySplit() splits source into sub-ranges
+  → sub-tasks submitted to ForkJoinPool.commonPool()
+  → each thread executes the pipeline independently
+  → results merged using combiner from terminal operation
+  → final result returned to caller
+```
+
+**Primitive stream — why it exists:**
+
+```
+Stream<Integer>: each int → new Integer() on heap → GC pressure
+IntStream:       each int → raw int in CPU register → no allocation
+
+IntStream.range(0, 1_000_000).sum()   // zero boxing
+Stream.of(0..999999).mapToInt(i->i).sum()  // 1M Integer objects first
+```
+
+**Stream single-use rule:**
+
+```
+AbstractPipeline internal flag: linkedOrConsumed = false
+
+terminal_op() called:
+  → set linkedOrConsumed = true
+  → execute pipeline
+
+any_subsequent_call() on same Stream instance:
+  → check linkedOrConsumed → true
+  → throw IllegalStateException
+```
+
+**Infinite streams — safety contract:**
+
+```
+Stream.generate(supplier)   // unordered, no seed
+Stream.iterate(seed, f)     // ordered: seed, f(seed), f(f(seed)), ...
+Stream.iterate(seed, pred, f)  // Java 9: stops when pred is false
+
+SAFE terminal ops:  findFirst(), findAny(), limit(n), takeWhile(p)
+UNSAFE terminal ops: count(), collect(), forEach() — hang forever
+```
+
+**Single most interview-critical gotcha — orElse eagerness on streams:**
 
 ```java
-// Generate sequence of page tokens for pagination
-Stream.iterate(0, page -> page + 1)
-    .map(page -> fetchPage(apiUrl, page, PAGE_SIZE))
-    .takeWhile(page -> !page.isEmpty())   // Java 9 takeWhile
-    .flatMap(Collection::stream)
+// Parallel stream race condition — the classic trap
+List<String> results = new ArrayList<>();
+list.parallelStream().forEach(results::add); // RACE CONDITION: ArrayList not thread-safe
+
+// Correct — use collect, which handles merging safely
+List<String> results = list.parallelStream()
+    .map(this::transform)
     .collect(Collectors.toList());
 ```
 
-**Java 17 Code Example**
-
-```java
-import java.util.*;
-import java.util.stream.*;
-
-public class InfiniteStreamDemo {
-
-    public static void main(String[] args) {
-        // Stream.generate "” infinite, unordered
-        List<Double> randoms = Stream.generate(Math::random)
-            .limit(5)
-            .collect(Collectors.toList());
-        System.out.println(randoms);
-
-        // Stream.iterate "” infinite, ordered, seed + function
-        List<Integer> powersOf2 = Stream.iterate(1, n -> n * 2)
-            .limit(10)
-            .collect(Collectors.toList());
-        System.out.println(powersOf2); // [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
-
-        // Stream.iterate with predicate (Java 9) "” finite
-        List<Integer> range = Stream.iterate(0, n -> n < 20, n -> n + 3)
-            .collect(Collectors.toList());
-        System.out.println(range); // [0, 3, 6, 9, 12, 15, 18]
-
-        // findFirst with infinite stream "” short-circuits safely
-        Optional<Integer> firstMultipleOf7 = Stream.iterate(1, n -> n + 1)
-            .filter(n -> n % 7 == 0)
-            .findFirst();
-        System.out.println(firstMultipleOf7.orElseThrow()); // 7
-
-        // UUID generator
-        List<String> correlationIds = Stream.generate(() -> UUID.randomUUID().toString())
-            .limit(3)
-            .collect(Collectors.toList());
-        System.out.println(correlationIds);
-    }
-}
-```
-
-**Follow-up Questions**
-
-- "What happens if you call `collect()` on an infinite stream without `limit()`?"
-- "What is `takeWhile` in Java 9? How does it differ from `filter`?"
-
-**Common Mistakes**
-
-- Calling a non-short-circuit terminal operation on an infinite stream (`count()`, `collect()` without `limit()`).
-- Confusing `Stream.iterate(seed, hasNext, next)` (Java 9, finite) with `Stream.iterate(seed, next)` (infinite).
-
-**Interview Traps**
-
-- `Stream.generate` is stateless by definition "” the supplier should not have state. For stateful generation, use `Stream.iterate` or an `AtomicInteger` in the supplier (with care for parallel streams).
-
-**Quick Revision Notes**
-
-- `Stream.generate(supplier)` = infinite, unordered.
-- `Stream.iterate(seed, f)` = infinite, ordered, sequential.
-- `Stream.iterate(seed, predicate, f)` = finite, Java 9+.
-- Always use `limit(n)`, `findFirst()`, `takeWhile()` to bound infinite streams.
-- `takeWhile(p)` stops at first non-matching element; `filter(p)` skips non-matching elements but continues.
+| Scenario | Stream | Loop |
+|---|---|---|
+| Filter → map → collect | Preferred | Verbose |
+| Budget cap with break | Awkward | Natural |
+| Large CPU-bound data, parallelisable | Parallel stream | Hard to parallelize |
+| IO-bound (HTTP, DB) | Avoid parallel | Use async |
+| Numeric aggregation (sum, avg) | IntStream/LongStream | Loop comparable |
+| Infinite lazy sequence | Stream.iterate / generate | Awkward |
 
 ---
 
+### Interview Lens
 
+> **How to use this section:** Each question below is self-contained. You can read just this section the night before an interview and walk in prepared. Every concept referenced is explained inline — no need to flip back.
 
-## Optional
-
-### Q14: What is Optional and what problem does it solve?
-
-**Difficulty:** Easy"“Medium | **Interview Frequency:** Very High
-
-**Companies:** Amazon, Google, Goldman Sachs, Stripe, Netflix, Uber
-
-**Short Answer (30"“60 seconds)**
-
-`Optional<T>` is a container that may or may not hold a non-null value. It was introduced in Java 8 to provide a type-safe way to represent the absence of a value, forcing callers to explicitly handle the "no value" case rather than relying on null checks that are easy to forget. However, `Optional` is not a general-purpose null replacement "” it is intended for method return types only.
-
-**Deep Explanation**
-
-**What Optional IS:**
-- A return type that communicates "this method might not return a value."
-- Forces the caller to handle the empty case explicitly.
-- Works well in stream pipelines (`findFirst()`, `min()`, `max()` return `Optional`).
-
-**What Optional IS NOT:**
-- Not a replacement for null in all contexts.
-- Not for use as a field type "” `Optional` is not `Serializable`, so it breaks Java serialization. It also adds memory overhead (an extra object wrapper per field).
-- Not for method parameters "” passing `Optional<T>` as a parameter is an anti-pattern. Use overloaded methods or null checks instead.
-- Not for collections "” `Optional<List<T>>` is redundant; return an empty list instead.
-
-**Design rationale:**
-Brian Goetz (Java language architect) has stated that `Optional` was designed as a limited mechanism for library method return types, not as a general-purpose Maybe monad.
-
-**Real-World Backend Example**
-
-In a repository layer:
-```java
-// Repository
-Optional<User> findById(Long id);
-
-// Service layer "” explicit handling
-User user = userRepository.findById(userId)
-    .orElseThrow(() -> new UserNotFoundException("User not found: " + userId));
-```
-
-**Java 17 Code Example**
-
-```java
-import java.util.Optional;
-
-public class OptionalBasicsDemo {
-
-    record User(Long id, String name, String email) {}
-
-    static Optional<User> findUser(Long id) {
-        if (id == 1L) return Optional.of(new User(1L, "Alice", "alice@example.com"));
-        return Optional.empty();
-    }
-
-    public static void main(String[] args) {
-        // Anti-pattern: using Optional as a field
-        // class UserProfile { Optional<String> phone; } // BAD
-
-        // Anti-pattern: Optional as method parameter
-        // void process(Optional<String> name) {} // BAD "” use overloading or @Nullable
-
-        // Correct use: method return type
-        Optional<User> found = findUser(1L);
-        Optional<User> notFound = findUser(99L);
-
-        System.out.println(found.isPresent());  // true
-        System.out.println(notFound.isEmpty()); // true (Java 11+)
-
-        // Correct: collection return "” empty list, not Optional<List>
-        // List<User> findByDept(String dept) "” return List.of() not Optional.empty()
-    }
-}
-```
-
-**Follow-up Questions**
-
-- "Why shouldn't Optional be used as a method parameter?"
-- "Why isn't Optional Serializable?"
-- "When would you return `Optional<List<T>>`? (Answer: almost never)"
-
-**Common Mistakes**
-
-- Using `Optional<T>` as a field type in entities or DTOs "” breaks serialization frameworks.
-- Wrapping collections: `Optional<List<T>>` instead of returning an empty list.
-- Using Optional just to call `.get()` immediately "” defeats the purpose.
-
-**Interview Traps**
-
-- `Optional.of(null)` throws `NullPointerException` immediately. Use `Optional.ofNullable(value)` when the value may be null.
-
-**Quick Revision Notes**
-
-- Optional = return type only; not fields, not params, not collections.
-- `Optional.of(null)` â†’ NPE. `Optional.ofNullable(null)` â†’ `Optional.empty()`.
-- Not Serializable "” avoid in JPA entities, DTOs used with serialization.
-- Java 11 added `isEmpty()` as the inverse of `isPresent()`.
+> *Tip: In a real interview, lead with the one-line answer first. Pause. Expand only if the interviewer nods or probes.*
 
 ---
 
-### Q15: Explain all Optional methods.
+#### Q9 — Tradeoff Question
 
-**Difficulty:** Medium | **Interview Frequency:** High
+**"When do you use streams instead of a for loop in Java?"**
 
-**Companies:** Amazon, Goldman Sachs, Stripe, Atlassian
+**One-line answer:** Use streams for declarative filter–map–reduce pipelines; use loops when you need complex stateful control flow or checked exceptions.
 
-**Short Answer (30"“60 seconds)**
+**Full answer to give in an interview:**
 
-Optional provides: factory methods (`of`, `ofNullable`, `empty`), presence checks (`isPresent`, `isEmpty`), value extraction (`get`, `orElse`, `orElseGet`, `orElseThrow`), conditional execution (`ifPresent`, `ifPresentOrElse`), and transformation (`map`, `flatMap`, `filter`, `or`).
+> I reach for a stream when I can describe the work as a pipeline: filter this, transform that, collect the results. Streams let me write that pipeline declaratively, and they compose naturally — I can add `.parallel()` later without restructuring the logic. They are also lazy, so operations like `findFirst()` stop early rather than processing the whole collection.
+>
+> I switch to a loop when: (1) I need to `break` based on accumulated state across multiple fields — the shopping cart example where I stop adding items once a budget cap is reached is easier with a loop; (2) I'm mutating several fields of the same object per iteration; (3) I'm using checked exceptions heavily, because streams don't propagate checked exceptions without an ugly wrapper; or (4) I'm in a hot path and profiling shows the lambda dispatch overhead matters.
+>
+> For numeric work — summing, averaging — I always use `IntStream` or `LongStream` over `Stream<Integer>` to avoid autoboxing each `int` into an `Integer` object.
 
-**Deep Explanation**
+*Pause after "lazy". If the interviewer asks about laziness, explain that intermediate operations like `filter` and `map` don't execute until a terminal operation like `collect` is called — this enables short-circuit evaluation and infinite sources.*
 
-**Factory methods:**
-- `Optional.of(T)` "” creates non-empty Optional; throws NPE if value is null.
-- `Optional.ofNullable(T)` "” creates Optional from potentially null value; returns empty if null.
-- `Optional.empty()` "” returns the singleton empty Optional.
+**Gotcha follow-up they'll ask:** *"Are streams always slower than loops?"*
 
-**Presence checks:**
-- `isPresent()` "” true if value present.
-- `isEmpty()` "” true if empty (Java 11+).
+> No. For small collections (under ~1000 elements) the overhead from lambda dispatch and pipeline setup is negligible and the JIT often eliminates it. For large datasets with `.parallel()`, streams can significantly outperform a sequential loop. The rule is: measure before assuming either direction.
 
-**Value extraction (ordered by safety):**
-- `orElse(T other)` "” return value or `other` if empty. **Always evaluates `other`.**
-- `orElseGet(Supplier)` "” return value or call supplier if empty. **Lazy.**
-- `orElseThrow()` "” return value or throw `NoSuchElementException` (Java 10+).
-- `orElseThrow(Supplier<X extends Throwable>)` "” return value or throw custom exception.
-- `get()` "” return value or throw `NoSuchElementException`. **Avoid** "” use `orElseThrow()`.
+---
+
+#### Q10 — Concept Check
+
+**"How do parallel streams work internally, and when should you avoid them?"**
+
+**One-line answer:** Parallel streams split the source via `Spliterator`, run subtasks in `ForkJoinPool.commonPool()`, then merge results — avoid them for IO-bound work, small data, stateful ops, or shared mutable state.
+
+**Full answer to give in an interview:**
+
+> When you call `.parallelStream()` or `.parallel()`, the stream's `Spliterator` recursively splits the data source into smaller sub-ranges. Each sub-range becomes a task submitted to `ForkJoinPool.commonPool()`, which by default has `(number of CPU cores - 1)` threads. Each thread runs the same pipeline independently; the terminal operation's combiner function merges the partial results back into the final answer.
+>
+> The critical thing to know about `commonPool` is that it is **shared across the entire JVM**. `CompletableFuture.supplyAsync()` also uses it by default. If a long-running parallel stream operation occupies all threads, it can starve async tasks elsewhere. For production workloads with bursty parallelism, I'd wrap the stream in a custom `ForkJoinPool.submit(() -> list.parallelStream()...)`.
+>
+> I avoid parallel streams when: the data is IO-bound (blocking threads in a CPU-sized pool is wasteful); the dataset is small (splitting and merging overhead exceeds the gain — rule of thumb: under ~10,000 elements, profile first); the operations are stateful like `sorted()` or `distinct()`, which require synchronisation; or there is shared mutable state in the lambda (a shared `ArrayList` passed to `forEach` will produce corrupt results silently). `LinkedList` also parallelizes poorly because its `Spliterator` must traverse to find a midpoint, unlike `ArrayList` which can split by index instantly.
+
+*If the interviewer seems engaged, mention the `ArrayList` vs `LinkedList` Spliterator point — it signals you understand the implementation, not just the API.*
+
+**Gotcha follow-up they'll ask:** *"Why is `list.parallelStream().forEach(sharedList::add)` wrong?"*
+
+> `ArrayList` is not thread-safe. Multiple threads calling `add` simultaneously can corrupt the internal array — elements get lost, duplicate slots appear, or an `ArrayIndexOutOfBoundsException` is thrown. The correct pattern is to use `collect(Collectors.toList())`, which uses a thread-safe combining strategy internally.
+
+---
+
+#### Q11 — Concept Check
+
+**"What are primitive streams? Why do they exist?"**
+
+**One-line answer:** `IntStream`, `LongStream`, and `DoubleStream` avoid the boxing overhead of `Stream<Integer>` and add numeric terminal operations like `sum()`, `average()`, and `summaryStatistics()`.
+
+**Full answer to give in an interview:**
+
+> Java generics are erased at runtime and cannot hold primitive types — a `Stream<int>` is not legal. Without primitive streams, every `int` value in a `Stream<Integer>` must be autoboxed into an `Integer` object on the heap. For a stream of a million integers, that's a million short-lived objects driving GC pressure. `IntStream` works directly on raw `int` values, so there is no allocation, no GC cost, and the JIT can vectorise the loop.
+>
+> Beyond performance, primitive streams add terminal operations that don't exist on `Stream<T>`: `sum()`, `average()` (returns `OptionalDouble`), `min()`, `max()`, and `summaryStatistics()` which gives count, min, max, sum, and average in one pass.
+>
+> The bridge methods are: `stream.mapToInt(ToIntFunction)` to go from object stream to `IntStream`; `intStream.boxed()` to go back to `Stream<Integer>`; and `intStream.mapToObj(IntFunction)` to produce a `Stream<R>`. For ranges, `IntStream.range(0, n)` gives `[0, n)` — exclusive end, like a for loop — and `IntStream.rangeClosed(1, n)` gives `[1, n]` inclusive.
+
+*The `range` vs `rangeClosed` distinction trips up candidates — mention it proactively to show you know the trap.*
+
+**Gotcha follow-up they'll ask:** *"What does `IntStream.average()` return, and why isn't it just `double`?"*
+
+> It returns `OptionalDouble` because the stream might be empty — there is no meaningful average of zero elements. Returning `0.0` would silently mislead callers, so the type forces them to handle the empty case explicitly.
+
+---
+
+#### Q12 — Concept Check
+
+**"Why can't you reuse a stream after a terminal operation? How do you work around it?"**
+
+**One-line answer:** Streams are single-use pipelines — the internal `linkedOrConsumed` flag is set on the first terminal operation, and any subsequent call throws `IllegalStateException`.
+
+**Full answer to give in an interview:**
+
+> A stream is not a data structure — it is a description of a pipeline over a data source. Once the terminal operation executes (say, `count()` or `collect()`), the pipeline has been "consumed": the source has been traversed and the internal flag `linkedOrConsumed` in `AbstractPipeline` is set to true. Any further operation on that same stream instance sees the flag and throws `IllegalStateException: stream has already been operated upon or closed`. This is by design — it prevents you from accidentally re-traversing the source expecting a fresh result.
+>
+> The fix is always to get a new stream from the source: `collection.stream()` is cheap and creates a fresh pipeline. If I want to express reusable stream logic without repeating the source reference, I use a `Supplier<Stream<T>>`: `Supplier<Stream<String>> s = names::stream;` — then `s.get()` returns a fresh stream each time.
+
+*Keep it concise here — this is a simpler question. The `Supplier` pattern is the detail that earns marks.*
+
+**Gotcha follow-up they'll ask:** *"If you store a stream as a field and inject it into a service, what happens?"*
+
+> The first caller consumes it. Every subsequent caller gets `IllegalStateException`. Never store a stream as a field — always store the collection or the `Supplier<Stream<T>>` and create streams on demand.
+
+---
+
+#### Q13 — Design Scenario
+
+**"What are infinite streams? How do you use `Stream.generate` and `Stream.iterate` safely?"**
+
+**One-line answer:** Infinite streams produce elements on demand forever — safety comes from always pairing them with a short-circuit operation (`findFirst`, `limit`, `takeWhile`) that stops the pipeline.
+
+**Full answer to give in an interview:**
+
+> `Stream.generate(supplier)` calls the supplier repeatedly to produce an unordered, infinite sequence — useful for things like generating UUID correlation IDs or random values. `Stream.iterate(seed, f)` produces an ordered sequence: `seed`, `f(seed)`, `f(f(seed))`, and so on — think Fibonacci numbers or exponential backoff intervals.
+>
+> They are safe because streams are lazy: elements are only produced when the downstream operation asks for the next one. The danger is calling a terminal operation that demands *all* elements — `collect()`, `count()`, or `forEach()` on an infinite stream will hang forever. The rule is: always bound an infinite stream with `limit(n)`, `findFirst()`, `findAny()`, or Java 9's `takeWhile(predicate)`.
+>
+> `takeWhile` is particularly powerful for real-world use — I've used `Stream.iterate` to walk API pagination: start at page 0, produce page 1, 2, 3, and stop with `takeWhile(page -> !page.isEmpty())`. That's cleaner than a while loop with a mutable page counter.
+>
+> Java 9 also added a three-argument `Stream.iterate(seed, hasNextPredicate, nextFunction)` that is finite by construction — equivalent to `for (int n = seed; hasNext(n); n = f(n))`.
+
+*The pagination example lands well — it connects infinite streams to a concrete backend use case interviewers recognise.*
+
+**Gotcha follow-up they'll ask:** *"What is the difference between `takeWhile` and `filter` on an infinite stream?"*
+
+> `filter` skips elements that don't match but keeps looking — on an infinite stream it would run forever if no element ever matches after a certain point. `takeWhile` stops the entire pipeline at the first non-matching element. For ordered streams, `takeWhile` is the correct tool for "take elements while this condition holds, then stop."
+
+---
+
+> **Common Mistake — Mutating shared state in parallel streams:** Passing a shared non-thread-safe collection to `parallelStream().forEach()` causes silent data corruption with no exception at compile time. The consequence is lost records and non-deterministic results that are nearly impossible to reproduce in tests. Always use `collect()`.
+
+**Quick Revision (one line):** Streams = lazy declarative pipelines; use `IntStream` for numbers, `Supplier<Stream<T>>` for reuse, `limit`/`takeWhile` to bound infinite streams, and never touch shared mutable state inside `parallelStream`.
+
+---
+
+## Topic 5: Optional
+
+**Difficulty:** Medium | **Frequency:** Very High | **Companies:** Amazon, Google, Goldman Sachs, Stripe, Netflix, Uber
+
+---
+
+### The Idea
+
+Before Java 8, a method that might not find a result had two bad choices: return `null` (which callers routinely forgot to check, causing `NullPointerException` at runtime) or throw an exception (which is expensive and semantically wrong for "not found"). `Optional<T>` is a container that makes the absence of a value visible in the type system — the caller *must* decide what to do when nothing is there.
+
+Think of it as a gift box that may or may not contain something. The box itself is never null — you always get a box back. But when you open it, you are forced to handle the "empty box" case. The compiler doesn't enforce this, but the API design nudges you strongly: there is no free `get()` that silently returns null.
+
+The most important thing to internalise about `Optional` is its *intended scope*: it is a **method return type** for APIs that may produce no result. It is explicitly not meant for fields (it breaks serialisation), not for method parameters (use overloading), and not for wrapping collections (return an empty list instead). Brian Goetz, the Java language architect, described it as "a limited mechanism for library method return types, not a general-purpose Maybe monad."
+
+### How It Works
+
+**Creation — three factory methods:**
+
+```
+Optional.of(value)         → non-empty; NPE if value is null
+Optional.ofNullable(value) → empty if value is null, non-empty otherwise
+Optional.empty()           → singleton empty instance
+```
+
+**Extraction — ordered from dangerous to safe:**
+
+```
+.get()              → value or NoSuchElementException  [avoid]
+.orElse(x)          → value or x                      [x always evaluated]
+.orElseGet(sup)     → value or sup.get()               [lazy — only if empty]
+.orElseThrow()      → value or NoSuchElementException  [Java 10, clearer than get()]
+.orElseThrow(sup)   → value or throw sup.get()         [custom exception]
+```
+
+**Transformation pipeline:**
+
+```
+.map(f)        → Optional<R>          [f returns R; null return → empty]
+.flatMap(f)    → Optional<R>          [f returns Optional<R>; avoids Optional<Optional<R>>]
+.filter(pred)  → Optional<T>          [empty if pred false]
+.or(sup)       → Optional<T>          [Java 9; fallback Optional if empty]
+```
 
 **Conditional execution:**
-- `ifPresent(Consumer)` "” execute consumer if value present; does nothing if empty.
-- `ifPresentOrElse(Consumer, Runnable)` "” execute consumer if present, else execute runnable (Java 9+).
 
-**Transformation:**
-- `map(Function)` "” applies function to value if present; returns empty Optional if absent or if function returns null.
-- `flatMap(Function<T, Optional<R>>)` "” like map but function returns Optional; avoids `Optional<Optional<T>>`.
-- `filter(Predicate)` "” returns Optional with value if present and predicate matches; otherwise empty.
-- `or(Supplier<Optional<T>>)` "” if empty, call supplier to get another Optional (Java 9+).
-
-**Java 17 Code Example**
-
-```java
-import java.util.Optional;
-
-public class OptionalMethodsDemo {
-
-    record Address(String city, String country) {}
-    record User(String name, Address address) {}
-
-    static Optional<User> findUser(String name) {
-        if ("Alice".equals(name)) {
-            return Optional.of(new User("Alice", new Address("London", "UK")));
-        }
-        if ("Bob".equals(name)) {
-            return Optional.of(new User("Bob", null)); // address is null
-        }
-        return Optional.empty();
-    }
-
-    public static void main(String[] args) {
-        // factory methods
-        Optional<String> present = Optional.of("hello");
-        Optional<String> fromNull = Optional.ofNullable(null); // empty
-        Optional<String> empty = Optional.empty();
-
-        // orElse vs orElseGet (see Q16 for deep dive)
-        String val1 = empty.orElse("default");
-        String val2 = empty.orElseGet(() -> "computed-default");
-
-        // orElseThrow
-        try {
-            empty.orElseThrow(() -> new IllegalStateException("No value"));
-        } catch (IllegalStateException e) {
-            System.out.println("Caught: " + e.getMessage());
-        }
-
-        // map "” safe navigation
-        Optional<String> city = findUser("Alice")
-            .map(User::address)           // Optional<Address> "” could be empty if address null
-            .map(Address::city);          // Optional<String>
-        System.out.println(city.orElse("Unknown")); // London
-
-        // flatMap "” when map would produce Optional<Optional<T>>
-        // Assume getAddress returns Optional<Address>
-        // user.map(u -> getOptionalAddress(u)) => Optional<Optional<Address>> "” BAD
-        // user.flatMap(u -> getOptionalAddress(u)) => Optional<Address> "” GOOD
-
-        // filter
-        Optional<String> longName = Optional.of("Alexander")
-            .filter(s -> s.length() > 5);
-        System.out.println(longName.isPresent()); // true
-
-        // or (Java 9) "” fallback to another Optional
-        Optional<User> user = findUser("unknown")
-            .or(() -> findUser("Alice")); // fallback chain
-        System.out.println(user.map(User::name).orElse("none")); // Alice
-
-        // ifPresentOrElse (Java 9)
-        findUser("Bob").ifPresentOrElse(
-            u -> System.out.println("Found: " + u.name()),
-            () -> System.out.println("Not found")
-        );
-
-        // stream() (Java 9) "” convert Optional to Stream of 0 or 1 elements
-        long count = findUser("Alice").stream().count();
-        System.out.println("Stream count: " + count); // 1
-    }
-}
+```
+.ifPresent(consumer)              → run consumer if present
+.ifPresentOrElse(consumer, run)   → Java 9; run runnable if empty
+.stream()                         → Java 9; Stream<T> of 0 or 1 element
 ```
 
-**Follow-up Questions**
+**Single most interview-critical gotcha — `orElse` vs `orElseGet`:**
 
-- "What does `Optional.map()` return if the function returns null?"
-- "When would you use `flatMap` instead of `map` on an Optional?"
-- "What is `Optional.stream()` (Java 9) and when is it useful?"
+```java
+Optional<Config> cached = redisCache.get(key);
 
-**Common Mistakes**
+// BAD: loadFromDatabase() executes on EVERY call, even cache hits
+Config c1 = cached.orElse(loadFromDatabase());
 
-- Calling `get()` without checking `isPresent()` "” throws `NoSuchElementException`.
-- Using `map` when the mapping function itself returns an `Optional`, resulting in `Optional<Optional<T>>`.
+// GOOD: loadFromDatabase() executes ONLY on cache miss
+Config c2 = cached.orElseGet(() -> loadFromDatabase());
+```
 
-**Interview Traps**
-
-- `Optional.map(f)` where `f` returns `null` results in `Optional.empty()`, not `Optional.of(null)`. The implementation explicitly checks for null return from the mapper.
-
-**Quick Revision Notes**
-
-- `of` = non-null (NPE on null). `ofNullable` = null-safe. `empty` = singleton empty.
-- `get()` is dangerous "” prefer `orElseThrow()`.
-- `map` = function returns T. `flatMap` = function returns Optional<T>.
-- `or()` (Java 9) = fallback Optional chain. `ifPresentOrElse()` (Java 9) = handle both cases.
-- `stream()` (Java 9) = treat Optional as Stream<T> of 0 or 1 elements.
+| Method | Argument evaluated | When to use |
+|---|---|---|
+| `orElse(x)` | Always (eager) | Constants, literals, `null`, `Collections.emptyList()` |
+| `orElseGet(sup)` | Only if empty (lazy) | Any method call, DB lookup, object construction |
+| `map(f)` | Only if present | f returns a plain value |
+| `flatMap(f)` | Only if present | f returns `Optional<R>` |
 
 ---
 
-### Q16: What is the difference between orElse() and orElseGet()?
+### Interview Lens
 
-**Difficulty:** Medium | **Interview Frequency:** Very High
+> **How to use this section:** Each question below is self-contained. You can read just this section the night before an interview and walk in prepared. Every concept referenced is explained inline — no need to flip back.
 
-**Companies:** Amazon, Google, Goldman Sachs, Stripe, Netflix
-
-**Short Answer (30"“60 seconds)**
-
-`orElse(value)` always evaluates its argument "” the value expression is computed regardless of whether the Optional is empty. `orElseGet(supplier)` is lazy "” the supplier is only called when the Optional is empty. For expensive operations like database lookups or object construction, always use `orElseGet` to avoid unnecessary computation.
-
-**Deep Explanation**
-
-This is one of the most common Optional interview traps.
-
-```java
-Optional<Config> config = getFromCache();
-
-// orElse: loadFromDatabase() is ALWAYS called, even if cache hit
-Config c1 = config.orElse(loadFromDatabase());
-
-// orElseGet: loadFromDatabase() is only called if cache miss
-Config c2 = config.orElseGet(() -> loadFromDatabase());
-```
-
-**Why this matters:**
-
-If `loadFromDatabase()` is expensive (network call, SQL query), `orElse` wastes resources on every cache hit. In high-throughput systems, this can cause serious performance degradation.
-
-**When orElse is fine:**
-- When the fallback is a constant, a literal, or a field reference (already evaluated).
-- `optional.orElse(null)` "” null is not computed, it is a literal.
-- `optional.orElse(Collections.emptyList())` "” `emptyList()` is O(1) and returns a cached object.
-
-**Real-World Backend Example**
-
-```java
-// Config service with Redis cache
-public Config getConfig(String key) {
-    return redisCache.get(key)
-        // BAD: always calls DB even on cache hit
-        // .orElse(configRepository.findByKey(key).orElse(Config.defaults()))
-
-        // GOOD: DB call only on cache miss
-        .orElseGet(() -> configRepository.findByKey(key).orElse(Config.defaults()));
-}
-```
-
-**Java 17 Code Example**
-
-```java
-import java.util.Optional;
-
-public class OrElseVsOrElseGetDemo {
-
-    static String expensiveComputation() {
-        System.out.println("  [EXPENSIVE COMPUTATION CALLED]");
-        return "expensive-result";
-    }
-
-    public static void main(String[] args) {
-        System.out.println("--- When Optional IS present ---");
-        Optional<String> present = Optional.of("cached-value");
-
-        System.out.print("orElse:    ");
-        String r1 = present.orElse(expensiveComputation());
-        // Prints: [EXPENSIVE COMPUTATION CALLED]  <-- wasted!
-        System.out.println("Result: " + r1);
-
-        System.out.print("orElseGet: ");
-        String r2 = present.orElseGet(() -> expensiveComputation());
-        // Does NOT print: [EXPENSIVE COMPUTATION CALLED]  <-- saved!
-        System.out.println("Result: " + r2);
-
-        System.out.println("--- When Optional IS empty ---");
-        Optional<String> empty = Optional.empty();
-
-        System.out.print("orElse:    ");
-        String r3 = empty.orElse(expensiveComputation());
-        System.out.println("Result: " + r3);
-
-        System.out.print("orElseGet: ");
-        String r4 = empty.orElseGet(() -> expensiveComputation());
-        System.out.println("Result: " + r4);
-        // Both call expensive computation when empty "” that is expected
-    }
-}
-```
-
-Output when Optional is present:
-```
-orElse:    [EXPENSIVE COMPUTATION CALLED]  Result: cached-value
-orElseGet:   Result: cached-value
-```
-
-**Follow-up Questions**
-
-- "Is `orElse(null)` safe? Does it call null as a computation?"
-- "What about `orElse(new ArrayList<>())`? When is that a problem?"
-
-**Common Mistakes**
-
-- Using `orElse(someMethod())` when `someMethod()` has side effects or is expensive.
-- Thinking `orElse` is lazy "” it is not.
-
-**Interview Traps**
-
-- `optional.orElse(new SomeObject())` always constructs `SomeObject` even if the optional has a value "” each call allocates an object on the heap unnecessarily.
-
-**Quick Revision Notes**
-
-- `orElse(x)` "” eager: x always evaluated.
-- `orElseGet(supplier)` "” lazy: supplier called only if empty.
-- Rule: if fallback involves any method call, use `orElseGet`.
-- Same pattern applies to `map` vs `flatMap` with expensive functions.
+> *Tip: In a real interview, lead with the one-line answer first. Pause. Expand only if the interviewer nods or probes.*
 
 ---
 
-## CompletableFuture
+#### Q14 — Concept Check
 
-### Q17: What are CompletableFuture basics?
+**"What is `Optional` and what problem does it solve? When should you not use it?"**
 
-**Difficulty:** Medium"“Hard | **Interview Frequency:** Very High
+**One-line answer:** `Optional<T>` makes the absence of a return value explicit in the type system, forcing callers to handle the empty case — but it is for return types only, not fields, parameters, or collections.
 
-**Companies:** Amazon, Google, Goldman Sachs, Stripe, Netflix, Uber, Atlassian
+**Full answer to give in an interview:**
 
-**Short Answer (30"“60 seconds)**
+> Before `Optional`, the Java convention for "nothing found" was to return `null`. The problem is that null is invisible at the call site — the compiler doesn't warn you, the method signature doesn't tell you, and a forgotten null check produces a `NullPointerException` that surfaces far from where the null was introduced. `Optional<T>` makes the contract explicit: the return type itself tells you "this might be absent," and the API forces you to decide what to do.
+>
+> The correct use is as a **method return type** in APIs that may not find a result — think `userRepository.findById(id)` returning `Optional<User>`. The caller then chains `.orElseThrow()` to throw a domain exception, or `.orElse(defaultValue)` to supply a fallback.
+>
+> Where `Optional` should *not* be used: as a **field type** in entities or DTOs — `Optional` is not `Serializable`, so it breaks Java serialisation, Jackson, JPA, and similar frameworks silently. Not as a **method parameter** — if a parameter might be absent, use overloading or document it as `@Nullable`. Not wrapping **collections** — `Optional<List<T>>` is always wrong; return an empty list instead, because a list already expresses zero-or-more.
 
-`CompletableFuture<T>` is Java 8's implementation of an asynchronous, non-blocking computation. It allows you to kick off async work, chain callbacks that run when the result is ready, combine multiple futures, and handle exceptions "” all without blocking the calling thread. `supplyAsync` starts a computation that returns a value; `runAsync` starts a computation with no return value.
+*Listing the three anti-patterns (fields, params, collections) in one breath signals senior-level awareness — most candidates only know the "return type" rule.*
 
-**Deep Explanation**
+**Gotcha follow-up they'll ask:** *"What happens if you call `Optional.of(null)`?"*
 
-`CompletableFuture` implements both `Future<T>` and `CompletionStage<T>`. The `CompletionStage` interface defines the chaining API.
-
-**Core creation methods:**
-
-| Method | Description |
-|---|---|
-| `CompletableFuture.supplyAsync(Supplier)` | Runs supplier in ForkJoinPool.commonPool, returns CompletableFuture<T> |
-| `CompletableFuture.supplyAsync(Supplier, Executor)` | Runs supplier in provided executor |
-| `CompletableFuture.runAsync(Runnable)` | Runs runnable, returns CompletableFuture<Void> |
-| `CompletableFuture.completedFuture(value)` | Already-completed future (useful for testing/mocking) |
-
-**Callback methods:**
-
-| Method | Input | Output | Description |
-|---|---|---|---|
-| `thenApply(Function)` | T | U | Transform result (like map) |
-| `thenAccept(Consumer)` | T | Void | Consume result (side effect) |
-| `thenRun(Runnable)` | "” | Void | Run after completion, ignores result |
-| `thenApplyAsync(Function)` | T | U | Transform in async thread |
-
-The `Async` suffix variants (`thenApplyAsync`, etc.) run the callback in the async pool rather than the thread that completed the stage. Without `Async`, the callback may run in the completing thread (could be the main thread or the async thread).
-
-**Real-World Backend Example**
-
-Asynchronous payment processing:
-
-```java
-CompletableFuture<PaymentResult> future = CompletableFuture
-    .supplyAsync(() -> paymentGateway.charge(request))     // async HTTP call
-    .thenApply(response -> mapToResult(response))          // transform
-    .thenApply(result -> auditLog.record(result))          // chain
-    .exceptionally(ex -> PaymentResult.failed(ex.getMessage())); // error handling
-```
-
-**Java 17 Code Example**
-
-```java
-import java.util.concurrent.*;
-
-public class CompletableFutureBasicsDemo {
-
-    static String fetchUserName(long userId) throws InterruptedException {
-        Thread.sleep(100); // simulate IO
-        return "Alice";
-    }
-
-    static String fetchEmail(String name) throws InterruptedException {
-        Thread.sleep(50);
-        return name.toLowerCase() + "@example.com";
-    }
-
-    public static void main(String[] args) throws Exception {
-        // supplyAsync "” async computation
-        CompletableFuture<String> nameFuture = CompletableFuture
-            .supplyAsync(() -> {
-                try { return fetchUserName(1L); }
-                catch (InterruptedException e) { throw new RuntimeException(e); }
-            });
-
-        // thenApply "” transform result
-        CompletableFuture<String> emailFuture = nameFuture
-            .thenApply(name -> name.toLowerCase() + "@example.com");
-
-        // thenAccept "” consume result
-        CompletableFuture<Void> logFuture = emailFuture
-            .thenAccept(email -> System.out.println("Email: " + email));
-
-        // thenRun "” run after completion, result ignored
-        logFuture.thenRun(() -> System.out.println("Pipeline complete"));
-
-        // exceptionally "” handle errors
-        CompletableFuture<String> safe = CompletableFuture
-            .supplyAsync(() -> { throw new RuntimeException("API down"); })
-            .exceptionally(ex -> "fallback-value");
-
-        // block for result (in production, use non-blocking patterns)
-        System.out.println(safe.get()); // fallback-value
-
-        // completedFuture "” useful in tests/mocks
-        CompletableFuture<String> immediate = CompletableFuture.completedFuture("mock-result");
-        System.out.println(immediate.get()); // mock-result
-
-        // Custom executor (avoid common pool for IO)
-        ExecutorService ioPool = Executors.newFixedThreadPool(10);
-        CompletableFuture<String> ioFuture = CompletableFuture
-            .supplyAsync(() -> "io-result", ioPool);
-        System.out.println(ioFuture.get());
-        ioPool.shutdown();
-    }
-}
-```
-
-**Follow-up Questions**
-
-- "What is the difference between `thenApply` and `thenApplyAsync`?"
-- "Which thread executes the callback in `thenApply`?"
-- "What happens if you call `get()` on a CompletableFuture that never completes?"
-
-**Common Mistakes**
-
-- Using `CompletableFuture.supplyAsync` for IO-bound tasks without specifying a custom executor "” they run in `ForkJoinPool.commonPool()` which is CPU-sized and gets starved by blocking IO.
-- Not handling exceptions "” an unhandled exception in a stage silently makes the future complete exceptionally.
-
-**Interview Traps**
-
-- `thenApply` (without `Async`) runs in whichever thread completes the previous stage. If the previous stage completes immediately on the calling thread, the callback runs on the calling thread "” defeating the purpose of async.
-
-**Quick Revision Notes**
-
-- `supplyAsync` = async with return value. `runAsync` = async void.
-- `thenApply` = transform. `thenAccept` = consume. `thenRun` = run after, no result.
-- `Async` suffix variants guarantee a new thread from the pool.
-- Always use custom `Executor` for IO-bound tasks.
-- `completedFuture(val)` = pre-completed, useful in tests.
+> It throws `NullPointerException` immediately at construction time. If the value might be null, use `Optional.ofNullable(value)` — that returns `Optional.empty()` instead of throwing.
 
 ---
 
-### Q18: How do you combine multiple CompletableFutures?
+#### Q15 — Concept Check
 
-**Difficulty:** Hard | **Interview Frequency:** High
+**"Walk me through the Optional API — factory methods, extraction, and transformation."**
 
-**Companies:** Amazon, Google, Goldman Sachs, Netflix, Stripe
+**One-line answer:** Optional has three creation paths (`of`, `ofNullable`, `empty`), five extraction methods ordered by safety, two conditional-execution methods, and four transformation methods (`map`, `flatMap`, `filter`, `or`).
 
-**Short Answer (30"“60 seconds)**
+**Full answer to give in an interview:**
 
-`thenCombine` combines two futures when both complete. `thenCompose` chains futures sequentially (like flatMap "” when the next future depends on the result of the first). `allOf` waits for all futures in a group to complete. `anyOf` completes when any one future completes.
+> Starting with creation: `Optional.of(value)` expects a non-null value and throws `NullPointerException` immediately if you pass null. `Optional.ofNullable(value)` is the null-safe version — it returns `Optional.empty()` for null and a non-empty Optional otherwise. `Optional.empty()` returns the singleton empty instance.
+>
+> For extraction, the methods range from dangerous to safe. `get()` returns the value or throws `NoSuchElementException` — I treat it as deprecated in practice and always use `orElseThrow()` instead, which is semantically identical but shows intent. `orElse(x)` returns the value if present, otherwise returns `x` — and `x` is *always evaluated*, even on a cache hit. `orElseGet(supplier)` is lazy: the supplier runs only when the Optional is empty. `orElseThrow(exceptionSupplier)` throws a custom exception on empty — the standard pattern in service layers.
+>
+> For transformation: `map(f)` applies a function to the value if present and returns an `Optional<R>`. If the function returns null, the result is `Optional.empty()` — not an NPE. `flatMap(f)` is for when the function itself returns an `Optional<R>` — using `map` in that case would give `Optional<Optional<R>>`, which `flatMap` collapses. `filter(predicate)` returns the same Optional if the predicate matches, otherwise empty. Java 9 added `or(supplier)`, which returns the same Optional if present, otherwise calls the supplier to get a fallback Optional — useful for chaining lookup strategies.
+>
+> Java 9 also added `ifPresentOrElse(consumer, runnable)` to handle both the present and absent cases in one call, and `stream()` to treat Optional as a `Stream<T>` of zero or one element — handy when you want to `flatMap` a stream of Optionals.
 
-**Deep Explanation**
+*If the interviewer asks about `flatMap` in more detail, give the safe-navigation example: `findUser(id).flatMap(user -> findAddress(user.id()))` — both methods return Optional, so `flatMap` avoids wrapping.*
 
-| Method | Use case |
-|---|---|
-| `thenCombine(other, BiFunction)` | Both futures run concurrently; combine their results |
-| `thenCompose(Function<T, CompletableFuture<U>>)` | Sequential chaining; second future depends on first's result |
-| `allOf(futures...)` | Wait for all; returns `CompletableFuture<Void>` |
-| `anyOf(futures...)` | Returns `CompletableFuture<Object>` completing with first done result |
+**Gotcha follow-up they'll ask:** *"What does `Optional.map(f)` return if the mapping function returns null?"*
 
-**thenCompose vs thenApply:**
-`thenApply(f)` where `f` returns a `CompletableFuture<U>` gives `CompletableFuture<CompletableFuture<U>>`.
-`thenCompose(f)` flattens it to `CompletableFuture<U>`.
-This is exactly analogous to `Stream.map` vs `Stream.flatMap`.
+> It returns `Optional.empty()`. The implementation explicitly checks the mapper's return value for null and converts it to empty rather than wrapping a null in a non-empty Optional. This means `map` is safe to use even with functions that might return null — the result is always a valid Optional.
 
-**allOf pitfall:**
-`allOf` returns `CompletableFuture<Void>`, so you cannot get individual results from it directly. You must collect each future separately and then call `join()` after `allOf` completes.
+---
 
-**Real-World Backend Example**
+#### Q16 — Tradeoff Question
 
-Parallel API calls for an order summary page:
+**"What is the difference between `orElse()` and `orElseGet()`? Why does it matter in production?"**
+
+**One-line answer:** `orElse(x)` always evaluates `x` eagerly; `orElseGet(supplier)` evaluates the supplier lazily — only when the Optional is empty — so use `orElseGet` whenever the fallback involves a method call.
+
+**Full answer to give in an interview:**
+
+> This is one of the most common Optional interview traps, and it catches experienced developers too. `orElse(value)` is a regular method call — Java evaluates all arguments before invoking the method, so `value` is computed regardless of whether the Optional is present. `orElseGet(supplier)` takes a lambda; the lambda body is only executed when the Optional is empty.
+>
+> The difference is invisible for constants: `optional.orElse("default")` or `optional.orElse(null)` — those are literals with zero computation cost. But `optional.orElse(loadFromDatabase())` calls `loadFromDatabase()` on *every invocation*, even when the Optional has a value. In a cache-aside pattern — where the happy path is a cache hit — this means you're paying full database latency on every request, completely defeating the purpose of the cache.
+>
+> The rule I follow: if the fallback is a literal, a constant, or a no-arg static factory that returns a cached object (like `Collections.emptyList()`), `orElse` is fine. If the fallback involves any method call — especially one with IO, object allocation, or side effects — use `orElseGet` and wrap it in a lambda. The cost of the lambda allocation is negligible compared to a single database round-trip.
+
+*Demonstrate the output difference if asked: with `Optional.of("cached-value")`, calling `orElse(expensiveMethod())` prints the expensive call's side effects; `orElseGet(() -> expensiveMethod())` does not.*
+
+**Gotcha follow-up they'll ask:** *"Is `optional.orElse(new ArrayList<>())` a problem?"*
+
+> Yes, every call constructs a new `ArrayList` on the heap, even when the Optional is present. On a hot path it generates unnecessary GC pressure. Use `orElseGet(ArrayList::new)` or, better, return `Collections.emptyList()` directly (which is a cached singleton) if the list is not going to be mutated.
+
+---
+
+> **Common Mistake — Using `Optional` as a field in a JPA entity:** Annotating an entity field as `Optional<String> phone` breaks Hibernate serialisation silently — the field may not be persisted correctly and Jackson will serialise it as `{"phone": {"present": true}}` rather than the raw value. The consequence is corrupted data in the database that only surfaces at runtime under specific code paths. Use a nullable field and document it, or use `@Nullable` from a JSR-305 library.
+
+**Quick Revision (one line):** Optional is for return types only; prefer `orElseGet` over `orElse` for any method-call fallback; use `flatMap` when the mapping function itself returns an Optional; never use Optional as a field, parameter, or collection wrapper.
+
+---
+
+## Topic 6: CompletableFuture
+
+**Difficulty:** Hard | **Frequency:** Very High | **Companies:** Amazon, Google, Netflix, Goldman Sachs, Stripe
+
+---
+
+### The Idea
+
+Imagine you're ordering food from three different restaurants at once. With old-style Java (`Future`), you'd have to wait at the door of the first restaurant until your order arrived, then walk to the second, wait again, and so on — even though the kitchens are all cooking in parallel. `CompletableFuture` is like sending a delivery driver to all three simultaneously, with instructions to call you when everything arrives and to use a backup restaurant if any one fails.
+
+`CompletableFuture` is Java's answer to non-blocking, callback-driven asynchronous programming. Introduced in Java 8, it lets you describe a *pipeline* — fetch data, transform it, combine it with other results, handle errors — without ever blocking a thread to wait. The thread is freed to do other work while the async operations run.
+
+The name "Completable" signals two things: it can be completed programmatically (you can manually inject a result or exception), and it is a `Future` you can chain transformations onto. In backend systems this matters enormously — blocking a thread per request kills throughput under load; async pipelines let you serve many more requests with the same thread pool.
+
+---
+
+### How It Works
+
+**Creating a future:**
+```
+supplyAsync(supplier)           → runs supplier on ForkJoinPool, returns CompletableFuture<T>
+supplyAsync(supplier, executor) → use your own thread pool (preferred in production)
+completedFuture(value)          → already-done future, useful for testing
+```
+
+**Transforming results (pipeline building):**
+```
+future.thenApply(fn)            → transform T → U (like Stream.map); runs on same thread
+future.thenApplyAsync(fn)       → transform on a different thread
+future.thenAccept(consumer)     → consume result, return CompletableFuture<Void>
+future.thenRun(runnable)        → run after completion, ignores result
+```
+
+**Chaining dependent futures (flatMap equivalent):**
+```
+future.thenCompose(fn)          → fn returns CompletableFuture<U>; flattens to CompletableFuture<U>
+future.thenApply(fn)            → if fn returns CompletableFuture<U>, you get CompletableFuture<CompletableFuture<U>> ← BAD
+```
+
+**Combining independent futures:**
+```
+allOf(f1, f2, f3)               → waits for ALL; returns CompletableFuture<Void>
+anyOf(f1, f2, f3)               → completes when FIRST finishes; returns CompletableFuture<Object>
+thenCombine(other, BiFunction)  → both run concurrently, combine their two results
+```
+
+**Error handling:**
+```
+exceptionally(fn)               → if exception: transform ex → fallback value; skip if success
+handle(BiFunction<T,ex,U>)      → always runs; gets (result, exception), exactly one is null
+whenComplete(BiConsumer)        → side-effect only (logging); propagates original result/exception
+```
+
+**The single most interview-critical gotcha — `allOf` returns `Void`, not the results:**
 
 ```java
-CompletableFuture<User> userFuture = userService.getAsync(userId);
+CompletableFuture<User> userFuture    = userService.getAsync(userId);
 CompletableFuture<List<Order>> ordersFuture = orderService.getByUserAsync(userId);
-CompletableFuture<Account> accountFuture = accountService.getAsync(userId);
+CompletableFuture<Account> accountFuture  = accountService.getAsync(userId);
 
+// allOf waits for all three to complete
 CompletableFuture<Void> all = CompletableFuture.allOf(userFuture, ordersFuture, accountFuture);
+
+// WRONG: all.thenApply(v -> v.getUser()) — there is no getUser() on Void
+// CORRECT: hold references to individual futures, then join() after allOf
 all.thenRun(() -> {
-    User user = userFuture.join();
+    User user         = userFuture.join();    // join() safe here — already completed
     List<Order> orders = ordersFuture.join();
-    Account account = accountFuture.join();
+    Account account   = accountFuture.join();
     buildDashboard(user, orders, account);
 }).get();
 ```
 
-**Java 17 Code Example**
+**thenCompose vs thenApply — the flatMap analogy:**
 
-```java
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.stream.*;
-
-public class CombiningFuturesDemo {
-
-    static CompletableFuture<String> fetchUser(long id) {
-        return CompletableFuture.supplyAsync(() -> "User-" + id);
-    }
-
-    static CompletableFuture<String> fetchPermissions(String userId) {
-        return CompletableFuture.supplyAsync(() -> "PERM:" + userId);
-    }
-
-    public static void main(String[] args) throws Exception {
-        // thenCompose "” sequential: fetch user then fetch permissions for that user
-        CompletableFuture<String> userWithPerms = fetchUser(42)
-            .thenCompose(userId -> fetchPermissions(userId));
-        System.out.println(userWithPerms.get()); // PERM:User-42
-
-        // thenCombine "” parallel: two independent fetches, combine results
-        CompletableFuture<String> profile = CompletableFuture
-            .supplyAsync(() -> "profile-data")
-            .thenCombine(
-                CompletableFuture.supplyAsync(() -> "preferences-data"),
-                (p, pref) -> p + " + " + pref
-            );
-        System.out.println(profile.get()); // profile-data + preferences-data
-
-        // allOf "” wait for all, then collect
-        List<Long> userIds = List.of(1L, 2L, 3L, 4L, 5L);
-        List<CompletableFuture<String>> futures = userIds.stream()
-            .map(id -> fetchUser(id))
-            .collect(Collectors.toList());
-
-        CompletableFuture<Void> all = CompletableFuture.allOf(
-            futures.toArray(new CompletableFuture[0])
-        );
-
-        CompletableFuture<List<String>> allResults = all.thenApply(
-            v -> futures.stream().map(CompletableFuture::join).collect(Collectors.toList())
-        );
-
-        System.out.println(allResults.get()); // [User-1, User-2, User-3, User-4, User-5]
-
-        // anyOf "” first one wins
-        CompletableFuture<Object> fastest = CompletableFuture.anyOf(
-            CompletableFuture.supplyAsync(() -> { sleep(100); return "slow"; }),
-            CompletableFuture.supplyAsync(() -> { sleep(10);  return "fast"; }),
-            CompletableFuture.supplyAsync(() -> { sleep(50);  return "medium"; })
-        );
-        System.out.println(fastest.get()); // fast
-    }
-
-    static void sleep(long ms) {
-        try { Thread.sleep(ms); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-    }
-}
-```
-
-**Follow-up Questions**
-
-- "Why does `allOf` return `CompletableFuture<Void>` and not `CompletableFuture<List<T>>`?"
-- "What is the difference between `thenCompose` and `thenCombine`?"
-- "If one future in `allOf` fails, what happens to the others?"
-
-**Common Mistakes**
-
-- Calling `join()` on individual futures before `allOf` completes "” blocks the calling thread.
-- Using `thenApply` when the function returns a `CompletableFuture` "” produces nested futures.
-
-**Interview Traps**
-
-- `anyOf` returns `CompletableFuture<Object>`, not a typed result "” you must cast. This is a type-safety limitation.
-- If one future in `allOf` completes exceptionally, `allOf` itself completes exceptionally, but the other futures continue running "” they are not cancelled.
-
-**Quick Revision Notes**
-
-- `thenCompose` = sequential chaining (like flatMap). `thenCombine` = parallel, combine two.
-- `allOf` = wait for all; returns `Void` "” collect individual results via `join()` after.
-- `anyOf` = first wins; returns `Object` (type-unsafe).
-- Failed future in `allOf` propagates exception; other futures still run.
-
----
-
-### Q19: CompletableFuture vs Future "” what are the differences?
-
-**Difficulty:** Medium | **Interview Frequency:** High
-
-**Companies:** Amazon, Goldman Sachs, JPMorgan, Stripe
-
-**Short Answer (30"“60 seconds)**
-
-`Future<T>` (Java 5) represents a pending asynchronous result but lacks callback support and non-blocking chaining. The only way to get its result is `get()`, which blocks. `CompletableFuture` adds non-blocking callbacks (`thenApply`, `thenAccept`), combinators (`thenCombine`, `allOf`), exception handling (`exceptionally`, `handle`), and the ability to be manually completed (`complete()`).
-
-**Deep Explanation**
-
-| Feature | Future | CompletableFuture |
+| Operation | When `fn` returns plain `U` | When `fn` returns `CompletableFuture<U>` |
 |---|---|---|
-| Get result | `get()` "” blocks | `get()` blocks; callbacks are non-blocking |
-| Callback on completion | No | `thenApply`, `thenAccept`, `thenRun` |
-| Chain computations | No | `thenCompose`, `thenCombine` |
-| Exception handling | `get()` throws `ExecutionException` | `exceptionally`, `handle`, `whenComplete` |
-| Combine multiple | No | `allOf`, `anyOf` |
-| Manual completion | No | `complete(T)`, `completeExceptionally(Throwable)` |
-| Cancel | `cancel(boolean)` | `cancel(boolean)` (limited support) |
+| `thenApply(fn)` | `CompletableFuture<U>` ✓ | `CompletableFuture<CompletableFuture<U>>` ✗ |
+| `thenCompose(fn)` | Not applicable | `CompletableFuture<U>` ✓ (flattened) |
 
-**Why Future is insufficient:**
+**CompletableFuture vs Future:**
 
-```java
-// Future "” must block to get result
-Future<String> future = executor.submit(() -> fetchData());
-// ... other work ...
-String result = future.get(); // BLOCKS "” ties up a thread
-
-// CompletableFuture "” non-blocking chain
-CompletableFuture.supplyAsync(() -> fetchData())
-    .thenApply(data -> transform(data))
-    .thenAccept(result -> store(result))
-    .exceptionally(ex -> { log(ex); return null; });
-// Main thread free to do other work
-```
-
-**Real-World Backend Example**
-
-Spring's `@Async` used to return `Future` (blocking). Modern code uses `CompletableFuture`:
-
-```java
-@Async
-public CompletableFuture<UserProfile> loadProfile(Long userId) {
-    return CompletableFuture.completedFuture(profileRepository.findById(userId).orElseThrow());
-}
-```
-
-**Java 17 Code Example**
-
-```java
-import java.util.concurrent.*;
-
-public class FutureVsCompletableFuture {
-
-    public static void main(String[] args) throws Exception {
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-
-        // Future "” blocking, no callbacks
-        Future<String> future = executor.submit(() -> {
-            Thread.sleep(100);
-            return "result";
-        });
-        // Can only poll or block
-        System.out.println("isDone: " + future.isDone());
-        String result = future.get(); // BLOCKS
-        System.out.println("Future result: " + result);
-
-        // CompletableFuture "” non-blocking pipeline
-        CompletableFuture.supplyAsync(() -> "raw-data")
-            .thenApply(String::toUpperCase)
-            .thenAccept(s -> System.out.println("CF result: " + s));
-            // Main thread continues immediately
-
-        // Manual completion "” useful for adapting callback APIs
-        CompletableFuture<String> manual = new CompletableFuture<>();
-        someCallbackApi(value -> manual.complete(value),
-                        err -> manual.completeExceptionally(err));
-        // manual.get() will return when the callback fires
-
-        executor.shutdown();
-    }
-
-    static void someCallbackApi(java.util.function.Consumer<String> onSuccess,
-                                java.util.function.Consumer<Throwable> onError) {
-        new Thread(() -> onSuccess.accept("callback-result")).start();
-    }
-}
-```
-
-**Follow-up Questions**
-
-- "How do you adapt a legacy callback-based API to CompletableFuture?"
-- "Can you cancel a CompletableFuture? Does cancellation propagate?"
-
-**Common Mistakes**
-
-- Calling `.get()` on a `CompletableFuture` chain in a servlet thread "” blocks the thread and eliminates async benefits.
-
-**Interview Traps**
-
-- `CompletableFuture.cancel(true)` does not actually interrupt the running thread "” the cancellation only sets the future's state. The underlying task in the thread pool continues running. This differs from `Future.cancel(true)` which attempts to interrupt the thread.
-
-**Quick Revision Notes**
-
-- `Future` = submit + block on `get()`. No callbacks, no chaining.
-- `CompletableFuture` = non-blocking callbacks, chaining, exception handling, manual completion.
-- `complete(value)` and `completeExceptionally(ex)` enable bridging callback APIs.
-- Cancellation does not interrupt the underlying thread.
+| Feature | `Future` | `CompletableFuture` |
+|---|---|---|
+| Get result | `get()` — blocks | `thenApply()` — non-blocking callback |
+| Combine futures | Manual / impossible | `allOf`, `anyOf`, `thenCombine` |
+| Error handling | `try/catch` around `get()` | `exceptionally`, `handle` |
+| Manual completion | No | `complete(value)`, `completeExceptionally(ex)` |
+| Cancel | `cancel(true)` | Same, but downstream stages still run |
 
 ---
 
-### Q20: How do you handle exceptions in CompletableFuture?
+### Interview Lens
 
-**Difficulty:** Hard | **Interview Frequency:** High
+> **How to use this section:** Each question below is self-contained. You can read just this section the night before an interview and walk in prepared. Every concept referenced is explained inline — no need to flip back.
 
-**Companies:** Amazon, Google, Goldman Sachs, Netflix
+> *Tip: In a real interview, lead with the one-line answer first. Pause. Expand only if the interviewer nods or probes.*
 
-**Short Answer (30"“60 seconds)**
+---
 
-Three methods handle exceptions: `exceptionally(Function<Throwable, T>)` recovers from an exception by providing a fallback value; `handle(BiFunction<T, Throwable, U>)` processes both normal result and exception in one callback; `whenComplete(BiConsumer<T, Throwable>)` observes result or exception for side effects but does not transform the result.
+#### Q1 — Concept Check
 
-**Deep Explanation**
+**"What is CompletableFuture and why was it introduced?"**
 
-| Method | Receives | Returns | Transforms? | Recovers? |
-|---|---|---|---|---|
-| `exceptionally(fn)` | `Throwable` only | `T` (same type) | No "” only on exception path | Yes |
-| `handle(fn)` | `(T, Throwable)` both | `U` (any type) | Yes | Yes |
-| `whenComplete(fn)` | `(T, Throwable)` both | `CompletableFuture<T>` (same) | No | No |
+**One-line answer:** `CompletableFuture` is a non-blocking, composable alternative to `Future` that lets you build async pipelines with callbacks instead of blocking `get()` calls.
 
-**Key distinction:**
-- `exceptionally` only runs when the previous stage failed; if successful, it passes through the result unchanged.
-- `handle` always runs "” it receives either the result (with null throwable) or the exception (with null result). It can transform the result.
-- `whenComplete` always runs but cannot change the outcome "” it is for side effects (logging, metrics).
+**Full answer to give in an interview:**
+> "`Future` — introduced in Java 5 — lets you submit work to a thread pool and retrieve the result later. But 'later' still means you must call `get()` which blocks your current thread until the result is ready. If I have ten parallel calls to make, I need ten blocked threads sitting there waiting — that doesn't scale.
+>
+> `CompletableFuture`, added in Java 8, solves this with a callback model. I describe what to do *when* the result arrives: `supplyAsync(() -> fetchUser(id)).thenApply(u -> enrich(u)).thenAccept(u -> cache(u))`. The calling thread never blocks — it moves on to other work. The pipeline executes on threads from `ForkJoinPool.commonPool()`, or from an `Executor` I provide.
+>
+> It also supports combining multiple futures: `allOf` to wait for all, `anyOf` for the first winner, `thenCombine` to merge two independent results. And it has built-in error handling via `exceptionally()` and `handle()` — no try/catch around `get()`.
+>
+> In Spring Boot, this is why `@Async` returns `CompletableFuture<T>` in modern code instead of raw `Future<T>`."
 
-**Exception wrapping:**
-Exceptions in `CompletableFuture` are wrapped in `CompletionException`. When you call `get()`, they are wrapped in `ExecutionException`. Use `getCause()` to access the original exception.
+*Lead with the blocking-vs-callback contrast. Mention ForkJoinPool thread pool to signal you understand the threading model.*
 
-**Real-World Backend Example**
+**Gotcha follow-up they'll ask:** *"If you use `supplyAsync` without an executor, what thread pool does it use — and what's the problem with that?"*
+> The default is `ForkJoinPool.commonPool()`. The problem: it's shared across the entire JVM — including parallel streams. Under heavy load, your async tasks and parallel stream operations compete for the same threads. In production backends, always pass a dedicated `ExecutorService` to `supplyAsync` so you have independent thread pool sizing and monitoring.
 
-```java
-CompletableFuture<ApiResponse> callApi(String endpoint) {
-    return CompletableFuture.supplyAsync(() -> httpClient.get(endpoint))
-        .exceptionally(ex -> {
-            log.warn("API call failed for {}: {}", endpoint, ex.getMessage());
-            return ApiResponse.empty(); // graceful degradation
-        })
-        .handle((response, ex) -> {
-            if (ex != null) return ApiResponse.error(ex);
-            return response.withTimestamp(Instant.now());
-        })
-        .whenComplete((response, ex) -> metrics.record(endpoint, ex == null));
-}
+---
+
+#### Q2 — Concept Check
+
+**"What is the difference between `thenApply` and `thenCompose`?"**
+
+**One-line answer:** `thenApply` transforms the result to a plain value; `thenCompose` is for when your transformation itself returns a `CompletableFuture` — it flattens the nesting, exactly like `flatMap` on streams.
+
+**Full answer to give in an interview:**
+> "Think of the Stream analogy: `map` transforms `T → U`, `flatMap` transforms `T → Stream<U>` and flattens. Same idea here.
+>
+> If I have `CompletableFuture<User>` and I call `thenApply(u -> u.getName())`, I get `CompletableFuture<String>` — the transformation is synchronous, just a function.
+>
+> But if my next step is itself async — say, fetching orders for that user from a remote service — my function would return `CompletableFuture<List<Order>>`. Using `thenApply` would give me `CompletableFuture<CompletableFuture<List<Order>>>` — a nested future I'd have to manually unwrap. `thenCompose` flattens that to `CompletableFuture<List<Order>>` directly.
+>
+> Rule of thumb: if your lambda returns a `CompletableFuture`, use `thenCompose`. If it returns a plain value, use `thenApply`."
+
+*The `flatMap` analogy lands well with interviewers — it connects two concepts they already know.*
+
+**Gotcha follow-up they'll ask:** *"When would you use `thenCombine` instead of `thenCompose`?"*
+> `thenCompose` is for *sequential* chains — the second future depends on the result of the first. `thenCombine` is for *independent* futures that can run concurrently — you fire both and combine their results with a `BiFunction` when both complete. Example: fetch user profile and fetch account balance simultaneously, then combine into a dashboard object.
+
+---
+
+#### Q3 — Concept Check
+
+**"How do you handle exceptions in a CompletableFuture pipeline?"**
+
+**One-line answer:** Use `exceptionally` for a fallback value when there's an error, `handle` when you always want to run recovery logic regardless of success or failure.
+
+**Full answer to give in an interview:**
+> "There are three main tools. `exceptionally(fn)` is like a catch block — it only runs if an exception occurred and lets me return a fallback value. The normal pipeline stages are skipped on exception, and `exceptionally` recovers.
+>
+> `handle(BiFunction<T, Throwable, U>)` is like a finally block — it always runs. I receive either the successful result or the exception (exactly one will be null). I return a new value of type `U`, so I can transform the result in both the happy path and the error path.
+>
+> `whenComplete(BiConsumer<T, Throwable>)` is purely for side effects — logging, metrics. It doesn't change the result: it passes the original result or exception downstream unchanged.
+>
+> One critical gotcha: exceptions in `CompletableFuture` are wrapped in `CompletionException` when you call `join()` or `get()`. So if I call `join()` and catch `RuntimeException`, I need to inspect the cause, not the outer exception."
+
+*Name all three, explain when you'd pick each. The CompletionException wrapping detail signals deep knowledge.*
+
+**Gotcha follow-up they'll ask:** *"If future A fails and you call `allOf(A, B, C)`, what happens to B and C?"*
+> `allOf` itself completes exceptionally immediately when any constituent future fails. But B and C continue running — they are not cancelled. If I need to cancel them, I must hold references and call `cancel(true)` on each manually.
+
+---
+
+#### Q4 — Design Scenario
+
+**"Design a service that calls three downstream APIs in parallel and assembles the results, with a timeout and fallback."**
+
+**One-line answer:** Use `supplyAsync` for each call with a dedicated executor, `allOf` to wait for all, `orTimeout` for the deadline, and `exceptionally` per future for individual fallbacks.
+
+**Full answer to give in an interview:**
+> "I'd structure this in three layers. First, I launch all three async calls simultaneously using `supplyAsync` with a bounded `ExecutorService` — not `ForkJoinPool.commonPool()` — so I control thread count and prevent starvation.
+>
+> Second, I attach `exceptionally` on each individual future to return a safe fallback (empty list, default object) if that specific call fails. This way one bad service doesn't blow up the whole response.
+>
+> Third, I call `allOf` on the three futures and chain `.orTimeout(500, TimeUnit.MILLISECONDS)` so the whole assembly has a hard deadline. After `allOf` resolves I call `join()` on each individual future — since they're already completed at that point, `join()` is instant and won't block.
+>
+> I would not use `anyOf` here because I need all three results. `anyOf` would be appropriate if I wanted the fastest of three redundant cache reads."
+
+*Mentioning `orTimeout` (Java 9+) and per-future fallbacks over a single global `exceptionally` shows production thinking.*
+
+**Gotcha follow-up they'll ask:** *"Why not just use `join()` on each future sequentially instead of `allOf`?"*
+> Because sequential `join()` calls serialize the waiting. If all three calls take 300ms, sequential joins take 900ms total. `allOf` waits for the slowest of the three — in this case still 300ms. The parallelism happens in the `supplyAsync` launch; `allOf` is just the synchronization point.
+
+---
+
+> **Common Mistake — Calling `join()` before `allOf` completes:**
+> Calling `userFuture.join()` before the `allOf` future resolves defeats the purpose — it blocks the calling thread waiting for that one future while the others are still running. Always chain logic off `allOf.thenRun(...)` or call `join()` only inside the callback after `allOf` has completed.
+
+**Quick Revision (one line):** `CompletableFuture` replaces blocking `Future.get()` with callback chains; `thenCompose` for sequential async, `allOf` for parallel — but collect results via individual `.join()` inside the callback, not from `allOf` itself.
+
+---
+
+## Topic 7: Java 9–17 Key Additions
+
+**Difficulty:** Medium | **Frequency:** High | **Companies:** Google, Amazon, Microsoft, ThoughtWorks, Atlassian
+
+---
+
+### The Idea
+
+Java releases used to be massive multi-year events. Since Java 9 (2017), Oracle shifted to a six-month release cadence, shipping smaller, targeted features continuously. This is good for interviewers: instead of one big thing to learn, each version adds a focused, understandable improvement you can describe precisely.
+
+The five features that appear most in interviews — `var`, Records, Sealed Classes, Text Blocks, and Pattern Matching for `instanceof` — all share a common theme: *reducing boilerplate while improving readability and expressiveness*. They're not replacing core Java semantics; they're cleaning up the surface syntax. Think of them as Java finally borrowing the ergonomic improvements that Kotlin and Scala users had enjoyed for years.
+
+Each feature has a clear "before and after" story. Interviewers love these because a candidate who can articulate the *problem being solved* — not just the syntax — shows they understand the language's evolution rather than just memorizing keywords.
+
+---
+
+### How It Works
+
+**`var` — Local Variable Type Inference (Java 10)**
+```
+// Before
+ArrayList<Map<String, List<Integer>>> data = new ArrayList<>();
+
+// After
+var data = new ArrayList<Map<String, List<Integer>>>();  // type inferred from RHS
+
+Rules:
+  ✓ Local variables with initializer only
+  ✗ Fields, method parameters, return types
+  ✗ Null initializer (compiler cannot infer type)
+  ✗ Array initializers: var arr = {1,2,3} is illegal
+  
+Still statically typed — type is fixed at compile time, not dynamic
 ```
 
-**Java 17 Code Example**
-
-```java
-import java.util.concurrent.*;
-
-public class ExceptionHandlingDemo {
-
-    public static void main(String[] args) throws Exception {
-
-        // exceptionally "” recover from exception
-        CompletableFuture<String> withRecovery = CompletableFuture
-            .supplyAsync(() -> { throw new RuntimeException("service unavailable"); })
-            .exceptionally(ex -> {
-                System.out.println("exceptionally: " + ex.getMessage());
-                return "fallback-value";
-            });
-        System.out.println(withRecovery.get()); // fallback-value
-
-        // handle "” process both success and failure
-        CompletableFuture<String> handled = CompletableFuture
-            .supplyAsync(() -> "success-result")
-            .handle((result, ex) -> {
-                if (ex != null) {
-                    System.out.println("handle exception: " + ex.getMessage());
-                    return "error-default";
-                }
-                return result.toUpperCase();
-            });
-        System.out.println(handled.get()); // SUCCESS-RESULT
-
-        // whenComplete "” side effect, does not change result
-        CompletableFuture<String> observed = CompletableFuture
-            .supplyAsync(() -> "data")
-            .whenComplete((result, ex) -> {
-                if (ex != null) System.out.println("LOG ERROR: " + ex);
-                else System.out.println("LOG SUCCESS: " + result);
-            });
-        System.out.println(observed.get()); // data (unchanged)
-
-        // Exception in exceptionally propagates if exceptionally itself throws
-        CompletableFuture<String> chainedEx = CompletableFuture
-            .<String>supplyAsync(() -> { throw new RuntimeException("first"); })
-            .exceptionally(ex -> { throw new RuntimeException("second: " + ex.getMessage()); })
-            .exceptionally(ex -> "caught-second: " + ex.getMessage());
-        System.out.println(chainedEx.get()); // caught-second: ...
-    }
+**Records — Immutable Data Carriers (Java 16)**
+```
+// Before (classic POJO)
+class Point {
+  private final int x, y;
+  public Point(int x, int y) { this.x = x; this.y = y; }
+  public int x() { return x; }
+  public int y() { return y; }
+  // equals, hashCode, toString ... 30+ lines
 }
+
+// After
+record Point(int x, int y) {}   // everything auto-generated
+
+Compiler generates:
+  - Canonical constructor
+  - Accessor methods x(), y()  (NOT getX() — note the difference)
+  - equals(), hashCode(), toString()
+  
+Cannot extend another class (implicitly extends Record)
+Components are final — immutable by design
+Can have compact constructors for validation
 ```
 
-**Follow-up Questions**
+**Sealed Classes — Controlled Hierarchies (Java 17)**
+```
+sealed interface Shape permits Circle, Rectangle, Triangle {}
 
-- "If `exceptionally` throws, what happens?"
-- "Can you use `handle` to convert exception to a different exception type?"
-- "What is the difference between `whenComplete` and `handle`?"
+final class Circle    implements Shape { ... }
+final class Rectangle implements Shape { ... }
+final class Triangle  implements Shape { ... }
+// No other class can implement Shape — compiler enforces this
 
-**Common Mistakes**
-
-- Confusing `whenComplete` and `handle` "” `whenComplete` cannot transform the result or recover from exceptions.
-- Not unwrapping `CompletionException` / `ExecutionException` when calling `get()`.
-
-**Interview Traps**
-
-- `exceptionally` receives a `CompletionException` wrapping the original exception, not the original exception directly. You need `ex.getCause()` to get the root cause.
-
-**Quick Revision Notes**
-
-- `exceptionally` = recovery, exception path only.
-- `handle` = always runs, can transform result and handle exception.
-- `whenComplete` = side effect only, cannot change outcome.
-- Exceptions wrapped in `CompletionException`; `get()` wraps in `ExecutionException`.
-- Chain `exceptionally` to re-wrap or re-throw.
-
----
-
-### Q21: Real-world pattern: parallel API calls with CompletableFuture.allOf()
-
-**Difficulty:** Hard | **Interview Frequency:** High
-
-**Companies:** Amazon, Google, Goldman Sachs, Netflix, Stripe, Uber
-
-**Short Answer (30"“60 seconds)**
-
-When building aggregation endpoints "” such as a dashboard that needs user data, order history, and account balance simultaneously "” launch all requests in parallel with `supplyAsync`, then use `CompletableFuture.allOf()` to wait for all of them. After `allOf` completes, collect results with `join()`. Use a dedicated IO thread pool, not the common fork-join pool, to avoid thread starvation.
-
-**Deep Explanation**
-
-This is the single most practical CompletableFuture pattern in backend development. The naive sequential approach makes N HTTP calls taking NÃ—latency. The parallel approach takes approximately max(latency_1, ..., latency_N).
-
-**Critical detail:** Always use a custom `ExecutorService` for IO-bound parallel calls. `ForkJoinPool.commonPool()` is designed for CPU-bound work and will starve if threads block on IO.
-
-**Error handling strategy:** Decide upfront whether partial failure should fail the whole aggregation or whether you want best-effort results. `allOf` fails fast on any exception; for best-effort, wrap each future in `exceptionally` before passing to `allOf`.
-
-**Java 17 Code Example**
-
-```java
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.stream.*;
-
-public class ParallelApiCallsDemo {
-
-    record UserProfile(long id, String name) {}
-    record OrderSummary(long userId, int orderCount, double totalValue) {}
-    record AccountBalance(long userId, double balance) {}
-    record Dashboard(UserProfile profile, OrderSummary orders, AccountBalance balance) {}
-
-    // Simulate IO-bound service calls
-    static UserProfile fetchProfile(long userId) throws InterruptedException {
-        Thread.sleep(150); return new UserProfile(userId, "Alice");
-    }
-    static OrderSummary fetchOrders(long userId) throws InterruptedException {
-        Thread.sleep(200); return new OrderSummary(userId, 42, 5430.00);
-    }
-    static AccountBalance fetchBalance(long userId) throws InterruptedException {
-        Thread.sleep(100); return new AccountBalance(userId, 12500.00);
-    }
-
-    public static void main(String[] args) throws Exception {
-        // Dedicated IO pool "” do NOT use commonPool for IO
-        ExecutorService ioPool = Executors.newFixedThreadPool(20);
-        long userId = 1L;
-
-        long start = System.currentTimeMillis();
-
-        // Launch all in parallel
-        CompletableFuture<UserProfile> profileFuture = CompletableFuture
-            .supplyAsync(() -> {
-                try { return fetchProfile(userId); }
-                catch (InterruptedException e) { throw new CompletionException(e); }
-            }, ioPool);
-
-        CompletableFuture<OrderSummary> ordersFuture = CompletableFuture
-            .supplyAsync(() -> {
-                try { return fetchOrders(userId); }
-                catch (InterruptedException e) { throw new CompletionException(e); }
-            }, ioPool);
-
-        CompletableFuture<AccountBalance> balanceFuture = CompletableFuture
-            .supplyAsync(() -> {
-                try { return fetchBalance(userId); }
-                catch (InterruptedException e) { throw new CompletionException(e); }
-            }, ioPool);
-
-        // Wait for all "” overall latency approximately max(150, 200, 100) = 200ms
-        CompletableFuture<Dashboard> dashboardFuture = CompletableFuture
-            .allOf(profileFuture, ordersFuture, balanceFuture)
-            .thenApply(v -> new Dashboard(
-                profileFuture.join(),   // safe: already complete at this point
-                ordersFuture.join(),
-                balanceFuture.join()
-            ));
-
-        // Best-effort variant: partial failure returns null for failed component
-        CompletableFuture<UserProfile> safeProfile = profileFuture
-            .exceptionally(ex -> { System.err.println("Profile failed: " + ex); return null; });
-
-        Dashboard dashboard = dashboardFuture.get(2, TimeUnit.SECONDS);
-        long elapsed = System.currentTimeMillis() - start;
-
-        System.out.printf("Dashboard built in %dms (sequential would be ~450ms)%n", elapsed);
-        System.out.println("User: " + dashboard.profile().name());
-        System.out.println("Orders: " + dashboard.orders().orderCount());
-        System.out.println("Balance: " + dashboard.balance().balance());
-
-        ioPool.shutdown();
-    }
-}
+Subclass must be one of: final | sealed | non-sealed
+Enables exhaustive switch — compiler can verify all cases covered
 ```
 
-**Follow-up Questions**
+**Text Blocks (Java 15)**
+```
+// Before — escape hell
+String json = "{\n  \"name\": \"Alice\",\n  \"age\": 30\n}";
 
-- "What happens if one of the futures in `allOf` times out?"
-- "How would you implement a timeout for the entire dashboard call?"
-- "How do you handle partial success "” some calls succeed, some fail?"
-
-**Common Mistakes**
-
-- Using `ForkJoinPool.commonPool()` for IO-bound parallel calls.
-- Calling `join()` before `allOf` completes "” this blocks the current thread.
-- Not setting a timeout on the final `get()` "” a hung service can block forever.
-
-**Interview Traps**
-
-- `join()` vs `get()`: both block until the future completes. `join()` throws unchecked `CompletionException`; `get()` throws checked `ExecutionException`. In `thenApply` callbacks, use `join()` since you cannot throw checked exceptions.
-
-**Quick Revision Notes**
-
-- Parallel API calls: `supplyAsync` each + `allOf` + `thenApply(v -> joinAll)`.
-- Use custom IO executor, not `commonPool`.
-- `join()` in callbacks (unchecked); `get(timeout, unit)` at the call site.
-- Partial failure: wrap each future in `exceptionally` before `allOf`.
-- Latency approximately equals slowest call, not sum of all calls.
-
----
-
-
----
-
-## Section 5: Java 9-17 Important Additions
-
----
-
-### Q22: What is the `var` keyword introduced in Java 10?
-
-**Difficulty:** Easy | **Interview Frequency:** Medium
-**Companies:** Amazon, Google, Atlassian, Adobe
-
-**Short Answer (30-60 seconds)**
-`var` enables local variable type inference - the compiler infers the type from the right-hand side at compile time. It is not dynamic typing; the type is fixed at compile time. It can only be used for local variables with initializers, not for fields, method parameters, or return types.
-
-**Deep Explanation**
-
-`var` is purely a compile-time feature. The bytecode is identical to writing the explicit type. The compiler reads the initializer expression and determines the type - this is called LVTI (Local Variable Type Inference).
-
-**Where `var` can be used:**
-- Local variables with an initializer
-- Loop variables (`for (var entry : map.entrySet())`)
-- Try-with-resources variables
-
-**Where `var` cannot be used:**
-- Instance or static fields
-- Method parameters
-- Method return types
-- Without an initializer (`var x;` is illegal)
-- With null initializer (`var x = null;` is illegal - type cannot be inferred)
-
-**Java 17 Code Example**
-
-```java
-import java.util.*;
-import java.util.stream.*;
-
-public class VarDemo {
-    public static void main(String[] args) {
-        // Clear - type obvious from constructor
-        var list = new ArrayList<String>();
-        list.add("Alice");
-        list.add("Bob");
-
-        // Clear - type obvious from Map.entry
-        var map = Map.of("a", 1, "b", 2);
-        for (var entry : map.entrySet()) {
-            System.out.println(entry.getKey() + "=" + entry.getValue());
+// After
+String json = """
+        {
+          "name": "Alice",
+          "age": 30
         }
+        """;
+// Indentation is stripped to the leftmost non-whitespace column
+// Closing """ position controls indent stripping
+```
 
-        // Avoid var when type is not obvious from right-hand side
-        // var result = userService.findActive();  // What type is this?
-    }
+**Pattern Matching for `instanceof` (Java 16) — the single most interview-critical example:**
+
+```java
+// Before Java 16 — check then cast (redundant)
+if (obj instanceof String) {
+    String s = (String) obj;   // cast we already know is safe
+    System.out.println(s.toUpperCase());
+}
+
+// Java 16+ — check and bind in one step
+if (obj instanceof String s) {
+    System.out.println(s.toUpperCase());  // s is String, scoped to true-branch
+}
+
+// Combine with && guard
+if (obj instanceof String s && s.length() > 5) {
+    System.out.println("Long string: " + s);
 }
 ```
 
-**Follow-up Questions**
-- "Is `var` dynamic typing like JavaScript?" (No - type is fixed at compile time.)
-- "Can you use `var` for a lambda expression?" (No - lambda needs a target type.)
-- "Does `var` affect performance?" (No - identical bytecode.)
+**Feature comparison table:**
 
-**Common Mistakes**
-- Using `var` where the type is not obvious, making code harder to read.
-- Trying to use `var` for fields or method parameters.
-
-**Interview Trap**
-```java
-var list = new ArrayList<>();   // inferred as ArrayList<Object>, NOT ArrayList<String>
-list.add("hello");
-list.add(42);   // compiles - no generic type constraint
-```
-Always provide the generic type: `var list = new ArrayList<String>()`.
-
-**Quick Revision**
-> `var` = compile-time local type inference. Not dynamic. Cannot use for fields/params/return types. Always provide generic type argument when using with collections.
+| Feature | Java Version | Problem Solved |
+|---|---|---|
+| `var` | 10 | Verbose type declarations on local variables |
+| Text Blocks | 15 (final) | Escape sequences in embedded SQL/JSON/HTML strings |
+| Records | 16 (final) | Boilerplate POJO/DTO code |
+| Pattern Matching `instanceof` | 16 (final) | Redundant cast after type check |
+| Sealed Classes | 17 (final) | Unrestricted open inheritance hierarchies |
 
 ---
 
-### Q23: What are Records in Java 16?
+### Interview Lens
 
-**Difficulty:** Easy-Medium | **Interview Frequency:** High
-**Companies:** Amazon, Google, Goldman Sachs, Stripe, Atlassian
+> **How to use this section:** Each question below is self-contained. You can read just this section the night before an interview and walk in prepared. Every concept referenced is explained inline — no need to flip back.
 
-**Short Answer (30-60 seconds)**
-Records are immutable data carrier classes introduced in Java 16. They automatically generate a canonical constructor, `equals()`, `hashCode()`, `toString()`, and accessor methods for all components. They replace boilerplate-heavy POJOs/DTOs and signal clear intent: this class carries data, not behavior.
-
-**Deep Explanation**
-
-A record declaration `record Point(int x, int y) {}` generates:
-- A `private final` field for each component
-- A canonical constructor matching all components
-- Public accessor methods named after the fields (`x()`, `y()`) - not `getX()`
-- `equals()` and `hashCode()` based on all components
-- `toString()` in the format `Point[x=1, y=2]`
-
-**Compact constructor** for validation:
-```java
-record PositiveAmount(double value) {
-    PositiveAmount {
-        if (value <= 0) throw new IllegalArgumentException("Amount must be positive");
-    }
-}
-```
-
-**Java 17 Code Example**
-
-```java
-public class RecordDemo {
-
-    record Point(double x, double y) {
-        Point {
-            if (Double.isNaN(x) || Double.isNaN(y))
-                throw new IllegalArgumentException("Coordinates cannot be NaN");
-        }
-
-        public double distanceTo(Point other) {
-            double dx = this.x - other.x;
-            double dy = this.y - other.y;
-            return Math.sqrt(dx * dx + dy * dy);
-        }
-    }
-
-    record Pair<A, B>(A first, B second) {}
-
-    public static void main(String[] args) {
-        var p1 = new Point(3, 4);
-        var p2 = new Point(0, 0);
-        System.out.println(p1);                         // Point[x=3.0, y=4.0]
-        System.out.println(p1.distanceTo(p2));          // 5.0
-        System.out.println(p1.equals(new Point(3, 4))); // true
-
-        var pair = new Pair<>("hello", 42);
-        System.out.println(pair.first() + ", " + pair.second());
-    }
-}
-```
-
-**Follow-up Questions**
-- "Can a record extend another class?" (No - implicitly extends Record.)
-- "Can a record be mutable?" (No - all fields are final.)
-- "Can records be used as JPA entities?" (No - JPA requires a no-arg constructor and mutable fields.)
-
-**Common Mistakes**
-- Expecting getter-style method names (`getX()`) - records use `x()`.
-- Trying to use records as JPA entities.
-
-**Quick Revision**
-> Record = immutable data carrier. Auto-generates constructor, equals/hashCode, toString, accessors. Cannot extend classes. Compact constructor for validation. Not suitable for JPA entities.
+> *Tip: In a real interview, lead with the one-line answer first. Pause. Expand only if the interviewer nods or probes.*
 
 ---
 
-### Q24: What are Sealed Classes in Java 17?
+#### Q1 — Concept Check
 
-**Difficulty:** Medium | **Interview Frequency:** Medium
-**Companies:** Amazon, Google, Goldman Sachs
+**"What is `var` and is Java now dynamically typed?"**
 
-**Short Answer (30-60 seconds)**
-Sealed classes restrict which classes can extend or implement them using the `permits` clause. They enable exhaustive pattern matching - the compiler knows all possible subtypes, so switch expressions can be verified as complete. They model closed domain hierarchies where all subtypes are known.
+**One-line answer:** `var` is local variable type inference — the compiler infers the type from the right-hand side at compile time; the type is still static and fixed, just not written by the programmer.
 
-**Deep Explanation**
+**Full answer to give in an interview:**
+> "`var` was introduced in Java 10. It tells the compiler: 'figure out the type from the right-hand side so I don't have to write it.' So `var list = new ArrayList<String>()` — the compiler knows `list` is `ArrayList<String>` and enforces that everywhere.
+>
+> This is not dynamic typing. Java remains statically typed. The variable's type is fully resolved at compile time. There is no runtime dispatch based on assigned value. If I write `var x = 42` and then try to assign a `String` to `x` later, the compiler rejects it.
+>
+> The restrictions: only local variables with an initializer. Not fields, not method parameters, not return types. You cannot write `var x = null` because there's no type to infer. You also cannot use `var` in a lambda parameter in most contexts — with the notable exception of annotating lambda parameters in Java 11 where `var` allows annotation syntax like `(@NonNull var s) -> s.length()`.
+>
+> When to use it: when the type is obvious from the right-hand side (constructor call, literal, method name that makes it clear). Avoid it when the type is non-obvious — it hurts readability without saving much."
 
-Each permitted subclass must be `final`, `sealed`, or `non-sealed`.
-- `final` - no further subclassing
-- `sealed` - further restricts its own subclasses
-- `non-sealed` - reopens the hierarchy
+*The 'statically typed at compile time' clarification is the key point interviewers test. Hit it explicitly.*
 
-**Java 17 Code Example**
-
-```java
-public sealed interface PaymentMethod
-    permits CreditCard, BankTransfer, Wallet {}
-
-public record CreditCard(String cardNumber, String cvv) implements PaymentMethod {}
-public record BankTransfer(String accountNumber, String routingNumber) implements PaymentMethod {}
-public final class Wallet implements PaymentMethod {
-    private final double balance;
-    public Wallet(double balance) { this.balance = balance; }
-    public double getBalance() { return balance; }
-}
-
-public class PaymentProcessor {
-    public double getProcessingFee(PaymentMethod method) {
-        return switch (method) {
-            case CreditCard cc  -> 2.9;
-            case BankTransfer bt -> 0.50;
-            case Wallet w       -> 0.0;
-            // No default needed - compiler knows all cases are covered
-        };
-    }
-}
-```
-
-**Follow-up Questions**
-- "What must permitted subclasses be declared as?" (final, sealed, or non-sealed)
-- "How do sealed classes enable exhaustive switch?"
-
-**Quick Revision**
-> Sealed class = closed hierarchy with `permits`. Subclasses must be final/sealed/non-sealed. Enables exhaustive switch. Ideal for domain result types and discriminated unions.
+**Gotcha follow-up they'll ask:** *"Can you use `var` for a lambda parameter?"*
+> Only in Java 11+ and only to attach annotations: `(@NotNull var x) -> x.toUpperCase()`. In Java 10, `var` in lambdas was not allowed. In practice this is rarely used. You cannot infer the lambda parameter type without `var` in normal lambdas anyway.
 
 ---
 
-### Q25: What are Text Blocks in Java 15?
+#### Q2 — Concept Check
 
-**Difficulty:** Easy | **Interview Frequency:** Medium
-**Companies:** Any company using Java 15+
+**"What are Records in Java 16 and when would you use them over a regular class?"**
 
-**Short Answer (30-60 seconds)**
-Text blocks are multiline string literals delimited by `"""`. They preserve line breaks without escape sequences, making embedded SQL, JSON, HTML readable. The compiler strips incidental indentation based on the closing `"""` position.
+**One-line answer:** Records are immutable data carrier classes that auto-generate the constructor, accessors, `equals`, `hashCode`, and `toString` — ideal for DTOs, value objects, and event payloads.
 
-**Java 17 Code Example**
+**Full answer to give in an interview:**
+> "Before records, creating a proper immutable data class in Java meant writing: constructor, private final fields, accessor methods, `equals()`, `hashCode()`, and `toString()` — easily 40–50 lines for a simple three-field object. Lombok helped, but it was a build-time annotation processor.
+>
+> Records collapse that to one line: `record Point(int x, int y) {}`. The compiler generates everything. The accessor methods are `x()` and `y()`, not `getX()` and `getY()` — important detail interviewers check. The constructor validates its arguments automatically (you can add a compact constructor for custom validation).
+>
+> Records are implicitly final — no subclassing. They implicitly extend `java.lang.Record`. Their components are final — mutation after construction is not allowed. This makes them safe to share across threads without synchronization.
+>
+> I use records for: API response DTOs, database query result projections, event objects in messaging, value objects in domain-driven design. I wouldn't use them where I need mutable state, inheritance, or JPA entity mapping (JPA requires no-arg constructors and mutable fields)."
 
-```java
-public class TextBlockDemo {
-    public static void main(String[] args) {
+*The accessor naming (`x()` not `getX()`), JPA incompatibility, and immutability are the three gotcha points to hit.*
 
-        String query = """
-                SELECT u.id, u.name, u.email
-                FROM users u
-                WHERE u.active = true
-                ORDER BY u.created_at DESC
-                """;
-
-        String json = """
-                {
-                    "orderId": "ORD-001",
-                    "amount": 99.99
-                }
-                """;
-
-        String html = """
-                <html>
-                    <body><h1>Hello, %s!</h1></body>
-                </html>
-                """.formatted("World");
-
-        // Line continuation - no newline in output
-        String oneLine = """
-                This is \
-                one line""";
-        System.out.println(oneLine);  // "This is one line"
-    }
-}
-```
-
-**Common Mistakes**
-- Placing closing `"""` at column 0 strips all indentation unexpectedly.
-
-**Quick Revision**
-> Text blocks = `"""..."""`. No escape needed for quotes or newlines. Strips incidental indentation. Use `.formatted()` for interpolation. Ideal for SQL, JSON, HTML in tests.
+**Gotcha follow-up they'll ask:** *"Can a Record implement an interface?"*
+> Yes. Records can implement interfaces — they just can't extend classes (other than `Record`). This is a common pattern: define a `Printable` or `Serializable` interface and have records implement it.
 
 ---
 
-### Q26: What is Pattern Matching for `instanceof` in Java 16?
+#### Q3 — Concept Check
 
-**Difficulty:** Easy | **Interview Frequency:** High
-**Companies:** Amazon, Google, Goldman Sachs, Atlassian
+**"What are Sealed Classes in Java 17 and what problem do they solve?"**
 
-**Short Answer (30-60 seconds)**
-Pattern matching for `instanceof` eliminates the explicit cast after a type check. Instead of `if (obj instanceof String) { String s = (String) obj; ... }`, you write `if (obj instanceof String s) { ... }` - the variable `s` is automatically bound and cast within the true-branch scope.
+**One-line answer:** Sealed classes restrict which classes can extend or implement them, giving the compiler a closed set of subtypes — enabling exhaustive, verified switch expressions and modeling closed domain hierarchies.
 
-**Deep Explanation**
+**Full answer to give in an interview:**
+> "By default in Java, any class or interface can be extended by anyone. This open-world assumption is great for frameworks but bad when you want to model a closed domain. For example, a `PaymentMethod` in a billing system should only ever be `CreditCard`, `BankTransfer`, or `Wallet` — not an arbitrary subclass from some random package.
+>
+> Sealed classes enforce this with a `permits` clause: `sealed interface PaymentMethod permits CreditCard, BankTransfer, Wallet {}`. The compiler refuses to compile any other class that implements `PaymentMethod`.
+>
+> The payoff is exhaustive pattern matching. When I write a `switch` over a `PaymentMethod`, the compiler can verify I've handled all three permitted types and warn me if I add a fourth type later and forget to update the switch. Before Java 17, the compiler had no way to know whether the switch was exhaustive.
+>
+> Each permitted subclass must be declared as `final` (no further extension), `sealed` (further restricts its own subtypes), or `non-sealed` (reopens the hierarchy — essentially opts out). All permitted classes must be in the same package or module as the sealed class."
 
-The pattern variable is in scope only where the type check holds true. It can be combined with `&&` for compound conditions. Pairs naturally with sealed classes and switch expressions for exhaustive type dispatch.
+*The exhaustive switch / compiler verification angle is why sealed classes matter — connect it to pattern matching in switches.*
 
-**Java 17 Code Example**
+**Gotcha follow-up they'll ask:** *"How do Sealed Classes interact with Records?"*
+> They compose naturally. A `sealed interface` with `record` implementations is idiomatic Java 17: you get the closed hierarchy from sealing and the concise syntax from records. `record CreditCard(String cardNumber, String cvv) implements PaymentMethod {}` — both features work together.
 
-```java
-public class PatternMatchingDemo {
+---
 
-    sealed interface Shape permits Circle, Rectangle, Triangle {}
-    record Circle(double radius) implements Shape {}
-    record Rectangle(double width, double height) implements Shape {}
-    record Triangle(double base, double height) implements Shape {}
+#### Q4 — Concept Check
 
-    public static double area(Shape shape) {
-        if (shape instanceof Circle c) {
-            return Math.PI * c.radius() * c.radius();
-        } else if (shape instanceof Rectangle r) {
-            return r.width() * r.height();
-        } else if (shape instanceof Triangle t) {
-            return 0.5 * t.base() * t.height();
-        }
-        throw new IllegalArgumentException("Unknown shape");
-    }
+**"What is pattern matching for `instanceof` and how does it differ from the old approach?"**
 
-    // Cleaner with switch expression (Java 21 standard)
-    public static double areaSwitch(Shape shape) {
-        return switch (shape) {
-            case Circle c    -> Math.PI * c.radius() * c.radius();
-            case Rectangle r -> r.width() * r.height();
-            case Triangle t  -> 0.5 * t.base() * t.height();
-        };
-    }
+**One-line answer:** It eliminates the redundant explicit cast after an `instanceof` check by binding a typed variable in the same expression — less code, and the scope of the variable is narrowed to exactly where the type is guaranteed.
 
-    public static void main(String[] args) {
-        System.out.println(area(new Circle(5)));          // ~78.5
-        System.out.println(area(new Rectangle(4, 6)));   // 24.0
-        System.out.println(areaSwitch(new Triangle(3, 8))); // 12.0
+**Full answer to give in an interview:**
+> "The classic Java idiom was: `if (obj instanceof String) { String s = (String) obj; ... }`. The cast on the second line is technically redundant — we just checked the type on the first line. It's noise the programmer must write and the reader must parse.
+>
+> Pattern matching for `instanceof`, finalized in Java 16, collapses this: `if (obj instanceof String s) { ... }`. The variable `s` is of type `String`, scoped to the true branch of the `if`. No cast needed. If the condition is false, `s` is out of scope — the compiler prevents accidental use.
+>
+> You can combine the type check with a guard using `&&`: `if (obj instanceof String s && s.length() > 5)`. The `&&` short-circuits, so `s` is always valid when `s.length()` is evaluated.
+>
+> This is a stepping stone toward full switch pattern matching (Java 21+), where you can switch over an object and match against multiple types with guards. In Java 17, the `instanceof` form is already final and production-ready. It also works well with sealed classes: when you switch over a sealed type, the compiler knows all possible patterns."
 
-        // Guard clause pattern
-        Object obj = "hello";
-        if (!(obj instanceof String s)) return;
-        System.out.println(s.toUpperCase()); // s in scope here
-    }
-}
+*Mentioning the scope narrowing and the Java 21 switch pattern matching roadmap signals awareness of the feature trajectory.*
+
+**Gotcha follow-up they'll ask:** *"What happens if the object is null — does the pattern variable bind?"*
+> No. `null instanceof String s` evaluates to `false` — no `NullPointerException`, and `s` is not bound. This is the same behavior as the old `instanceof` — it has always returned `false` for null. The new pattern matching preserves that behavior.
+
+---
+
+> **Common Mistake — Using `var` where the type is non-obvious:**
+> Writing `var result = userService.findByEmail(email)` hides the return type from the reader. The IDE shows it on hover, but code review tools, diff viewers, and junior readers all lose the type context. Use `var` only when the type is self-evident from the right-hand side — constructor calls, literals, and clearly named factory methods.
+
+**Quick Revision (one line):** Java 9–17 is all about ergonomics: `var` cuts declaration noise, Records cut POJO boilerplate, Sealed Classes close open hierarchies for exhaustive matching, Text Blocks end escape-sequence hell, and pattern matching `instanceof` removes redundant casts — all static, all compile-time safe.
+
+---
+
+## Topic 8: Java 8+ Quick Reference
+
+**Difficulty:** Medium | **Frequency:** Very High | **Companies:** All — appears in almost every senior Java interview
+
+---
+
+### The Idea
+
+This topic is a synthesis layer. You know the individual features — lambdas, streams, Optional, CompletableFuture, records. What trips candidates up in interviews is the *decision layer*: when do you pick one tool over another? Interviewers love "compare X vs Y" and "what would you never do with Z" because those questions separate people who read the docs from people who've shipped production Java.
+
+Think of this as your mental decision tree. When you see a collection-processing task, you should instantly know whether to reach for a stream or a loop. When you design an API return type, you should know whether `Optional` belongs there. When you write async code, you should know whether `CompletableFuture` or a plain thread is right. These aren't academic distinctions — they're the judgment calls that define a senior Java engineer.
+
+---
+
+### How It Works
+
+**Lambda vs Method Reference — decision rule:**
+```
+Use method reference when: the lambda body is a single method call that forwards all arguments exactly
+
+  list.forEach(s -> System.out.println(s))    → list.forEach(System.out::println)       ✓
+  list.stream().map(s -> s.toUpperCase())     → list.stream().map(String::toUpperCase)  ✓
+
+  list.stream().map(s -> s.trim().toUpperCase())  → stay with lambda (two operations)   ✗
+  list.stream().filter(s -> s.length() > 5)       → stay with lambda (not a method ref) ✗
+
+Method reference types:
+  Static:   ClassName::staticMethod       (Integer::parseInt)
+  Instance: instance::method              (System.out::println)
+  Unbound:  ClassName::instanceMethod     (String::toUpperCase — applied to each element)
+  Constructor: ClassName::new             (ArrayList::new)
 ```
 
-**Follow-up Questions**
-- "What is the scope of the pattern variable in a negated instanceof check?"
-- "How does this relate to sealed classes?"
+**Stream vs Loop — decision rules:**
+```
+Prefer STREAM when:
+  - Transforming / filtering / collecting a pipeline
+  - Readability matters more than micro-performance
+  - Parallel processing is needed (.parallelStream())
+  - You want lazy evaluation (infinite streams, short-circuit with findFirst/anyMatch)
 
-**Quick Revision**
-> `obj instanceof Type t` binds `t` in the true-branch. No explicit cast needed. Combines with `&&`. Pairs with sealed classes for exhaustive switch dispatch.
+Prefer LOOP when:
+  - You need early exit with complex state changes (break + mutation)
+  - Performance is critical and profiling shows stream overhead
+  - Checked exceptions must be thrown (streams don't propagate checked exceptions cleanly)
+  - You're iterating and mutating external mutable state (confusing inside stream lambdas)
+  - Debugging is hard: stack traces through stream pipelines are noisy
+```
+
+**Optional dos and don'ts:**
+```
+DO:
+  - Return Optional<T> from methods that legitimately have no result
+  - Use orElse(default), orElseGet(supplier), orElseThrow() to extract value safely
+  - Use map(), flatMap(), filter() to transform without null checks
+  - Use Optional for repository return types (findById → Optional<User>)
+
+DON'T:
+  - Use Optional as a field type in a class (serialization issues, heap overhead)
+  - Use Optional as a method parameter (caller can still pass Optional.empty() or null — not a null guard)
+  - Call get() without isPresent() check (defeats the purpose — same as NPE risk)
+  - Use Optional<List<T>> — return empty list instead, never null collections
+  - Use Optional in collections: List<Optional<T>> is an anti-pattern
+```
+
+**CompletableFuture vs plain Future:**
+```
+Feature                    | Future        | CompletableFuture
+---------------------------|---------------|------------------
+Non-blocking callback      | No            | Yes (thenApply, thenAccept)
+Combine multiple futures   | No            | Yes (allOf, anyOf, thenCombine)
+Exception handling         | try/catch get()| exceptionally, handle
+Manual completion          | No            | complete(), completeExceptionally()
+Timeout                    | No (Java 8-)  | orTimeout() (Java 9+)
+Cancel propagates          | Stops task    | Downstream stages still run
+
+Rule: if you need callbacks, combination, or error recovery → CompletableFuture always.
+Use plain Future only in legacy code or when submitting a single task and blocking for it immediately.
+```
+
+**Which Java 9–17 features matter most in interviews:**
+```
+Tier 1 — Asked constantly:
+  Records        → "Replace this DTO class with a record"
+  var            → "Is Java dynamically typed now?"
+  Pattern matching instanceof → "Clean up this type dispatch code"
+
+Tier 2 — Asked often in design questions:
+  Sealed Classes → "How would you model a closed payment type hierarchy?"
+  Text Blocks    → "How do you embed SQL/JSON in Java cleanly?"
+
+Tier 3 — Good to mention, rarely drilled:
+  Switch Expressions (Java 14) → returns a value, no fall-through
+  Stream.toList() (Java 16)    → unmodifiable list without Collectors.toList()
+  Map.copyOf(), List.copyOf() (Java 10) → defensive immutable copies
+```
+
+**The one Java gotcha table every senior candidate must know:**
+
+| Gotcha | Wrong | Right |
+|---|---|---|
+| `allOf` result | `allOf.thenApply(v -> getResult())` | Collect individual futures, `join()` after `allOf` |
+| `Optional` parameter | `void save(Optional<String> name)` | Overload the method instead |
+| `thenApply` + async fn | `future.thenApply(id -> fetchAsync(id))` | `future.thenCompose(id -> fetchAsync(id))` |
+| Stream with checked ex | `stream.map(f -> checkedMethod(f))` | Wrap in try/catch inside lambda or use utility |
+| Record accessor name | `point.getX()` | `point.x()` — records don't use `get` prefix |
+| Sealed class subtype | `non-sealed` reopens hierarchy | Use `final` unless you explicitly want to reopen |
+
+---
+
+### Interview Lens
+
+> **How to use this section:** Each question below is self-contained. You can read just this section the night before an interview and walk in prepared. Every concept referenced is explained inline — no need to flip back.
+
+> *Tip: In a real interview, lead with the one-line answer first. Pause. Expand only if the interviewer nods or probes.*
+
+---
+
+#### Q1 — Tradeoff Question
+
+**"When would you use a stream and when would you use a for-loop?"**
+
+**One-line answer:** Use streams for declarative pipelines — transform, filter, collect — where readability wins; use loops when you need early exit with mutable state, must throw checked exceptions, or profiling shows stream overhead.
+
+**Full answer to give in an interview:**
+> "The real question is readability vs. control. Streams shine when I'm describing *what* to do: `employees.stream().filter(e -> e.isActive()).map(Employee::getSalary).reduce(0, Integer::sum)`. The intent is clear at a glance.
+>
+> Loops are better when I need control flow that doesn't map cleanly to stream operators. If I need to `break` with complex state — say, I'm searching and also accumulating a side-effect result — a loop is clearer. Streams don't support `break` at all; `findFirst` or `anyMatch` provide short-circuiting but only for simple termination.
+>
+> Checked exceptions are the other big pain point. If `readFile(path)` throws `IOException`, I can't write `paths.stream().map(this::readFile)` without wrapping it in a try/catch inside the lambda — ugly. A loop handles it naturally.
+>
+> Performance: parallel streams are genuinely useful for CPU-bound work on large datasets. For small in-memory collections under a few thousand elements, streams and loops are effectively equivalent. I wouldn't optimize prematurely — profiler first."
+
+*The checked exception pain point is a detail many candidates miss — it signals real experience.*
+
+**Gotcha follow-up they'll ask:** *"Can you use `parallelStream()` safely on any collection?"*
+> No. `parallelStream()` splits work using the ForkJoinPool. If the stream pipeline has side effects — writing to a shared list, for example — you'll get race conditions. It's only safe when each element's processing is independent and you're collecting to a thread-safe terminal (like `collect(Collectors.toList())`). Also, the overhead of splitting and joining means it's only faster than sequential for large datasets with CPU-heavy per-element work.
+
+---
+
+#### Q2 — Tradeoff Question
+
+**"What are the rules you follow for `Optional` — when to use it and when not to?"**
+
+**One-line answer:** Return `Optional<T>` from methods that may legitimately have no result; never use it as a field type, method parameter, or wrapper around collections.
+
+**Full answer to give in an interview:**
+> "The purpose of `Optional` is to make the absence of a value explicit at the API level — it's a contract that says 'this method might not find anything.' Repository methods like `findById(id)` are the canonical use case.
+>
+> The antipatterns: using `Optional` as a method parameter is pointless — the caller can still pass `Optional.empty()` or even null, so you haven't gained safety. Use method overloading instead. Using `Optional` as a field type causes serialization issues (Jackson can't map `Optional<String>` cleanly without configuration) and adds heap overhead for every instance.
+>
+> `Optional<List<T>>` is always wrong — if you have no items, return an empty list, not `Optional<List>`. The same applies to `Optional<String>` for empty-vs-absent — be explicit about whether empty string and absent are the same case.
+>
+> The other antipattern: calling `optional.get()` without checking `isPresent()`. You've just recreated the NPE risk. Always use `orElse(default)`, `orElseGet(supplier)`, or `orElseThrow(exception)`. Chain transformations with `map()` and `filter()` to stay in the `Optional` monad until you're forced to extract."
+
+*The four specific antipatterns (field, parameter, collection wrapper, bare `get()`) give the answer structure and signal breadth of experience.*
+
+**Gotcha follow-up they'll ask:** *"What's the difference between `orElse` and `orElseGet`?"*
+> `orElse(value)` always evaluates the argument — even if the Optional has a value. `orElseGet(supplier)` evaluates the supplier lazily, only when the Optional is empty. If the default is expensive to compute (database call, object creation), always use `orElseGet`. Using `orElse` with a method call is a common performance bug.
+
+---
+
+#### Q3 — Tradeoff Question
+
+**"Lambda vs method reference — how do you decide which to use?"**
+
+**One-line answer:** Use a method reference when the lambda body is a single method call that passes all arguments directly; stay with a lambda when there's any transformation, composition, or conditional logic.
+
+**Full answer to give in an interview:**
+> "Method references are a readability win when they make the intent obvious. `list.stream().map(String::toUpperCase)` reads like English. The reader immediately knows we're transforming each string by uppercasing it, without wading through lambda syntax.
+>
+> But method references become a readability loss when they obscure intent. `stream.map(this::processAndValidate)` — what does `processAndValidate` do? I'd rather see `stream.map(item -> validate(transform(item)))` so the two steps are visible at the call site.
+>
+> The technical decision: if the lambda body is exactly `args -> SomeClass.method(args)` or `args -> obj.method(args)` with no modification, a method reference works. If I'm adding arguments, calling two methods, adding a conditional — stay with the lambda.
+>
+> One subtle gotcha: unbound instance method references like `String::toUpperCase` look like static references but aren't. The first argument becomes the receiver. `stream.map(String::toUpperCase)` is equivalent to `stream.map(s -> s.toUpperCase())`. Interviewers sometimes ask about this to test whether you understand the four method reference forms."
+
+*The four method reference forms and the unbound instance method distinction are the knowledge signals interviewers probe for.*
+
+**Gotcha follow-up they'll ask:** *"Can a method reference throw a checked exception?"*
+> Yes, if the functional interface it targets declares the exception. But most built-in functional interfaces (`Function`, `Predicate`, `Consumer`) don't declare checked exceptions. You can't use a method reference that throws `IOException` with `Stream.map()` — you'd need a custom functional interface that declares the exception, or wrap the call in a try/catch. This is one of the rougher edges of Java streams.
+
+---
+
+#### Q4 — Design Scenario
+
+**"If I gave you a legacy Java 8 codebase and said 'modernize it to Java 17,' what changes would you make and in what order?"**
+
+**One-line answer:** Start with Records for DTOs (highest boilerplate reduction), then `var` for verbose declarations, then pattern matching to clean up instanceof casts, then text blocks for embedded strings, then sealed classes for closed hierarchies where exhaustive matching matters.
+
+**Full answer to give in an interview:**
+> "I'd prioritize by impact-to-risk ratio.
+>
+> First, Records. DTOs and value objects are the biggest boilerplate in most Java codebases. Converting a 50-line `UserDto` to `record UserDto(String name, String email, long id) {}` is low risk (immutability is a strict improvement for DTOs) and high impact. One caveat: skip JPA entities — records and JPA are incompatible due to JPA's no-arg constructor requirement.
+>
+> Second, `var` for obvious local declarations. I'd do this conservatively — only where the type is clear from the right-hand side. This is a purely cosmetic change with zero semantic impact.
+>
+> Third, pattern matching `instanceof`. Search for the two-line pattern `if (x instanceof Foo) { Foo f = (Foo) x; ... }` and collapse it. Again, zero semantic change — strictly cleaner.
+>
+> Fourth, text blocks for embedded SQL, JSON, HTML strings. Easy wins — find string concatenation with `\n` and `\"` sequences.
+>
+> Last, sealed classes — these require design thought. I'd apply them only to existing hierarchies that are already de-facto closed. Don't force it on genuinely open extension points.
+>
+> Throughout: I'd leave `CompletableFuture` and streams alone unless there are correctness bugs. Async refactoring carries real risk and needs load testing."
+
+*The JPA–Records incompatibility and the risk-ordered migration plan show production thinking, not just syntax knowledge.*
+
+**Gotcha follow-up they'll ask:** *"Records are immutable. How do you handle validation in a Record constructor?"*
+> Use a compact constructor — a constructor with no parameter list that runs inside the canonical constructor. You can validate and throw there: `record Range(int min, int max) { Range { if (min > max) throw new IllegalArgumentException("min > max"); } }`. The compact constructor runs before the fields are assigned, giving you a validation hook.
+
+---
+
+> **Common Mistake — Treating Java 9–17 features as optional polish:**
+> Not adopting Records for DTOs in a Java 17 codebase is a red flag in code review. The features aren't syntactic sugar to be ignored — they're the idiomatic way to write modern Java, and interviewers expect you to use them. A 40-line POJO with getters and Lombok annotations when you could have a 1-line record signals the candidate hasn't kept current.
+
+**Quick Revision (one line):** The Java 8+ decision framework: method references for simple forwarding, streams for pipelines, Optional for nullable returns (never fields or params), CompletableFuture for anything async over `Future`, and Java 9–17 features (Records, `var`, sealed, text blocks, pattern matching) as the default idiom in any Java 17+ codebase.
 
 ---
 
@@ -2868,4 +1578,8 @@ public class PatternMatchingDemo {
 ---
 
 *End of Chapter 4 - Next: Chapter 5: JVM Internals*
+
+---
+
+*End of Chapter 4: Java 8+ Features*
 
