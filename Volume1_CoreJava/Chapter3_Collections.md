@@ -282,29 +282,22 @@ list.clear();  // capacity still 2000
       <path d="M0,0 L0,6 L8,3 z" fill="#f59e0b"/>
     </marker>
   </defs>
-
   <rect width="760" height="300" fill="#f8fafc" rx="10"/>
   <text x="380" y="28" text-anchor="middle" fill="#1e293b" font-size="14" font-weight="700">Singly Linked List — Traverse, Insert, Delete</text>
-
   <text id="head-label" x="100" y="82" text-anchor="middle" fill="#6366f1" font-size="11" font-weight="700">HEAD</text>
   <line x1="100" y1="86" x2="100" y2="100" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arr)"/>
-
   <!-- Node A -->
   <rect x="60" y="100" width="50" height="40" fill="#f1f5f9" stroke="#6366f1" stroke-width="2" rx="6"/>
   <rect x="110" y="100" width="30" height="40" fill="#e0e7ff" stroke="#6366f1" stroke-width="1.5"/>
   <text x="85" y="125" text-anchor="middle" fill="#1e293b" font-size="14" font-weight="700">A</text>
   <text x="125" y="118" text-anchor="middle" fill="#64748b" font-size="8">next</text>
-
   <line x1="140" y1="120" x2="198" y2="120" stroke="#6366f1" stroke-width="2" marker-end="url(#arr)"/>
-
   <!-- Node B -->
   <rect x="200" y="100" width="50" height="40" fill="#f1f5f9" stroke="#6366f1" stroke-width="2" rx="6"/>
   <rect x="250" y="100" width="30" height="40" fill="#e0e7ff" stroke="#6366f1" stroke-width="1.5"/>
   <text x="225" y="125" text-anchor="middle" fill="#1e293b" font-size="14" font-weight="700">B</text>
   <text x="265" y="118" text-anchor="middle" fill="#64748b" font-size="8">next</text>
-
   <line id="arrow-bc-orig" x1="280" y1="120" x2="338" y2="120" stroke="#6366f1" stroke-width="2" marker-end="url(#arr)"/>
-
   <!-- Node C (deletable) -->
   <g id="delete-node-c">
     <rect x="340" y="100" width="50" height="40" fill="#f1f5f9" stroke="#6366f1" stroke-width="2" rx="6"/>
@@ -313,7 +306,6 @@ list.clear();  // capacity still 2000
     <text x="405" y="118" text-anchor="middle" fill="#64748b" font-size="8">next</text>
     <line x1="420" y1="120" x2="478" y2="120" stroke="#6366f1" stroke-width="2" marker-end="url(#arr)"/>
   </g>
-
   <!-- Delete X over C -->
   <g id="delete-label">
     <line x1="335" y1="98" x2="425" y2="148" stroke="#ef4444" stroke-width="2.5"/>
@@ -321,24 +313,20 @@ list.clear();  // capacity still 2000
     <rect x="336" y="88" width="66" height="18" fill="#fef2f2" stroke="#ef4444" stroke-width="1" rx="3"/>
     <text x="369" y="101" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">DELETE</text>
   </g>
-
   <!-- Node D -->
   <rect x="480" y="100" width="50" height="40" fill="#f1f5f9" stroke="#6366f1" stroke-width="2" rx="6"/>
   <rect x="530" y="100" width="30" height="40" fill="#e0e7ff" stroke="#6366f1" stroke-width="1.5"/>
   <text x="505" y="125" text-anchor="middle" fill="#1e293b" font-size="14" font-weight="700">D</text>
   <text x="545" y="118" text-anchor="middle" fill="#64748b" font-size="8">next</text>
-
   <line x1="560" y1="120" x2="608" y2="120" stroke="#6366f1" stroke-width="2" marker-end="url(#arr)"/>
   <rect x="610" y="108" width="36" height="24" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" rx="4"/>
   <text x="628" y="124" text-anchor="middle" fill="#94a3b8" font-size="10" font-weight="600">null</text>
-
   <!-- Traverse pointer -->
   <g id="ptr-group">
     <line x1="100" y1="155" x2="100" y2="146" stroke="#f59e0b" stroke-width="2" marker-end="url(#arr-ptr)"/>
     <rect x="72" y="158" width="56" height="20" fill="#fffbeb" stroke="#f59e0b" stroke-width="1.5" rx="4"/>
     <text x="100" y="172" text-anchor="middle" fill="#92400e" font-size="10" font-weight="700">curr</text>
   </g>
-
   <!-- Insert node E -->
   <g id="insert-node">
     <rect x="280" y="40" width="50" height="40" fill="#d1fae5" stroke="#10b981" stroke-width="2" rx="6"/>
@@ -348,17 +336,14 @@ list.clear();  // capacity still 2000
     <rect x="268" y="30" width="72" height="16" fill="#ecfdf5" stroke="#10b981" stroke-width="1" rx="3"/>
     <text x="304" y="42" text-anchor="middle" fill="#065f46" font-size="9" font-weight="700">INSERT</text>
   </g>
-
   <path id="arrow-be" d="M 265 108 Q 265 60 278 60" fill="none" stroke="#10b981" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arr-green)"/>
   <path id="arrow-ec" d="M 360 80 Q 360 100 358 100" fill="none" stroke="#10b981" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arr-green)"/>
   <path id="arrow-ed" d="M 360 80 Q 470 60 490 100" fill="none" stroke="#10b981" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arr-green)"/>
-
   <!-- Step label bar -->
   <rect x="40" y="262" width="680" height="28" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1" rx="6"/>
   <text id="lbl-traverse" x="380" y="280" text-anchor="middle" fill="#4f46e5" font-size="11" font-weight="600">Traversal: follow next pointers from HEAD until null  —  O(n)</text>
   <text id="lbl-insert" x="380" y="280" text-anchor="middle" fill="#065f46" font-size="11" font-weight="600">Insert E after B: B.next = E, E.next = C  —  O(1) pointer rewire</text>
   <text id="lbl-delete" x="380" y="280" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="600">Delete C: E.next = D  —  O(1) once predecessor found</text>
-
   <!-- Legend -->
   <g transform="translate(50,240)">
     <rect x="0" y="-10" width="14" height="14" fill="#f1f5f9" stroke="#6366f1" stroke-width="1.5" rx="2"/>
@@ -1033,9 +1018,7 @@ System.out.println(set.size()); // 1, not 2
       .arrow { stroke-width: 1.8; fill: none; marker-end: url(#arrowhead); }
       .title-text { fill: #94a3b8; font-size: 11px; font-weight: 500; }
       .step-label { fill: #64748b; font-size: 9px; text-anchor: middle; }
-
       /* ── Arrow markers ── */
-
       /* ── PHASE TIMING (total loop = 6s) ──
          Phase 1: 0-0.8s  — idle/reset
          Phase 2: 0.8-2.0s — put "cat" → bucket 3
@@ -1044,7 +1027,6 @@ System.out.println(set.size()); // 1, not 2
          Phase 5: 4.6-5.4s — treeify flash
          Phase 6: 5.4-6.0s — hold/fade
       */
-
       /* ══════════════════════════════════
          KEY "cat" — appears at t=0.8s
       ══════════════════════════════════ */
@@ -1060,7 +1042,6 @@ System.out.println(set.size()); // 1, not 2
         73.3% { opacity: 0; }   /* 4.4s */
         100%  { opacity: 0; }
       }
-
       /* Arrow: key-cat → hash box */
       #arrow-cat-hash {
         opacity: 0;
@@ -1073,7 +1054,6 @@ System.out.println(set.size()); // 1, not 2
         26.7% { opacity: 0; }
         100%  { opacity: 0; }
       }
-
       /* Hash box pulse for cat */
       #hash-box-cat {
         opacity: 0;
@@ -1086,7 +1066,6 @@ System.out.println(set.size()); // 1, not 2
         28.3% { opacity: 0; }
         100%  { opacity: 0; }
       }
-
       /* Arrow: hash → bucket 3 (cat) */
       #arrow-hash-b3-cat {
         opacity: 0;
@@ -1099,7 +1078,6 @@ System.out.println(set.size()); // 1, not 2
         33.3% { opacity: 0; }
         100%  { opacity: 0; }
       }
-
       /* Node "cat" in bucket 3 */
       #node-cat {
         opacity: 0;
@@ -1114,7 +1092,6 @@ System.out.println(set.size()); // 1, not 2
         78.3% { opacity: 0; transform: translateY(0);   }
         100%  { opacity: 0; transform: translateY(0);   }
       }
-
       /* ══════════════════════════════════
          KEY "dog" — appears at t=2.0s
       ══════════════════════════════════ */
@@ -1130,7 +1107,6 @@ System.out.println(set.size()); // 1, not 2
         73.3% { opacity: 0; }
         100%  { opacity: 0; }
       }
-
       #arrow-dog-hash {
         opacity: 0;
         animation: arrowDogHash 6s linear infinite;
@@ -1142,7 +1118,6 @@ System.out.println(set.size()); // 1, not 2
         46.7% { opacity: 0; }
         100%  { opacity: 0; }
       }
-
       #hash-box-dog {
         opacity: 0;
         animation: hashDog 6s linear infinite;
@@ -1154,7 +1129,6 @@ System.out.println(set.size()); // 1, not 2
         48.3% { opacity: 0; }
         100%  { opacity: 0; }
       }
-
       #arrow-hash-b3-dog {
         opacity: 0;
         animation: arrowHashB3Dog 6s linear infinite;
@@ -1166,7 +1140,6 @@ System.out.println(set.size()); // 1, not 2
         53.3% { opacity: 0; }
         100%  { opacity: 0; }
       }
-
       /* Collision label */
       #collision-label {
         opacity: 0;
@@ -1180,7 +1153,6 @@ System.out.println(set.size()); // 1, not 2
         63.3% { opacity: 0; }
         100%  { opacity: 0; }
       }
-
       /* Node "dog" chained after "cat" */
       #node-dog {
         opacity: 0;
@@ -1195,7 +1167,6 @@ System.out.println(set.size()); // 1, not 2
         78.3% { opacity: 0; transform: translateY(0);   }
         100%  { opacity: 0; transform: translateY(0);   }
       }
-
       /* Link line between cat→dog nodes */
       #link-cat-dog {
         opacity: 0;
@@ -1209,7 +1180,6 @@ System.out.println(set.size()); // 1, not 2
         78.3% { opacity: 0; }
         100%  { opacity: 0; }
       }
-
       /* ══════════════════════════════════
          KEY "fox" — appears at t=3.4s
       ══════════════════════════════════ */
@@ -1225,7 +1195,6 @@ System.out.println(set.size()); // 1, not 2
         81.7% { opacity: 0; }
         100%  { opacity: 0; }
       }
-
       #arrow-fox-hash {
         opacity: 0;
         animation: arrowFoxHash 6s linear infinite;
@@ -1237,7 +1206,6 @@ System.out.println(set.size()); // 1, not 2
         68.3% { opacity: 0; }
         100%  { opacity: 0; }
       }
-
       #hash-box-fox {
         opacity: 0;
         animation: hashFox 6s linear infinite;
@@ -1249,7 +1217,6 @@ System.out.println(set.size()); // 1, not 2
         70.3% { opacity: 0; }
         100%  { opacity: 0; }
       }
-
       #arrow-hash-b6-fox {
         opacity: 0;
         animation: arrowHashB6Fox 6s linear infinite;
@@ -1261,7 +1228,6 @@ System.out.println(set.size()); // 1, not 2
         73.7% { opacity: 0; }
         100%  { opacity: 0; }
       }
-
       #node-fox {
         opacity: 0;
         transform: translateY(8px);
@@ -1275,7 +1241,6 @@ System.out.println(set.size()); // 1, not 2
         93.3% { opacity: 0; transform: translateY(0);   }
         100%  { opacity: 0; transform: translateY(0);   }
       }
-
       /* ══════════════════════════════════
          TREEIFY FLASH at t=4.6s
       ══════════════════════════════════ */
@@ -1291,7 +1256,6 @@ System.out.println(set.size()); // 1, not 2
         95.0% { opacity: 0; }
         100%  { opacity: 0; }
       }
-
       /* Bucket highlight on treeify */
       #bucket3-highlight {
         opacity: 0;
@@ -1306,7 +1270,6 @@ System.out.println(set.size()); // 1, not 2
         100%  { opacity: 0; }
       }
     </style>
-
     <marker id="arrowhead" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
       <polygon points="0 0, 7 3.5, 0 7" fill="#6366f1" opacity="0.85"/>
     </marker>
@@ -1317,65 +1280,51 @@ System.out.println(set.size()); // 1, not 2
       <polygon points="0 0, 7 3.5, 0 7" fill="#f59b0b" opacity="0.9"/>
     </marker>
   </defs>
-
   <!-- ── Background ── -->
   <rect width="760" height="340" fill="#f8fafc" rx="10"/>
-
   <!-- ── Title ── -->
   <text x="380" y="22" text-anchor="middle" fill="#1e293b" font-size="13" font-weight="700" font-family="system-ui">HashMap Internals — put() Lifecycle</text>
-
   <!-- ════════════════════════════════════════
        BUCKET ARRAY  (8 buckets, y=40..200)
   ════════════════════════════════════════ -->
   <!-- bucket width=72, gap=8, start x=40 -->
-
   <!-- Bucket 0 -->
   <rect x="40" y="50" width="72" height="60" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" rx="4"/>
   <text x="76" y="66" class="bucket-index">0</text>
   <text x="76" y="95" class="bucket-label">null</text>
-
   <!-- Bucket 1 -->
   <rect x="120" y="50" width="72" height="60" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" rx="4"/>
   <text x="156" y="66" class="bucket-index">1</text>
   <text x="156" y="95" class="bucket-label">null</text>
-
   <!-- Bucket 2 -->
   <rect x="200" y="50" width="72" height="60" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" rx="4"/>
   <text x="236" y="66" class="bucket-index">2</text>
   <text x="236" y="95" class="bucket-label">null</text>
-
   <!-- Bucket 3 (active — cat/dog) -->
   <rect x="280" y="50" width="72" height="60" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" rx="4"/>
   <!-- treeify highlight layer -->
   <rect id="bucket3-highlight" x="280" y="50" width="72" height="60" fill="#f59b0b" stroke="none" rx="4"/>
   <text x="316" y="66" class="bucket-index">3</text>
-
   <!-- Bucket 4 -->
   <rect x="360" y="50" width="72" height="60" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" rx="4"/>
   <text x="396" y="66" class="bucket-index">4</text>
   <text x="396" y="95" class="bucket-label">null</text>
-
   <!-- Bucket 5 -->
   <rect x="440" y="50" width="72" height="60" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" rx="4"/>
   <text x="476" y="66" class="bucket-index">5</text>
   <text x="476" y="95" class="bucket-label">null</text>
-
   <!-- Bucket 6 (active — fox) -->
   <rect x="520" y="50" width="72" height="60" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" rx="4"/>
   <text x="556" y="66" class="bucket-index">6</text>
-
   <!-- Bucket 7 -->
   <rect x="600" y="50" width="72" height="60" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" rx="4"/>
   <text x="636" y="66" class="bucket-index">7</text>
   <text x="636" y="95" class="bucket-label">null</text>
-
   <!-- Array label -->
   <text x="40" y="44" fill="#64748b" font-size="9" font-family="system-ui">table[ ]  (capacity = 8)</text>
-
   <!-- ════════════════════════════════════════
        LINKED LIST NODES below bucket 3
   ════════════════════════════════════════ -->
-
   <!-- Node "cat" (first node in bucket 3) -->
   <g id="node-cat">
     <rect x="282" y="125" width="68" height="22" fill="#d1fae5" stroke="#10b981" stroke-width="1.5" rx="5"/>
@@ -1384,7 +1333,6 @@ System.out.println(set.size()); // 1, not 2
     <rect x="338" y="131" width="12" height="10" fill="#d1fae5" stroke="#10b981" stroke-width="1" rx="2"/>
     <text x="344" y="139" fill="#065f46" font-size="7" text-anchor="middle">→</text>
   </g>
-
   <!-- Node "dog" (chained after cat) -->
   <g id="node-dog">
     <rect x="282" y="158" width="68" height="22" fill="#fef3c7" stroke="#f59b0b" stroke-width="1.5" rx="5"/>
@@ -1392,10 +1340,8 @@ System.out.println(set.size()); // 1, not 2
     <rect x="338" y="164" width="12" height="10" fill="#fef3c7" stroke="#f59b0b" stroke-width="1" rx="2"/>
     <text x="344" y="172" fill="#92400e" font-size="7" text-anchor="middle">∅</text>
   </g>
-
   <!-- Link line cat → dog -->
   <line id="link-cat-dog" x1="316" y1="147" x2="316" y2="158" stroke="#f59b0b" stroke-width="1.5" stroke-dasharray="3,2" marker-end="url(#arrowhead-amber)"/>
-
   <!-- Node "fox" in bucket 6 -->
   <g id="node-fox">
     <rect x="522" y="125" width="68" height="22" fill="#d1fae5" stroke="#10b981" stroke-width="1.5" rx="5"/>
@@ -1403,29 +1349,24 @@ System.out.println(set.size()); // 1, not 2
     <rect x="578" y="131" width="12" height="10" fill="#d1fae5" stroke="#10b981" stroke-width="1" rx="2"/>
     <text x="584" y="139" fill="#065f46" font-size="7" text-anchor="middle">∅</text>
   </g>
-
   <!-- ════════════════════════════════════════
        STEP INPUT AREA  (y ≈ 200–270)
   ════════════════════════════════════════ -->
-
   <!-- Key "cat" pill -->
   <g id="key-cat">
     <rect x="60" y="205" width="52" height="22" fill="#1d4ed8" stroke="#3b82f6" stroke-width="1.5" rx="6"/>
     <text x="86" y="220" fill="#eff6ff" font-size="11" font-weight="600" text-anchor="middle">"cat"</text>
   </g>
-
   <!-- Key "dog" pill -->
   <g id="key-dog">
     <rect x="60" y="205" width="52" height="22" fill="#1d4ed8" stroke="#3b82f6" stroke-width="1.5" rx="6"/>
     <text x="86" y="220" fill="#eff6ff" font-size="11" font-weight="600" text-anchor="middle">"dog"</text>
   </g>
-
   <!-- Key "fox" pill -->
   <g id="key-fox">
     <rect x="60" y="205" width="52" height="22" fill="#1d4ed8" stroke="#3b82f6" stroke-width="1.5" rx="6"/>
     <text x="86" y="220" fill="#eff6ff" font-size="11" font-weight="600" text-anchor="middle">"fox"</text>
   </g>
-
   <!-- Arrow key → hash (shared path, colored per step via separate elements) -->
   <!-- cat -->
   <g id="arrow-cat-hash">
@@ -1439,52 +1380,44 @@ System.out.println(set.size()); // 1, not 2
   <g id="arrow-fox-hash">
     <line x1="114" y1="216" x2="158" y2="216" stroke="#6366f1" stroke-width="1.8" marker-end="url(#arrowhead)"/>
   </g>
-
   <!-- Hash function box — cat -->
   <g id="hash-box-cat">
     <rect x="160" y="204" width="88" height="24" fill="#f1f5f9" stroke="#6366f1" stroke-width="1.5" rx="6"/>
     <text x="204" y="220" fill="#a5b4fc" font-size="9" font-weight="600" text-anchor="middle">hashCode() % 8</text>
     <text x="204" y="233" fill="#6366f1" font-size="8" text-anchor="middle">→ index 3</text>
   </g>
-
   <!-- Hash function box — dog -->
   <g id="hash-box-dog">
     <rect x="160" y="204" width="88" height="24" fill="#f1f5f9" stroke="#6366f1" stroke-width="1.5" rx="6"/>
     <text x="204" y="220" fill="#a5b4fc" font-size="9" font-weight="600" text-anchor="middle">hashCode() % 8</text>
     <text x="204" y="233" fill="#f59b0b" font-size="8" text-anchor="middle">→ index 3 !</text>
   </g>
-
   <!-- Hash function box — fox -->
   <g id="hash-box-fox">
     <rect x="160" y="204" width="88" height="24" fill="#f1f5f9" stroke="#6366f1" stroke-width="1.5" rx="6"/>
     <text x="204" y="220" fill="#a5b4fc" font-size="9" font-weight="600" text-anchor="middle">hashCode() % 8</text>
     <text x="204" y="233" fill="#6366f1" font-size="8" text-anchor="middle">→ index 6</text>
   </g>
-
   <!-- Arrow hash → bucket 3 (cat) — diagonal up-right -->
   <g id="arrow-hash-b3-cat">
     <path d="M 248 212 Q 290 190 312 114" stroke="#10b981" stroke-width="1.8" fill="none" stroke-dasharray="5,3" marker-end="url(#arrowhead-green)"/>
     <text x="268" y="193" fill="#10b981" font-size="8" font-weight="600">bucket[3]</text>
   </g>
-
   <!-- Arrow hash → bucket 3 (dog/collision) -->
   <g id="arrow-hash-b3-dog">
     <path d="M 248 212 Q 290 190 312 114" stroke="#f59b0b" stroke-width="1.8" fill="none" stroke-dasharray="5,3" marker-end="url(#arrowhead-amber)"/>
     <text x="268" y="193" fill="#f59b0b" font-size="8" font-weight="600">bucket[3]</text>
   </g>
-
   <!-- Arrow hash → bucket 6 (fox) -->
   <g id="arrow-hash-b6-fox">
     <path d="M 248 212 Q 390 190 548 114" stroke="#10b981" stroke-width="1.8" fill="none" stroke-dasharray="5,3" marker-end="url(#arrowhead-green)"/>
     <text x="388" y="196" fill="#10b981" font-size="8" font-weight="600">bucket[6]</text>
   </g>
-
   <!-- Collision label -->
   <g id="collision-label">
     <rect x="270" y="194" width="92" height="16" fill="#fef3c7" stroke="#f59b0b" stroke-width="1" rx="4"/>
     <text x="316" y="205" fill="#92400e" font-size="9" font-weight="700" text-anchor="middle">⚡ COLLISION</text>
   </g>
-
   <!-- ════════════════════════════════════════
        TREEIFY PANEL
   ════════════════════════════════════════ -->
@@ -1501,37 +1434,27 @@ System.out.println(set.size()); // 1, not 2
     <circle cx="309" cy="183" r="3" fill="#10b981"/>
     <circle cx="323" cy="183" r="3" fill="#10b981"/>
   </g>
-
   <!-- ════════════════════════════════════════
        LEGEND  (y ≈ 300–330)
   ════════════════════════════════════════ -->
   <rect x="40" y="296" width="680" height="30" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" rx="6"/>
-
   <!-- legend item 1 -->
   <rect x="52" y="305" width="12" height="12" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" rx="2"/>
   <text x="69" y="315" fill="#64748b" font-size="9" font-family="system-ui">Array of Buckets</text>
-
   <line x1="168" y1="304" x2="168" y2="318" stroke="#cbd5e1" stroke-width="1"/>
-
   <!-- legend item 2 -->
   <rect x="178" y="305" width="12" height="12" fill="#fef3c7" stroke="#f59b0b" stroke-width="1.5" rx="2"/>
   <text x="195" y="315" fill="#64748b" font-size="9" font-family="system-ui">Hash Collision → Linked List</text>
-
   <line x1="358" y1="304" x2="358" y2="318" stroke="#cbd5e1" stroke-width="1"/>
-
   <!-- legend item 3 -->
   <rect x="368" y="305" width="12" height="12" fill="#fffbeb" stroke="#f59b0b" stroke-width="1.5" rx="2"/>
   <text x="385" y="315" fill="#64748b" font-size="9" font-family="system-ui">8+ Nodes → Red-Black Tree</text>
-
   <line x1="530" y1="304" x2="530" y2="318" stroke="#cbd5e1" stroke-width="1"/>
-
   <!-- legend item 4 -->
   <rect x="540" y="305" width="12" height="12" fill="#d1fae5" stroke="#10b981" stroke-width="1.5" rx="2"/>
   <text x="557" y="315" fill="#64748b" font-size="9" font-family="system-ui">Successful insert</text>
-
   <!-- Step annotation strip -->
   <text x="380" y="285" text-anchor="middle" fill="#1e293b" font-size="8" font-family="system-ui">Java 8+ HashMap — default load factor 0.75, default capacity 16 (shown here as 8 for clarity)</text>
-
 </svg>
 
 ---
