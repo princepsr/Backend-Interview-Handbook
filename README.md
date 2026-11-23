@@ -4,6 +4,10 @@
 
 **Java 17 · Spring Boot 3.x · Distributed Systems**
 
+### 📖 [Read the live handbook online →](https://princepsr.github.io/Backend-Interview-Handbook/)
+
+[Full Handbook](https://princepsr.github.io/Backend-Interview-Handbook/combined/cover.html) · [Vol 1: Core Java](https://princepsr.github.io/Backend-Interview-Handbook/vol1/cover.html) · [Vol 2: Spring](https://princepsr.github.io/Backend-Interview-Handbook/vol2/cover.html) · [Vol 3: Backend Systems](https://princepsr.github.io/Backend-Interview-Handbook/vol3/cover.html) · [Vol 4: Databases](https://princepsr.github.io/Backend-Interview-Handbook/vol4/cover.html) · [Vol 5: System Design & LLD](https://princepsr.github.io/Backend-Interview-Handbook/vol5/cover.html) · [Vol 6: Revision Pack](https://princepsr.github.io/Backend-Interview-Handbook/vol6/cover.html)
+
 ---
 
 | | |
