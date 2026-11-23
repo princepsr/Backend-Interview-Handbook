@@ -35,4 +35,4 @@ This volume covers the Java fundamentals that appear in virtually every backend 
 
 ---
 
-*Volume 1 of 6 · [Full Handbook](../../book_output/index.html)*
+*Volume 1 of 6 · [Full Handbook](../combined/cover.html)*

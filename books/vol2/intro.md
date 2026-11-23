@@ -31,4 +31,4 @@ Spring is the default framework for Java backend roles. Interviewers assume you 
 
 ---
 
-*Volume 2 of 6 · [Full Handbook](../../book_output/index.html)*
+*Volume 2 of 6 · [Full Handbook](../combined/cover.html)*

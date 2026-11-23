@@ -52,4 +52,4 @@ The design round is the primary differentiator at SDE2. Most candidates can code
 
 ---
 
-*Volume 5 of 6 · [Full Handbook](../../book_output/index.html)*
+*Volume 5 of 6 · [Full Handbook](../combined/cover.html)*

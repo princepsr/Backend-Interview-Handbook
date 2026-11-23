@@ -34,4 +34,4 @@ Databases are a dedicated interview round at most companies. This volume covers 
 
 ---
 
-*Volume 4 of 6 · [Full Handbook](../../book_output/index.html)*
+*Volume 4 of 6 · [Full Handbook](../combined/cover.html)*

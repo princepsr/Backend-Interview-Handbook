@@ -35,4 +35,4 @@ This volume covers the distributed systems layer that separates SDE2 from SDE1 c
 
 ---
 
-*Volume 3 of 6 · [Full Handbook](../../book_output/index.html)*
+*Volume 3 of 6 · [Full Handbook](../combined/cover.html)*

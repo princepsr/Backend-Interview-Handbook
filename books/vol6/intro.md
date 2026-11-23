@@ -84,4 +84,4 @@ The Q&As are drawn from all 5 volumes and span every format you'll face in a rea
 
 ---
 
-*Volume 6 of 6 · [Full Handbook](../../book_output/index.html)*
+*Volume 6 of 6 · [Full Handbook](../combined/cover.html)*
